@@ -147,6 +147,7 @@ KeepAliveTimeout 60
 		<Item Name="C2" Type="Folder">
 			<Item Name="C2_yaw.vi" Type="VI" URL="../C2_yaw.vi"/>
 			<Item Name="C2_depth.vi" Type="VI" URL="../C2_depth.vi"/>
+			<Item Name="C2_roll.vi" Type="VI" URL="../C2_roll.vi"/>
 		</Item>
 		<Item Name="subVI" Type="Folder"/>
 		<Item Name="Chassis" Type="cRIO Chassis">
