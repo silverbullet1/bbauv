@@ -2,7 +2,7 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b thruster_control 
+\b motor_control 
 
 <!-- 
 Provide an overview of your package.
