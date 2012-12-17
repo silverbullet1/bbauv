@@ -27,7 +27,7 @@ int main(int argc,char** argv) {
 	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("motor_controller",1000);
 	ros::Subscriber sub = nh.subscribe("monitor_controller",1000,monitorCallBack);
 	ros::Rate loop_rate(10);
-	int absx,absy,absyaw,absmax;
+	float absx,absy,absyaw,absmax;
 	while (ros::ok()) {
 		thrusterMsg.speed1 = mapRatio*z;
 		thrusterMsg.speed4 = mapRatio*z;
