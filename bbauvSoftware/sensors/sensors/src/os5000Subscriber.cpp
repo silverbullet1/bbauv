@@ -14,7 +14,7 @@ void chatterCallback(const os5000::compassData::ConstPtr& compassMsg) {
 }
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "sensorsListener");
+	ros::init(argc, argv, "os5000Subscriber");
 
 	ros::NodeHandle n;
 
