@@ -1,0 +1,10 @@
+<launch>
+
+  <group ns="bbauv">
+    <node pkg="manual_control" name="monitor_manualControl" type="manualControl"/>
+    <node pkg="joy" name="monitor_joy" type="joy_node"/>
+    <node pkg="controlPublisher" name="controller_thrusterPublisher" type="thrusterPublisher"/>
+    <node pkg="rosserial_python" type="serial_node.py"/>
+  </group>
+
+</launch>
