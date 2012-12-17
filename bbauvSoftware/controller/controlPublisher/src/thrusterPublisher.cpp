@@ -38,22 +38,27 @@ int main(int argc,char** argv) {
 		absmax = absx;
 		if (absy > absmax) absmax = absy;
 		if (absyaw > absmax) absmax = absyaw;
+		ROS_DEBUG("%f %f %f %f\n",absx,absy,absyaw,absmax);
 		
-		if (absmax = absx) {
+		if (absmax == absx) {
+			ROS_DEBUG("absx");
 			thrusterMsg.speed2 = 0;
 			thrusterMsg.speed3 = mapRatio*x;
 			thrusterMsg.speed5 = mapRatio*x;
 		}
-		else if (absmax = absy) {
+		else if (absmax == absy) {
+			ROS_DEBUG("absy");
 			thrusterMsg.speed2 = mapRatio*y;
 			thrusterMsg.speed3 = mapRatio*y/sqrt2;
 			thrusterMsg.speed5 = -mapRatio*y/sqrt2;
 		}
 		else {
+			ROS_DEBUG("absyaw");
 			thrusterMsg.speed2 = mapRatio*yaw;
 			thrusterMsg.speed3 = -mapRatio*yaw/sqrt2;
 			thrusterMsg.speed5 = mapRatio*yaw/sqrt2;
 		}
+		ROS_DEBUG("%d %d %d %d %d\n",thrusterMsg.speed1,thrusterMsg.speed2,thrusterMsg.speed3,thrusterMsg.speed4,thrusterMsg.speed5);
 		pub.publish(thrusterMsg);
 
 		ros::spinOnce();
