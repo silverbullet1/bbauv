@@ -23,11 +23,11 @@ int main(int argc,char** argv) {
 	ros::Rate loop_rate(10);
 
 	while (ros::ok()) {
-		thrusterMsg.speed1 = z;
-		thrusterMsg.speed4 = z;
-		thrusterMsg.speed2 = (y + yaw)/(-2);
-		thrusterMsg.speed3 = ((yaw - y)/sqrt2 - x) / 2;
-		thrusterMsg.speed5 = (- (yaw - y)/sqrt2 - x) / 2;
+		thrusterMsg.speed1 = 3200*z;
+		thrusterMsg.speed4 = 3200*z;
+		thrusterMsg.speed2 = 3200*(y + yaw)/(-2);
+		thrusterMsg.speed3 = 3200*((yaw - y)/sqrt2 - x) / 2;
+		thrusterMsg.speed5 = 3200*(-(yaw - y)/sqrt2 - x) / 2;
 		pub.publish(thrusterMsg);
 
 		ros::spinOnce();
