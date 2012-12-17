@@ -14,7 +14,8 @@ void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
 	yaw = msg->yaw;
 }
 
-float abs(float input) {
+float absolute(float input) {
+
 	if (input < 0) return (-input);
 	else return input;
 }
@@ -30,9 +31,9 @@ int main(int argc,char** argv) {
 	while (ros::ok()) {
 		thrusterMsg.speed1 = mapRatio*z;
 		thrusterMsg.speed4 = mapRatio*z;
-		absx = abs(x);
-		absy = abs(y);
-		absyaw = abs(yaw);
+		absx = absolute(x);
+		absy = absolute(y);
+		absyaw = absolute(yaw);
 		//find the largest absoluted number
 		absmax = absx;
 		if (absy > absmax) absmax = absy;
