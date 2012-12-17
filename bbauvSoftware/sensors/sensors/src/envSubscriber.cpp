@@ -4,19 +4,19 @@
 /**
  * This tutorial demonstrates simple receipt of messages over the ROS system.
  */
-void chatterCallback(const bbauv_msgs::env_data::ConstPtr& msg)
+void msgprint(const bbauv_msgs::env_data::ConstPtr& msg)
 {
-    double T0 = msg->Temp0;
-    double T1 = msg->Temp1;
-    double T2 = msg->Temp2;
-    double D  = msg->Depth;
-    double WDa = msg->WaterDetA;
-    double WDb = msg->WaterDetB;
-    double WDc = msg->WaterDetC;
+    float Temp0 = msg->Temp0;
+    float Temp1 = msg->Temp1;
+    float Temp2 = msg->Temp2;
+    float Depth  = msg->Depth;
+    float WaterDetA = msg->WaterDetA;
+    float WaterDetB = msg->WaterDetB;
+    float WaterDetC = msg->WaterDetC;
 
-    ROS_INFO("T0, T1, T2: [%lf %lf %lf]", T0, T1, T2);
-    ROS_INFO("D: [%lf]", D);
-    ROS_INFO("W (a, b, c): [%lf %lf %lf]", WDa, WDb, WDc);
+    ROS_INFO("Temp0, Temp1, Temp2: [%lf %lf %lf]", Temp0, Temp1, Temp2);
+    ROS_INFO("Depth: [%lf]", Depth);
+    ROS_INFO("Water (A, B, C): [%lf %lf %lf]", WaterDetA, WaterDetB, WaterDetC);
 }
 
 int main(int argc, char **argv)
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 
   ros::NodeHandle n;
 
-  ros::Subscriber topicname_sub = n.subscribe("env_data", 1000, topicnameCallback);
+  ros::Subscriber topicname_sub = n.subscribe("env_data", 1000, msgprint);
 
   ros::spin();
 
