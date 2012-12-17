@@ -65,7 +65,7 @@ OSCompass::~OSCompass()
 
 void OSCompass::publishData(ros::Publisher *pub_data)
 {
-	os5000::compassData compassMsg;
+	bbauv_msgs::compass_data compassMsg;
 	
 	compassMsg.yaw = yaw;
 	compassMsg.pitch = pitch;
@@ -117,7 +117,7 @@ void OSCompass::configCallback(os5000::os5000Config &config, uint32_t level)
 int main(int argc, char **argv)
 {
 	// Set up ROS.
-	ros::init(argc, argv, "compass_node");
+	ros::init(argc, argv, "os5000");
 	ros::NodeHandle n;
 	ros::NodeHandle private_node_handle_("~");
 
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 	int rate;
 
 	// Initialize node parameters.
-	private_node_handle_.param("baud",           baud,           int(115200));
+	private_node_handle_.param("baud",           baud,           int(19200));
 	private_node_handle_.param("init_time",      init_time,      int(3));
 	private_node_handle_.param("port",           portname,       string("/dev/ttyUSB0"));
 	private_node_handle_.param("pub_topic_name", pub_topic_name, string("os5000_data"));
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 	gain_srv.setCallback(f);
 
 	// Set up publishers.
-	ros::Publisher pubData = n.advertise<os5000::compassData>(pub_topic_name.c_str(), 1000);
+	ros::Publisher pubData = n.advertise<bbauv_msgs::compass_data>(pub_topic_name.c_str(), 1000);
 
 	// Tell ROS to run this node at the rate that the compass is sending messages to us.
 	ros::Rate r(rate);

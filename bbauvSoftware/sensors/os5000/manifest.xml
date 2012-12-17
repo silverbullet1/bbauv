@@ -9,8 +9,8 @@
 
   <depend package="dynamic_reconfigure"/>
   <depend package="roscpp"/>
-  <depend package="sensor_msgs"/>
   <depend package="tf"/>
+  <depend package="bbauv_msgs"/>
   
   <export>
     <cpp cflags="-I${prefix}/msg/cpp"/>

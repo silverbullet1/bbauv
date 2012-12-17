@@ -42,7 +42,7 @@
 // ROS includes.
 #include <ros/ros.h>
 #include <ros/time.h>
-#include <os5000/compassData.h>
+#include <bbauv_msgs/compass_data.h>
 #include <tf/transform_datatypes.h>
 
 // Local includes.

@@ -1,9 +1,9 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
-#include <os5000/compassData.h>
+#include <bbauv_msgs/compass_data.h>
 using namespace std;
 
-void chatterCallback(const os5000::compassData::ConstPtr& compassMsg) {
+void compassCallback(const bbauv_msgs::compass_data::ConstPtr& compassMsg) {
 	ROS_INFO("Heading: %f\n", compassMsg->yaw);
 	ROS_INFO("pitch: %f\n", compassMsg->pitch);
 	ROS_INFO("roll: %f\n", compassMsg->roll);
@@ -14,13 +14,11 @@ void chatterCallback(const os5000::compassData::ConstPtr& compassMsg) {
 }
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "os5000Subscriber");
-
+	ros::init(argc, argv, "sensorsSubscriber");
 	ros::NodeHandle n;
 
-	ros::Subscriber sub = n.subscribe("os5000_data", 1000, chatterCallback);
+	ros::Subscriber sub = n.subscribe("os5000_data", 1000, compassCallback);
 
 	ros::spin();
-
 	return 0;
 }

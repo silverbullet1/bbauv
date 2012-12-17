@@ -10,7 +10,7 @@ int x,y,z,yaw;
 void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
 	x = msg->x;
 	y = msg->y;
-	z = msg->z;
+    	z = msg->z;
 	yaw = msg->yaw;
 }
 
