@@ -15,13 +15,13 @@ void compassCallback(const bbauv_msgs::compass_data::ConstPtr& compassMsg) {
 	Ax = compassMsg->Ax;
 	Ay = compassMsg->Ay;
 	Az = compassMsg->Az;	
-	ROS_INFO("yaw        : %f\n",yaw);
-	ROS_INFO("pitch      : %f\n",pitch);
-	ROS_INFO("roll       : %f\n",roll);
-	ROS_INFO("temperature: %f\n",temperature);
-	ROS_INFO("Ax         : %f\n",Ax);
-	ROS_INFO("Ay         : %f\n",Ay);
-	ROS_INFO("Az         : %f\n",Az);
+	ROS_DEBUG("yaw        : %f\n",yaw);
+	ROS_DEBUG("pitch      : %f\n",pitch);
+	ROS_DEBUG("roll       : %f\n",roll);
+	ROS_DEBUG("temperature: %f\n",temperature);
+	ROS_DEBUG("Ax         : %f\n",Ax);
+	ROS_DEBUG("Ay         : %f\n",Ay);
+	ROS_DEBUG("Az         : %f\n",Az);
 }
 
 void envCallBack(const bbauv_msgs::env_data::ConstPtr& envMsg) {
@@ -32,13 +32,13 @@ void envCallBack(const bbauv_msgs::env_data::ConstPtr& envMsg) {
 	WaterDetA = envMsg->WaterDetA;
 	WaterDetB = envMsg->WaterDetB;
 	WaterDetC = envMsg->WaterDetC;
-	ROS_INFO("Temp0      : %f\n",Temp0);
-	ROS_INFO("Temp1      : %f\n",Temp1);
-	ROS_INFO("Temp2      : %f\n",Temp2);
-	ROS_INFO("Depth      : %f\n",Depth);
-	ROS_INFO("Water Det A: %f\n",WaterDetA);
-	ROS_INFO("Water Det B: %f\n",WaterDetB);
-	ROS_INFO("Water Det C: %f\n",WaterDetC);
+	ROS_DEBUG("Temp0      : %f\n",Temp0);
+	ROS_DEBUG("Temp1      : %f\n",Temp1);
+	ROS_DEBUG("Temp2      : %f\n",Temp2);
+	ROS_DEBUG("Depth      : %f\n",Depth);
+	ROS_DEBUG("Water Det A: %f\n",WaterDetA);
+	ROS_DEBUG("Water Det B: %f\n",WaterDetB);
+	ROS_DEBUG("Water Det C: %f\n",WaterDetC);
 }
 
 int main(int argc, char **argv) {
@@ -51,7 +51,8 @@ int main(int argc, char **argv) {
 	bbauv_msgs::sensors_data pubdata;
 	ros::Rate loop_rate(10);
 
-	while (nh.ok()) {
+	while (ros::ok()) {
+		ROS_DEBUG("sensorsSubscriber running\n");
 		pubdata.yaw = yaw;
 		pubdata.pitch = pitch;
 		pubdata.roll = roll;
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
 		pubdata.WaterDetC = WaterDetC;
 		pub.publish(pubdata);
 		
-		ros::spin();
+		ros::spinOnce();
 		loop_rate.sleep();
 	}
 	return 0;

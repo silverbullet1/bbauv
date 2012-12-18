@@ -29,12 +29,11 @@ int main(int argc, char** argv) {
 	
 
 	BOOST_FOREACH(rosbag::MessageInstance const m, view) {
-		std_msgs::Header::ConstPtr h=m.instantiate<std_msgs::Header>();
-		if (h!=NULL) {
-			myfile << h->stamp << ", ";
-		}
+		
 		bbauv_msgs::compass_data::ConstPtr s=m.instantiate<bbauv_msgs::compass_data>();
 		if (s!=NULL) {
+			//myfile << (m.getTime()).toSec() << ", ";
+			myfile << (ros::Time::now()-m.getTime()).toSec() << ", ";
 			myfile << s->yaw << ", ";
 			myfile << s->pitch << ", ";
 			myfile << s->roll << ", ";

@@ -4,6 +4,6 @@
     </node>
 
     <node
-        name="sensorsSubcriber" pkg="sensors" type="sensorsSubscriber">
+        name="sensorsSubscriber" pkg="sensors" type="sensorsSubscriber">
     </node>
 </launch>
