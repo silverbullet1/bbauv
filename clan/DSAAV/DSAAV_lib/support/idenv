@@ -1,0 +1,36 @@
+#!/bin/bash
+
+OSNAME=`uname -s`
+ARCH=`uname -m`
+
+if [[ $OSNAME == Linux ]]
+then
+  OSNAME="LINUX"
+fi
+
+if [[ $OSNAME == Darwin ]]
+then
+  OSNAME="OSX"
+  X86_64=`lipo -i /bin/sh | grep x86_64`
+  if [[ $X86_64 != "" ]]
+  then
+    ARCH="x86_64"
+  fi
+fi
+
+while [[ $1 != "" ]]
+do
+  if [[ $1 == "-OS" ]]
+  then
+    echo $OSNAME
+  fi
+  if [[ $1 == "-os" ]]
+  then
+    perl -e "print \"\L$OSNAME\E\n\";"
+  fi
+  if [[ $1 == "-arch" ]]
+  then
+    echo $ARCH
+  fi
+  shift
+done

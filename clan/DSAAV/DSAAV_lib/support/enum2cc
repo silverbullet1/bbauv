@@ -1,0 +1,81 @@
+#!/usr/bin/perl
+
+# usage: enum2cc <cc-filename> <h-filename> <list-of-h-files>
+$cc = shift @ARGV;
+$h = shift @ARGV;
+@files = @ARGV;
+
+# create cc file
+open G1,">$cc";
+print G1 "// This file is auto-generated, do not modify it\n\n";
+$h1 = $h;
+$h1 =~ s/^.*include\///;
+print G1 "#include <stdio.h>\n";
+print G1 "#include <string.h>\n";
+print G1 "#include <stdlib.h>\n";
+print G1 "#include <$h1>\n\n";
+print G1 "static char* numstr(int n) {\n";
+print G1 "  static char s[64];\n";
+print G1 "  sprintf(s,\"@%d\",n);";
+print G1 "  return s;\n";
+print G1 "}\n\n";
+
+# create h file
+open G2,">$h";
+print G2 "// This file is auto-generated, do not modify it\n\n";
+$h1 = "\U$h1\E";
+$h1 =~ s/[ \t\-\.]/_/g;
+print G2 "#ifndef _$h1"."_\n#define _$h1"."_\n\n#include <dsaav/dsaav.h>\n";
+foreach $f (@files) {
+  $f1 = $f;
+  $f1 =~ s/^.*include\///;
+  print G2 "#include <$f1>\n";
+}
+print G2 "\n";
+
+# process the enums
+$enum = 0;
+foreach $file (@files) {
+  open F,"<$file";
+  while (<F>) {
+    chop;
+    s/\/\/.*$//;                # remove comments
+    if ($enum == 0) {           # not in enum
+      if (/^enum /) {
+        s/^enum +//;            # extract enum name
+        s/[ \t{].*$//;
+        $name = $_;
+        $keys = "";
+        $enum = 1;
+      }
+    } else {                    # in enum
+      $keys .= $_;
+      $keys =~ s/=[^,]*//;
+      if (/}/) {
+        $enum = 0;
+        $keys =~ s/}.*$//;
+        $keys =~ s/[ \t]//g;
+        @keys = split(/,/,$keys);
+        print G2 "const char* \l$name"."2str($name key);\n";
+        print G1 "const char* \l$name"."2str($name key)\n{\n  switch (key) {\n";
+        foreach (@keys) {
+          print G1 "    case $_: return \"$_\";\n";
+        }
+        print G1 "    default: return numstr(key);\n";
+        print G1 "  }\n}\n\n";
+        print G2 "$name str2$name(const char* name);\n";
+        print G1 "$name str2$name(const char* name)\n{\n";
+        foreach (@keys) {
+          print G1 "  if (!strcmp(name,\"$_\")) return $_;\n";
+        }
+        print G1 "  return ($name)atoi(name);\n}\n\n";
+      }
+    }
+  }
+  close F;
+}
+
+# clean up
+print G2 "#endif\n";
+close G2;
+close G1;
