@@ -1,0 +1,9 @@
+<launch>
+    <node
+        pkg="os5000" name="oscompass" type="oscompass">
+    </node>
+
+    <node
+        name="sensorsSubcriber" pkg="sensors" type="sensorsSubcriber">
+    </node>
+</launch>
