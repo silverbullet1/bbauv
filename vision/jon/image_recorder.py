@@ -12,6 +12,10 @@ import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
+# Helper function to get a readable timestamp
+def get_timestamp():
+	import time
+	return time.strftime('%Y-%m-%d-%H%M%S')
 
 class ImageRecorder:
 	def __init__(self, tkroot):
@@ -68,7 +72,8 @@ class ImageRecorder:
 	def got_snap(self):
 		if self.cur_ros_img:
 			cvimg = self.rosimg2cv(self.cur_ros_img)
-			cv2.imwrite('sample.jpg', cvimg) #TODO: add timestamp to filename
+			filename = 'snapshot-' + get_timestamp() + '.jpg'
+			cv2.imwrite(filename, cvimg)
 
 
 	# Callback when Rec button is pressed
@@ -80,7 +85,8 @@ class ImageRecorder:
 		else:
 			# Start recording
 			self.rec_btn.config({'text': 'Stop'})
-			self.vid_writer = cv2.VideoWriter('sample.mpg', cv2.cv.CV_FOURCC(*'PIM1'), 24, (320, 240)) #TODO: add timestamp to filename, use actual video frame width and height and framerate
+			filename = 'recording-' + get_timestamp() + '.mpg'
+			self.vid_writer = cv2.VideoWriter(filename, cv2.cv.CV_FOURCC(*'PIM1'), 24, (320, 240)) #TODO: use actual video framerate, width, height
 
 
 if __name__ == '__main__':
