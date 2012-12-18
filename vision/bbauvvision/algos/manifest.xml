@@ -1,0 +1,19 @@
+<package>
+  <description brief="algos">
+
+     Algorithms for object detection.
+
+  </description>
+  <author>BBAUV Vision Team</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+
+  <depend package="std_msgs"/>
+  <depend package="sensor_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+  <depend package="cv_bridge"/>
+
+</package>
+
+
