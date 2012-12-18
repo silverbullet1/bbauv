@@ -1,6 +1,0 @@
-include/dsaav/rpc.h
-include/dsaav/icomms.h
-include/dsaav/ecomms.h
-include/dsaav/sa.h
-include/dsaav/monitor.h
-include/dsaav/log.h
