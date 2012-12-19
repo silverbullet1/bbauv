@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 	ros::Subscriber compassSub = nh.subscribe("os5000_data", 1000, compassCallback);
 	ros::Subscriber envSub = nh.subscribe("env_data", 1000, envCallBack);
 	ros::Subscriber monitorSub = nh.subscribe("monitor_controller",1000,monitorCallback);
-	ros::Subscriber thrusSub = nh.subscribe("thrusterPublisher",1000,thrusCallback);
+	ros::Subscriber thrusSub = nh.subscribe("motor_controller",1000,thrusCallback);
 	
 	ros::Rate loop_rate(10);
 	string output;
