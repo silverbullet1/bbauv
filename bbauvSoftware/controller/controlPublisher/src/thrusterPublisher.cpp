@@ -1,15 +1,17 @@
 #include <ros/ros.h>
 #include <bbauv_msgs/manual_control.h>
 #include <bbauv_msgs/thruster.h>
+#include <dynamic_reconfigure/server.h>
+#include <controlPublisher/thrusterRatiosConfig.h>
 using namespace std;
 
 const float sqrt2 = 1.4142;
 const int mapRatio = 2500;
-const int ratio1 = 1*mapRatio;
-const int ratio2 = 1*mapRatio;
-const int ratio3 = 1*mapRatio;
-const int ratio4 = 1*mapRatio;
-const int ratio5 = 1*mapRatio;
+const int ratio1 = config.thruster1*mapRatio;
+const int ratio2 = config.thruster2*mapRatio;
+const int ratio3 = config.thruster3*mapRatio;
+const int ratio4 = config.thruster4*mapRatio;
+const int ratio5 = config.thruster5*mapRatio;
 float x,y,z,yaw;
 
 void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
@@ -17,6 +19,13 @@ void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
 	y = msg->y;
 	z = msg->z;
 	yaw = msg->yaw;
+}
+
+void callback(controlPublisher::thrusterRatiosConfig &config, uint32_t level) {
+  	ROS_INFO("Reconfigure Request: %f %f %f %f %f", 
+            config.thruster1, config.thruster2, 
+            config.thruster3, config.thruster4,
+            config.thruster5);
 }
 
 float absolute(float input) {
@@ -29,6 +38,13 @@ int main(int argc,char** argv) {
 	ros::init(argc,argv,"thrusterPublisher");
 	ros::NodeHandle nh;
 	bbauv_msgs::thruster thrusterMsg;
+
+	dynamic_reconfigure::Server<controlPublisher::thrusterRatiosConfig> server;
+ 	dynamic_reconfigure::Server<controlPublisher::thrusterRatiosConfig>::CallbackType f;
+
+  	f = boost::bind(&callback, _1, _2);
+  	server.setCallback(f);
+
 	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("motor_controller",1000);
 	ros::Subscriber sub = nh.subscribe("monitor_controller",1000,monitorCallBack);
 	ros::Rate loop_rate(10);
