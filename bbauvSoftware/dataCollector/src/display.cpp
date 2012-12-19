@@ -4,6 +4,7 @@
 #include <bbauv_msgs/sensors_data.h>
 #include <bbauv_msgs/manual_control.h>
 #include <bbauv_msgs/thruster.h>
+#include <bbauv_msgs/log.h>
 #include <sstream>
 using namespace std;
 
@@ -11,6 +12,8 @@ float yaw,pitch,roll,temperature,Ax,Ay,Az;
 float Temp0,Temp1,Temp2,Depth,WaterDetA,WaterDetB,WaterDetC;
 float speed1,speed2,speed3,speed4,speed5;
 float monitorX,monitorY,monitorZ,monitorYaw;
+
+//char textfile_path[] = "text_files/testing.txt";
 
 void compassCallback(const bbauv_msgs::compass_data::ConstPtr& compassMsg) {
 	yaw = compassMsg->yaw;
@@ -50,12 +53,16 @@ void thrusCallback(const bbauv_msgs::thruster::ConstPtr& thrusMsg) {
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "display");
 	ros::NodeHandle nh;
-
+	bbauv_msgs::log pubdata;
 	ros::Subscriber compassSub = nh.subscribe("os5000_data", 1000, compassCallback);
 	ros::Subscriber envSub = nh.subscribe("env_data", 1000, envCallBack);
 	ros::Subscriber monitorSub = nh.subscribe("monitor_controller",1000,monitorCallback);
 	ros::Subscriber thrusSub = nh.subscribe("motor_controller",1000,thrusCallback);
-	
+	ros::Publisher pub = nh.advertise<bbauv_msgs::log>("logging",1000);
+
+	//ofstream myfile;
+	//myfile.open(textfile_path);
+
 	ros::Rate loop_rate(10);
 	string output;
 
@@ -73,9 +80,25 @@ int main(int argc, char **argv) {
 		out << "x y z yaw       : " << monitorX <<" - "<< monitorY <<" - "<< monitorZ <<" - "<< monitorYaw << endl;
 		out << "thruster: " << endl;
 		out << "speed1-5        : " << speed1 <<" - "<< speed2 <<" - "<< speed3 <<" - "<< speed4 <<" - "<< speed5 << endl;
-		
+
 		ROS_INFO((out.str()).c_str()); 
-					
+		pubdata.cmdX = monitorX;
+		pubdata.cmdY = monitorY;
+		pubdata.cmdZ = monitorZ;
+		pubdata.cmdYaw = monitorYaw;
+		pubdata.yaw = yaw;
+		pubdata.pitch = pitch;
+		pubdata.roll = roll;
+		pubdata.depth = Depth;
+		pubdata.Ax = Ax;
+		pubdata.Ay = Ay;
+		pubdata.Az = Az;
+		pubdata.speed1 = speed1;
+		pubdata.speed2 = speed2;
+		pubdata.speed3 = speed3;
+		pubdata.speed4 = speed4;
+		pubdata.speed5 = speed5;
+		pub.publish(pubdata);		
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
