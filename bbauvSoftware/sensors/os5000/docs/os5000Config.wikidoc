@@ -4,7 +4,7 @@ group.0 {
 name=Dynamically Reconfigurable Parameters
 desc=See the [[dynamic_reconfigure]] package for details on dynamically reconfigurable parameters.
 0.name= ~port
-0.default= /dev/ttyUSB0
+0.default= /dev/ttyUSB1
 0.type= str
 0.desc=The port the compass is plugged into. 
 1.name= ~baud
