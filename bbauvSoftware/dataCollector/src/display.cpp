@@ -48,7 +48,7 @@ void thrusCallback(const bbauv_msgs::thruster::ConstPtr& thrusMsg) {
 }
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "sensorsSubscriber");
+	ros::init(argc, argv, "display");
 	ros::NodeHandle nh;
 
 	ros::Subscriber compassSub = nh.subscribe("os5000_data", 1000, compassCallback);
