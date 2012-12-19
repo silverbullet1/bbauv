@@ -5,6 +5,11 @@ using namespace std;
 
 const float sqrt2 = 1.4142;
 const int mapRatio = 2500;
+const int ratio1 = 1*mapRatio;
+const int ratio2 = 1*mapRatio;
+const int ratio3 = 1*mapRatio;
+const int ratio4 = 1*mapRatio;
+const int ratio5 = 1*mapRatio;
 float x,y,z,yaw;
 
 void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
@@ -29,8 +34,8 @@ int main(int argc,char** argv) {
 	ros::Rate loop_rate(10);
 	float absx,absy,absyaw,absmax;
 	while (ros::ok()) {
-		thrusterMsg.speed1 = mapRatio*z;
-		thrusterMsg.speed4 = mapRatio*z;
+		thrusterMsg.speed1 = ratio1*z;
+		thrusterMsg.speed4 = ratio4*z;
 		absx = absolute(x);
 		absy = absolute(y);
 		absyaw = absolute(yaw);
@@ -43,20 +48,20 @@ int main(int argc,char** argv) {
 		if (absmax == absx) {
 			ROS_DEBUG("absx");
 			thrusterMsg.speed2 = 0;
-			thrusterMsg.speed3 = mapRatio*x;
-			thrusterMsg.speed5 = mapRatio*x;
+			thrusterMsg.speed3 = ratio3*x;
+			thrusterMsg.speed5 = ratio5*x;
 		}
 		else if (absmax == absy) {
 			ROS_DEBUG("absy");
-			thrusterMsg.speed2 = mapRatio*y;
-			thrusterMsg.speed3 = mapRatio*y/sqrt2;
-			thrusterMsg.speed5 = -mapRatio*y/sqrt2;
+			thrusterMsg.speed2 = ratio2*y;
+			thrusterMsg.speed3 = ratio3*y/sqrt2;
+			thrusterMsg.speed5 = -ratio5*y/sqrt2;
 		}
 		else {
 			ROS_DEBUG("absyaw");
-			thrusterMsg.speed2 = mapRatio*yaw;
-			thrusterMsg.speed3 = -mapRatio*yaw/sqrt2;
-			thrusterMsg.speed5 = mapRatio*yaw/sqrt2;
+			thrusterMsg.speed2 = ratio2*yaw;
+			thrusterMsg.speed3 = -ratio3*yaw/sqrt2;
+			thrusterMsg.speed5 = ratio5*yaw/sqrt2;
 		}
 		ROS_DEBUG("%d %d %d %d %d\n",thrusterMsg.speed1,thrusterMsg.speed2,thrusterMsg.speed3,thrusterMsg.speed4,thrusterMsg.speed5);
 		pub.publish(thrusterMsg);
