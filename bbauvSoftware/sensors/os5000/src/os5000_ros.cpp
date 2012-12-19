@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 	// Initialize node parameters.
 	private_node_handle_.param("baud",           baud,           int(19200));
 	private_node_handle_.param("init_time",      init_time,      int(3));
-	private_node_handle_.param("port",           portname,       string("/dev/ttyUSB1"));
+	private_node_handle_.param("port",           portname,       string("/dev/ttyUSB0"));
 	private_node_handle_.param("pub_topic_name", pub_topic_name, string("os5000_data"));
 	private_node_handle_.param("rate",           rate,           int(40));
 
