@@ -1,0 +1,5 @@
+<launch>
+	<node
+		pkg="Vision" name="Write_Video" type="Write_Video">
+	</node>
+</launch>
