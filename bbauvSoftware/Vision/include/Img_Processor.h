@@ -41,10 +41,13 @@ public:
 	void drawSquares( Mat img, vector<vector<Point> > squares);
 	void MatchShape(Mat img,string reference);
 private:
+	vector<vector<Point> > Average_Squares(vector<vector<Point> > squares);
+	bool Near (vector<Point >P1,vector<Point > P2);
 	void findCont(Mat &img1,vector<vector<Point> > &contours,vector<Vec4i> &hierarchy,Mat &output);
 	double angle( Point pt1, Point pt2, Point pt0 );
 	int findBiggestAread(vector<vector<Point> >contours);
 	int CompareCont(vector<vector<Point> >contours1,vector<vector<Point> >contoursRef,int biggest);
+	void clockWisePoint(vector<Point > &P1);
 	
 };
 

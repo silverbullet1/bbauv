@@ -4,7 +4,7 @@
 #include "Img_Viewer.h"
 #include "Img_Processor.h"
 #include "Vision_Controller.h"
-string Video="green_buoy.avi";
+string Video="orange_rectangle_cloudy.avi";
 #include <vector>
 using namespace std;
 using namespace cv;

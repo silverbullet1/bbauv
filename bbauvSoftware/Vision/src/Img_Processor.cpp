@@ -12,7 +12,102 @@ Mat Img_Processor::pre_process(Mat img){
 	GaussianBlur( resutl, resutl, Size(9, 9), 2, 2 );
 	return resutl;
 }
+vector<vector<Point> > Img_Processor::Average_Squares(vector<vector<Point> > squares){
+	vector<vector<Point> > resutl;
+	resutl.clear();
+	int size=squares.size();
+	for (int i=0;i<size;i++)
+		clockWisePoint(squares[i]);
+	for (int i=0;i<size;i++){
+		if (squares[i][0].x==-1) continue;
+		for (int j=0;j<size;j++){
+			if (squares[j][0].x==-1) continue;
+			if (i!=j){
+				vector<Point > P1=squares[i];
+				vector<Point > P2=squares[j];
+				if (Near(P1,P2)){
+					for (int k=0;k<4;k++){
+						squares[i][k].x=(squares[i][k].x+squares[j][k].x)/2;
+						squares[j][k].y=-1;
+					}
+				}
+			}
+		}
+	}
+	for (int i=0;i<size;i++){
+		if (squares[i][0].x==-1) continue;
+		resutl.push_back(squares[i]);
+	}
+	return resutl;
+}
+void Img_Processor::clockWisePoint(vector<Point > &P1){
+	vector<Point> result(4);
+	int topMax=-1;
+	int topId;
+	for (int i=0;i<4;i++){
+		if (P1[i].y > topMax){
+			topMax=P1[i].y;
+			topId=i;
+		}
+	}
+	int nearMin=10000;
+	int nearTopId;
+	for (int i=0;i<4;i++){
+		if (i!=topId){
+			int dis=topMax-P1[i].y;
+			if (nearMin>dis){
+				nearMin=dis;
+				nearTopId=i;
+			}
+		}
+	}
+	if ((P1[nearTopId].x) < (P1[topId].x)){
+		result[0]=P1[nearTopId];
+		result[1]=P1[topId];
+	}else{
+		result[1]=P1[nearTopId];
+		result[0]=P1[topId];
+	}
 
+	int remain1=0;
+	int remain2=1;
+	for (int i=0;i<4;i++){
+		if (i!=nearTopId && i!=topId){
+			remain1=i;
+			break;
+		}
+	}
+	for (int i=0;i<4;i++){
+		if (i!=nearTopId && i!=topId && i!=remain1){
+			remain2=i;
+			break;
+		}
+	}
+
+	if (P1[remain1].x < P1[remain2].x){
+		result[2]=P1[remain2];
+		result[3]=P1[remain1];
+	}else{
+		result[3]=P1[remain2];
+		result[2]=P1[remain1];
+	}
+	
+	P1=result;
+}
+bool Img_Processor::Near(vector<Point >P1,vector<Point > P2){
+	bool result=false;
+	
+
+	double d1=((P1[0].x - P2[0].x)*(P1[0].x-P2[0].x) + (P1[0].y - P2[0].y)*(P1[0].y -P2[0].y));
+	double d2=((P1[1].x - P2[1].x)*(P1[1].x-P2[1].x) + (P1[1].y - P2[1].y)*(P1[1].y -P2[1].y));
+	double d3=((P1[2].x - P2[2].x)*(P1[2].x-P2[2].x) + (P1[2].y - P2[2].y)*(P1[2].y -P2[2].y));
+	double d4=((P1[3].x - P2[3].x)*(P1[3].x-P2[3].x) + (P1[3].y - P2[3].y)*(P1[3].y -P2[3].y));
+
+	if (d1<=20*20 && d2<=20*20 && d3<=20*20 && d4<=20*20)
+		result=true;
+
+	return result;
+}
 void Img_Processor::find_circles(Mat img){
 	vector<Vec3f> circles;
 	Mat pre_pro=pre_process(img);
@@ -122,7 +217,8 @@ vector<vector<Point> > Img_Processor::findSquaresInImage(Mat _image,bool binary)
 		}
 	}
 	
-	data_store->storeRec(squares);
+	vector<vector<Point> > resutl=Average_Squares(squares);
+	data_store->storeRec(resutl);
 	return squares;
 }
 
