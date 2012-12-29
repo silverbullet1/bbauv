@@ -5,7 +5,7 @@
 #include "Img_classifier.h"
 #include "Img_Processor.h"
 #include "Img_Storage.h"
-#include "Img_Taker.h"
+#include "Img_Taker_Base.h"
 #include "Img_Viewer.h"
 #include "bbauv_msgs/circles.h"
 
@@ -16,7 +16,7 @@ class Vision_controll{
 private:
 	ros::NodeHandle nh_;
 	bbauv_msgs::circles cirr;
-	Img_Taker *taker;
+	Img_Taker_Base *taker;
 	Img_Storage *storage;
 	Img_classfier *classy;
 	Img_viewer *view;

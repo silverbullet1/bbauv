@@ -2,8 +2,6 @@
 #define IMG_TAKER_H
 
 #include <ros/ros.h>
-#include <stdio.h>
-#include <iostream>
 #include "std_msgs/String.h"
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -17,13 +15,14 @@
 #include<math.h>
 #include <cxcore.h>
 #include <highgui.h>
-
 #include <vector>
+
+#include "Img_Taker_Base.h"
 
 using namespace std;
 using namespace cv;
 
-class Img_Taker{
+class Img_Taker : public Img_Taker_Base {
 private:
 	VideoCapture cap;
 	Mat frame;

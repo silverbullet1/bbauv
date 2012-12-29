@@ -1,6 +1,8 @@
 #include "Vision_Controller.h"
 #include <dynamic_reconfigure/server.h>
 #include "Vision/VisionConfig.h"
+#include "Img_Taker.h"
+#include "Img_Subscriber.h"
 
 void dynamic_reconfig_callback(Vision_controll *vctl, Vision::VisionConfig &config, uint32_t level)
 {
@@ -13,10 +15,13 @@ void dynamic_reconfig_callback(Vision_controll *vctl, Vision::VisionConfig &conf
 }
 
 Vision_controll::Vision_controll(int i,string name){
+	/*
 	if (i==-1)
 		taker=new Img_Taker(name);
 	else
 		taker=new Img_Taker(i);
+	*/
+	taker = new Img_Subscriber("/camera/rgb/image_color");
 	storage=new Img_Storage();
 	classy=new Img_classfier(storage);
 	view=new Img_viewer(storage);
