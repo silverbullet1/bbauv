@@ -29,8 +29,10 @@ private:
 	Mat frame;
 	string Video_name;
 	int id;
+
+	int frameskip;
+	int currentFrame;
 public:
-	Img_Taker(){};
 	Img_Taker(string name);
 	Img_Taker(int i);
 	void SetCapture(string name);
@@ -38,5 +40,8 @@ public:
 	VideoCapture GetCapture();
 	Mat GetsequenceFrame(int i,string name);//If i=-1 then take name
 	Mat getFrame();
+
+	void setFrameskip(int skip);
+	int getFrameskip();
 };
 #endif

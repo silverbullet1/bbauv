@@ -108,7 +108,6 @@ void Vision_controll::start(){
 	Mat frame;
 	Mat cur;
 	Mat thres_hold_img;
-	int frameskip = 1;
 
 	reference="sword.png";
 
@@ -118,10 +117,7 @@ void Vision_controll::start(){
 	srv.setCallback(f);
 
 	while (1){
-		int frames = frameskip;
-		while (frames-- > 0) {
-			frame=taker->getFrame();
-		}
+		frame = taker->getFrame();
 		
 		frame.copyTo(cur);
 		classy->Classify_Img(frame);
@@ -140,22 +136,18 @@ void Vision_controll::start(){
 		{ break; }
 		switch (c) {
 		case '=':
-			frameskip += 10;
+			taker->setFrameskip(taker->getFrameskip() + 10);
 			break;
 		case '-':
-			frameskip -= 10;
-			frameskip = std::max(0, frameskip);
+			taker->setFrameskip(taker->getFrameskip() - 10);
 			break;
 		case '0':
-			frameskip = 1;
+			taker->setFrameskip(1);
 			break;
 		case ' ':
-			frameskip = !frameskip;
+			taker->setFrameskip(!taker->getFrameskip());
 			break;
 		}
-
-		if (frameskip<0)
-			frameskip=0;
 
 		ros::spinOnce();
 	}
