@@ -6,6 +6,7 @@ void dynamic_reconfig_callback(Vision_controll *vctl, Vision::VisionConfig &conf
 {
 	vctl->mode_controll = config.mode_param;
 	vctl->color_controll = config.color_param;
+	vctl->reference = config.reference_image;
 
 	setTrackbarPos("mode_controll", "Mode", config.mode_param);
 	setTrackbarPos("color_controll", "Color", config.color_param);
@@ -105,11 +106,10 @@ void Vision_controll::Process_Mode(Mat &img,string refer,Mat &thres){
 }
 void Vision_controll::start(){
 	Mat frame;
-	Mat orange;
-	Mat green;
 	Mat cur;
 	Mat thres_hold_img;
 	int frameskip = 1;
+
 	reference="sword.png";
 
 	dynamic_reconfigure::Server<Vision::VisionConfig> srv;
