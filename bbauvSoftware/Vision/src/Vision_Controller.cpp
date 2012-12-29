@@ -14,14 +14,29 @@ void dynamic_reconfig_callback(Vision_controll *vctl, Vision::VisionConfig &conf
 	setTrackbarPos("color_controll", "Color", config.color_param);
 }
 
-Vision_controll::Vision_controll(int i,string name){
-	/*
-	if (i==-1)
-		taker=new Img_Taker(name);
-	else
-		taker=new Img_Taker(i);
-	*/
-	taker = new Img_Subscriber("/camera/rgb/image_color");
+Vision_controll::Vision_controll(){
+	// Get some private params at the start
+	string topic_name, video_name;
+	int webcam_id;
+	ros::NodeHandle private_nh("~");
+	private_nh.param<string>("topic_name", topic_name, "");
+	private_nh.param<string>("video_name", video_name, "");
+	private_nh.param<int>("webcam_id", webcam_id, 0);
+
+	if (topic_name.empty()) {
+		ROS_INFO("No topic name specified, defaulting to video or own webcam.");
+
+		if (video_name.empty()) {
+			ROS_INFO("No video name specified, defaulting to own webcam.");
+			taker=new Img_Taker(webcam_id);
+		} else {
+			ROS_INFO("Playing video %s.", video_name.c_str());
+			taker=new Img_Taker(video_name);
+		}
+	} else {
+		ROS_INFO("Subscribing to topic %s.", topic_name.c_str());
+		taker = new Img_Subscriber(topic_name);
+	}
 	storage=new Img_Storage();
 	classy=new Img_classfier(storage);
 	view=new Img_viewer(storage);

@@ -24,7 +24,7 @@ private:
 	Img_Processor *processor;
 	ros::Publisher pub;
 public:
-	Vision_controll(int i,string name);
+	Vision_controll();
 	~Vision_controll();
 	void publish_Cir();
 	void Init();
