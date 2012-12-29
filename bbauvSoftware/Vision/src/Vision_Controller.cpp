@@ -1,4 +1,15 @@
 #include "Vision_Controller.h"
+#include <dynamic_reconfigure/server.h>
+#include "Vision/VisionConfig.h"
+
+void dynamic_reconfig_callback(Vision_controll *vctl, Vision::VisionConfig &config, uint32_t level)
+{
+	vctl->mode_controll = config.mode_param;
+	vctl->color_controll = config.color_param;
+
+	setTrackbarPos("mode_controll", "Mode", config.mode_param);
+	setTrackbarPos("color_controll", "Color", config.color_param);
+}
 
 Vision_controll::Vision_controll(int i,string name){
 	if (i==-1)
@@ -100,6 +111,12 @@ void Vision_controll::start(){
 	Mat thres_hold_img;
 	int frameskip = 1;
 	reference="sword.png";
+
+	dynamic_reconfigure::Server<Vision::VisionConfig> srv;
+	dynamic_reconfigure::Server<Vision::VisionConfig>::CallbackType f;
+	f = boost::bind(&dynamic_reconfig_callback, this, _1, _2);
+	srv.setCallback(f);
+
 	while (1){
 		int frames = frameskip;
 		while (frames-- > 0) {
@@ -139,5 +156,7 @@ void Vision_controll::start(){
 
 		if (frameskip<0)
 			frameskip=0;
+
+		ros::spinOnce();
 	}
 }

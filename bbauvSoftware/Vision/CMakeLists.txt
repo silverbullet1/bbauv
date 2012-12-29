@@ -31,3 +31,9 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_add_executable(Write_Video src/Write_Video.cpp)
 rosbuild_add_executable(Cir_receive src/Cir_receive.cpp)
 rosbuild_add_executable(main src/main.cpp src/Vision_Controller.cpp src/Data_Storage.cpp src/Img_Classifier.cpp src/main.cpp src/Img_Taker.cpp src/Img_Viewer.cpp src/main.cpp src/Vision_Controller.cpp src/Img_Processor.cpp src/Img_Storage.cpp)
+rosbuild_link_boost(main system)
+
+#add dynamic reconfigure api
+rosbuild_find_ros_package(dynamic_reconfigure)
+include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
+gencfg()

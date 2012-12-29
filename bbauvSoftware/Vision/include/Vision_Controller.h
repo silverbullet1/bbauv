@@ -15,8 +15,6 @@ enum mode{MATCH_SHAPE,CIRCLE,RECTANGLE};
 class Vision_controll{
 private:
 	ros::NodeHandle nh_;
-	int mode_controll;
-	int color_controll;
 	string reference;
 	bbauv_msgs::circles cirr;
 	Img_Taker *taker;
@@ -33,6 +31,9 @@ public:
 	void Init();
 	void start();
 	void Process_Mode(Mat &img,string refer,Mat &thres);
+
+	int mode_controll;
+	int color_controll;
 private:
 	Mat consider_Thres();
 
