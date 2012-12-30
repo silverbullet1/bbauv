@@ -73,7 +73,7 @@ if __name__=="__main__":
             rospy.loginfo("All done")
 
     else :          # Use serial port 
-        rospy.init_node("sensorArduino")
+        rospy.init_node("serial_node")
         rospy.loginfo("ROS Serial Python Node")
         rospy.loginfo("Connected on %s at %d baud" % (port_name,baud) )
         client = SerialClient(port_name, baud)
