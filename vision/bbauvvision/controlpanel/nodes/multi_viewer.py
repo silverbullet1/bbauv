@@ -23,7 +23,7 @@ def get_timestamp():
 
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
-	hist_bins = 64
+	hist_bins = 256
 	hist_ranges = [(0,255)]
 
 	#hist = cv2.calcHist([cv_img], [0], np.zeros([0,0]), [256], [[0,255]])
@@ -44,6 +44,7 @@ def get_hist_img(cv_img):
 # Helper class for the various filters
 class FilterFrame:
 	thumbnail_size = (200, 200)
+	image = None
 
 	def __init__(self, filter_name, tkparent, column, row):
 		self.img_filter = None
@@ -54,11 +55,11 @@ class FilterFrame:
 
 	def got_frame(self, cv_img):
 		if self.img_filter:
-			tmp_img = self.img_filter(cv_img)
+			self.image = self.img_filter(cv_img)
 		else:
-			tmp_img = cv_img
+			self.image = cv_img
 
-		filtered_pil = PImage.fromarray(tmp_img)
+		filtered_pil = PImage.fromarray(self.image)
 		filtered_pil.thumbnail(self.thumbnail_size, PImage.ANTIALIAS)
 		tkfiltered = ImageTk.PhotoImage(filtered_pil)
 
@@ -104,16 +105,47 @@ class MultiViewer:
 		tkfilterframe = tk.Frame(tkroot)
 		tkfilterframe.pack()
 
-		self.filters = filters = { }
+		# Setting up the actual filters
+		# Dictionary for easy access to filters
+		self.filters = { }
+		# Array for ordered calling of filters
+		self.filter_list = []
 
-		filters['gray'] = FilterFrame('gray', tkfilterframe, column=0, row=0)
-		filters['gray'].img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2GRAY)
+		nullfilter = FilterFrame('null', tkfilterframe, column=0, row=0)
+		self.filters['null'] = nullfilter
+		self.filter_list.append(nullfilter)
 
-		filters['hsv'] = FilterFrame('hsv', tkfilterframe, column=1, row=0)
-		filters['hsv'].img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2HSV)
+		grayfilter = FilterFrame('gray', tkfilterframe, column=1, row=0)
+		grayfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2GRAY)
+		self.filters['gray'] = grayfilter
+		self.filter_list.append(grayfilter)
 
-		filters['hist'] = FilterFrame('hist', tkfilterframe, column=2, row=0)
-		filters['hist'].img_filter = get_hist_img
+		hsvfilter = FilterFrame('hsv', tkfilterframe, column=2, row=0)
+		hsvfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2HSV)
+		self.filters['hsv'] = hsvfilter
+		self.filter_list.append(hsvfilter)
+
+		grayhistfilter = FilterFrame('grayhist', tkfilterframe, column=0, row=1)
+		grayhistfilter.img_filter = lambda (_): get_hist_img(grayfilter.image)
+		self.filters['grayhist'] = grayhistfilter
+		self.filter_list.append(grayhistfilter)
+
+		equalhistfilter = FilterFrame('equalhist', tkfilterframe, column=1, row=1)
+		equalhistfilter.img_filter = lambda (_): cv2.equalizeHist(grayfilter.image)
+		self.filters['equalhist'] = equalhistfilter
+		self.filter_list.append(equalhistfilter)
+
+		tmpkernel = np.array([[0., -1., 0.],[-1., 5., -1.], [0., -1., 0.]])
+		sublaplacefilter = FilterFrame('sublaplace', tkfilterframe, column=2, row=1)
+		sublaplacefilter.img_filter = lambda (cv_img): cv2.filter2D(cv_img, -1, tmpkernel)
+		self.filters['sublaplace'] = sublaplacefilter
+		self.filter_list.append(sublaplacefilter)
+
+		cannyfilter = FilterFrame('canny', tkfilterframe, column=0, row=2)
+#		cannyfilter.img_filter = lambda (_): cv2.threshold(cv2.Canny(grayfilter.image, 125, 350), 128, 255, cv2.THRESH_BINARY_INV)
+		cannyfilter.img_filter = lambda (_): cv2.threshold(cv2.Canny(grayfilter.image, 125, 350), 128, 255, cv2.THRESH_BINARY_INV)[1]
+		self.filters['canny'] = cannyfilter
+		self.filter_list.append(cannyfilter)
 
 
 	# Callback for subscribing to Image topic
@@ -132,7 +164,7 @@ class MultiViewer:
 		if self.vid_writer:
 			self.vid_writer.write(cvimg)
 
-		for tkfilter in self.filters.values():
+		for tkfilter in self.filter_list:
 			tkfilter.got_frame(cvimg)
 
 
