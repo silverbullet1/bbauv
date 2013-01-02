@@ -17,6 +17,7 @@ namespace bbauv_msgs
       int16_t speed3;
       int16_t speed4;
       int16_t speed5;
+      int16_t speed6;
 
     virtual int serialize(unsigned char *outbuffer) const
     {
@@ -61,6 +62,14 @@ namespace bbauv_msgs
       *(outbuffer + offset + 0) = (u_speed5.base >> (8 * 0)) & 0xFF;
       *(outbuffer + offset + 1) = (u_speed5.base >> (8 * 1)) & 0xFF;
       offset += sizeof(this->speed5);
+      union {
+        int16_t real;
+        uint16_t base;
+      } u_speed6;
+      u_speed6.real = this->speed6;
+      *(outbuffer + offset + 0) = (u_speed6.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_speed6.base >> (8 * 1)) & 0xFF;
+      offset += sizeof(this->speed6);
       return offset;
     }
 
@@ -112,11 +121,20 @@ namespace bbauv_msgs
       u_speed5.base |= ((uint16_t) (*(inbuffer + offset + 1))) << (8 * 1);
       this->speed5 = u_speed5.real;
       offset += sizeof(this->speed5);
+      union {
+        int16_t real;
+        uint16_t base;
+      } u_speed6;
+      u_speed6.base = 0;
+      u_speed6.base |= ((uint16_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_speed6.base |= ((uint16_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      this->speed6 = u_speed6.real;
+      offset += sizeof(this->speed6);
      return offset;
     }
 
     const char * getType(){ return "bbauv_msgs/thruster"; };
-    const char * getMD5(){ return "53a024ea886fdbb1d3759712c38532e7"; };
+    const char * getMD5(){ return "017a5a7783ad43895649f16c6fd73c26"; };
 
   };
 
