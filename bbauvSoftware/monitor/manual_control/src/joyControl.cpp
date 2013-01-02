@@ -23,7 +23,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "manualControl");
   ros::NodeHandle n;
   
-  ros::Subscriber joy_sub=n.subscribe<sensor_msgs::Joy>("joy",10,navigate);
+  ros::Subscriber joy_sub=n.subscribe<sensor_msgs::Joy>("joy",10,navigate,ros::TransportHints().tcpNoDelay());
 
   ros::Publisher manualcontrol_pub = n.advertise<bbauv_msgs::manual_control>("monitor_controller", 1000);
   ros::Rate loop_rate(10);

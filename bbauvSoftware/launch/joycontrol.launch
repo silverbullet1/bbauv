@@ -1,9 +1,4 @@
 <launch>
-
-  <group ns="bbauv">
     <node pkg="manual_control" name="monitor_manualControl" type="manualControl"/>
-    <node pkg="joy" name="monitor_joy" type="joy_node"/>
     <node pkg="controlPublisher" name="controller_thrusterPublisher" type="thrusterPublisher"/>
-  </group>
-
 </launch>

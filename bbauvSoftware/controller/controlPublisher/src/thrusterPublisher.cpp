@@ -53,7 +53,7 @@ int main(int argc,char** argv) {
 	server.setCallback(f);
 
 	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("motor_controller",1000);
-	ros::Subscriber sub = nh.subscribe("monitor_controller",1000,monitorCallBack);
+	ros::Subscriber sub = nh.subscribe("monitor_controller",1000,monitorCallBack,ros::TransportHints().tcpNoDelay());
 	ros::Rate loop_rate(10);
 	float absx,absy,absyaw,absmax;
 	while (ros::ok()) {
