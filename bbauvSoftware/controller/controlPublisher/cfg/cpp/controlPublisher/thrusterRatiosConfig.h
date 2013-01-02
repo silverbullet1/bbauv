@@ -268,7 +268,10 @@ class DEFAULT
         if("thruster3"==(*i)->name){thruster3 = boost::any_cast<double>(val);}
         if("thruster4"==(*i)->name){thruster4 = boost::any_cast<double>(val);}
         if("thruster5"==(*i)->name){thruster5 = boost::any_cast<double>(val);}
+        if("thruster6"==(*i)->name){thruster6 = boost::any_cast<double>(val);}
         if("motor_test_mode"==(*i)->name){motor_test_mode = boost::any_cast<bool>(val);}
+        if("z_mode"==(*i)->name){z_mode = boost::any_cast<bool>(val);}
+        if("xy_mode"==(*i)->name){xy_mode = boost::any_cast<bool>(val);}
       }
     }
 
@@ -277,7 +280,10 @@ double thruster2;
 double thruster3;
 double thruster4;
 double thruster5;
+double thruster6;
 bool motor_test_mode;
+bool z_mode;
+bool xy_mode;
 
     bool state;
     std::string name;
@@ -298,7 +304,13 @@ bool motor_test_mode;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       double thruster5;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      double thruster6;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       bool motor_test_mode;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      bool z_mode;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      bool xy_mode;
 //#line 255 "/opt/ros/fuerte/stacks/dynamic_reconfigure/templates/ConfigType.h"
 
     bool __fromMessage__(dynamic_reconfigure::Config &msg)
@@ -485,6 +497,16 @@ thrusterRatiosConfig::GroupDescription<thrusterRatiosConfig::DEFAULT, thrusterRa
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<double>("thruster5", "double", 0, "ratio of thruster 5", "", &thrusterRatiosConfig::thruster5)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.thruster6 = 0.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.thruster6 = 1.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.thruster6 = 1.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<double>("thruster6", "double", 0, "ratio of thruster 6", "", &thrusterRatiosConfig::thruster6)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<double>("thruster6", "double", 0, "ratio of thruster 6", "", &thrusterRatiosConfig::thruster6)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.motor_test_mode = 0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.motor_test_mode = 1;
@@ -494,6 +516,26 @@ thrusterRatiosConfig::GroupDescription<thrusterRatiosConfig::DEFAULT, thrusterRa
       Default.abstract_parameters.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<bool>("motor_test_mode", "bool", 0, "for testing motors", "", &thrusterRatiosConfig::motor_test_mode)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<bool>("motor_test_mode", "bool", 0, "for testing motors", "", &thrusterRatiosConfig::motor_test_mode)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.z_mode = 0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.z_mode = 1;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.z_mode = 0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<bool>("z_mode", "bool", 0, "for testing depth", "", &thrusterRatiosConfig::z_mode)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<bool>("z_mode", "bool", 0, "for testing depth", "", &thrusterRatiosConfig::z_mode)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.xy_mode = 0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.xy_mode = 1;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.xy_mode = 0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<bool>("xy_mode", "bool", 0, "for testing xy", "", &thrusterRatiosConfig::xy_mode)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(thrusterRatiosConfig::AbstractParamDescriptionConstPtr(new thrusterRatiosConfig::ParamDescription<bool>("xy_mode", "bool", 0, "for testing xy", "", &thrusterRatiosConfig::xy_mode)));
 //#line 233 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.convertParams();
 //#line 233 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"

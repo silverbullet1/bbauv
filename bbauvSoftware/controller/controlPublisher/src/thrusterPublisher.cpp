@@ -12,7 +12,10 @@ int ratio2 = mapRatio;
 int ratio3 = mapRatio;
 int ratio4 = mapRatio;
 int ratio5 = mapRatio;
+int ratio6 = mapRatio;
 bool test_mode = false;
+bool z_mode = false;
+bool xy_mode = false;
 float x,y,z,yaw;
 
 void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
@@ -23,16 +26,22 @@ void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
 }
 
 void callback(controlPublisher::thrusterRatiosConfig &config, uint32_t level) {
-	ROS_INFO("Reconfigure Request: %f %f %f %f %f %s", 
+	ROS_INFO("Reconfigure Request: %f %f %f %f %f %f %s %s %s", 
 			config.thruster1, config.thruster2, 
 			config.thruster3, config.thruster4,
-			config.thruster5, config.motor_test_mode?"True":"False");
+			config.thruster5, config.thruster6,
+			config.motor_test_mode?"True":"False",
+			config.z_mode?"True":"False",
+			config.xy_mode?"True":"False");
 	ratio1 = config.thruster1 * mapRatio;
 	ratio2 = config.thruster2 * mapRatio;
 	ratio3 = config.thruster3 * mapRatio;
 	ratio4 = config.thruster4 * mapRatio;
 	ratio5 = config.thruster5 * mapRatio;
+	ratio6 = config.thruster6 * mapRatio;
 	test_mode = config.motor_test_mode;
+	z_mode = config.z_mode;
+	xy_mode = config.xy_mode;
 }
 
 float absolute(float input) {
@@ -58,34 +67,41 @@ int main(int argc,char** argv) {
 	float absx,absy,absyaw,absmax;
 	while (ros::ok()) {
 		if (test_mode == false) {
-			thrusterMsg.speed1 = ratio1*z;
-			thrusterMsg.speed4 = ratio4*z;
-			absx = absolute(x);
-			absy = absolute(y);
-			absyaw = absolute(yaw);
-			//find the largest absoluted number
-			absmax = absx;
-			if (absy > absmax) absmax = absy;
-			if (absyaw > absmax) absmax = absyaw;
-			ROS_DEBUG("%f %f %f %f\n",absx,absy,absyaw,absmax);
+			if (z_mode == true) {
+				thrusterMsg.speed5 = ratio5*z;
+				thrusterMsg.speed6 = ratio6*z;
+			}
+			if (xy_mode == true) {
+				absx = absolute(x);
+				absy = absolute(y);
+				absyaw = absolute(yaw);
+				//find the largest absoluted number
+				absmax = absx;
+				if (absy > absmax) absmax = absy;
+				if (absyaw > absmax) absmax = absyaw;
+				ROS_DEBUG("absx: %f absy: %f absyaw: %f absmax: %f\n",absx,absy,absyaw,absmax);
 
-			if (absmax == absx) {
-				ROS_DEBUG("absx");
-				thrusterMsg.speed2 = 0;
-				thrusterMsg.speed3 = ratio3*x;
-				thrusterMsg.speed5 = ratio5*x;
-			}
-			else if (absmax == absy) {
-				ROS_DEBUG("absy");
-				thrusterMsg.speed2 = ratio2*y;
-				thrusterMsg.speed3 = ratio3*y/sqrt2;
-				thrusterMsg.speed5 = -ratio5*y/sqrt2;
-			}
-			else {
-				ROS_DEBUG("absyaw");
-				thrusterMsg.speed2 = ratio2*yaw;
-				thrusterMsg.speed3 = -ratio3*yaw/sqrt2;
-				thrusterMsg.speed5 = ratio5*yaw/sqrt2;
+				if (absmax == absx) {
+					ROS_DEBUG("absx");
+					thrusterMsg.speed1 = -ratio1*x;
+					thrusterMsg.speed2 = -ratio2*x;
+					thrusterMsg.speed3 = ratio3*x;
+					thrusterMsg.speed4 = ratio4*x;
+				}
+				else if (absmax == absy) {
+					ROS_DEBUG("absy");
+					thrusterMsg.speed1 = ratio1*y;
+					thrusterMsg.speed2 = -ratio2*y;
+					thrusterMsg.speed3 = -ratio3*y;
+					thrusterMsg.speed4 = ratio4*y;
+				}
+				else {
+					ROS_DEBUG("absyaw");
+					thrusterMsg.speed1 = -ratio1*yaw;
+					thrusterMsg.speed2 = ratio2*yaw;
+					thrusterMsg.speed3 = -ratio3*yaw;
+					thrusterMsg.speed4 = ratio4*yaw;
+				}
 			}
 		}
 		else {
@@ -94,8 +110,10 @@ int main(int argc,char** argv) {
 			thrusterMsg.speed3 = ratio3;
 			thrusterMsg.speed4 = ratio4;
 			thrusterMsg.speed5 = ratio5;
+			thrusterMsg.speed6 = ratio6;
 		}
-		ROS_DEBUG("%d %d %d %d %d\n",thrusterMsg.speed1,thrusterMsg.speed2,thrusterMsg.speed3,thrusterMsg.speed4,thrusterMsg.speed5);
+		ROS_DEBUG("%d %d %d %d %d %d\n",thrusterMsg.speed1,thrusterMsg.speed2,thrusterMsg.speed3,
+				thrusterMsg.speed4,thrusterMsg.speed5,thrusterMsg.speed6);
 		pub.publish(thrusterMsg);
 
 		ros::spinOnce();
