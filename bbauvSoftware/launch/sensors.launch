@@ -1,5 +1,10 @@
 <launch>
-    <node 
+    <arg name="port" default="/dev/ttyACM0" />
+    <node
+        pkg="sensorArduino" name="env_sensors" type="serial_node.py" args="$(arg port)" >
+    </node>
+    
+    <node
         pkg="os5000" name="oscompass" type="oscompass">
     </node>
 
