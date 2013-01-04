@@ -1,0 +1,17 @@
+<package>
+  <description brief="state_publisher">
+
+     state_publisher
+
+  </description>
+  <author>Thanh Quang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/state_publisher</url>
+  <depend package="sensor_msgs"/>
+  <depend package="tf"/>
+  <depend package="bbauv_msgs"/>
+
+</package>
+
+

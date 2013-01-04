@@ -1,0 +1,33 @@
+<robot name="r2d2">
+  <joint name="head_to_axis" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="axis"/>
+    <child link="head"/>
+  </joint>
+
+
+  <link name="axis">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.57 0"/>
+      <geometry>
+      	<cylinder radius="0.2" length=".5"/>
+      </geometry>
+      <material name="gray">
+        <color rgba=".2 .2 .2 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="head">
+    <visual>
+      <origin xyz="0.25 0 0" rpy="0 1.57 0"/>
+      <geometry>
+     	<cylinder radius="0.1" length=".25"/>
+      </geometry>
+      <material name="gray">
+        <color rgba=".2 .2 .2 1"/>
+      </material>
+    </visual>
+  </link>
+
+</robot>
