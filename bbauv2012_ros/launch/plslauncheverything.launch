@@ -1,8 +1,9 @@
 <launch>
 	<!-- Launching Sensors -->
-	<include file="/home/ongtianchang/bbauv_workspace/bbauv/bbauv2012_ros/launch/arduinoSensors.launch" />
+	<include file="$(find launch)/arduinoSensors.launch" />
+	<include file="$(find launch)/sensors.launch" />
 
 	<!-- Launching Joystick Control -->
-	<include file="/home/ongtianchang/bbauv_workspace/bbauv/bbauv2012_ros/launch/joycontrol.launch" />
+	<include file="$(find launch)/joycontrol.launch" />
 
 </launch>
