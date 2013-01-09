@@ -43,14 +43,16 @@ def get_hist_img(cv_img):
 
 # Helper class for the various filters
 class FilterFrame:
-	thumbnail_size = (200, 200)
+	thumbnail_size = (180, 180)
 	image = None
 
-	def __init__(self, filter_name, tkparent, column, row):
+	def __init__(self, filter_name, tkparent):
 		self.img_filter = None
 		self.filter_name = filter_name
 
 		self.tkout = tk.Label(tkparent, text=filter_name)
+
+	def grid(self, column, row):
 		self.tkout.grid(column=column, row=row)
 
 	def got_frame(self, cv_img):
@@ -77,7 +79,7 @@ class MultiViewer:
 
 
 
-	def __init__(self, tkroot):
+	def __init__(self, tkroot, videoname=''):
 		tkframe = tk.Frame(tkroot)
 		tkframe.pack()
 
@@ -101,71 +103,164 @@ class MultiViewer:
 		self.cvbridge = CvBridge()
 		self.cur_ros_img = None
 
+
+		# If there's a video, we use it (and do our own event)
+		if videoname != '':
+			video = cv2.VideoCapture(videoname)
+			def vid_callback():
+				retval, frame = video.read()
+				self.got_frame(frame)
+				tkroot.after(30, vid_callback)
+			tkroot.after(50, vid_callback)
+
+
 		# Set up frames for filtered videos
-		tkfilterframe = tk.Frame(tkroot)
+		tkfilters = tk.Frame(tkroot)
+		tkfilters.pack(fill=tk.Y)
+
+		# Set up scrollbar
+		tkscroll = tk.Scrollbar(tkfilters)
+		tkscroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+		tkfilterframe = tk.Canvas(tkfilters)
 		tkfilterframe.pack()
+
 
 		# Setting up the actual filters
 		# Dictionary for easy access to filters
 		self.filters = { }
 		# Array for ordered calling of filters
-		self.filter_list = []
+		self.filter_list = [ ]
 
-		nullfilter = FilterFrame('null', tkfilterframe, column=0, row=0)
+		# No filter at all
+		nullfilter = FilterFrame('null', tkfilterframe)
 		self.filters['null'] = nullfilter
-		self.filter_list.append(nullfilter)
 
-		grayfilter = FilterFrame('gray', tkfilterframe, column=1, row=0)
-		grayfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2GRAY)
+		# Grayscale filter
+		grayfilter = FilterFrame('gray', tkfilterframe)
+		grayfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_RGB2GRAY)
 		self.filters['gray'] = grayfilter
-		self.filter_list.append(grayfilter)
 
-		hsvfilter = FilterFrame('hsv', tkfilterframe, column=2, row=0)
-		hsvfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2HSV)
+		# Conversion to HSV
+		hsvfilter = FilterFrame('hsv', tkfilterframe)
+		hsvfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_RGB2HSV)
 		self.filters['hsv'] = hsvfilter
-		self.filter_list.append(hsvfilter)
 
-		grayhistfilter = FilterFrame('grayhist', tkfilterframe, column=0, row=1)
+		# Histogram of the grayscale image
+		grayhistfilter = FilterFrame('grayhist', tkfilterframe)
 		grayhistfilter.img_filter = lambda (_): get_hist_img(grayfilter.image)
 		self.filters['grayhist'] = grayhistfilter
-		self.filter_list.append(grayhistfilter)
 
-		equalhistfilter = FilterFrame('equalhist', tkfilterframe, column=1, row=1)
+		# Grayscale image that has its histogram equalized
+		equalhistfilter = FilterFrame('equalhist', tkfilterframe)
 		equalhistfilter.img_filter = lambda (_): cv2.equalizeHist(grayfilter.image)
 		self.filters['equalhist'] = equalhistfilter
-		self.filter_list.append(equalhistfilter)
 
+		# Original image - its Laplacian
 		tmpkernel = np.array([[0., -1., 0.],[-1., 5., -1.], [0., -1., 0.]])
-		sublaplacefilter = FilterFrame('sublaplace', tkfilterframe, column=2, row=1)
+		sublaplacefilter = FilterFrame('sublaplace', tkfilterframe)
 		sublaplacefilter.img_filter = lambda (cv_img): cv2.filter2D(cv_img, -1, tmpkernel)
 		self.filters['sublaplace'] = sublaplacefilter
-		self.filter_list.append(sublaplacefilter)
 
-		cannyfilter = FilterFrame('canny', tkfilterframe, column=0, row=2)
-#		cannyfilter.img_filter = lambda (_): cv2.threshold(cv2.Canny(grayfilter.image, 125, 350), 128, 255, cv2.THRESH_BINARY_INV)
+		# Canny (edge detection)
+		cannyfilter = FilterFrame('canny', tkfilterframe)
 		cannyfilter.img_filter = lambda (_): cv2.threshold(cv2.Canny(grayfilter.image, 125, 350), 128, 255, cv2.THRESH_BINARY_INV)[1]
 		self.filters['canny'] = cannyfilter
-		self.filter_list.append(cannyfilter)
+
+		# R,G,B
+		rfilter = FilterFrame('r_only', tkfilterframe)
+		rfilter.img_filter = lambda (cv_img): cv2.split(cv_img)[0]
+		self.filters['r_only'] = rfilter
+
+		gfilter = FilterFrame('g_only', tkfilterframe)
+		gfilter.img_filter = lambda (cv_img): cv2.split(cv_img)[1]
+		self.filters['g_only'] = gfilter
+
+		bfilter = FilterFrame('b_only', tkfilterframe)
+		bfilter.img_filter = lambda (cv_img): cv2.split(cv_img)[2]
+		self.filters['b_only'] = bfilter
+
+		# R,G,B Histogram
+		rhistfilter = FilterFrame('rhist', tkfilterframe)
+		rhistfilter.img_filter = lambda (_): get_hist_img(rfilter.image)
+		self.filters['rhist'] = rhistfilter
+
+		ghistfilter = FilterFrame('ghist', tkfilterframe)
+		ghistfilter.img_filter = lambda (_): get_hist_img(gfilter.image)
+		self.filters['ghist'] = ghistfilter
+
+		bhistfilter = FilterFrame('bhist', tkfilterframe)
+		bhistfilter.img_filter = lambda (_): get_hist_img(bfilter.image)
+		self.filters['bhist'] = bhistfilter
+
+		# Mult equal gray hist with orig
+		#TODO: figure out the more optimized (or simpler code) version
+		def eqcolor(cv_img):
+			result = np.empty_like(cv_img)
+			for r in range(cv_img.shape[0]):
+				for c in range(cv_img.shape[1]):
+					factor = (equalhistfilter.image[r,c] / 255.)
+					result[r,c] = cv_img[r,c] * factor
+			return result
+		equalcolorfilter = FilterFrame('equalcolor', tkfilterframe)
+		equalcolorfilter.img_filter = eqcolor
+		self.filters['equalcolor'] = equalcolorfilter
+
+		# RGB to Lab
+		labfilter = FilterFrame('lab', tkfilterframe)
+		labfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_RGB2Lab)
+		self.filters['lab'] = labfilter
+
+		# RGB to Luv
+		luvfilter = FilterFrame('luv', tkfilterframe)
+		luvfilter.img_filter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_RGB2Luv)
+		self.filters['luv'] = luvfilter
+
+
+		# Array for ordered calling of filters
+		# All the filters
+		ordered_list = ['null', 'gray', 'hsv', 'grayhist', 'equalhist', 'sublaplace', 'canny',
+				'r_only', 'g_only', 'b_only', 'rhist', 'ghist', 'bhist',
+				'equalcolor']
+#		ordered_list = ['null', 'gray', 'hsv', 'grayhist', 'equalhist', 'sublaplace', 'canny']
+#		ordered_list = ['r_only', 'g_only', 'b_only', 'rhist', 'ghist', 'bhist']
+#		ordered_list = ['lab', 'luv']
+		# Set up the on-screen positions of the filters
+		index, max_col = 0, 3
+		for name in ordered_list:
+			cur_row, cur_col = index // max_col, index % max_col
+			self.filters[name].grid(column=cur_col, row=cur_row)
+			self.filter_list.append(self.filters[name])
+			index += 1
+
+		# Set up scrollbar
+		tkfilterframe.config(yscrollcommand=tkscroll.set)
+		tkscroll.config(command=tkfilterframe.yview)
 
 
 	# Callback for subscribing to Image topic
-	def got_frame(self, ros_image):
+	def got_ros_frame(self, ros_image):
 		self.cur_ros_img = ros_image
+		cvimg = self.rosimg2cv(ros_image)
+		self.got_frame(cvimg)
 
-		tmpimg = PImage.frombuffer('RGB', (ros_image.width, ros_image.height), ros_image.data, 'raw', 'BGR')
+	def got_frame(self, cvimg):
+		rgbimg = np.empty_like(cvimg)
+		cv2.mixChannels([cvimg], [rgbimg], [0,2, 1,1, 2,0])
+
+		tmpimg = PImage.fromarray(rgbimg)
 		tmpimg.thumbnail((300, 300), PImage.ANTIALIAS)
 
 		tkimage = ImageTk.PhotoImage(tmpimg)
 		self.img_label.config({'image': tkimage})
 		self.img_label.photo = tkimage # prevent garbage collection
 
-		cvimg = self.rosimg2cv(ros_image)
 		# Resize the image for display (or maybe should resize each output image)
 		if self.vid_writer:
-			self.vid_writer.write(cvimg)
+			self.vid_writer.write(rgbimg)
 
 		for tkfilter in self.filter_list:
-			tkfilter.got_frame(cvimg)
+			tkfilter.got_frame(rgbimg)
 
 
 	# Callback when Snap button is pressed
@@ -190,10 +285,16 @@ class MultiViewer:
 
 
 if __name__ == '__main__':
-	tkroot = tk.Tk()
-	app = MultiViewer(tkroot)
-
 	rospy.init_node('multi_viewer', anonymous=True)
-	rospy.Subscriber("/camera/rgb/image_color", Image, app.got_frame)
+	video = ''
+	if rospy.has_param('~video'):
+		video = rospy.get_param('~video')
+
+	tkroot = tk.Tk()
+	app = MultiViewer(tkroot, video)
+
+	# Only subscribe to the camera topic if we aren't given a video
+	if video == '':
+		rospy.Subscriber("/camera/rgb/image_color", Image, app.got_ros_frame)
 
 	tkroot.mainloop()
