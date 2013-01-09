@@ -1,6 +1,6 @@
 \subsubsection usage Usage
 \verbatim
-<node name="controlPublisher" pkg="controlPublisher" type="controlPublisher">
+<node name="controlPublisher" pkg="teleop_controller" type="controlPublisher">
   <param name="thruster1" type="double" value="1.0" />
   <param name="thruster2" type="double" value="1.0" />
   <param name="thruster3" type="double" value="1.0" />

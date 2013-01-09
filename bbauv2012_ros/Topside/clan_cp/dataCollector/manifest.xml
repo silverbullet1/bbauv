@@ -1,16 +1,17 @@
 <package>
-  <description brief="teleop_controller">
+  <description brief="dataCollector">
 
-	Execute commands from joy_translater. Return in m.speed
+     dataCollector
+
   </description>
   <author>SEARCHER</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/controlPublisher</url>
+  <url>http://ros.org/wiki/dataCollector</url>
   <depend package="roscpp"/>
+  <depend package="rospy"/>
   <depend package="bbauv_msgs"/>
-  <depend package="dynamic_reconfigure"/>
-
+  
 </package>
 
 
