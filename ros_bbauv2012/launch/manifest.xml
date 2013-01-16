@@ -8,8 +8,8 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/abc</url>
-  <depend package="thruster_control"/>
-  <depend package="controlPublisher"/>
+  <depend package="teleop_controller"/>
+  <depend package="joy_translater"/>
   <depend package="joy"/>
 </package>
 
