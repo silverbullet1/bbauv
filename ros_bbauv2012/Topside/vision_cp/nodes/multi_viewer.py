@@ -2,7 +2,7 @@
 
 # Tool to help with viewing different types of filters
 
-import roslib; roslib.load_manifest('controlpanel')
+import roslib; roslib.load_manifest('vision_cp')
 import rospy
 from sensor_msgs.msg import Image
 

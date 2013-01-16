@@ -8,7 +8,7 @@
     </node>
     <node name="republish" pkg="image_transport" type="republish" args="compressed in:=/camera/image_raw raw out:=/camera/rgb/image_color">
     </node>
-    <node name="multi_viewer" pkg="controlpanel" type="multi_viewer.py">
+    <node name="multi_viewer" pkg="vision_cp" type="multi_viewer.py">
     	<param name="video" value="$(arg video)" />
     </node>
     <node name="reconfigure_gui" pkg="dynamic_reconfigure" type="reconfigure_gui">

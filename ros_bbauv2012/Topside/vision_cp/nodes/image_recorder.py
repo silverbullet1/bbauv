@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-import roslib; roslib.load_manifest('controlpanel')
+import roslib; roslib.load_manifest('vision_cp')
 import rospy
 from sensor_msgs.msg import Image
 
