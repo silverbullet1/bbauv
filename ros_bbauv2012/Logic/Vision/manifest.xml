@@ -1,0 +1,22 @@
+<package>
+  <description brief="Vision">
+
+     Vision
+
+  </description>
+  <author>NGUYEN</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/Vision</url>
+  <depend package="sensor_msgs"/>
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="image_transport"/>
+  <depend package="bbauv_msgs"/>
+  <depend package="dynamic_reconfigure"/>
+
+</package>
+
+
