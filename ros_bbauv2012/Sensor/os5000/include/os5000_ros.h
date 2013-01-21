@@ -71,6 +71,11 @@ using std::string;
 
 class OSCompass : public Compass
 {
+private:
+    double last_sample_time;
+    double new_sample_time;
+    double last_yaw;
+    double ang_vel_z;
 public:
     //! Constructor.
     OSCompass(string _portname, int _baud, int _rate, int _init_time);

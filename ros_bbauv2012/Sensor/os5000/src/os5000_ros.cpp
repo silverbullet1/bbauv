@@ -67,6 +67,22 @@ void OSCompass::publishData(ros::Publisher *pub_data)
 {
 	bbauv_msgs::compass_data compassMsg;
 	
+	new_sample_time = ros::Time::now().toSec();
+	//ROS_INFO("now from function: %f", ros::Time::now().toSec());
+	//ROS_INFO("now from variable: %d    %d", ros::Time::now().sec, ros::Time::now().nsec);
+
+	double delta_yaw = yaw-last_yaw;
+	if (delta_yaw > 180) delta_yaw = delta_yaw - 360;
+	if (delta_yaw < -180) delta_yaw = delta_yaw + 360;
+	delta_yaw = (delta_yaw*M_PI)/180.;
+	ROS_DEBUG("delta_yaw: %f", delta_yaw);
+
+	double delta_time = new_sample_time - last_sample_time;
+	//ROS_INFO("old and new time: %f %f", last_sample_time, new_sample_time);
+	ROS_DEBUG("delta_time: %f", delta_time);
+
+	ang_vel_z = delta_yaw/delta_time;
+	ROS_DEBUG("ang_vel_z: %f", ang_vel_z);
 	compassMsg.yaw = yaw;
 	compassMsg.pitch = pitch;
 	compassMsg.roll = roll;
@@ -74,7 +90,11 @@ void OSCompass::publishData(ros::Publisher *pub_data)
 	compassMsg.Ax = Ax;
 	compassMsg.Ay = Ay;
 	compassMsg.Az = Az;
+	compassMsg.ang_vel_z = ang_vel_z;
 	ROS_DEBUG("OS5000 (RPY) = (%lf, %lf, %lf)", roll, pitch, yaw);
+
+	last_sample_time = new_sample_time;
+	last_yaw = yaw;
 
 	pub_data->publish(compassMsg);
 } // end publishImuData()
