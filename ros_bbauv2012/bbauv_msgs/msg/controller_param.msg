@@ -1,0 +1,13 @@
+float32 depth_kp
+float32 depth_ki
+float32 depth_kd 
+float32 heading_kp
+float32 heading_ki
+float32 heading_kd
+float32 ratio_t1
+float32 ratio_t2
+float32 ratio_t3
+float32 ratio_t4
+float32 ratio_t5
+float32 ratio_t6
+bool mode
