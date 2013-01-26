@@ -3,7 +3,7 @@
 #include <sensor_msgs/Joy.h>
 
 bbauv_msgs::manual_control msg;
-void navigate(const sensor_msgs::Joy::ConstPtr& joy)
+void translate(const sensor_msgs::Joy::ConstPtr& joy)
 {
 
   msg.x=joy->axes[1];
@@ -23,9 +23,9 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "joyTranslater");
   ros::NodeHandle n;
   
-  ros::Subscriber joy_sub=n.subscribe<sensor_msgs::Joy>("joy",10,navigate,ros::TransportHints().tcpNoDelay());
+  ros::Subscriber joy_sub=n.subscribe<sensor_msgs::Joy>("joy",20,translate,ros::TransportHints().tcpNoDelay());
 
-  ros::Publisher manualcontrol_pub = n.advertise<bbauv_msgs::manual_control>("monitor_controller", 1000);
+  ros::Publisher manualcontrol_pub = n.advertise<bbauv_msgs::manual_control>("joy_info", 20);
   ros::Rate loop_rate(10);
 
   while(ros::ok())
