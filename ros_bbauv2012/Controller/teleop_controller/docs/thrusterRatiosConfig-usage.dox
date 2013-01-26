@@ -9,6 +9,7 @@
   <param name="thruster6" type="double" value="1.0" />
   <param name="motor_test_mode" type="bool" value="False" />
   <param name="z_mode" type="bool" value="False" />
+  <param name="yaw_mode" type="bool" value="False" />
   <param name="xy_mode" type="bool" value="False" />
 </node>
 \endverbatim
