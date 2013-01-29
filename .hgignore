@@ -24,3 +24,5 @@ bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/msg/_Log.pyc
 bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/msg/_Log.py
 bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/__init__.pyc
 bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/__init__.py
+ros_bbauv2012/Controller/teleop_controller/cfg/thrusterRatios.cfgc.orig
+ros_bbauv2012/Controller/teleop_controller/src/teleopController.cpp.orig

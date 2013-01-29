@@ -275,7 +275,9 @@ class DEFAULT
         if("ratio_t4"==(*i)->name){ratio_t4 = boost::any_cast<double>(val);}
         if("ratio_t5"==(*i)->name){ratio_t5 = boost::any_cast<double>(val);}
         if("ratio_t6"==(*i)->name){ratio_t6 = boost::any_cast<double>(val);}
-        if("mode"==(*i)->name){mode = boost::any_cast<bool>(val);}
+        if("depth_PID"==(*i)->name){depth_PID = boost::any_cast<bool>(val);}
+        if("heading_PID"==(*i)->name){heading_PID = boost::any_cast<bool>(val);}
+        if("reset"==(*i)->name){reset = boost::any_cast<bool>(val);}
       }
     }
 
@@ -291,7 +293,9 @@ double ratio_t3;
 double ratio_t4;
 double ratio_t5;
 double ratio_t6;
-bool mode;
+bool depth_PID;
+bool heading_PID;
+bool reset;
 
     bool state;
     std::string name;
@@ -326,7 +330,11 @@ bool mode;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       double ratio_t6;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      bool mode;
+      bool depth_PID;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      bool heading_PID;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      bool reset;
 //#line 255 "/opt/ros/fuerte/stacks/dynamic_reconfigure/templates/ConfigType.h"
 
     bool __fromMessage__(dynamic_reconfigure::Config &msg)
@@ -465,7 +473,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.depth_kp = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.depth_kp = 10.0;
+      __max__.depth_kp = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.depth_kp = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -475,7 +483,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.depth_ki = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.depth_ki = 10.0;
+      __max__.depth_ki = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.depth_ki = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -485,7 +493,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.depth_kd = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.depth_kd = 10.0;
+      __max__.depth_kd = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.depth_kd = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -495,7 +503,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.heading_kp = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.heading_kp = 10.0;
+      __max__.heading_kp = 50.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.heading_kp = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -505,7 +513,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.heading_ki = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.heading_ki = 10.0;
+      __max__.heading_ki = 50.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.heading_ki = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -515,7 +523,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.heading_kd = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.heading_kd = 10.0;
+      __max__.heading_kd = 50.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.heading_kd = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -583,15 +591,35 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("ratio_t6", "double", 0, "thruster 6 ratio", "", &controller_paramConfig::ratio_t6)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __min__.mode = 0;
+      __min__.depth_PID = 0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.mode = 1;
+      __max__.depth_PID = 1;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.mode = 1;
+      __default__.depth_PID = 1;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("mode", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::mode)));
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("depth_PID", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::depth_PID)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("mode", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::mode)));
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("depth_PID", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::depth_PID)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.heading_PID = 0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.heading_PID = 1;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.heading_PID = 1;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("heading_PID", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::heading_PID)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("heading_PID", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::heading_PID)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.reset = 0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.reset = 1;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.reset = 1;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("reset", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::reset)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("reset", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::reset)));
 //#line 233 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.convertParams();
 //#line 233 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"

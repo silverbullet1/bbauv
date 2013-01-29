@@ -1,5 +1,5 @@
 <launch>
-    <arg name="port" default="/dev/ttyACM0" />
+    <arg name="port" default="/dev/ttyACM1" />
     <node
         pkg="sensorArduino" name="env_sensors" type="serial_node.py" args="$(arg port)" >
     </node>
@@ -8,7 +8,4 @@
         pkg="os5000" name="oscompass" type="oscompass">
     </node>
 
-    <node
-        name="sensorsSubscriber" pkg="sensors" type="sensorsSubscriber">
-    </node>
 </launch>

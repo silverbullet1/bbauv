@@ -10,4 +10,6 @@ float32 ratio_t3
 float32 ratio_t4
 float32 ratio_t5
 float32 ratio_t6
-bool mode
+bool depth_PID
+bool heading_PID
+bool reset

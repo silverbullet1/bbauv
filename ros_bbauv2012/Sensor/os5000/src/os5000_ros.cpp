@@ -45,6 +45,7 @@
 
 OSCompass::OSCompass(string _portname, int _baud, int _rate, int _init_time) : Compass::Compass(_portname, _baud, _rate, _init_time)
 {
+	first=true;
 } // end OSCompass()
 
 
@@ -83,7 +84,16 @@ void OSCompass::publishData(ros::Publisher *pub_data)
 
 	ang_vel_z = delta_yaw/delta_time;
 	ROS_DEBUG("ang_vel_z: %f", ang_vel_z);
-	compassMsg.yaw = yaw;
+
+	if (first){
+		sum_yaw=yaw;
+		first=false;
+	}else{
+		delta_yaw=(delta_yaw*180.)/M_PI;
+		sum_yaw+=delta_yaw;
+	}
+	double rad_yaw=(sum_yaw*M_PI)/180.;
+	compassMsg.yaw = rad_yaw;
 	compassMsg.pitch = pitch;
 	compassMsg.roll = roll;
 	compassMsg.temperature = temperature;

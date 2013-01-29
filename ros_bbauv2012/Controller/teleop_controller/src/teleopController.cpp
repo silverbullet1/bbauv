@@ -6,7 +6,7 @@
 using namespace std;
 
 const float sqrt2 = 1.4142;
-const int mapRatio = 2500;
+const int mapRatio = 2560;
 int ratio1 = mapRatio;
 int ratio2 = mapRatio;
 int ratio3 = mapRatio;
@@ -17,6 +17,7 @@ bool test_mode = false;
 bool z_mode = false;
 bool yaw_mode = false;
 bool xy_mode = false;
+bool reset = false;
 float x,y,z,yaw;
 
 void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
@@ -34,16 +35,19 @@ void callback(teleop_controller::thrusterRatiosConfig &config, uint32_t level) {
 			config.motor_test_mode?"True":"False",
 			config.z_mode?"True":"False",
 			config.xy_mode?"True":"False");
+		
+	test_mode = config.motor_test_mode;
+
 	ratio1 = config.thruster1 * mapRatio;
 	ratio2 = config.thruster2 * mapRatio;
 	ratio3 = config.thruster3 * mapRatio;
 	ratio4 = config.thruster4 * mapRatio;
 	ratio5 = config.thruster5 * mapRatio;
 	ratio6 = config.thruster6 * mapRatio;
-	test_mode = config.motor_test_mode;
 	z_mode = config.z_mode;
-	yaw_mode = config.yaw_mode;
+	yaw_mode = !config.xy_mode;
 	xy_mode = config.xy_mode;
+	reset = config.reset;	
 }
 
 float absolute(float input) {
@@ -63,37 +67,46 @@ int main(int argc,char** argv) {
 	f = boost::bind(&callback, _1, _2);
 	server.setCallback(f);
 
-	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("motor_controller",1000);
-	ros::Subscriber sub = nh.subscribe("monitor_controller",1000,monitorCallBack);
+	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("teleop_controller",1000);
+	ros::Subscriber sub = nh.subscribe("joy_info",1000,monitorCallBack);
 	ros::Rate loop_rate(10);
 	float absx,absy,absmax;
 	while (ros::ok()) {
-		if (test_mode == false) {
+		if(reset)
+		{
+			thrusterMsg.speed1 = 0;
+			thrusterMsg.speed2 = 0;
+			thrusterMsg.speed3 = 0;
+			thrusterMsg.speed4 = 0;
+			thrusterMsg.speed5 = 0;
+			thrusterMsg.speed6 = 0;
+		}
+		else if (test_mode == false) {
 			if (z_mode == true) {
-				thrusterMsg.speed5 = ratio5*z;
-				thrusterMsg.speed6 = ratio6*z;
+				thrusterMsg.speed5 = mapRatio*z;
+				thrusterMsg.speed6 = mapRatio*z;
 			}
 			if (yaw_mode == true) {
 				ROS_DEBUG("yaw axis");
-				thrusterMsg.speed1 = -ratio1*yaw;
-				thrusterMsg.speed2 = ratio2*yaw;
-				thrusterMsg.speed3 = -ratio3*yaw;
-				thrusterMsg.speed4 = ratio4*yaw;
+				thrusterMsg.speed1 = mapRatio*yaw*0.5;
+				thrusterMsg.speed2 = -mapRatio*yaw*0.5;
+				thrusterMsg.speed3 = mapRatio*yaw*0.5;
+				thrusterMsg.speed4 = -mapRatio*yaw*0.5;
 			}
 			if (xy_mode == true) {
 				if (absolute(x) >= absolute(y)) {
 					ROS_DEBUG("x axis");
-					thrusterMsg.speed1 = -ratio1*x;
-					thrusterMsg.speed2 = -ratio2*x;
-					thrusterMsg.speed3 = ratio3*x;
-					thrusterMsg.speed4 = ratio4*x;
+					thrusterMsg.speed1 = -mapRatio*x;
+					thrusterMsg.speed2 = -mapRatio*x;
+					thrusterMsg.speed3 = mapRatio*x;
+					thrusterMsg.speed4 = mapRatio*x;
 				}
 				else {
 					ROS_DEBUG("y axis");
-					thrusterMsg.speed1 = ratio1*y;
-					thrusterMsg.speed2 = -ratio2*y;
-					thrusterMsg.speed3 = -ratio3*y;
-					thrusterMsg.speed4 = ratio4*y;
+					thrusterMsg.speed1 = mapRatio*y;
+					thrusterMsg.speed2 = -mapRatio*y;
+					thrusterMsg.speed3 = -mapRatio*y;
+					thrusterMsg.speed4 = mapRatio*y;
 				}
 			}
 		}
@@ -105,6 +118,7 @@ int main(int argc,char** argv) {
 			thrusterMsg.speed5 = ratio5;
 			thrusterMsg.speed6 = ratio6;
 		}
+			
 		ROS_DEBUG("%d %d %d %d %d %d\n",thrusterMsg.speed1,thrusterMsg.speed2,thrusterMsg.speed3,thrusterMsg.speed4,thrusterMsg.speed5,thrusterMsg.speed6);
 		pub.publish(thrusterMsg);
 

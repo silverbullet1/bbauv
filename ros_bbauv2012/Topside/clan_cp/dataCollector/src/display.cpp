@@ -10,7 +10,7 @@ using namespace std;
 
 float yaw,pitch,roll,temperature,Ax,Ay,Az;
 float Temp0,Temp1,Temp2,Depth,WaterDetA,WaterDetB,WaterDetC;
-float speed1,speed2,speed3,speed4,speed5;
+int speed1,speed2,speed3,speed4,speed5,speed6;
 float monitorX,monitorY,monitorZ,monitorYaw;
 
 //char textfile_path[] = "text_files/testing.txt";
@@ -47,7 +47,8 @@ void thrusCallback(const bbauv_msgs::thruster::ConstPtr& thrusMsg) {
 	speed2 = thrusMsg->speed2;
 	speed3 = thrusMsg->speed3;
 	speed4 = thrusMsg->speed4;
-	speed5 = thrusMsg->speed5;	
+	speed5 = thrusMsg->speed5;
+	speed6 = thrusMsg->speed6;	
 }
 
 int main(int argc, char **argv) {
@@ -56,8 +57,8 @@ int main(int argc, char **argv) {
 	bbauv_msgs::log pubdata;
 	ros::Subscriber compassSub = nh.subscribe("os5000_data", 1000, compassCallback);
 	ros::Subscriber envSub = nh.subscribe("env_data", 1000, envCallBack);
-	ros::Subscriber monitorSub = nh.subscribe("monitor_controller",1000,monitorCallback);
-	ros::Subscriber thrusSub = nh.subscribe("motor_controller",1000,thrusCallback);
+	ros::Subscriber monitorSub = nh.subscribe("joy_info",1000,monitorCallback);
+	ros::Subscriber thrusSub = nh.subscribe("teleop_controller",1000,thrusCallback);
 	ros::Publisher pub = nh.advertise<bbauv_msgs::log>("logging",1000);
 
 	//ofstream myfile;
@@ -79,7 +80,7 @@ int main(int argc, char **argv) {
 		out << "monitor: " << endl;
 		out << "x y z yaw       : " << monitorX <<" - "<< monitorY <<" - "<< monitorZ <<" - "<< monitorYaw << endl;
 		out << "thruster: " << endl;
-		out << "speed1-5        : " << speed1 <<" - "<< speed2 <<" - "<< speed3 <<" - "<< speed4 <<" - "<< speed5 << endl;
+		out << "speed1-6        : " << speed1 <<" - "<< speed2 <<" - "<< speed3 <<" - "<< speed4 <<" - "<< speed5 << " - " << speed6 << endl;
 
 		ROS_INFO((out.str()).c_str()); 
 		pubdata.cmdX = monitorX;
@@ -98,6 +99,7 @@ int main(int argc, char **argv) {
 		pubdata.speed3 = speed3;
 		pubdata.speed4 = speed4;
 		pubdata.speed5 = speed5;
+		pubdata.speed6 = speed6;
 		pub.publish(pubdata);		
 		ros::spinOnce();
 		loop_rate.sleep();
