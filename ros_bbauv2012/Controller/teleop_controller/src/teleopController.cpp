@@ -3,6 +3,8 @@
 #include <bbauv_msgs/thruster.h>
 #include <dynamic_reconfigure/server.h>
 #include <teleop_controller/thrusterRatiosConfig.h>
+#include <sensor_msgs/Joy.h>
+
 using namespace std;
 
 const float sqrt2 = 1.4142;
@@ -20,22 +22,27 @@ bool xy_mode = false;
 bool reset = false;
 float x,y,z,yaw;
 
-void monitorCallBack(const bbauv_msgs::manual_control::ConstPtr& msg) {
-	x = msg->x;
-	y = msg->y;
-	z = msg->z;
-	yaw = msg->yaw;
+void joyTranslate(const sensor_msgs::Joy::ConstPtr& joy)
+{
+
+  x=joy->axes[1];
+  y=joy->axes[0];
+  z=joy->axes[3];
+  yaw=-joy->axes[2]; //need to check the turn direction
+// Notice: in controllerCode. (+) direction is clock-wise
+  yaw_mode=joy->buttons[1];
+  xy_mode=!yaw_mode;
+ 
+  //scaling for yaw:
+  if(yaw>0) yaw=yaw*1.0/0.24;
+  if(yaw>1) yaw=1;
 }
 
 void callback(teleop_controller::thrusterRatiosConfig &config, uint32_t level) {
-	ROS_INFO("Reconfigure Request: %f %f %f %f %f %f %s %s %s", 
-			config.thruster1, config.thruster2, 
-			config.thruster3, config.thruster4,
-			config.thruster5, config.thruster6,
-			config.motor_test_mode?"True":"False",
-			config.z_mode?"True":"False",
-			config.xy_mode?"True":"False");
-		
+	ROS_INFO("Reconfigure Request: %s %s %s", 
+			config.motor_test_mode?"Motor_Testing":"Teleop_Mode",
+			config.z_mode?"Depth_Control":"No_Depth_Control",
+			config.reset?"Stopped":"Normal");
 	test_mode = config.motor_test_mode;
 
 	ratio1 = config.thruster1 * mapRatio;
@@ -45,8 +52,6 @@ void callback(teleop_controller::thrusterRatiosConfig &config, uint32_t level) {
 	ratio5 = config.thruster5 * mapRatio;
 	ratio6 = config.thruster6 * mapRatio;
 	z_mode = config.z_mode;
-	yaw_mode = !config.xy_mode;
-	xy_mode = config.xy_mode;
 	reset = config.reset;	
 }
 
@@ -67,8 +72,8 @@ int main(int argc,char** argv) {
 	f = boost::bind(&callback, _1, _2);
 	server.setCallback(f);
 
-	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("teleop_controller",1000);
-	ros::Subscriber sub = nh.subscribe("joy_info",1000,monitorCallBack);
+	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("teleop_controller",20);
+	ros::Subscriber sub = nh.subscribe("joy",20,joyTranslate);
 	ros::Rate loop_rate(10);
 	float absx,absy,absmax;
 	while (ros::ok()) {
