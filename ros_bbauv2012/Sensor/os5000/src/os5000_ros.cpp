@@ -93,7 +93,7 @@ void OSCompass::publishData(ros::Publisher *pub_data)
 		sum_yaw+=delta_yaw;
 	}
 	double rad_yaw=(sum_yaw*M_PI)/180.;
-	compassMsg.yaw = rad_yaw;
+	compassMsg.yaw = sum_yaw;
 	compassMsg.pitch = pitch;
 	compassMsg.roll = roll;
 	compassMsg.temperature = temperature;

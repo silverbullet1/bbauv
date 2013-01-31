@@ -1,5 +1,4 @@
 <launch>
-    <node pkg="joy_translater" name="joyTranslater" type="joyTranslater"/>
     <node pkg="teleop_controller" name="teleopController" type="teleopController"/>
     <node pkg="joy" name="joy" type="joy_node"/>
     <node pkg="dynamic_reconfigure" name="dynamic_reconfigure" type="reconfigure_gui"/>
