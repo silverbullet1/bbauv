@@ -745,6 +745,7 @@ void upsdrv_makevartable(void)
 	addvar(VAR_VALUE, "vendorid", "Regular expression to match UPS Manufacturer numerical ID (4 digits hexadecimal)");
 	addvar(VAR_VALUE, "productid", "Regular expression to match UPS Product numerical ID (4 digits hexadecimal)");
 	addvar(VAR_VALUE, "bus", "Regular expression to match USB bus name");
+	addvar(VAR_VALUE, "dev", "Regular expression to match USB device number");
 	addvar(VAR_FLAG, "explore", "Diagnostic matching of unsupported UPS");
 	addvar(VAR_FLAG, "maxreport", "Activate tweak for buggy APC Back-UPS firmware");
 #else

@@ -276,7 +276,7 @@ static int match_regex_hex(regex_t *preg, int n)
 
 /* private data type: hold a set of compiled regular expressions. */
 typedef struct regex_matcher_data_s {
-	regex_t	*regex[6];
+	regex_t	*regex[7];
 } regex_matcher_data_t;
 
 /* private callback function for regex matches */
@@ -355,7 +355,7 @@ int USBNewRegexMatcher(USBDeviceMatcher_t **matcher, char **regex, int cflags)
 	m->privdata = (void *)data;
 	m->next = NULL;
 
-	for (i=0; i<6; i++) {
+	for (i=0; i<7; i++) {
 		r = compile_regex(&data->regex[i], regex[i], cflags);
 		if (r == -2) {
 			r = i+1;
