@@ -3,11 +3,14 @@
 #include <PID_v1.h>
 #include <controller_input.h>
 #include <controller_param.h>
+#include <controller_param_depth.h>
 #include <thruster.h>
 #include <ros.h>
 #include <SoftwareSerial.h>
+#include <ArduinoHardware.h>
 
 //ROS initialize
+
 ros::NodeHandle nh;
 
 int manual_speed[6];
@@ -16,6 +19,8 @@ ros::Subscriber<bbauv_msgs::thruster> teleopcontrol_sub("teleop_controller",&tel
 
 void updateControllerParam(const bbauv_msgs::controller_param &msg);
 ros::Subscriber<bbauv_msgs::controller_param> pidconst_sub("controller_config",&updateControllerParam);
+void updateControllerParamDepth(const bbauv_msgs::controller_param_depth &msg);
+ros::Subscriber<bbauv_msgs::controller_param_depth> pidconst_depth_sub("controller_config_depth",&updateControllerParamDepth);
 
 void updateControllerInput(const bbauv_msgs::controller_input &msg);
 ros::Subscriber<bbauv_msgs::controller_input> controller_sub("controller_input",&updateControllerInput);
@@ -49,15 +54,18 @@ PID sidemovePID(&sidemove_input, &sidemove_output, &sidemove_setpoint,1,0,0, DIR
 
 void setup()
 {
+
   //initialize value for variables
-   inDepthPID= false;
-  inHeadingPID= false;
-  inForwardPID=false;
-  inBackwardPID=false;
-  inSidemovePID=false;
+  inDepthPID= true;
+  inHeadingPID= true;
+  inForwardPID=true;
+  inBackwardPID=true;
+  inSidemovePID=true;
   
-  resetPID=true;
+  resetPID=false;
   
+  float ratio[6]={1, 1, 1, 1, 1, 1};
+                          
   for(int i=0;i<6;i++)
     manual_speed[i]=0;
     
@@ -66,32 +74,36 @@ void setup()
   nh.initNode();
   nh.subscribe(controller_sub);
   nh.subscribe(pidconst_sub);
+  nh.subscribe(pidconst_depth_sub);
   nh.subscribe(teleopcontrol_sub);
   nh.advertise(thruster_pub);
+  mDriver.setThrusterRatio(ratio);
   
-  //setup depth PIDs
+  //Note the sample time here is 50ms. ETS SONIA's control loop runs at 70ms.
+  //If Sample Time is set too low, will cause 
+  //lost sync issues when transferring data back and forth with ROS
   depthPID.SetMode(AUTOMATIC);
-  depthPID.SetSampleTime(20);
+  depthPID.SetSampleTime(50);
   depthPID.SetOutputLimits(-2560,2560);
   depthPID.SetControllerDirection(REVERSE);
   
   headingPID.SetMode(AUTOMATIC);
-  headingPID.SetSampleTime(20);
+  headingPID.SetSampleTime(50);
   headingPID.SetOutputLimits(-1280,1280);
   headingPID.SetControllerDirection(DIRECT);
   
   forwardPID.SetMode(AUTOMATIC);
-  forwardPID.SetSampleTime(20);
+  forwardPID.SetSampleTime(50);
   forwardPID.SetOutputLimits(0,2560);
   forwardPID.SetControllerDirection(DIRECT);
   
   backwardPID.SetMode(AUTOMATIC);
-  backwardPID.SetSampleTime(20);
+  backwardPID.SetSampleTime(50);
   backwardPID.SetOutputLimits(0,2560);
   backwardPID.SetControllerDirection(DIRECT);
   
   sidemovePID.SetMode(AUTOMATIC);
-  sidemovePID.SetSampleTime(20);
+  sidemovePID.SetSampleTime(50);
   sidemovePID.SetOutputLimits(-2560,2560);
   sidemovePID.SetControllerDirection(DIRECT);
   
@@ -120,8 +132,8 @@ void getTeleopControllerUpdate()
 
 void getDepthPIDUpdate()
 {
-  depthPID.SetMode(inDepthPID);
-  if(inDepthPID)
+  //depthPID.SetMode(inDepthPID);
+  //if(inDepthPID)
   {
     depthPID.Compute();
   }
@@ -129,8 +141,8 @@ void getDepthPIDUpdate()
 
 void getHeadingPIDUpdate()
 {
-  headingPID.SetMode(inHeadingPID);
-  if(inHeadingPID)
+  //headingPID.SetMode(inHeadingPID);
+  //if(inHeadingPID)
   {
     headingPID.Compute();
   }
@@ -138,8 +150,8 @@ void getHeadingPIDUpdate()
 
 void getForwardPIDUpdate()
 {
-  forwardPID.SetMode(inForwardPID);
-  if(inForwardPID)
+  //forwardPID.SetMode(inForwardPID);
+  //if(inForwardPID)
   {
     forwardPID.Compute();
   }
@@ -147,8 +159,8 @@ void getForwardPIDUpdate()
 
 void getBackwardPIDUpdate()
 {
-  backwardPID.SetMode(inBackwardPID);
-  if(inBackwardPID)
+  //backwardPID.SetMode(inBackwardPID);
+  //if(inBackwardPID)
   {
     backwardPID.Compute();
   }
@@ -156,8 +168,8 @@ void getBackwardPIDUpdate()
 
 void getSidemovePIDUpdate()
 {
-  sidemovePID.SetMode(inSidemovePID);
-  if(inSidemovePID)
+  //sidemovePID.SetMode(inSidemovePID);
+  //if(inSidemovePID)
   {
     sidemovePID.Compute();
   }
@@ -172,17 +184,18 @@ void calculateThrusterSpeed()
   getHeadingPIDUpdate();
   getSidemovePIDUpdate();
   
-  thrusterSpeed.speed1=heading_output-forward_output+backward_output;
-  thrusterSpeed.speed2=-heading_output-forward_output+backward_output;
-  thrusterSpeed.speed3=heading_output+forward_output-backward_output;
-  thrusterSpeed.speed4=-heading_output+forward_output-backward_output;
-  thrusterSpeed.speed5=depth_output;
-  thrusterSpeed.speed6=depth_output;
-
+  //side move not implemented yet
+  thrusterSpeed.speed1=heading_output-forward_output+backward_output+manual_speed[0];
+  thrusterSpeed.speed2=-heading_output-forward_output+backward_output+manual_speed[1];
+  thrusterSpeed.speed3=heading_output+forward_output-backward_output+manual_speed[2];
+  thrusterSpeed.speed4=-heading_output+forward_output-backward_output+manual_speed[3];
+  thrusterSpeed.speed5=depth_output+manual_speed[4];
+  thrusterSpeed.speed6=depth_output+manual_speed[5];
 }
 
 void loop()
 {
+
   //calculate final M.Speed for each thruster
   calculateThrusterSpeed();
   
@@ -193,33 +206,40 @@ void loop()
   thruster_pub.publish(&thrusterSpeed);
   
   nh.spinOnce();
-  delay(20);
+  //if delay is too low, will also cause lost sync issues
+  delay(55);
 }    
 
 
 void updateControllerParam(const bbauv_msgs::controller_param &msg)
 {
+  /*
   float ratio[6]={msg.ratio_t1, msg.ratio_t2, msg.ratio_t3, 
-                           msg.ratio_t4, msg.ratio_t5,msg.ratio_t6};
-  mDriver.setThrusterRatio(ratio);
-  
-  depthPID.SetTunings(msg.depth_kp,msg.depth_ki,msg.depth_kd);
-  inDepthPID= msg.depth_PID;
-  
+                           msg.ratio_t4, msg.ratio_t5,msg.ratio_t6}; */
+
   headingPID.SetTunings(msg.heading_kp,msg.heading_ki,msg.heading_kd);
-  inHeadingPID= msg.heading_PID;
+  //inHeadingPID= msg.heading_PID;
   
   forwardPID.SetTunings(msg.forward_kp,msg.forward_ki,msg.forward_kd);
-  inForwardPID= msg.forward_PID;
+  //inForwardPID= msg.forward_PID;
 
   backwardPID.SetTunings(msg.backward_kp,msg.backward_ki,msg.backward_kd);
-  inBackwardPID= msg.backward_PID;
+  //inBackwardPID= msg.backward_PID;
 
   sidemovePID.SetTunings(msg.sidemove_kp,msg.sidemove_ki,msg.sidemove_kd);
-  inSidemovePID= msg.sidemove_PID;
+  //inSidemovePID= msg.sidemove_PID;
   
-  resetPID=msg.reset;
+  //resetPID=msg.reset;
 }
+
+void updateControllerParamDepth(const bbauv_msgs::controller_param_depth &msg)
+{
+  depthPID.SetTunings(msg.depth_kp,msg.depth_ki,msg.depth_kd);
+  //inDepthPID= msg.depth_PID;
+  
+  //resetPID=msg.reset;  
+}
+
 
 void updateControllerInput(const bbauv_msgs::controller_input &msg)
 {
@@ -237,6 +257,7 @@ void updateControllerInput(const bbauv_msgs::controller_input &msg)
   
   sidemove_input=msg.sidemove_input;
   sidemove_setpoint=msg.sidemove_setpoint;
+ 
 }
 
 void teleopControl(const bbauv_msgs::thruster &msg)

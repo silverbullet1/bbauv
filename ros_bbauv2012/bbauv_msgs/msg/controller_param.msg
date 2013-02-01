@@ -1,6 +1,3 @@
-float32 depth_kp
-float32 depth_ki
-float32 depth_kd 
 float32 heading_kp
 float32 heading_ki
 float32 heading_kd
@@ -13,15 +10,3 @@ float32 backward_kd
 float32 sidemove_kp
 float32 sidemove_ki
 float32 sidemove_kd
-float32 ratio_t1
-float32 ratio_t2
-float32 ratio_t3
-float32 ratio_t4
-float32 ratio_t5
-float32 ratio_t6
-bool depth_PID
-bool heading_PID
-bool forward_PID
-bool backward_PID
-bool sidemove_PID
-bool reset
