@@ -8,6 +8,9 @@
 #include <sensor_msgs/Joy.h>
 #include <dynamic_reconfigure/server.h>
 #include <aggregator/controller_paramConfig.h>
+#include <nav_msgs/Odometry.h>
+#include <geometry_msgs/PoseWithCovariance.h>
+#include <geometry_msgs/TwistWithCovariance.h>
 
 using namespace std;
 
@@ -16,7 +19,7 @@ void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
 
 //for forward, backward, sidemove. Remember to change msg type & edit the function below
-void collect_velocity(const bbauv_msgs::env_data& msg);
+void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg);
 
 void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, uint32_t level); 
 
@@ -42,7 +45,7 @@ int main(int argc,char** argv) {
   depth_sub = nh.subscribe("env_data",20,collect_depth,ros::TransportHints().tcpNoDelay());
   compass_sub = nh.subscribe("os5000_data",20,collect_heading,ros::TransportHints().tcpNoDelay());
   //topic name, msg type need to be updated
-  velocity_sub = nh.subscribe("vel_data",20,collect_velocity,ros::TransportHints().tcpNoDelay());
+  velocity_sub = nh.subscribe("odom",20,collect_velocity,ros::TransportHints().tcpNoDelay());
   
   //publishers declaration
   controller_input_pub = nh.advertise<bbauv_msgs::controller_input>("controller_input",20);
@@ -86,9 +89,9 @@ void collect_heading(const bbauv_msgs::compass_data& msg)
 //this is what we are doing when we receive the velocity data
 //the goal is to find out the input to send to PID
 //ctrl.forward_input, ctrl.backward_input, ctrl.sidemove
-void collect_velocity(const bbauv_msgs::env_data& msg)
+void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg)
 {
-  //...
+  ctrl.forward_input = msg->twist.twist.linear.x;
 }
 
 
