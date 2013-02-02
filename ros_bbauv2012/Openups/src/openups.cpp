@@ -42,12 +42,14 @@ int main(int argc, char** argv)
 				char s[10000];
 				infile.get(s, 10000, 0);
 
-				openupsMsg.batteryCharge=battery_charge(s);
-				openupsMsg.batteryCurrent=battery_current(s);
-				openupsMsg.batteryRuntime=battery_runtime(s);
-				openupsMsg.batteryVoltage=battery_voltage(s);
+				bbauv_msgs::battery_info *battery = &openupsMsg.batteries[ups_id-1];
 
-				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, openupsMsg.batteryCharge, openupsMsg.batteryCurrent, openupsMsg.batteryRuntime, openupsMsg.batteryVoltage);
+				battery->batteryCharge=battery_charge(s);
+				battery->batteryCurrent=battery_current(s);
+				battery->batteryRuntime=battery_runtime(s);
+				battery->batteryVoltage=battery_voltage(s);
+
+				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, battery->batteryCharge, battery->batteryCurrent, battery->batteryRuntime, battery->batteryVoltage);
 			}
 			pub.publish(openupsMsg);
 
