@@ -28,12 +28,11 @@ int main(int argc, char** argv)
 	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups",1000);
 	ros::Rate loop_rate(10);
 
-	ostringstream os;
 	while (ros::ok())
 	{
 		for (int ups_id=1; ups_id<=NUM_UPS; ++ups_id)
 		{
-			os.clear();
+			ostringstream os;
 			os << "upsc openups" << ups_id << "@localhost > tmp";
 			system(os.str().c_str());
 			ifstream infile("tmp");
@@ -73,6 +72,7 @@ int battery_charge(string s)
 		sstr >> charge;
 		return charge;
 	}
+	return -1;
 }
 
 float battery_current(string s)
@@ -87,6 +87,7 @@ float battery_current(string s)
 		sstr >> current;
 		return current;
 	}
+	return -1;
 }  
 
 int battery_runtime(string s)
@@ -101,6 +102,7 @@ int battery_runtime(string s)
 		sstr >> runtime;
 		return runtime;
 	}
+	return -1;
 }  
 
 float battery_voltage(string s)
@@ -115,6 +117,6 @@ float battery_voltage(string s)
 		sstr >> voltage;
 		return voltage;
 	}
+	return -1;
 }  
-
 
