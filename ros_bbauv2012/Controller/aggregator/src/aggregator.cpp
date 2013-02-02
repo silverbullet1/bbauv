@@ -2,7 +2,9 @@
 #include <std_msgs/Float32.h>
 #include <bbauv_msgs/controller_input.h>
 #include <bbauv_msgs/controller_setpoint.h>
-#include <bbauv_msgs/controller_param.h>
+#include <bbauv_msgs/controller_onoff.h>
+#include <bbauv_msgs/controller_translational_constants.h>
+#include <bbauv_msgs/controller_rotational_constants.h>
 #include <bbauv_msgs/env_data.h>
 #include <bbauv_msgs/compass_data.h>
 #include <sensor_msgs/Joy.h>
@@ -14,20 +16,24 @@
 
 using namespace std;
 
+//aggregate sensor feedback
 void update_setpoint(const bbauv_msgs::controller_setpoint sp);
 void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
-
-//for forward, backward, sidemove. Remember to change msg type & edit the function below
+  //for fwd, bwd, sidemove. Rmb to change msg type & edit the func below
 void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg);
 
 void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, uint32_t level); 
 
 bbauv_msgs::controller_input ctrl;
-bbauv_msgs::controller_param param;
+bbauv_msgs::controller_onoff mode;
+bbauv_msgs::controller_translational_constants trans_const;
+bbauv_msgs::controller_rotational_constants rot_const;
 
-ros::Publisher controller_param_pub;
 ros::Publisher controller_input_pub;
+ros::Publisher controller_mode_pub;
+ros::Publisher controller_trans_const_pub;
+ros::Publisher controller_rot_const_pub;
 
 ros::Subscriber controller_setpoint_sub; 
 ros::Subscriber depth_sub; 
@@ -44,12 +50,15 @@ int main(int argc,char** argv) {
   controller_setpoint_sub = nh.subscribe("controller_setpoint",20,update_setpoint,ros::TransportHints().tcpNoDelay());
   depth_sub = nh.subscribe("env_data",20,collect_depth,ros::TransportHints().tcpNoDelay());
   compass_sub = nh.subscribe("os5000_data",20,collect_heading,ros::TransportHints().tcpNoDelay());
-  //topic name, msg type need to be updated
+    //topic name, msg type need to be updated
   velocity_sub = nh.subscribe("odom",20,collect_velocity,ros::TransportHints().tcpNoDelay());
   
   //publishers declaration
   controller_input_pub = nh.advertise<bbauv_msgs::controller_input>("controller_input",20);
-  controller_param_pub = nh.advertise<bbauv_msgs::controller_param>("controller_config",20);
+  controller_mode_pub = nh.advertise<bbauv_msgs::controller_onoff>("controller_mode",20);
+  controller_trans_const_pub = nh.advertise<bbauv_msgs::controller_translational_constants>("translational_constants",20);
+  controller_rot_const_pub = nh.advertise<bbauv_msgs::controller_rotational_constants>("rotational_constants",20);
+
 
   //dynamic reconfigure
   dynamic_reconfigure::Server<aggregator::controller_paramConfig> server;
@@ -58,10 +67,14 @@ int main(int argc,char** argv) {
   server.setCallback(f);
 
   //finish setup and declaration, go to loop
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(9);
   while (ros::ok()) {
+
     controller_input_pub.publish(ctrl);
-    controller_param_pub.publish(param);
+    controller_mode_pub.publish(mode);
+    controller_trans_const_pub.publish(trans_const);
+    controller_rot_const_pub.publish(rot_const);
+
     ros::spinOnce();
     loop_rate.sleep();
   }
@@ -97,25 +110,31 @@ void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg)
 
 void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, uint32_t level) 
 {
-  param.depth_kp=config.depth_kp;	
-  param.depth_ki=config.depth_ki;	
-  param.depth_kd=config.depth_kd;
+  trans_const.depth_kp=config.depth_kp;	
+  trans_const.depth_ki=config.depth_ki;	
+  trans_const.depth_kd=config.depth_kd;
+  ctrl.depth_setpoint=config.depth_setpoint;
 	
-  param.heading_kp=config.heading_kp;
-  param.heading_ki=config.heading_ki;
-  param.heading_kd=config.heading_kd;
+  trans_const.forward_kp=config.forward_kp;
+  trans_const.forward_ki=config.forward_ki;
+  trans_const.forward_kd=config.forward_kd;
+  ctrl.forward_setpoint=config.forward_setpoint;
+  ctrl.forward_input=config.forward_input;
 
-  param.forward_kp=config.forward_kp;
-  param.forward_ki=config.forward_ki;
-  param.forward_kd=config.forward_kd;
+  trans_const.backward_kp=config.backward_kp;
+  trans_const.backward_ki=config.backward_ki;
+  trans_const.backward_kd=config.backward_kd;
+  ctrl.backward_setpoint=config.backward_setpoint;
 
-  param.backward_kp=config.backward_kp;
-  param.backward_ki=config.backward_ki;
-  param.backward_kd=config.backward_kd;
+  trans_const.sidemove_kp=config.sidemove_kp;
+  trans_const.sidemove_ki=config.sidemove_ki;
+  trans_const.sidemove_kd=config.sidemove_kd;
+  ctrl.sidemove_setpoint=config.sidemove_setpoint;
 
-  param.sidemove_kp=config.sidemove_kp;
-  param.sidemove_ki=config.sidemove_ki;
-  param.sidemove_kd=config.sidemove_kd;
+  rot_const.heading_kp=config.heading_kp;
+  rot_const.heading_ki=config.heading_ki;
+  rot_const.heading_kd=config.heading_kd;
+  ctrl.heading_setpoint=config.heading_setpoint;
 
   param.ratio_t1=config.ratio_t1;	
   param.ratio_t2=config.ratio_t2;	
@@ -123,13 +142,16 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   param.ratio_t4=config.ratio_t4;	
   param.ratio_t5=config.ratio_t5;	
   param.ratio_t6=config.ratio_t6;	
+*/
 
-  param.depth_PID=config.depth_PID;
-  param.heading_PID=config.heading_PID;
-  param.forward_PID=config.forward_PID;
-  param.backward_PID=config.backward_PID;
-  param.sidemove_PID=config.sidemove_PID;
+  mode.depth_PID=config.depth_PID;
+  mode.heading_PID=config.heading_PID;
+  mode.forward_PID=config.forward_PID;
+  mode.backward_PID=config.backward_PID;
+  mode.sidemove_PID=config.sidemove_PID;
+  mode.teleop=config.teleop;
 
-  param.reset=config.reset;
+  //mode.reset=config.reset;
+
 }
 
