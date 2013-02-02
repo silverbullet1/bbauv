@@ -90,27 +90,28 @@ void setup()
   //If Sample Time is set too low, will cause 
   //lost sync issues when transferring data back and forth with ROS
   depthPID.SetMode(AUTOMATIC);
-  depthPID.SetSampleTime(30);
+  depthPID.SetSampleTime(20);
   depthPID.SetOutputLimits(-2560,2560);
   depthPID.SetControllerDirection(REVERSE);
   
   headingPID.SetMode(AUTOMATIC);
-  headingPID.SetSampleTime(30);
+  headingPID.SetSampleTime(20);
+//  headingPID.SetOutputLimits(-2000,2000);
   headingPID.SetOutputLimits(-1280,1280);
   headingPID.SetControllerDirection(DIRECT);
   
   forwardPID.SetMode(AUTOMATIC);
-  forwardPID.SetSampleTime(30);
+  forwardPID.SetSampleTime(20);
   forwardPID.SetOutputLimits(-2560,2560);
   forwardPID.SetControllerDirection(DIRECT);
   
   backwardPID.SetMode(AUTOMATIC);
-  backwardPID.SetSampleTime(30);
+  backwardPID.SetSampleTime(20);
   backwardPID.SetOutputLimits(-2560,2560);
   backwardPID.SetControllerDirection(DIRECT);
   
   sidemovePID.SetMode(AUTOMATIC);
-  sidemovePID.SetSampleTime(30);
+  sidemovePID.SetSampleTime(20);
   sidemovePID.SetOutputLimits(-2560,2560);
   sidemovePID.SetControllerDirection(DIRECT);
   
@@ -221,10 +222,15 @@ void calculateThrusterSpeed()
   getSidemovePIDUpdate();
   
   //side move not implemented yet
-  thrusterSpeed.speed1=heading_output-forward_output+backward_output;
-  thrusterSpeed.speed2=-heading_output-forward_output+backward_output;
-  thrusterSpeed.speed3=heading_output+forward_output-backward_output;
-  thrusterSpeed.speed4=-heading_output+forward_output-backward_output;
+  
+  //Uncomment if in simulation mode
+  heading_output *= -1;
+  sidemove_output *= -1;
+
+  thrusterSpeed.speed1=heading_output-forward_output+backward_output;//+sidemove_output;
+  thrusterSpeed.speed2=-heading_output-forward_output+backward_output;//sidemove_output;
+  thrusterSpeed.speed3=heading_output+forward_output-backward_output;//sidemove_output;
+  thrusterSpeed.speed4=-heading_output+forward_output-backward_output;//-sidemove_output;
   thrusterSpeed.speed5=depth_output;
   thrusterSpeed.speed6=depth_output;
   }

@@ -13,11 +13,12 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseWithCovariance.h>
 #include <geometry_msgs/TwistWithCovariance.h>
+#include <geometry_msgs/Twist.h>
 
 using namespace std;
 
 //aggregate sensor feedback
-void update_setpoint(const bbauv_msgs::controller_setpoint sp);
+void update_setpoint(const geometry_msgs::Twist sp);
 void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
   //for fwd, bwd, sidemove. Rmb to change msg type & edit the func below
@@ -35,7 +36,7 @@ ros::Publisher controller_mode_pub;
 ros::Publisher controller_trans_const_pub;
 ros::Publisher controller_rot_const_pub;
 
-ros::Subscriber controller_setpoint_sub; 
+ros::Subscriber cmd_vel_sub; //used to be controller_setpoint_sub
 ros::Subscriber depth_sub; 
 ros::Subscriber compass_sub;
 //name can be updated
@@ -47,7 +48,7 @@ int main(int argc,char** argv) {
   ros::init(argc,argv,"aggregator");
   ros::NodeHandle nh;
   //subscribers declaration
-  controller_setpoint_sub = nh.subscribe("controller_setpoint",20,update_setpoint,ros::TransportHints().tcpNoDelay());
+  cmd_vel_sub = nh.subscribe("cmd_vel",20,update_setpoint,ros::TransportHints().tcpNoDelay());
   depth_sub = nh.subscribe("env_data",20,collect_depth,ros::TransportHints().tcpNoDelay());
   compass_sub = nh.subscribe("os5000_data",20,collect_heading,ros::TransportHints().tcpNoDelay());
     //topic name, msg type need to be updated
@@ -81,23 +82,26 @@ int main(int argc,char** argv) {
   return 0;
 }
 
-void update_setpoint(const bbauv_msgs::controller_setpoint sp)
+void update_setpoint(const geometry_msgs::Twist sp)
 {
-  ctrl.depth_setpoint=sp.depth_setpoint;
-  ctrl.heading_setpoint=sp.heading_setpoint;
-  ctrl.forward_setpoint=sp.forward_setpoint;
-  ctrl.backward_setpoint=sp.backward_setpoint;
-  ctrl.sidemove_setpoint=sp.sidemove_setpoint;
+  //ctrl.depth_setpoint=sp.depth_setpoint;
+  ctrl.heading_setpoint=sp.angular.z;
+  ctrl.forward_setpoint=sp.linear.x;
+  ctrl.forward_setpoint=sp.linear.y;
+  //ctrl.backward_setpoint=sp.backward_setpoint;
+  //ctrl.sidemove_setpoint=sp.sidemove_setpoint;
 }
 
 void collect_depth(const bbauv_msgs::env_data& msg)
 {
   ctrl.depth_input = msg.Depth;  
 }
+
 void collect_heading(const bbauv_msgs::compass_data& msg)
 {
   ctrl.heading_input=msg.yaw;
 }
+
 
 //this is what we are doing when we receive the velocity data
 //the goal is to find out the input to send to PID
@@ -105,6 +109,8 @@ void collect_heading(const bbauv_msgs::compass_data& msg)
 void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg)
 {
   ctrl.forward_input = msg->twist.twist.linear.x;
+  ctrl.heading_input = msg->twist.twist.angular.z;
+  ctrl.sidemove_input = msg->twist.twist.linear.y;
 }
 
 
@@ -118,8 +124,8 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.forward_kp=config.forward_kp;
   trans_const.forward_ki=config.forward_ki;
   trans_const.forward_kd=config.forward_kd;
-  ctrl.forward_setpoint=config.forward_setpoint;
-  ctrl.forward_input=config.forward_input;
+  //ctrl.forward_setpoint=config.forward_setpoint;
+  //ctrl.forward_input=config.forward_input;
 
   trans_const.backward_kp=config.backward_kp;
   trans_const.backward_ki=config.backward_ki;
@@ -129,7 +135,7 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.sidemove_kp=config.sidemove_kp;
   trans_const.sidemove_ki=config.sidemove_ki;
   trans_const.sidemove_kd=config.sidemove_kd;
-  ctrl.sidemove_setpoint=config.sidemove_setpoint;
+  //ctrl.sidemove_setpoint=config.sidemove_setpoint;
 
   rot_const.heading_kp=config.heading_kp;
   rot_const.heading_ki=config.heading_ki;
