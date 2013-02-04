@@ -19,3 +19,5 @@ bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/__init__.py
 *.orig
 *~
 *.cfgc
+ros_bbauv2012/Sensor/os5000/include/.os5000_ros.h.swp
+ros_bbauv2012/Sensor/os5000/src/.os5000_ros.cpp.swp
