@@ -1,7 +1,7 @@
 //using for 3rd integration
 #include <ros.h>
 #include <smcDriver.h>
-#include <PID_v1.h>
+#include <PID_v1.h> //based on http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/ 
 #include <controller_input.h>
 #include <controller_translational_constants.h>
 #include <controller_rotational_constants.h>
@@ -65,7 +65,7 @@ void setup()
   inForwardPID=false;
   inBackwardPID=false;
   inSidemovePID=false;
-  inTeleop=true;
+  inTeleop=false;
   
   resetPID=true;
   
@@ -102,7 +102,9 @@ void setup()
   
   forwardPID.SetMode(AUTOMATIC);
   forwardPID.SetSampleTime(20);
-  forwardPID.SetOutputLimits(-2560,2560);
+  forwardPID.SetOutputLimits(-500,1280); //if lower limit of forwardPID is too high (i.e -1280),
+                                         //AUV will move back a lot when going from 
+                                         //positive velocity to zero velocity
   forwardPID.SetControllerDirection(DIRECT);
   
   backwardPID.SetMode(AUTOMATIC);
@@ -226,6 +228,7 @@ void calculateThrusterSpeed()
   //Uncomment if in simulation mode
   heading_output *= -1;
   sidemove_output *= -1;
+  //forward_output *= -1;
 
   thrusterSpeed.speed1=heading_output-forward_output+backward_output;//+sidemove_output;
   thrusterSpeed.speed2=-heading_output-forward_output+backward_output;//sidemove_output;
@@ -233,6 +236,7 @@ void calculateThrusterSpeed()
   thrusterSpeed.speed4=-heading_output+forward_output-backward_output;//-sidemove_output;
   thrusterSpeed.speed5=depth_output;
   thrusterSpeed.speed6=depth_output;
+  
   }
 
 }
@@ -249,7 +253,7 @@ void loop()
   calculateThrusterSpeed();
   
   //execute the calculated thruster speed
-  runThruster();
+  //runThruster();
   
   //publish thruster speed info
   thruster_pub.publish(&thrusterSpeed);

@@ -11,6 +11,7 @@
   <depend package="bbauv_msgs"/>
   <depend package="sensor_msgs"/>
   <depend package="dynamic_reconfigure"/>
+  <depend package="tf"/>
 </package>
 
 
