@@ -43,6 +43,7 @@
 #include <ros/ros.h>
 #include <ros/time.h>
 #include <bbauv_msgs/compass_data.h>
+#include "sensor_msgs/Imu.h"
 #include <tf/transform_datatypes.h>
 
 // Local includes.
@@ -92,6 +93,9 @@ public:
 
     //! Publish the data from the compass in a ROS standard format.
     void publishData(ros::Publisher *pubData);
+    
+    //! Publish the data from the compass in a ROS standard format.
+    void PublishImuData(ros::Publisher *_pubImuData);
 };
 
 #endif // OS5000_ROS_H

@@ -109,6 +109,42 @@ void OSCompass::publishData(ros::Publisher *pub_data)
 	pub_data->publish(compassMsg);
 } // end publishImuData()
 
+void OSCompass::PublishImuData(ros::Publisher *_pubImuData)
+{
+    sensor_msgs::Imu imudata;
+    double linear_acceleration_covariance = 0.1;
+    double angular_velocity_covariance = 10000.;
+    double orientation_covariance = 1.;
+    uint64_t time = 0;
+
+    imudata.linear_acceleration_covariance[0] = linear_acceleration_covariance;
+    imudata.linear_acceleration_covariance[4] = linear_acceleration_covariance;
+    imudata.linear_acceleration_covariance[8] = linear_acceleration_covariance;
+
+    imudata.angular_velocity_covariance[0] = angular_velocity_covariance;
+    imudata.angular_velocity_covariance[4] = angular_velocity_covariance;
+    imudata.angular_velocity_covariance[8] = angular_velocity_covariance;
+
+    imudata.orientation_covariance[0] = orientation_covariance;
+    imudata.orientation_covariance[4] = orientation_covariance;
+    imudata.orientation_covariance[8] = orientation_covariance;
+
+    imudata.linear_acceleration.x = Ax;
+    imudata.linear_acceleration.y = Ay;
+    imudata.linear_acceleration.z = Az;
+
+    imudata.angular_velocity.x = 0.;
+    imudata.angular_velocity.y = 0.;
+    imudata.angular_velocity.z = ang_vel_z;
+
+    imudata.orientation = tf::createQuaternionMsgFromRollPitchYaw(roll * M_PI / 180., pitch * -M_PI / 180., yaw * -M_PI / 180.);
+    ROS_DEBUG("Compass quaternions = %.1f, %.1f, %.1f, %.1f", imudata.orientation.x, imudata.orientation.y, imudata.orientation.z, imudata.orientation.w);
+
+    imudata.header.stamp = ros::Time::now().fromNSec(time);
+
+    _pubImuData->publish(imudata);
+} // end PublishImuData()
+
 
 /*------------------------------------------------------------------------------
  * configCallback()
@@ -175,6 +211,7 @@ int main(int argc, char **argv)
 	gain_srv.setCallback(f);
 
 	// Set up publishers.
+	ros::Publisher pubImuData = n.advertise<sensor_msgs::Imu>("imu", 1000);
 	ros::Publisher pubData = n.advertise<bbauv_msgs::compass_data>(pub_topic_name.c_str(), 1000);
 
 	// Tell ROS to run this node at the rate that the compass is sending messages to us.
@@ -201,6 +238,7 @@ int main(int argc, char **argv)
 
 			// Publish the message.
 			oscompass->publishData(&pubData);
+			oscompass->PublishImuData(&pubImuData);
 		}
 
 		ros::spinOnce();
