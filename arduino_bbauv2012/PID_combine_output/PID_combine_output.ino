@@ -253,7 +253,7 @@ void loop()
   calculateThrusterSpeed();
   
   //execute the calculated thruster speed
-  //runThruster();
+  runThruster();
   
   //publish thruster speed info
   thruster_pub.publish(&thrusterSpeed);

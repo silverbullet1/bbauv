@@ -72,7 +72,7 @@ int main(int argc,char** argv) {
   ros::Rate loop_rate(5);
   while (ros::ok()) {
 
-/*
+
     if((ctrl.forward_setpoint== 0 || ctrl.forward_setpoint ==0.1) && ctrl.heading_setpoint!= 0)
     {
 	mode.forward_PID=false;
@@ -100,7 +100,7 @@ int main(int argc,char** argv) {
 	  mode.sidemove_PID=true;
       }
     }
-*/
+
 
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);

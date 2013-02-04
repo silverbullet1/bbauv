@@ -140,7 +140,7 @@ void OSCompass::PublishImuData(ros::Publisher *_pubImuData)
     imudata.orientation = tf::createQuaternionMsgFromRollPitchYaw(roll * M_PI / 180., pitch * -M_PI / 180., yaw * -M_PI / 180.);
     ROS_DEBUG("Compass quaternions = %.1f, %.1f, %.1f, %.1f", imudata.orientation.x, imudata.orientation.y, imudata.orientation.z, imudata.orientation.w);
 
-    imudata.header.stamp = ros::Time::now().fromNSec(time);
+    imudata.header.stamp = ros::Time::now();
 
     _pubImuData->publish(imudata);
 } // end PublishImuData()
