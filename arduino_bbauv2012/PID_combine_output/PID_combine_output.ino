@@ -70,7 +70,7 @@ void setup()
   resetPID=true;
   
   //Initialize thruster ratio to 1:1:1:1:1:1
-  float ratio[6]={1, 1, 1, 1, 1, 1};
+  float ratio[6]={1, 1, 1, 1, 1, 0.92};
                           
   for(int i=0;i<6;i++)
     manual_speed[i]=0;
@@ -227,15 +227,25 @@ void calculateThrusterSpeed()
   
   //Uncomment if in simulation mode
   heading_output *= -1;
-  sidemove_output *= -1;
+  //sidemove_output *= -1;
   //forward_output *= -1;
 
   thrusterSpeed.speed1=heading_output-forward_output+backward_output;//+sidemove_output;
   thrusterSpeed.speed2=-heading_output-forward_output+backward_output;//sidemove_output;
   thrusterSpeed.speed3=heading_output+forward_output-backward_output;//sidemove_output;
   thrusterSpeed.speed4=-heading_output+forward_output-backward_output;//-sidemove_output;
-  thrusterSpeed.speed5=depth_output;
-  thrusterSpeed.speed6=depth_output;
+  
+  if(inDepthPID && depth_setpoint-depth_input<0.1 && depth_setpoint-depth_input>-0.1)
+  {
+    
+    thrusterSpeed.speed5=-1765;
+    thrusterSpeed.speed6=-1765;
+  }
+  else
+  {
+    thrusterSpeed.speed5=depth_output;
+    thrusterSpeed.speed6=depth_output;
+  }
   
   }
 
@@ -260,7 +270,7 @@ void loop()
   
   nh.spinOnce();
   //if delay is too low, will also cause lost sync issues
-  delay(50);
+  delay(20);
 }    
 
 void updateControllerMode (const bbauv_msgs::controller_onoff &msg)

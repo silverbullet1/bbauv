@@ -117,6 +117,7 @@ void update_setpoint(const geometry_msgs::Twist sp)
 {
   //ctrl.depth_setpoint=sp.depth_setpoint;
   ctrl.heading_setpoint= sp.angular.z;
+  //ctrl.heading_setpoint=sp.heading_setpoint;
   ctrl.forward_setpoint=sp.linear.x;
   ctrl.sidemove_setpoint=sp.linear.y;
   //ctrl.backward_setpoint=sp.backward_setpoint;
@@ -130,7 +131,7 @@ void collect_depth(const bbauv_msgs::env_data& msg)
 
 void collect_heading(const bbauv_msgs::compass_data& msg)
 {
-  
+  //ctrl.heading_input = msg.yaw;
 }
 
 
@@ -152,7 +153,7 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.depth_kp=config.depth_kp;	
   trans_const.depth_ki=config.depth_ki;	
   trans_const.depth_kd=config.depth_kd;
-  //ctrl.depth_setpoint=config.depth_setpoint;
+  ctrl.depth_setpoint=config.depth_setpoint;
 	
   trans_const.forward_kp=config.forward_kp;
   trans_const.forward_ki=config.forward_ki;
