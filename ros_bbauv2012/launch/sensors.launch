@@ -1,5 +1,5 @@
 <launch>
-    <arg name="port" default="/dev/ttyACM1" />
+    <arg name="port" default="/dev/ttySensors" />
     <node
         pkg="sensorArduino" name="env_sensors" type="serial_node.py" args="$(arg port)" >
     </node>

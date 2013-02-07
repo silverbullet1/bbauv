@@ -97,12 +97,12 @@ void setup()
   headingPID.SetMode(AUTOMATIC);
   headingPID.SetSampleTime(20);
 //  headingPID.SetOutputLimits(-2000,2000);
-  headingPID.SetOutputLimits(-1280,1280);
+  headingPID.SetOutputLimits(-1000,1000);
   headingPID.SetControllerDirection(DIRECT);
   
   forwardPID.SetMode(AUTOMATIC);
   forwardPID.SetSampleTime(20);
-  forwardPID.SetOutputLimits(-500,1280); //if lower limit of forwardPID is too high (i.e -1280),
+  forwardPID.SetOutputLimits(-1280,1280); //if lower limit of forwardPID is too high (i.e -1280),
                                          //AUV will move back a lot when going from 
                                          //positive velocity to zero velocity
   forwardPID.SetControllerDirection(DIRECT);
@@ -206,14 +206,32 @@ void getSidemovePIDUpdate()
 void calculateThrusterSpeed()
 {
   
-  if(inTeleop)
+  if(inTeleop || (inDepthPID || inHeadingPID))
   {
-  thrusterSpeed.speed1=manual_speed[0];
-  thrusterSpeed.speed2=manual_speed[1];
-  thrusterSpeed.speed3=manual_speed[2];
-  thrusterSpeed.speed4=manual_speed[3];   
-  thrusterSpeed.speed5=manual_speed[4];
-  thrusterSpeed.speed6=manual_speed[5];  
+  getDepthPIDUpdate();
+  getHeadingPIDUpdate();
+  getForwardPIDUpdate();
+  
+  thrusterSpeed.speed1=heading_output-forward_output+manual_speed[0];
+  thrusterSpeed.speed2=-heading_output-forward_output+manual_speed[1];
+  thrusterSpeed.speed3=heading_output+forward_output+manual_speed[2];
+  thrusterSpeed.speed4=-heading_output+forward_output+manual_speed[3];   
+  thrusterSpeed.speed5=depth_output+manual_speed[4];
+  thrusterSpeed.speed6=depth_output+manual_speed[5];
+ 
+  /*
+    if(inDepthPID && depth_setpoint == float(int(depth_input*10))/10) // && depth_setpoint-depth_input>-0.01)
+    {
+      
+      thrusterSpeed.speed5=-1725;
+      thrusterSpeed.speed6=-1725;
+    }
+    else
+    {
+      thrusterSpeed.speed5=depth_output+manual_speed[4];
+      thrusterSpeed.speed6=depth_output+manual_speed[5];
+    }*/
+  
   }
   else
   {
@@ -226,7 +244,7 @@ void calculateThrusterSpeed()
   //side move not implemented yet
   
   //Uncomment if in simulation mode
-  heading_output *= -1;
+  //heading_output *= -1;
   //sidemove_output *= -1;
   //forward_output *= -1;
 
@@ -234,18 +252,20 @@ void calculateThrusterSpeed()
   thrusterSpeed.speed2=-heading_output-forward_output+backward_output;//sidemove_output;
   thrusterSpeed.speed3=heading_output+forward_output-backward_output;//sidemove_output;
   thrusterSpeed.speed4=-heading_output+forward_output-backward_output;//-sidemove_output;
-  
-  if(inDepthPID && depth_setpoint-depth_input<0.1 && depth_setpoint-depth_input>-0.1)
+  thrusterSpeed.speed5=depth_output;
+  thrusterSpeed.speed6=depth_output;
+  /*
+  if(inDepthPID && depth_setpoint == float(int(depth_input*10))/10) // && depth_setpoint-depth_input>-0.01)
   {
     
-    thrusterSpeed.speed5=-1765;
-    thrusterSpeed.speed6=-1765;
+    thrusterSpeed.speed5=-1725;
+    thrusterSpeed.speed6=-1725;
   }
   else
   {
     thrusterSpeed.speed5=depth_output;
     thrusterSpeed.speed6=depth_output;
-  }
+  }*/
   
   }
 
@@ -270,7 +290,7 @@ void loop()
   
   nh.spinOnce();
   //if delay is too low, will also cause lost sync issues
-  delay(20);
+  delay(50);
 }    
 
 void updateControllerMode (const bbauv_msgs::controller_onoff &msg)

@@ -18,7 +18,8 @@
 using namespace std;
 
 //aggregate sensor feedback
-void update_setpoint(const geometry_msgs::Twist sp);
+void update_setpoint(const bbauv_msgs::controller_input sp);
+//void update_setpoint(const geometry_msgs::Twist sp);
 void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
   //for fwd, bwd, sidemove. Rmb to change msg type & edit the func below
@@ -69,10 +70,10 @@ int main(int argc,char** argv) {
   server.setCallback(f);
 
   //finish setup and declaration, go to loop
-  ros::Rate loop_rate(5);
+  ros::Rate loop_rate(20);
   while (ros::ok()) {
 
-
+/*
     if((ctrl.forward_setpoint== 0 || ctrl.forward_setpoint ==0.1) && ctrl.heading_setpoint!= 0)
     {
 	mode.forward_PID=false;
@@ -100,7 +101,7 @@ int main(int argc,char** argv) {
 	  mode.sidemove_PID=true;
       }
     }
-
+*/
 
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);
@@ -113,13 +114,13 @@ int main(int argc,char** argv) {
   return 0;
 }
 
-void update_setpoint(const geometry_msgs::Twist sp)
+void update_setpoint(const bbauv_msgs::controller_input sp)
 {
-  //ctrl.depth_setpoint=sp.depth_setpoint;
-  ctrl.heading_setpoint= sp.angular.z;
+  ctrl.depth_setpoint=sp.depth_setpoint;
+  ctrl.heading_setpoint= sp.heading_setpoint;
   //ctrl.heading_setpoint=sp.heading_setpoint;
-  ctrl.forward_setpoint=sp.linear.x;
-  ctrl.sidemove_setpoint=sp.linear.y;
+  ctrl.forward_setpoint=sp.forward_setpoint;
+  //ctrl.sidemove_setpoint=sp.linear.y;
   //ctrl.backward_setpoint=sp.backward_setpoint;
   //ctrl.sidemove_setpoint=sp.sidemove_setpoint;
 }
@@ -131,7 +132,7 @@ void collect_depth(const bbauv_msgs::env_data& msg)
 
 void collect_heading(const bbauv_msgs::compass_data& msg)
 {
-  //ctrl.heading_input = msg.yaw;
+  ctrl.heading_input = msg.yaw;
 }
 
 
@@ -140,11 +141,11 @@ void collect_heading(const bbauv_msgs::compass_data& msg)
 //ctrl.forward_input, ctrl.backward_input, ctrl.sidemove
 void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg)
 {
-  ctrl.forward_input = msg->twist.twist.linear.x;
+  //ctrl.forward_input = msg->twist.twist.linear.x;
 
-  ctrl.heading_input = msg->twist.twist.angular.z;
+  //ctrl.heading_input = msg->twist.twist.angular.z;
   
-  ctrl.sidemove_input = msg->twist.twist.linear.y;
+  //ctrl.sidemove_input = msg->twist.twist.linear.y;
 }
 
 
@@ -158,7 +159,7 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.forward_kp=config.forward_kp;
   trans_const.forward_ki=config.forward_ki;
   trans_const.forward_kd=config.forward_kd;
-  //ctrl.forward_setpoint=config.forward_setpoint;
+  ctrl.forward_setpoint=config.forward_setpoint;
   //ctrl.forward_input=config.forward_input;
 
   trans_const.backward_kp=config.backward_kp;
@@ -174,7 +175,7 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   rot_const.heading_kp=config.heading_kp;
   rot_const.heading_ki=config.heading_ki;
   rot_const.heading_kd=config.heading_kd;
-  //ctrl.heading_setpoint=config.heading_setpoint;
+  ctrl.heading_setpoint=config.heading_setpoint;
 
   param.ratio_t1=config.ratio_t1;	
   param.ratio_t2=config.ratio_t2;	

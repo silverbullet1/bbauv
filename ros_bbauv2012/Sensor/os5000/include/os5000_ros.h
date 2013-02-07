@@ -78,9 +78,6 @@ private:
     double last_yaw;
     double ang_vel_z;
 
-	double sum_yaw;
-	bool first;
-
 public:
     //! Constructor.
     OSCompass(string _portname, int _baud, int _rate, int _init_time);
