@@ -10,25 +10,32 @@
 #include <SoftwareSerial.h>
 #include <ArduinoHardware.h>
 
-//ROS initialize
+//initialize subscribers and publishers in ROS
 
 ros::NodeHandle nh;
 
 int manual_speed[6];
+
+//teleopControl
 void teleopControl(const bbauv_msgs::thruster &msg);
 ros::Subscriber<bbauv_msgs::thruster> teleopcontrol_sub("teleop_controller",&teleopControl);
 
+//Controller Mode
 void updateControllerMode (const bbauv_msgs::controller_onoff &msg);
 ros::Subscriber<bbauv_msgs::controller_onoff> controller_mode("controller_mode", &updateControllerMode);
 
+//update PID Controller Constants; seperated into Rotation and Translational;
+//Reason for separation: msg file cannot be too bit, restriction from rosserial client
 void updateTranslationalControllerConstants(const bbauv_msgs::controller_translational_constants &msg);
 ros::Subscriber<bbauv_msgs::controller_translational_constants> pidconst_trans_sub("translational_constants", &updateTranslationalControllerConstants);
 void updateRotationalControllerConstants(const bbauv_msgs::controller_rotational_constants &msg);
 ros::Subscriber<bbauv_msgs::controller_rotational_constants> pidconst_rot_sub("rotational_constants", &updateRotationalControllerConstants);
 
+// Update Controller Input; contains both the setpoitn and sensor feedback
 void updateControllerInput(const bbauv_msgs::controller_input &msg);
 ros::Subscriber<bbauv_msgs::controller_input> controller_sub("controller_input",&updateControllerInput);
 
+//Publish thruster speed
 bbauv_msgs::thruster thrusterSpeed;
 ros::Publisher thruster_pub("thruster_feedback",&thrusterSpeed);
 
@@ -39,7 +46,7 @@ ros::Publisher thruster_pub("thruster_feedback",&thrusterSpeed);
 smcDriver mDriver= smcDriver(rxPin,txPin);
 
 //PID initialize
-bool inDepthPID, inHeadingPID, inForwardPID, inBackwardPID, inSidemovePID, inTeleop, resetPID;
+bool inDepthPID, inHeadingPID, inForwardPID, inBackwardPID, inSidemovePID, inTopside, inSuperimpose, inTeleop, resetPID;
 
 double depth_setpoint,depth_input,depth_output;
 PID depthPID(&depth_input, &depth_output, &depth_setpoint,1,0,0, DIRECT);
@@ -66,6 +73,7 @@ void setup()
   inBackwardPID=false;
   inSidemovePID=false;
   inTeleop=false;
+  inSuperimpose=true;
   
   resetPID=true;
   
@@ -96,17 +104,17 @@ void setup()
   
   headingPID.SetMode(AUTOMATIC);
   headingPID.SetSampleTime(20);
-//  headingPID.SetOutputLimits(-2000,2000);
+// too high a limit will result in too much overshoot.
   headingPID.SetOutputLimits(-1000,1000);
   headingPID.SetControllerDirection(DIRECT);
   
   forwardPID.SetMode(AUTOMATIC);
   forwardPID.SetSampleTime(20);
-  forwardPID.SetOutputLimits(-1280,1280); //if lower limit of forwardPID is too high (i.e -1280),
+  forwardPID.SetOutputLimits(-1000,1280); //if lower limit of forwardPID is too high (i.e -1280),
                                          //AUV will move back a lot when going from 
                                          //positive velocity to zero velocity
   forwardPID.SetControllerDirection(DIRECT);
-  
+
   backwardPID.SetMode(AUTOMATIC);
   backwardPID.SetSampleTime(20);
   backwardPID.SetOutputLimits(-2560,2560);
@@ -119,6 +127,8 @@ void setup()
   
   pinMode(13, OUTPUT); 
 }
+
+/************************************************************/
 
 void runThruster()
 {
@@ -133,7 +143,15 @@ void runThruster()
 
 void getTeleopControllerUpdate()
 {
-
+  if(!inTeleop)
+  {
+  manual_speed[0]=0;
+  manual_speed[1]=0;
+  manual_speed[2]=0;
+  manual_speed[3]=0;
+  manual_speed[4]=0;
+  manual_speed[5]=0;
+  }
 }
 
 void getDepthPIDUpdate()
@@ -142,6 +160,18 @@ void getDepthPIDUpdate()
   if(inDepthPID)
   {
     depthPID.Compute();
+      /*
+    if(inDepthPID && depth_setpoint == float(int(depth_input*10))/10) // && depth_setpoint-depth_input>-0.01)
+    {
+      
+      thrusterSpeed.speed5=-1725;
+      thrusterSpeed.speed6=-1725;
+    }
+    else
+    {
+      thrusterSpeed.speed5=depth_output+manual_speed[4];
+      thrusterSpeed.speed6=depth_output+manual_speed[5];
+    }*/
   }
   else
   {
@@ -203,74 +233,87 @@ void getSidemovePIDUpdate()
   
 }
 
-void calculateThrusterSpeed()
+void setZeroHorizThrust()
 {
+
+  thrusterSpeed.speed1=0;
+  thrusterSpeed.speed2=0;
+  thrusterSpeed.speed3=0;
+  thrusterSpeed.speed4=0;
   
-  if(inTeleop || (inDepthPID || inHeadingPID))
-  {
-  getDepthPIDUpdate();
-  getHeadingPIDUpdate();
-  getForwardPIDUpdate();
-  
+}
+
+void setZeroVertThrust()
+{
+  thrusterSpeed.speed5=0;
+  thrusterSpeed.speed6=0;
+
+}
+
+void setHorizThrustSpeed()
+{
   thrusterSpeed.speed1=heading_output-forward_output+manual_speed[0];
   thrusterSpeed.speed2=-heading_output-forward_output+manual_speed[1];
   thrusterSpeed.speed3=heading_output+forward_output+manual_speed[2];
   thrusterSpeed.speed4=-heading_output+forward_output+manual_speed[3];   
+}
+
+void setVertThrustSpeed()
+{
   thrusterSpeed.speed5=depth_output+manual_speed[4];
   thrusterSpeed.speed6=depth_output+manual_speed[5];
- 
-  /*
-    if(inDepthPID && depth_setpoint == float(int(depth_input*10))/10) // && depth_setpoint-depth_input>-0.01)
-    {
-      
-      thrusterSpeed.speed5=-1725;
-      thrusterSpeed.speed6=-1725;
-    }
-    else
-    {
-      thrusterSpeed.speed5=depth_output+manual_speed[4];
-      thrusterSpeed.speed6=depth_output+manual_speed[5];
-    }*/
-  
-  }
-  else
-  {
+}
+
+void calculateThrusterSpeed()
+{
+  getTeleopControllerUpdate();
   getDepthPIDUpdate();
+  getHeadingPIDUpdate();
   getForwardPIDUpdate();
   getBackwardPIDUpdate();
   getHeadingPIDUpdate();
   getSidemovePIDUpdate();
-  
-  //side move not implemented yet
-  
-  //Uncomment if in simulation mode
-  //heading_output *= -1;
-  //sidemove_output *= -1;
-  //forward_output *= -1;
-
-  thrusterSpeed.speed1=heading_output-forward_output+backward_output;//+sidemove_output;
-  thrusterSpeed.speed2=-heading_output-forward_output+backward_output;//sidemove_output;
-  thrusterSpeed.speed3=heading_output+forward_output-backward_output;//sidemove_output;
-  thrusterSpeed.speed4=-heading_output+forward_output-backward_output;//-sidemove_output;
-  thrusterSpeed.speed5=depth_output;
-  thrusterSpeed.speed6=depth_output;
-  /*
-  if(inDepthPID && depth_setpoint == float(int(depth_input*10))/10) // && depth_setpoint-depth_input>-0.01)
-  {
-    
-    thrusterSpeed.speed5=-1725;
-    thrusterSpeed.speed6=-1725;
-  }
-  else
-  {
-    thrusterSpeed.speed5=depth_output;
-    thrusterSpeed.speed6=depth_output;
-  }*/
-  
-  }
-
 }
 
+/* How are we sending same set of thrusters multiple PID outputs? */
+
+void superImposePIDoutput()
+{
+  calculateThrusterSpeed();
+  setHorizThrustSpeed();
+  setVertThrustSpeed();
+  //execute the calculated thruster speed
+  nh.loginfo("Running thrusters");
+  runThruster();
+}
+
+void rotatePIDoutput()
+{
+  nh.loginfo("Running AUTONOMOUSLY!");
+  //Vertical
+  inDepthPID=true;
+  getDepthPIDUpdate();
+  setVertThrustSpeed();
+  //Horizontal
+  inHeadingPID=true; inForwardPID=false; inSidemovePID=false;
+  getHeadingPIDUpdate();
+  setHorizThrustSpeed();
+  runThruster();
+  setZeroHorizThrust();
+  inHeadingPID=false; inForwardPID=true; inSidemovePID=false;
+  getForwardPIDUpdate();
+  setHorizThrustSpeed();
+  runThruster();
+  setZeroHorizThrust();
+  inHeadingPID=false; inForwardPID=false; inSidemovePID=true;
+  getForwardPIDUpdate();
+  setHorizThrustSpeed();
+  runThruster();
+  setZeroHorizThrust();  
+}
+
+/************************************************************/
+// MAIN LOOP
 //rosserial has been tested succesfully for message sizes (topic which are pushed to Arduino) 
 //to be 14 fields of float32
 //If a message type exceeds 14 fields of float32, testing shows that it will not work.\
@@ -278,12 +321,14 @@ void calculateThrusterSpeed()
 
 void loop()
 {
-
-  //calculate final M.Speed for each thruster
-  calculateThrusterSpeed();
-  
-  //execute the calculated thruster speed
-  runThruster();
+  if(inSuperimpose)
+  {
+    superImposePIDoutput();
+  }
+  else
+  {
+    rotatePIDoutput();
+  }
   
   //publish thruster speed info
   thruster_pub.publish(&thrusterSpeed);
@@ -293,15 +338,27 @@ void loop()
   delay(50);
 }    
 
+/****** ROS Subsriber Call Back Functions *********/
+
 void updateControllerMode (const bbauv_msgs::controller_onoff &msg)
 {
+  inTopside=msg.topside;
+  
+  if(inTopside)
+  {
   inDepthPID= msg.depth_PID;
   inForwardPID= msg.forward_PID;
   inBackwardPID= msg.backward_PID;
   inSidemovePID= msg.sidemove_PID;
   inHeadingPID= msg.heading_PID;
   inTeleop=msg.teleop;
-  resetPID=msg.reset;
+  inSuperimpose=msg.superimpose;
+  }
+  else
+  {
+    inSuperimpose=true;
+  }
+  
 }
 
 void updateTranslationalControllerConstants(const bbauv_msgs::controller_translational_constants &msg)
@@ -326,13 +383,13 @@ void updateRotationalControllerConstants(const bbauv_msgs::controller_rotational
 
 void updateControllerInput(const bbauv_msgs::controller_input &msg)
 {
+  /*setpoint and input of a PID must be of the same units */
+  
   depth_input=msg.depth_input;
   depth_setpoint=msg.depth_setpoint;
   
   heading_input=msg.heading_input;
   heading_setpoint=msg.heading_setpoint;
-  
-  //nh.loginfo("getting forward input and setpoint");
 
   forward_input=msg.forward_input;
   forward_setpoint=msg.forward_setpoint;
@@ -345,6 +402,7 @@ void updateControllerInput(const bbauv_msgs::controller_input &msg)
  
 }
 
+
 void teleopControl(const bbauv_msgs::thruster &msg)
 {
   manual_speed[0]=msg.speed1;
@@ -354,3 +412,4 @@ void teleopControl(const bbauv_msgs::thruster &msg)
   manual_speed[4]=msg.speed5;
   manual_speed[5]=msg.speed6;
 }
+

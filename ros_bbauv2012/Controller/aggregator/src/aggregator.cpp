@@ -118,11 +118,10 @@ void update_setpoint(const bbauv_msgs::controller_input sp)
 {
   ctrl.depth_setpoint=sp.depth_setpoint;
   ctrl.heading_setpoint= sp.heading_setpoint;
-  //ctrl.heading_setpoint=sp.heading_setpoint;
   ctrl.forward_setpoint=sp.forward_setpoint;
-  //ctrl.sidemove_setpoint=sp.linear.y;
-  //ctrl.backward_setpoint=sp.backward_setpoint;
-  //ctrl.sidemove_setpoint=sp.sidemove_setpoint;
+  ctrl.sidemove_setpoint=sp.sidemove_setpoint;
+  ctrl.backward_setpoint=sp.backward_setpoint;
+  
 }
 
 void collect_depth(const bbauv_msgs::env_data& msg)
@@ -189,9 +188,10 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   mode.heading_PID=config.heading_PID;
   mode.forward_PID=config.forward_PID;
   mode.backward_PID=config.backward_PID;
-  mode.sidemove_PID=config.sidemove_PID;
+  mode.sidemove_PID=config.sidemove_PID;  
+  mode.topside=config.topside;
+  mode.superimpose=config.superimpose;
   mode.teleop=config.teleop;
-
   //mode.reset=config.reset;
 
 }

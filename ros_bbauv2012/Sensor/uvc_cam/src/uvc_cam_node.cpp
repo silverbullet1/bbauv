@@ -304,6 +304,7 @@ public:
 		
 		///THIS IS A QUICK HACK TO GET EXPOSURE ON OUR CAMERA'S THIS DOES NOT WORK FOR ALL CAMERAS
 
+/* //Quick hack to not set exposure
 		if(config_.exposure != newconfig.exposure){
 			try {
 				  cam_->set_control(0x9a0901, newconfig.exposure);
@@ -318,6 +319,7 @@ public:
 				ROS_ERROR_STREAM("Problem setting absolute exposure. Exception was " << e.what());
 			}
 		}
+*/
 		if(config_.sharpness != newconfig.sharpness){
 			try {
 		  cam_->set_control(0x98091b, newconfig.sharpness);
