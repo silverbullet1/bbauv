@@ -2,6 +2,12 @@
 
 #include "px4flow_node/SerialComm.h"
 
+#include <bbauv_msgs/controller_input.h>
+
+#include <px_comm/OpticalFlow.h>
+
+#include <px_comm/velMyAltitude.h>
+
 void
 printTopicInfo(void)
 {
@@ -36,7 +42,7 @@ main(int argc, char** argv)
     ros::NodeHandle pnh("~");
 
     std::string portStr;
-    pnh.param("serial_port", portStr, std::string("/dev/ttyUSB0"));
+    pnh.param("serial_port", portStr, std::string("/dev/ttyACM0"));
 
     int baudrate;
     pnh.param("baudrate", baudrate, 921600);

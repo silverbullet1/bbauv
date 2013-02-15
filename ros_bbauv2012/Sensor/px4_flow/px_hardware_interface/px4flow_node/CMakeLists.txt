@@ -28,5 +28,7 @@ set(PX4FLOW_NODE_SRCS
 rosbuild_add_boost_directories()
 
 rosbuild_add_executable(px4flow_node ${PX4FLOW_NODE_SRCS})
+rosbuild_add_executable(velMyAltitude src/velMyAltitude.cpp)
+
 rosbuild_link_boost(px4flow_node thread system signals)
 

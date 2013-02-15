@@ -55,9 +55,8 @@ int main(int argc,char** argv) {
   ros::init(argc,argv,"aggregator");
   ros::NodeHandle nh;
   
-  //get Parameters from Param Server
+
   
-  nh.param("depthAtSurface",depthAtSurface,10.1591);
 
   //subscribers declaration
   cmd_vel_sub = nh.subscribe("cmd_vel",20,update_setpoint,ros::TransportHints().tcpNoDelay());
@@ -80,6 +79,9 @@ int main(int argc,char** argv) {
   //finish setup and declaration, go to loop
   ros::Rate loop_rate(20);
   while (ros::ok()) {
+
+    //get Parameters from Param Server
+    nh.getParam("/aggregator/depthAtSurface",depthAtSurface);
 
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);

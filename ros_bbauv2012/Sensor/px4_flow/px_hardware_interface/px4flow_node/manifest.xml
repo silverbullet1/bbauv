@@ -10,6 +10,7 @@
   <url>http://ros.org/wiki/px4flow_node</url>
   <depend package="image_transport"/>
   <depend package="px_comm"/>
+  <depend package="bbauv_msgs"/>
 
 </package>
 
