@@ -17,15 +17,21 @@
 
 using namespace std;
 
-//aggregate sensor feedback
+/* Global Variable declaration */
+
+double depthAtSurface;
+
+/* Function prototypes */
+
 void update_setpoint(const bbauv_msgs::controller_input sp);
 //void update_setpoint(const geometry_msgs::Twist sp);
+
 void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
-  //for fwd, bwd, sidemove. Rmb to change msg type & edit the func below
 void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg);
-
 void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, uint32_t level); 
+
+/* ROS Initialization */
 
 bbauv_msgs::controller_input ctrl;
 bbauv_msgs::controller_onoff mode;
@@ -40,20 +46,23 @@ ros::Publisher controller_rot_const_pub;
 ros::Subscriber cmd_vel_sub; //used to be controller_setpoint_sub
 ros::Subscriber depth_sub; 
 ros::Subscriber compass_sub;
-//name can be updated
 ros::Subscriber velocity_sub; 
 
-double yaw_radians;
+/************ Main Loop *****************/
 
 int main(int argc,char** argv) {
+
   ros::init(argc,argv,"aggregator");
   ros::NodeHandle nh;
   
+  //get Parameters from Param Server
+  
+  nh.param("depthAtSurface",depthAtSurface,10.1591);
+
   //subscribers declaration
   cmd_vel_sub = nh.subscribe("cmd_vel",20,update_setpoint,ros::TransportHints().tcpNoDelay());
   depth_sub = nh.subscribe("env_data",20,collect_depth,ros::TransportHints().tcpNoDelay());
   compass_sub = nh.subscribe("os5000_data",20,collect_heading,ros::TransportHints().tcpNoDelay());
-    //topic name, msg type need to be updated
   velocity_sub = nh.subscribe("odom",20,collect_velocity,ros::TransportHints().tcpNoDelay());
   
   //publishers declaration
@@ -61,7 +70,6 @@ int main(int argc,char** argv) {
   controller_mode_pub = nh.advertise<bbauv_msgs::controller_onoff>("controller_mode",20);
   controller_trans_const_pub = nh.advertise<bbauv_msgs::controller_translational_constants>("translational_constants",20);
   controller_rot_const_pub = nh.advertise<bbauv_msgs::controller_rotational_constants>("rotational_constants",20);
-
 
   //dynamic reconfigure
   dynamic_reconfigure::Server<aggregator::controller_paramConfig> server;
@@ -84,6 +92,8 @@ int main(int argc,char** argv) {
   return 0;
 }
 
+/* ROS Callback functions */
+
 void update_setpoint(const bbauv_msgs::controller_input sp)
 {
   ctrl.depth_setpoint=sp.depth_setpoint;
@@ -94,7 +104,8 @@ void update_setpoint(const bbauv_msgs::controller_input sp)
 
 void collect_depth(const bbauv_msgs::env_data& msg)
 {
-  ctrl.depth_input = msg.Depth;  
+  ctrl.depth_input = msg.Depth;
+  ctrl.depth_input -= depthAtSurface;
 }
 
 void collect_heading(const bbauv_msgs::compass_data& msg)
