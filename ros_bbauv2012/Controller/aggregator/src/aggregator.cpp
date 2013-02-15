@@ -73,36 +73,6 @@ int main(int argc,char** argv) {
   ros::Rate loop_rate(20);
   while (ros::ok()) {
 
-/*
-    if((ctrl.forward_setpoint== 0 || ctrl.forward_setpoint ==0.1) && ctrl.heading_setpoint!= 0)
-    {
-	mode.forward_PID=false;
-        mode.heading_PID=true;
-  	mode.sidemove_PID=true;
-    }
-    else if (ctrl.forward_setpoint!= 0 && ctrl.heading_setpoint== 0)
-    {
-    	mode.forward_PID=true;       
-        mode.heading_PID=false;
-	mode.sidemove_PID=true;
-    }
-    else
-    {
-      if(mode.forward_PID)
-      {
-	  mode.forward_PID=false;
-          mode.heading_PID=true;
-	  mode.sidemove_PID=true;
-      }
-      else
-      {
-	  mode.forward_PID=true;       
-          mode.heading_PID=false;
-	  mode.sidemove_PID=true;
-      }
-    }
-*/
-
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);
     controller_trans_const_pub.publish(trans_const);
@@ -120,8 +90,6 @@ void update_setpoint(const bbauv_msgs::controller_input sp)
   ctrl.heading_setpoint= sp.heading_setpoint;
   ctrl.forward_setpoint=sp.forward_setpoint;
   ctrl.sidemove_setpoint=sp.sidemove_setpoint;
-  ctrl.backward_setpoint=sp.backward_setpoint;
-  
 }
 
 void collect_depth(const bbauv_msgs::env_data& msg)
@@ -154,6 +122,11 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.depth_ki=config.depth_ki;	
   trans_const.depth_kd=config.depth_kd;
   ctrl.depth_setpoint=config.depth_setpoint;
+
+  rot_const.heading_kp=config.heading_kp;
+  rot_const.heading_ki=config.heading_ki;
+  rot_const.heading_kd=config.heading_kd;
+  ctrl.heading_setpoint=config.heading_setpoint;
 	
   trans_const.forward_kp=config.forward_kp;
   trans_const.forward_ki=config.forward_ki;
@@ -161,38 +134,17 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   ctrl.forward_setpoint=config.forward_setpoint;
   //ctrl.forward_input=config.forward_input;
 
-  trans_const.backward_kp=config.backward_kp;
-  trans_const.backward_ki=config.backward_ki;
-  trans_const.backward_kd=config.backward_kd;
-  //ctrl.backward_setpoint=config.backward_setpoint;
-
   trans_const.sidemove_kp=config.sidemove_kp;
   trans_const.sidemove_ki=config.sidemove_ki;
   trans_const.sidemove_kd=config.sidemove_kd;
   //ctrl.sidemove_setpoint=config.sidemove_setpoint;
 
-  rot_const.heading_kp=config.heading_kp;
-  rot_const.heading_ki=config.heading_ki;
-  rot_const.heading_kd=config.heading_kd;
-  ctrl.heading_setpoint=config.heading_setpoint;
-
-  param.ratio_t1=config.ratio_t1;	
-  param.ratio_t2=config.ratio_t2;	
-  param.ratio_t3=config.ratio_t3;	
-  param.ratio_t4=config.ratio_t4;	
-  param.ratio_t5=config.ratio_t5;	
-  param.ratio_t6=config.ratio_t6;	
-*/
-
   mode.depth_PID=config.depth_PID;
   mode.heading_PID=config.heading_PID;
   mode.forward_PID=config.forward_PID;
-  mode.backward_PID=config.backward_PID;
   mode.sidemove_PID=config.sidemove_PID;  
   mode.topside=config.topside;
-  mode.superimpose=config.superimpose;
   mode.teleop=config.teleop;
-  //mode.reset=config.reset;
 
 }
 

@@ -221,12 +221,12 @@ int main(int argc, char **argv)
 		if (oscompass->fd > 0)
 		{
 			oscompass->getData();
-
+/*
 			if (oscompass->yaw > 180.)
 			{
 				oscompass->yaw -= 360.;
 			}
-
+*/
 			// Publish the message.
 			oscompass->publishData(&pubData);
 			oscompass->PublishImuData(&pubImuData);
