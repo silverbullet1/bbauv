@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<robot name="Bumblebee">
+
+  <link name="base_link">
+    <visual>
+      <origin rpy="1.57 0 1.57" xyz="0 0 0.0625"/>
+      <geometry>
+        <cylinder length="0.6" radius="0.125"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="plate">
+    <visual>
+      <geometry>
+        <box size="0.7 .5 .05"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="blue">
+        <color rgba="0 0 .8 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_to_plate" type="fixed">
+    <parent link="base_link"/>
+    <child link="plate"/>
+    <origin xyz="0 0 0.125"/>
+  </joint>
+
+</robot>

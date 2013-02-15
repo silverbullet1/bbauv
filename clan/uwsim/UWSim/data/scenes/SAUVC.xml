@@ -1,0 +1,237 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE UWSimScene SYSTEM "UWSimScene.dtd" >
+
+<UWSimScene>
+  <oceanState>
+    <windx> 0.0 </windx>
+    <windy> 0.0 </windy>
+    <windSpeed> 0 </windSpeed>
+    <depth> 1.8 </depth>
+    <reflectionDamping> 0.35 </reflectionDamping>
+    <waveScale> 1e-7 </waveScale>
+    <isNotChoppy> 1 </isNotChoppy>
+    <choppyFactor> 2.5 </choppyFactor>
+    <crestFoamHeight> 2.2 </crestFoamHeight>
+    <oceanSurfaceHeight> 0 </oceanSurfaceHeight>
+    <fog>
+      <density> 0.1</density>
+      <color>
+	<r>0</r>
+	<g>0.05</g>
+	<b>0.3</b>
+      </color>
+    </fog>
+    <color>
+      <r>0.0</r>
+      <g>0.05</g>
+      <b>0.3</b>
+    </color>
+    <attenuation>
+      <r>0.015</r>
+      <g>0.0075 </g>
+      <b> 0.005 </b>
+    </attenuation>
+  </oceanState>
+  <simParams>
+    <disableShaders> 0 </disableShaders>
+    <resw> 800 </resw>
+    <resh> 600 </resh>
+    <offsetp>
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </offsetp>
+    <offsetr>
+      <x> 3.14</x>
+      <y> 0</y>
+      <z> -1.57 </z>
+    </offsetr>
+    <enablePhysics> 1 </enablePhysics>
+  </simParams>
+
+  <camera>
+    <freeMotion> 1 </freeMotion>
+    <objectToTrack>Bumblebee/base_link</objectToTrack>
+    <fov> 60 </fov>
+    <aspectRatio> 1.33 </aspectRatio>
+    <near> 1 </near>
+    <far> 10000 </far>
+    <position>
+      <x>-5</x>
+      <y>-5 </y>
+      <z>8 </z>
+    </position> 
+    <lookAt>
+      <x>0</x>
+      <y>0 </y>
+      <z>0 </z>
+    </lookAt>
+  </camera>
+
+  <vehicle>
+    <name>Bumblebee</name>
+    <file>data/scenes/bbauv_uwsim.urdf</file>
+    <position>
+      <x> 0</x>
+      <y> 0 </y>
+      <z> 0 </z>
+    </position>
+    <orientation>
+      <r>0</r>
+      <p>0</p>
+      <y>0</y>
+    </orientation>
+
+    <virtualCamera>
+      <name>bowtech1</name>
+      <relativeTo>base_link</relativeTo>
+      <resw> 320 </resw>
+      <resh> 240 </resh>
+      <position>
+        <x>0.3</x>
+        <y> -0.1 </y>
+        <z> 0 </z>
+      </position>
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>1.57 </y>
+      </orientation>
+      <!-- draws the FOV of the camera projected on the scene each 2 seconds -->
+      <!-- <showpath>2</showpath>  -->
+    </virtualCamera>
+    <virtualCamera>
+      <name>bowtech2</name>
+      <relativeTo>base_link</relativeTo>
+      <resw> 320</resw>
+      <resh> 240 </resh>
+      <position>
+        <x>0.4</x>
+        <y> 0.1</y>
+        <z> 0 </z>
+      </position>  
+      <orientation>
+        <r>1.57</r>
+        <p>0</p>
+        <y>0</y>
+      </orientation>
+    </virtualCamera>
+
+    <imu>
+      <name>imu</name>
+      <relativeTo>base_link</relativeTo>
+      <position>
+        <x>0</x>
+        <y>0</y>
+        <z>0</z>
+      </position>  
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>3.1415</y>
+      </orientation>
+      <std>0.00000001</std>
+    </imu>
+
+    <pressureSensor>
+      <name>pressureSensor</name>
+      <relativeTo>base_link</relativeTo>
+      <position>
+        <x>0</x>
+        <y>0</y>
+        <z>0.2</z>
+      </position>  
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>0</y>
+      </orientation>
+      <std>0.02</std>
+    </pressureSensor>
+
+  </vehicle>
+
+  <object>
+    <name>terrain</name>
+    <file>terrain/CIRS/cirs_trident.osg</file>
+    <position>
+      <x> 0</x>
+      <y> 0 </y>
+      <z> 0 </z>
+    </position>
+    <orientation>
+      <r>0</r>
+      <p>0</p>
+      <y>0</y>
+    </orientation>
+    <offsetp>
+      <x>-1.5</x>
+      <y>-3.0</y>
+      <z>0</z>
+    </offsetp>
+    <offsetr>
+      <x> 3.1415</x>
+      <y> 0</y>
+      <z> -1.57 </z>
+    </offsetr>
+  </object>
+
+
+  <object>
+    <name> blackbox </name>
+    <file> objects/blackbox_uib_trimesh.osg  </file>
+    <position>
+      <x> 0</x>
+      <y> 0 </y>
+      <z> 4.7 </z>
+    </position>
+    <orientation>
+      <r>0</r>
+      <p>3.1415</p>
+      <y>0</y>
+    </orientation>
+    <physics>
+      <mass> 15 </mass>
+      <inertia> 
+        <x> 0</x>
+        <y> 0 </y>
+        <z> 0 </z>
+      </inertia>
+      <collisionShapeType> box </collisionShapeType>
+    </physics>
+  </object>
+
+  <rosInterfaces>
+    <ROSOdomToPAT>
+      <topic> /dataNavigator </topic>
+      <vehicleName> Bumblebee </vehicleName>
+      <visualize> 1 </visualize>
+    </ROSOdomToPAT>
+
+    <VirtualCameraToROSImage> 
+      <cameraName>bowtech1</cameraName>
+      <imageTopic> /uwsim/camera1 </imageTopic>
+      <infoTopic> /uwsim/camera1_info </infoTopic>
+    </VirtualCameraToROSImage>
+    <ROSTwistToPAT>
+      <topic> /g500/twist</topic>
+      <vehicleName> Bumblebee </vehicleName>
+    </ROSTwistToPAT>
+    <ROSPoseToPAT>
+      <topic> /g500/pose</topic>
+      <vehicleName> Bumblebee </vehicleName>
+    </ROSPoseToPAT>
+    <ImuToROSImu>
+      <name>imu</name>
+      <topic>/imu/data</topic>
+      <rate>20</rate>
+    </ImuToROSImu>
+    <PressureSensorToROS>
+      <name>pressureSensor</name>
+      <topic>g500/pressure</topic>
+      <rate>5</rate>
+    </PressureSensorToROS>
+  </rosInterfaces>
+</UWSimScene>
+
