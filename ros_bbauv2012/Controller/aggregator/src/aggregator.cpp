@@ -137,7 +137,7 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.sidemove_kp=config.sidemove_kp;
   trans_const.sidemove_ki=config.sidemove_ki;
   trans_const.sidemove_kd=config.sidemove_kd;
-  //ctrl.sidemove_setpoint=config.sidemove_setpoint;
+  ctrl.sidemove_setpoint=config.sidemove_setpoint;
 
   mode.depth_PID=config.depth_PID;
   mode.heading_PID=config.heading_PID;

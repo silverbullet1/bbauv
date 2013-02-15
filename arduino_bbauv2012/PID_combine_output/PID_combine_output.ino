@@ -110,17 +110,17 @@ void setup()
   headingPID.SetMode(AUTOMATIC);
   headingPID.SetSampleTime(5);
 // too high a limit will result in too much overshoot.
-  headingPID.SetOutputLimits(-1000,1000);
+  headingPID.SetOutputLimits(-800,800);
   headingPID.SetControllerDirection(DIRECT);
   
   forwardPID.SetMode(AUTOMATIC);
   forwardPID.SetSampleTime(5);
-  forwardPID.SetOutputLimits(-1000,1280);
+  forwardPID.SetOutputLimits(-1000,1260);
   forwardPID.SetControllerDirection(DIRECT);
   
   sidemovePID.SetMode(AUTOMATIC);
   sidemovePID.SetSampleTime(5);
-  sidemovePID.SetOutputLimits(-2560,2560);
+  sidemovePID.SetOutputLimits(-500,500);
   sidemovePID.SetControllerDirection(DIRECT);
   
   pinMode(13, OUTPUT); 
@@ -248,10 +248,10 @@ void setZeroVertThrust()
 
 void setHorizThrustSpeed()
 {
-  thrusterSpeed.speed1=heading_output-forward_output+manual_speed[0];
-  thrusterSpeed.speed2=-heading_output-forward_output+manual_speed[1];
-  thrusterSpeed.speed3=heading_output+forward_output+manual_speed[2];
-  thrusterSpeed.speed4=-heading_output+forward_output+manual_speed[3];   
+  thrusterSpeed.speed1=heading_output-forward_output+sidemove_output+manual_speed[0];
+  thrusterSpeed.speed2=-heading_output-forward_output-sidemove_output+manual_speed[1];
+  thrusterSpeed.speed3=heading_output+forward_output-sidemove_output+manual_speed[2];
+  thrusterSpeed.speed4=-heading_output+forward_output+sidemove_output+manual_speed[3];   
 }
 
 void setVertThrustSpeed()
