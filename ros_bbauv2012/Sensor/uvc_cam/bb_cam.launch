@@ -2,7 +2,7 @@
     <arg name="frontDevice" default="/dev/videoFront" />
     <arg name="bottomDevice" default="/dev/videoBottom" />
 
-    <node ns="bottomcam" name="uvc_cam_node_ptam" pkg="uvc_cam" type="uvc_cam_node" output="screen">
+    <node ns="bottomcam" name="uvc_cam_node" pkg="uvc_cam" type="uvc_cam_node" output="screen">
         <param name="device" value="$(arg bottomDevice)" />
         <param name="width" value="320" />
         <param name="height" value="240" />
@@ -12,15 +12,15 @@
         <param name="gain" value="100" />  
 -->
     </node>
-    <node ns="frontcam" name="uvc_cam_node_front" pkg="uvc_cam" type="uvc_cam_node" output="screen">
-        <param name="device" value="$(arg frontDevice)" />
-        <param name="width" value="320" />
-        <param name="height" value="240" />
 <!--
+    <node ns="frontcam" name="uvc_cam_node" pkg="uvc_cam" type="uvc_cam_node" output="screen">
+        <param name="device" value="$(arg frontDevice)" />
+        <param name="width" value="160" />
+        <param name="height" value="120" />
         <param name="frame_rate" value="20" />
         <param name="exposure" value="0" />
         <param name="gain" value="100" />  
--->
     </node>
+-->
 
 </launch>

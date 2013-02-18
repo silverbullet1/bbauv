@@ -23,8 +23,8 @@ double depthAtSurface;
 
 /* Function prototypes */
 
-void update_setpoint(const bbauv_msgs::controller_input sp);
-//void update_setpoint(const geometry_msgs::Twist sp);
+void update_move_base_setpoint(const geometry_msgs::Twist sp);
+void update_tracker_setpoint (const bbauv_msgs::controller_input track);
 
 void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
@@ -43,7 +43,8 @@ ros::Publisher controller_mode_pub;
 ros::Publisher controller_trans_const_pub;
 ros::Publisher controller_rot_const_pub;
 
-ros::Subscriber cmd_vel_sub; //used to be controller_setpoint_sub
+ros::Subscriber tracker_sub;
+ros::Subscriber cmd_vel_sub; //for move_base
 ros::Subscriber depth_sub; 
 ros::Subscriber compass_sub;
 ros::Subscriber velocity_sub; 
@@ -54,12 +55,10 @@ int main(int argc,char** argv) {
 
   ros::init(argc,argv,"aggregator");
   ros::NodeHandle nh;
-  
-
-  
-
+ 
   //subscribers declaration
-  cmd_vel_sub = nh.subscribe("cmd_vel",20,update_setpoint,ros::TransportHints().tcpNoDelay());
+  cmd_vel_sub = nh.subscribe("cmd_vel",20,update_move_base_setpoint,ros::TransportHints().tcpNoDelay());
+  tracker_sub = nh.subscribe("/line_follower",20,update_tracker_setpoint,ros::TransportHints().tcpNoDelay());
   depth_sub = nh.subscribe("env_data",20,collect_depth,ros::TransportHints().tcpNoDelay());
   compass_sub = nh.subscribe("os5000_data",20,collect_heading,ros::TransportHints().tcpNoDelay());
   velocity_sub = nh.subscribe("odom",20,collect_velocity,ros::TransportHints().tcpNoDelay());
@@ -77,7 +76,7 @@ int main(int argc,char** argv) {
   server.setCallback(f);
 
   //finish setup and declaration, go to loop
-  ros::Rate loop_rate(20);
+  ros::Rate loop_rate(15);
   while (ros::ok()) {
 
     //get Parameters from Param Server
@@ -96,12 +95,22 @@ int main(int argc,char** argv) {
 
 /* ROS Callback functions */
 
-void update_setpoint(const bbauv_msgs::controller_input sp)
+void update_move_base_setpoint(const geometry_msgs::Twist sp)
 {
+/*
   ctrl.depth_setpoint=sp.depth_setpoint;
   ctrl.heading_setpoint= sp.heading_setpoint;
   ctrl.forward_setpoint=sp.forward_setpoint;
   ctrl.sidemove_setpoint=sp.sidemove_setpoint;
+*/
+}
+
+void update_tracker_setpoint(const bbauv_msgs::controller_input track)
+{
+  ctrl.depth_setpoint=track.depth_setpoint;
+  ctrl.heading_setpoint=track.heading_setpoint;
+  ctrl.forward_setpoint=track.forward_setpoint;
+  ctrl.sidemove_setpoint=track.sidemove_setpoint;
 }
 
 void collect_depth(const bbauv_msgs::env_data& msg)
@@ -134,23 +143,23 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   trans_const.depth_kp=config.depth_kp;	
   trans_const.depth_ki=config.depth_ki;	
   trans_const.depth_kd=config.depth_kd;
-  ctrl.depth_setpoint=config.depth_setpoint;
+  //ctrl.depth_setpoint=config.depth_setpoint;
 
   rot_const.heading_kp=config.heading_kp;
   rot_const.heading_ki=config.heading_ki;
   rot_const.heading_kd=config.heading_kd;
-  ctrl.heading_setpoint=config.heading_setpoint;
+  //ctrl.heading_setpoint=config.heading_setpoint;
 	
   trans_const.forward_kp=config.forward_kp;
   trans_const.forward_ki=config.forward_ki;
   trans_const.forward_kd=config.forward_kd;
-  ctrl.forward_setpoint=config.forward_setpoint;
+  //ctrl.forward_setpoint=config.forward_setpoint;
   //ctrl.forward_input=config.forward_input;
 
   trans_const.sidemove_kp=config.sidemove_kp;
   trans_const.sidemove_ki=config.sidemove_ki;
   trans_const.sidemove_kd=config.sidemove_kd;
-  ctrl.sidemove_setpoint=config.sidemove_setpoint;
+  //ctrl.sidemove_setpoint=config.sidemove_setpoint;
 
   mode.depth_PID=config.depth_PID;
   mode.heading_PID=config.heading_PID;

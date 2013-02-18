@@ -50,10 +50,23 @@ int main(int argc,char** argv)
     nh.getParam("/px4flow/Magnifying_Factor",Magnifying_Factor);
 
     //Flow and Altitude Scale Calculations
-    
+    double last_sample_time;
+    double new_sample_time = ros::Time::now().toSec();
+    double delta_time = new_sample_time - last_sample_time;
+    double new_flow_x = Flow_X;
+    double last_flow_x;
+    double new_flow_y = Flow_Y;
+    double last_flow_y;
+    double delta_flow_x = new_flow_x - last_flow_x;
+    double delta_flow_y = new_flow_y - last_flow_y;
+	
     vel.header.stamp = ros::Time::now();
-    vel.velocity_x = Flow_X * (( (Max_Depth-Depth)*Magnifying_Factor )/0.016);
-    vel.velocity_y = Flow_Y * (( (Max_Depth-Depth)*Magnifying_Factor )/0.016);
+    vel.velocity_x = (delta_flow_x/delta_time) * (( (Max_Depth-Depth)*Magnifying_Factor )/0.016);
+    vel.velocity_y = (delta_flow_y/delta_time) * (( (Max_Depth-Depth)*Magnifying_Factor )/0.016);
+
+    last_sample_time = new_sample_time;
+    last_flow_x = new_flow_x;
+    last_flow_y = new_flow_y;
 
     velMyAltitude.publish(vel);
 

@@ -32,6 +32,7 @@ rosbuild_add_executable(Write_Video src/Write_Video.cpp)
 rosbuild_add_executable(Cir_receive src/Cir_receive.cpp)
 rosbuild_add_executable(main src/main.cpp src/Vision_Controller.cpp src/Data_Storage.cpp src/Img_Classifier.cpp src/main.cpp src/Img_Taker.cpp src/Img_Viewer.cpp src/main.cpp src/Vision_Controller.cpp src/Img_Processor.cpp src/Img_Storage.cpp src/Img_Subscriber.cpp)
 rosbuild_link_boost(main system)
+rosbuild_add_executable(line_follower src/line.cpp)
 
 #add dynamic reconfigure api
 rosbuild_find_ros_package(dynamic_reconfigure)
