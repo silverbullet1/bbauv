@@ -1,0 +1,14 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~thruster1" : \b [double] ratio of thruster 1 min: -1.0, default: 0.0, max: 1.0
+- \b "~thruster2" : \b [double] ratio of thruster 2 min: -1.0, default: 0.0, max: 1.0
+- \b "~thruster3" : \b [double] ratio of thruster 3 min: -1.0, default: 0.0, max: 1.0
+- \b "~thruster4" : \b [double] ratio of thruster 4 min: -1.0, default: 0.0, max: 1.0
+- \b "~thruster5" : \b [double] ratio of thruster 5 min: -1.0, default: 0.0, max: 1.0
+- \b "~thruster6" : \b [double] ratio of thruster 6 min: -1.0, default: 0.0, max: 1.0
+- \b "~motor_test_mode" : \b [bool] for testing motors min: False, default: False, max: True
+- \b "~z_mode" : \b [bool] depth control min: False, default: False, max: True
+- \b "~reset" : \b [bool] stop AUV min: False, default: False, max: True
+

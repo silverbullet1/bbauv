@@ -1,0 +1,27 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~depth_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~heading_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~forward_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~sidemove_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~teleop" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~topside" : \b [bool] Manual-0 or Auto-1 min: False, default: True, max: True
+- \b "~depth_kp" : \b [double] P const for depth controller min: 0.0, default: 9000.0, max: 50000.0
+- \b "~depth_ki" : \b [double] I const for depth controller min: 0.0, default: 5000.0, max: 50000.0
+- \b "~depth_kd" : \b [double] D const for depth controller min: 0.0, default: 2000.0, max: 50000.0
+- \b "~depth_setpoint" : \b [double] Setpoint for depth controller min: 0.0, default: 0.0, max: 2.0
+- \b "~heading_kp" : \b [double] P const for heading controller min: 0.0, default: 20.0, max: 10000.0
+- \b "~heading_ki" : \b [double] I const for heading controller min: 0.0, default: 18.0, max: 10000.0
+- \b "~heading_kd" : \b [double] D const for heading controller min: 0.0, default: 10.0, max: 10000.0
+- \b "~heading_setpoint" : \b [double] Setpoint for heading controller min: -360.0, default: 0.0, max: 360.0
+- \b "~forward_kp" : \b [double] P const for forward controller min: 0.0, default: 5000.0, max: 10000.0
+- \b "~forward_ki" : \b [double] I const for forward controller min: 0.0, default: 0.0, max: 10000.0
+- \b "~forward_kd" : \b [double] D const for forward controller min: 0.0, default: 0.0, max: 10000.0
+- \b "~forward_setpoint" : \b [double] Setpoint for forward controller min: -1.0, default: 0.0, max: 1.0
+- \b "~sidemove_kp" : \b [double] P const for sidemove controller min: 0.0, default: 5000.0, max: 10000.0
+- \b "~sidemove_ki" : \b [double] I const for sidemove controller min: 0.0, default: 0.0, max: 10000.0
+- \b "~sidemove_kd" : \b [double] D const for sidemove controller min: 0.0, default: 0.0, max: 10000.0
+- \b "~sidemove_setpoint" : \b [double] Setpoint for sidemove controller min: -1.0, default: 0.0, max: 1.0
+

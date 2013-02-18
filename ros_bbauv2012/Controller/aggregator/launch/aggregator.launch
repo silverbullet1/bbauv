@@ -1,0 +1,8 @@
+<launch>
+
+    <node
+        pkg="aggregator" name="aggregator" type="aggregator" output="screen" respawn="true" clear_params="true" >
+	<rosparam file="$(find aggregator)/launch/aggregator_params.yaml"/>	
+    </node>
+	
+</launch>

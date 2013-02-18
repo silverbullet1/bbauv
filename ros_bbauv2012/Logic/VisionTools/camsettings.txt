@@ -1,0 +1,5 @@
+Front cam:
+Bright: 126
+Contrast: 5
+Saturation: 50
+Exposure: 39
