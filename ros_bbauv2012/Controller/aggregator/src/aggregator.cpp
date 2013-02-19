@@ -80,7 +80,8 @@ int main(int argc,char** argv) {
   while (ros::ok()) {
 
     //get Parameters from Param Server
-    nh.getParam("/aggregator/depthAtSurface",depthAtSurface);
+        //Due to the use of an absolute pressure sensor, we need to subtract the pressure at atm bef we enter the water in order to obtain accurate depths
+    nh.getParam("/aggregator/depthAtSurface",depthAtSurface); 
 
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);

@@ -1,5 +1,5 @@
 <launch>
-    <arg name="device" default="/dev/video0" />
+    <arg name="device" default="/dev/video1" />
 
     <node name="uvc_cam_node" pkg="uvc_cam" type="uvc_cam_node" output="screen">
     	<remap from="/camera/image_raw" to="/camera/rgb/image_color" />
