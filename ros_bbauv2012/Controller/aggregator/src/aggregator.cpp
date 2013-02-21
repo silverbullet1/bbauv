@@ -33,6 +33,7 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
 
 /* ROS Initialization */
 
+//bbauv_msgs::controller_input cmd_vel;
 bbauv_msgs::controller_input ctrl;
 bbauv_msgs::controller_onoff mode;
 bbauv_msgs::controller_translational_constants trans_const;
@@ -82,7 +83,7 @@ int main(int argc,char** argv) {
     //get Parameters from Param Server
         //Due to the use of an absolute pressure sensor, we need to subtract the pressure at atm bef we enter the water in order to obtain accurate depths
     nh.getParam("/aggregator/depthAtSurface",depthAtSurface); 
-
+    
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);
     controller_trans_const_pub.publish(trans_const);
@@ -99,10 +100,10 @@ int main(int argc,char** argv) {
 void update_move_base_setpoint(const geometry_msgs::Twist sp)
 {
 /*
-  ctrl.depth_setpoint=sp.depth_setpoint;
-  ctrl.heading_setpoint= sp.heading_setpoint;
-  ctrl.forward_setpoint=sp.forward_setpoint;
-  ctrl.sidemove_setpoint=sp.sidemove_setpoint;
+  cmd_vel.depth_setpoint=sp.depth_setpoint;
+  cmd_vel.heading_setpoint= sp.heading_setpoint;
+  cmd_vel.forward_setpoint=sp.forward_setpoint;
+  cmd_vel.sidemove_setpoint=sp.sidemove_setpoint;
 */
 }
 

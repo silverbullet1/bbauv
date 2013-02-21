@@ -12,7 +12,8 @@
 using namespace cv;
 using namespace std;
 
-Mat src, src_gray, bw, bw2, frame;
+Mat src, src_gray, bw, bw2, frame, element3(3,3,CV_8U,cv::Scalar(1));
+					
 int low, high=40, centerX, centerY;
 float heading;
 
@@ -39,7 +40,7 @@ void init()
 	private_nh.param<string>("video_name", video_name, "");
 	private_nh.param<int>("webcam_id", webcam_id, 0);
 
-	/*
+/*	
 	if (topic_name.empty()) {
 		ROS_INFO("No topic name specified, defaulting to video or own webcam.");
 
@@ -54,7 +55,7 @@ void init()
 		ROS_INFO("Subscribing to topic %s.", topic_name.c_str());
 		taker = new Img_Subscriber(topic_name);
 	}
-	*/
+*/
 	ros::NodeHandle n;
 	image_transport::ImageTransport it(n);
 	image_sub = it.subscribe(topic_name, 1, &image_callback);
@@ -72,15 +73,18 @@ int main( int argc, char** argv )
 	ros::init(argc, argv, "line_follower");
 	init();
 
-
 	namedWindow("src", CV_WINDOW_AUTOSIZE);
 	createTrackbar( "Low: ", "src", &low, 255, 0);
 	createTrackbar( "High: ", "src", &high, 255, 0);
 
-	//VideoCapture cap(0);
+	double reverseTill = 0;
+	bool reversed = false;
 
+	double waitTill = 0; // Quick hack to wait
+	//double curTime = ros::Time::now().toSec();
 	while(true) {
-		//cap >> src;
+		double curTime = ros::Time::now().toSec();
+
 		src = frame;
 
 		int c = waitKey( 20 );
@@ -89,17 +93,16 @@ int main( int argc, char** argv )
 		cvtColor( src, src_gray, CV_BGR2GRAY );
 		imshow("src_gray", src_gray);
 
-//		minAreaRect(contours);
 		inRange(src_gray, low, high, bw);
+		//imshow("bw", bw);
+		//erode(bw, bw, element3);
+		//dilate(bw, bw, element3);
 		imshow("bw", bw);
 
-		bw2 = bw;
-
 		vector<vector<Point> > contours;
-		findContours(bw2, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+		findContours(bw, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
 		vector<RotatedRect> boundRect( contours.size() );
-		//drawContours(src, contours, -1, Scalar(255), 2);
 		for( int i = 0; i < contours.size(); i++ )
 		{
 			boundRect[i] = minAreaRect( contours[i] );
@@ -110,107 +113,132 @@ int main( int argc, char** argv )
 		centerX = src_gray.size().width/2;
 		centerY = src_gray.size().height/2;
 
+		// Find the largest contour
 		int count = 0;
+		int maxIndex = 0;
+		float maxArea = 0;
 		for( int i = 0; i< contours.size(); i++ ){
-			if(contourArea(contours[i]) > 1000){
+			float curArea = contourArea(contours[i]);
+			if (curArea > 300 && curArea > maxArea) {
+				maxArea = curArea;
+				maxIndex = i;
+				count++;
+			}
+		}
+
+		if (curTime >= waitTill) {
+			if (count) {
+				RotatedRect &largestRect = boundRect[maxIndex];
 				Scalar color = Scalar( 255 );
-				Point2f rect_points[4]; boundRect[i].points( rect_points );
+				Point2f rect_points[4]; largestRect.points( rect_points );
 				for(int j = 0; j < 4; j++)
 				{
 					line(drawing, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
 				}
 
-                                Point2f edges[2] = { rect_points[1] - rect_points[0],
-                                                        rect_points[2] - rect_points[1] };
+				Point2f edges[2] = { rect_points[1] - rect_points[0],
+					rect_points[2] - rect_points[1] };
 
-                                float diff_angle = 0;
-                                if (norm(edges[0]) > norm(edges[1])) {
-                                        diff_angle = atan(edges[0].x / edges[0].y) / M_PI * 180.;
-                                } else {
-                                        diff_angle = atan(edges[1].x / edges[1].y) / M_PI * 180.;
-                                }
+				float diff_angle = 0;
+				if (norm(edges[0]) > norm(edges[1])) {
+					diff_angle = atan(edges[0].x / edges[0].y) / M_PI * 180.;
+				} else {
+					diff_angle = atan(edges[1].x / edges[1].y) / M_PI * 180.;
+				}
 
+				bool below_mid = (rect_points[0].y > centerY) && (rect_points[1].y > centerY) && (rect_points[2].y > centerY) && (rect_points[3].y > centerY);
 
 				///Display the Count, Skew Angle, Centroid x and y
-				double dist = norm(boundRect[i].center - Point2f(centerX, centerY));
-				Point2f delta = boundRect[i].center - Point2f(centerX, centerY);
-				printf("%i: %f diff_angle: %f c: %f %f  %lf\n", count++, boundRect[i].angle, diff_angle, boundRect[i].center.x, boundRect[i].center.y, dist);
+				double dist = norm(largestRect.center - Point2f(centerX, centerY));
+				Point2f delta = largestRect.center - Point2f(centerX, centerY);
+				printf("%i: %f diff_angle: %f c: %f %f  %lf\n", count++, largestRect.angle, diff_angle, largestRect.center.x, largestRect.center.y, dist);
 
 
-				//FIXME: Temporarily use geometry msg: x = forward, y = sideway, z = rotational velocities
-				const float FORWARD_SETPOINT = 1.2;
+				const float FORWARD_SETPOINT = 0.4;
 				bbauv_msgs::controller_input sendmsg;
 
-				sendmsg.depth_setpoint = 0.8;
+				float x_ratio, y_ratio;
+				x_ratio = float(largestRect.center.x) / src_gray.size().width;
+				y_ratio = float(largestRect.center.y) / src_gray.size().height;
+
+				sendmsg.depth_setpoint = 0.2;
 				sendmsg.heading_setpoint = heading;
 
-				double threshold = 55.0;
-				if (delta.x < -threshold) {
+				float factor = 0.5f + (centerY - largestRect.center.y) / float(src_gray.size().height);
+
+				double threshold = 50.0;
+				if (x_ratio > 0.5) {
+					if (reversed && reverseTill < curTime) {
+						printf("sharp turn??? rotate to: %f\n", sendmsg.heading_setpoint);
+						
+						sendmsg.heading_setpoint = heading + 90;
+						sendmsg.sidemove_setpoint = -0.4;
+
+						waitTill = ros::Time::now().toSec() + 3;
+						reversed = false;
+					} else if (!reversed) {
+						sendmsg.forward_setpoint = -0.8;
+						movement_pub.publish(sendmsg);
+
+						reversed = true;
+						reverseTill = ros::Time::now().toSec() + 1.5;
+					}
+				}
+				//TODO: do the other case (like the above, but left)
+				else if (x_ratio < 0.5 && reverseTill < curTime) {
+					if (reversed && reverseTill < curTime) {
+						printf("sharp turn??? rotate to: %f\n", sendmsg.heading_setpoint);
+
+						sendmsg.heading_setpoint = heading - 90;
+						sendmsg.sidemove_setpoint = 0.4;
+
+						waitTill = ros::Time::now().toSec() + 3;
+						reversed = false;
+					} else if (!reversed) {
+						sendmsg.forward_setpoint = -0.8;
+						movement_pub.publish(sendmsg);
+
+						reversed = true;
+						reverseTill = ros::Time::now().toSec() + 1.5;
+					}
+				}
+				//TODO: do the other case (like the above, but left)
+				else if (delta.x < -threshold) {
 					sendmsg.heading_setpoint = heading - 10;
-					sendmsg.forward_setpoint = FORWARD_SETPOINT;
-					sendmsg.sidemove_setpoint = 0.15;
+					sendmsg.forward_setpoint = factor * FORWARD_SETPOINT;
+					sendmsg.sidemove_setpoint = 0.2;
 
 					printf("deltax: %f\n", delta.x);
+					printf("factor: %f\n", factor);
 				}
 				else if (delta.x > threshold) {
 					sendmsg.heading_setpoint = heading + 10;
-					sendmsg.forward_setpoint = FORWARD_SETPOINT;
-					sendmsg.sidemove_setpoint = -0.15;
+					sendmsg.forward_setpoint = factor * FORWARD_SETPOINT;
+					sendmsg.sidemove_setpoint = -0.2;
 
 					printf("deltax: %f\n", delta.x);
+					printf("factor: %f\n", factor);
 				}
-				 else {
+				else {
 					if (abs(diff_angle) > 10) {
 						printf("rotating from %f to %f\n", heading, heading - diff_angle);
 						sendmsg.heading_setpoint = heading - diff_angle;
-						sendmsg.forward_setpoint = 0.4;
+						sendmsg.forward_setpoint = factor * 0.4;
+						printf("factor: %f\n", factor);
 					} else {
-						sendmsg.forward_setpoint = FORWARD_SETPOINT;
+						sendmsg.forward_setpoint = factor * FORWARD_SETPOINT;
+						printf("factor: %f\n", factor);
 					}
 				}
 
 				movement_pub.publish(sendmsg);
-/*
-				if(delta.x < -threshold)
-				{
-					if(boundRect[i].angle < 0)
-					{
-						if(boundRect[i].angle < -45)
-						{
-							printf("spin left until angle = -10\n");
-							sendmsg.heading_setpoint = heading + diff_angle;
-							movement_pub.publish(sendmsg);
-						}
-						else
-						{
-							printf("spin right until angle = 10\n");
-							sendmsg.heading_setpoint = heading + diff_angle;
-							movement_pub.publish(sendmsg);
-						}
-					}
-					else
-					{
-						printf("forward\n");
-						sendmsg.heading_setpoint = heading;
-//						sendmsg.forward_setpoint = 0.2;
-						movement_pub.publish(sendmsg);
-					}
-				}
-				else if(delta.x > threshold)
-				{
-					printf("forward\n");
-					sendmsg.heading_setpoint = heading;
-//					sendmsg.forward_setpoint = 0.2;
-					movement_pub.publish(sendmsg);
-				}
-				else
-				{
-					printf("forward\n");
-					sendmsg.heading_setpoint = heading;
-//					sendmsg.forward_setpoint = 0.2;
-					movement_pub.publish(sendmsg);
-				}
-*/
+			}
+			else { // Count == 0
+				printf("LOST LINE. Stopping.\n");
+				bbauv_msgs::controller_input sendmsg;
+				sendmsg.heading_setpoint = heading;
+				sendmsg.depth_setpoint = 0.2;
+				movement_pub.publish(sendmsg);
 			}
 		}
 
@@ -218,7 +246,9 @@ int main( int argc, char** argv )
 		namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
 		imshow( "Contours", drawing );
 
+
 		imshow("src", src);
+		
 
 		ros::spinOnce();
 	}
