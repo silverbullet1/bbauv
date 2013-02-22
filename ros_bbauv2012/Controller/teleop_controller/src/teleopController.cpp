@@ -74,7 +74,7 @@ int main(int argc,char** argv) {
 
 	ros::Publisher pub = nh.advertise<bbauv_msgs::thruster>("teleop_controller",20);
 	ros::Subscriber sub = nh.subscribe("joy",20,joyTranslate);
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(16);
 	float absx,absy,absmax;
 	while (ros::ok()) {
 		if(reset)

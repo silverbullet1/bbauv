@@ -77,7 +77,7 @@ int main(int argc,char** argv) {
   server.setCallback(f);
 
   //finish setup and declaration, go to loop
-  ros::Rate loop_rate(15);
+  ros::Rate loop_rate(16);
   while (ros::ok()) {
 
     //get Parameters from Param Server
