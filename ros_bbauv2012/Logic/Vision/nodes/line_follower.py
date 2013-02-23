@@ -20,6 +20,9 @@ movementPub = None
 def publishMovement(movement):
 	movementPub.publish(movement)
 
+history = []
+
+DEPTH_POINT = 0.7
 
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
@@ -57,25 +60,26 @@ class LookForLineState:
 			return StraightLineState()
 		# Keep spinning right
 		msg = controller_input()
-		msg.depth_setpoint = 0.8
-		msg.heading_setpoint = rectData['heading'] + 10
+		msg.depth_setpoint = DEPTH_POINT
+#		msg.heading_setpoint = rectData['heading'] + 10
 		publishMovement(msg)
 		return self
 
-class TemporaryReverseState:
-	def __init__(self, secondsToReverse, nextState):
+class TemporaryState:
+	def __init__(self, secondsToReverse, nextState, speed=-0.2):
 		rospy.loginfo("Reversing for " + str(secondsToReverse) + " secs")
 		self.transitionTime = rospy.get_time() + secondsToReverse
 		self.nextState = nextState
+		self.speed = speed
 
 	def gotFrame(self, cvimg, rectData):
 		if rospy.get_time() > self.transitionTime:
 			return self.nextState()
 		# Keep reversing
 		msg = controller_input()
-		msg.depth_setpoint = 0.8
+		msg.depth_setpoint = DEPTH_POINT
 		msg.heading_setpoint = rectData['heading']
-		msg.forward_setpoint = -0.2
+		msg.forward_setpoint = self.speed
 		publishMovement(msg)
 		return self
 
@@ -86,20 +90,37 @@ class StraightLineState:
 	def gotFrame(self, cvimg, rectData):
 		if rectData['maxRect'] == None:
 			# Lost the line, so reverse a bit, then look again
-			return TemporaryReverseState(0.5, LookForLineState)
+			return TemporaryState(0.1, LookForLineState)
+
+		screen_center_x = cvimg.shape[0] / 2
+		delta_x = rectData['maxRect'][0][0] - screen_center_x
+
+		x_strip_threshold = 50
 
 		msg = controller_input()
-		msg.depth_setpoint = 0.8
-		if abs(
-		if abs(rectData['angle']) < 5:
+		msg.depth_setpoint = DEPTH_POINT
+
+		if delta_x < -x_strip_threshold:
+			msg.sidemove_setpoint = 0.2
+		elif delta_x > x_strip_threshold:
+			msg.sidemove_setpoint = -0.2
+
+		if abs(rectData['angle']) < 7:
 			# Keep going forward
 			msg.heading_setpoint = rectData['heading']
-			msg.forward_setpoint = 0.2
+			msg.forward_setpoint = 0.4
+			rospy.loginfo('forward!')
 		else:
 			# Correct for angle
-			msg.heading_setpoint = rectData['heading'] + rectData['angle']
+			if rectData['angle'] > 45:
+				return TemporaryState(0.2, StraightLineState, speed=0.1)
+
+			if msg.sidemove_setpoint == 0 and abs(rectData['angle']) > 10:
+				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.2
+
+			msg.heading_setpoint = rectData['heading'] - rectData['angle']
 			publishMovement(msg)
-			print("Turn a little.")
+#			print("Turn a little to " + str(msg.heading_setpoint) + " degrees")
 		publishMovement(msg)
 		return self
 
@@ -122,7 +143,7 @@ class LineFollower:
 		self.state = LookForLineState()
 
 		# Configurable parameters
-		self.params = { 'grayLow': 0, 'grayHigh': 40, 'contourMinArea': 300 }
+		self.params = { 'grayLow': 0, 'grayHigh': 10, 'contourMinArea': 300 }
 
 		# Set up param configuration window
 		def paramSetter(key):
@@ -135,23 +156,12 @@ class LineFollower:
 		cv2.createTrackbar("Min contour area:", "settings", self.params['contourMinArea'], 3000, paramSetter('contourMinArea'));
 
 		## Example filters
-		## Conversion to HSV
-		#hsvfilter = lambda (cv_img): cv2.cvtColor(cv_img, cv2.cv.CV_BGR2HSV)
-
-		## Grayscale image that has its histogram equalized
-		#equalhistfilter = lambda (_): cv2.equalizeHist(grayfilter.image)
-
 		## Original image - its Laplacian
 		#tmpkernel = np.array([[0., -1., 0.],[-1., 5., -1.], [0., -1., 0.]])
 		#sublaplacefilter = lambda (cv_img): cv2.filter2D(cv_img, -1, tmpkernel)
 
 		## Canny (edge detection)
 		#cannyfilter = lambda (_): cv2.threshold(cv2.Canny(grayfilter.image, 125, 350), 128, 255, cv2.THRESH_BINARY_INV)[1]
-
-		## R,G,B
-		#rfilter = lambda (cv_img): cv2.split(cv_img)[2]
-		#gfilter = lambda (cv_img): cv2.split(cv_img)[1]
-		#bfilter = lambda (cv_img): cv2.split(cv_img)[0]
 
 
 	# Callback for subscribing to Image topic
@@ -162,9 +172,20 @@ class LineFollower:
 	def gotFrame(self, cvimg):
 		# Perform some processing before passing to state
 
+		# Ignore all blue stuff
+		channels = cv2.split(cvimg)
+		imgNew = cv2.merge([np.zeros(channels[1].shape, channels[1].dtype), channels[1], channels[2]])
+
 		# Find the black regions
-		imgGray = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2GRAY)
+		imgGray = cv2.cvtColor(imgNew, cv2.cv.CV_BGR2GRAY)
+		imgGray = cv2.equalizeHist(imgGray)
+
 		imgBW = cv2.inRange(imgGray, np.array(self.params['grayLow']), np.array(self.params['grayHigh']))
+
+		structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT,
+					(3,3), (1,1))
+		imgBW = cv2.dilate(imgBW, structuringElt)
+		imgBW = cv2.erode(imgBW, structuringElt)
 
 		# Make a copy because findContours modifies the original image
 		imgBW2 = imgBW.copy()
@@ -182,7 +203,7 @@ class LineFollower:
 
 		rectData = { 'maxRect': maxRect, 'heading': self.heading }
 
-		# maxRect is a tuple: ( (x,y), (w,h), theta )
+		# maxRect is a tuple: ( (center_x,center_y), (w,h), theta )
 		# Perform operations on the largest bounding rect
 		if maxRect:
 			# Obtain the actual corners of the box
@@ -205,7 +226,7 @@ class LineFollower:
 
 		self.state = self.state.gotFrame(imgGray, rectData)
 
-		cv2.imshow("src", cvimg)
+		cv2.imshow("src", imgNew)
 		cv2.imshow("gray", imgGray)
 		cv2.imshow("bw", imgBW)
 
