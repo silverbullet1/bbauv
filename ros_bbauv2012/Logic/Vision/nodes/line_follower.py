@@ -6,8 +6,8 @@ import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
 
-# from bbauv_msgs.msg import compass_data
-# from bbauv_msgs.msg import controller_input
+from bbauv_msgs.msg import compass_data
+from bbauv_msgs.msg import controller_input
 
 import math
 import numpy as np
@@ -55,8 +55,11 @@ class LookForLineState:
 	def gotFrame(self, cvimg, rectData):
 		if rectData['maxRect']:
 			return StraightLineState()
-		#TODO: Keep spinning right
-		print("Spin right!")
+		# Keep spinning right
+		msg = controller_input()
+		msg.depth_setpoint = 0.8
+		msg.heading_setpoint = rectData['heading'] + 10
+		publishMovement(msg)
 		return self
 
 class TemporaryReverseState:
@@ -68,8 +71,12 @@ class TemporaryReverseState:
 	def gotFrame(self, cvimg, rectData):
 		if rospy.get_time() > self.transitionTime:
 			return self.nextState()
-		#TODO: Keep reversing
-		print("Reverse!")
+		# Keep reversing
+		msg = controller_input()
+		msg.depth_setpoint = 0.8
+		msg.heading_setpoint = rectData['heading']
+		msg.forward_setpoint = -0.2
+		publishMovement(msg)
 		return self
 
 class StraightLineState:
@@ -79,9 +86,21 @@ class StraightLineState:
 	def gotFrame(self, cvimg, rectData):
 		if rectData['maxRect'] == None:
 			# Lost the line, so reverse a bit, then look again
-			return TemporaryReverseState(1.5, LookForLineState)
-		#TODO: Keep going forward
-		print("Go forward!")
+			return TemporaryReverseState(0.5, LookForLineState)
+
+		msg = controller_input()
+		msg.depth_setpoint = 0.8
+		if abs(
+		if abs(rectData['angle']) < 5:
+			# Keep going forward
+			msg.heading_setpoint = rectData['heading']
+			msg.forward_setpoint = 0.2
+		else:
+			# Correct for angle
+			msg.heading_setpoint = rectData['heading'] + rectData['angle']
+			publishMovement(msg)
+			print("Turn a little.")
+		publishMovement(msg)
 		return self
 
 
@@ -161,7 +180,7 @@ class LineFollower:
 				maxArea = curArea
 				maxRect = cv2.minAreaRect(contour)
 
-		rectData = { 'maxRect': maxRect }
+		rectData = { 'maxRect': maxRect, 'heading': self.heading }
 
 		# maxRect is a tuple: ( (x,y), (w,h), theta )
 		# Perform operations on the largest bounding rect
@@ -205,8 +224,8 @@ if __name__ == '__main__':
 	app = LineFollower()
 
 	rospy.Subscriber(imageTopic, Image, app.gotRosFrame)
-	# rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
-	# movementPub = rospy.Publisher('/line_follower', controller_input)
+	rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
+	movementPub = rospy.Publisher('/line_follower', controller_input)
 
 	r = rospy.Rate(loopRateHz)
 	while not rospy.is_shutdown():

@@ -130,7 +130,7 @@ void getHeadingPIDUpdate()
     }
     if (heading_setpoint > (heading_input+180))
     {
-      heading_input+=360;
+      heading_input+=359;
     }  
   
   headingPID.SetMode(inHeadingPID);
@@ -333,7 +333,7 @@ void loop()
   currentTime= millis();
   if (currentTime >= (loopTime + 50))
   {
-    nh.spinOnce();
+    //nh.spinOnce();
     digitalWrite(13, LOW);
     superImposePIDoutput();
     //rotatePIDoutput();
@@ -341,7 +341,8 @@ void loop()
     runThruster();
     digitalWrite(13, HIGH);
     loopTime=currentTime;
-  } 
+  }
+ nh.spinOnce(); 
 }    
 
 

@@ -10,7 +10,7 @@
     <include file="$(find aggregator)/launch/aggregator.launch" />
 
 	<!-- Launching Joystick Control -->
-  	<include file="$(find launch)/teleop.launch" />
+<!--  	<include file="$(find launch)/teleop.launch" /> -->
 
     <node pkg="dynamic_reconfigure" name="dynamic_reconfigure" type="reconfigure_gui"/>
 
