@@ -19,8 +19,9 @@
 
 using namespace std;
 
+#define MAX_SPEED 2560
 /* Global Variable declaration */
-
+int loop_rate;
 double depthAtSurface;
 const float sqrt2 = 1.4142;
 const int mapRatio = 2560;
@@ -32,13 +33,14 @@ float x,y,z,yaw;
 
 void update_move_base_setpoint(const geometry_msgs::Twist sp);
 void update_tracker_setpoint (const bbauv_msgs::controller_input track);
+void update_manual_speed();
 
 void collect_depth(const bbauv_msgs::env_data& msg);
 void collect_heading(const bbauv_msgs::compass_data& msg);
 void collect_velocity(const nav_msgs::Odometry::ConstPtr& msg);
 void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, uint32_t level); 
 void joyTranslate(const sensor_msgs::Joy::ConstPtr& joy);
-
+void set_frequency(int freq);
 
 /* ROS Initialization */
 
@@ -47,27 +49,20 @@ bbauv_msgs::controller_input ctrl;
 bbauv_msgs::controller_onoff mode;
 bbauv_msgs::controller_translational_constants trans_const;
 bbauv_msgs::controller_rotational_constants rot_const;
-bbauv_msgs::thruster thrusterMsg;
+bbauv_msgs::thruster manual_speed;
 
 ros::Publisher controller_input_pub;
 ros::Publisher controller_mode_pub;
 ros::Publisher controller_trans_const_pub;
 ros::Publisher controller_rot_const_pub;
-ros::Publisher pub;
+ros::Publisher teleop_control_pub;
 
 ros::Subscriber tracker_sub;
 ros::Subscriber cmd_vel_sub; //for move_base
 ros::Subscriber depth_sub; 
 ros::Subscriber compass_sub;
-ros::Subscriber velocity_sub;
-ros::Subscriber sub;
-
-
-float absolute(float input) {
-
-	if (input < 0) return (-input);
-	else return input;
-}
+ros::Subscriber velocity_sub; 
+ros::Subscriber joy_sub;  //for manual control
 
 /************ Main Loop *****************/
 
@@ -82,23 +77,22 @@ int main(int argc,char** argv) {
   depth_sub = nh.subscribe("env_data",20,collect_depth,ros::TransportHints().tcpNoDelay());
   compass_sub = nh.subscribe("os5000_data",20,collect_heading,ros::TransportHints().tcpNoDelay());
   velocity_sub = nh.subscribe("odom",20,collect_velocity,ros::TransportHints().tcpNoDelay());
-  sub = nh.subscribe("joy",20,joyTranslate);
-  
+  joy_sub = nh.subscribe("joy",20,joyTranslate,ros::TransportHints().tcpNoDelay());
+
   //publishers declaration
   controller_input_pub = nh.advertise<bbauv_msgs::controller_input>("controller_input",20);
   controller_mode_pub = nh.advertise<bbauv_msgs::controller_onoff>("controller_mode",20);
   controller_trans_const_pub = nh.advertise<bbauv_msgs::controller_translational_constants>("translational_constants",20);
   controller_rot_const_pub = nh.advertise<bbauv_msgs::controller_rotational_constants>("rotational_constants",20);
-	pub = nh.advertise<bbauv_msgs::thruster>("teleop_controller",20);
+  teleop_control_pub= nh.advertise<bbauv_msgs::thruster>("teleop_controller",20);
 
   //dynamic reconfigure
   dynamic_reconfigure::Server<aggregator::controller_paramConfig> server;
   dynamic_reconfigure::Server<aggregator::controller_paramConfig>::CallbackType f;
   f = boost::bind(&dynamic_reconfigure_callback, _1, _2);
   server.setCallback(f);
-
+  ros::Rate loop_rate(20);
   //finish setup and declaration, go to loop
-  ros::Rate loop_rate(16);
   while (ros::ok()) {
 
     //get Parameters from Param Server
@@ -142,9 +136,10 @@ int main(int argc,char** argv) {
     controller_mode_pub.publish(mode);
     controller_trans_const_pub.publish(trans_const);
     controller_rot_const_pub.publish(rot_const);
+    teleop_control_pub.publish(manual_speed);
 
     ros::spinOnce();
-    loop_rate.sleep();
+    loop_rate.sleep();  
   }
   return 0;
 }
@@ -238,6 +233,49 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   mode.sidemove_PID=config.sidemove_PID;  
   mode.topside=config.topside;
   mode.teleop=config.teleop;
-
+  mode.loop_freq=config.arduino_frequency;
+  loop_rate=config.aggregator_frequency;
 }
 
+void joyTranslate(const sensor_msgs::Joy::ConstPtr& joy)
+{
+  float x,y,z,yaw;	//for manual control
+  bool yaw_mode=false;
+
+  x=joy->axes[1];
+  y=joy->axes[0];
+  z=joy->axes[3];
+  yaw=-joy->axes[2]; //need to check the turn direction
+  // Notice: in controllerCode. (+) direction is clock-wise
+  yaw_mode=joy->buttons[1];
+
+  //scaling for yaw:
+  if(yaw>0) yaw=yaw*1.0/0.24;
+  if(yaw>1) yaw=1;
+  manual_speed.speed5=MAX_SPEED*z;
+  manual_speed.speed6=MAX_SPEED*z;
+
+  if(yaw_mode)
+  {
+    manual_speed.speed1 = MAX_SPEED*yaw*0.5;
+    manual_speed.speed2 = -MAX_SPEED*yaw*0.5;
+    manual_speed.speed3 = MAX_SPEED*yaw*0.5;
+    manual_speed.speed4 = -MAX_SPEED*yaw*0.5;
+  }
+  else
+  {
+    if(abs(x)>=abs(y))
+    {
+    manual_speed.speed1 = -MAX_SPEED*x;
+    manual_speed.speed2 = -MAX_SPEED*x;
+    manual_speed.speed3 = MAX_SPEED*x;
+    manual_speed.speed4 = MAX_SPEED*x;
+    }
+    else {
+    manual_speed.speed1 = MAX_SPEED*y;
+    manual_speed.speed2 = -MAX_SPEED*y;
+    manual_speed.speed3 = -MAX_SPEED*y;
+    manual_speed.speed4 = MAX_SPEED*y;
+    }
+  }
+}

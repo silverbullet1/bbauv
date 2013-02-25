@@ -22,7 +22,7 @@ def publishMovement(movement):
 
 history = []
 
-DEPTH_POINT = 0.7
+DEPTH_POINT = 0.8
 
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
@@ -67,7 +67,7 @@ class LookForLineState:
 
 class TemporaryState:
 	def __init__(self, secondsToReverse, nextState, speed=-0.2):
-		rospy.loginfo("Reversing for " + str(secondsToReverse) + " secs")
+		rospy.loginfo("Forward setpoint: " + str(speed) + " for " + str(secondsToReverse) + " secs")
 		self.transitionTime = rospy.get_time() + secondsToReverse
 		self.nextState = nextState
 		self.speed = speed
@@ -93,33 +93,41 @@ class StraightLineState:
 			return TemporaryState(0.1, LookForLineState)
 
 		screen_center_x = cvimg.shape[0] / 2
-		delta_x = rectData['maxRect'][0][0] - screen_center_x
+		# Calculate distance of center of box from screen center
+		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / cvimg.shape[0]
 
-		x_strip_threshold = 50
+		x_strip_threshold = 0.1
 
 		msg = controller_input()
 		msg.depth_setpoint = DEPTH_POINT
+		msg.heading_setpoint = rectData['heading']
+
+		print('deltax: ' + str(delta_x))
 
 		if delta_x < -x_strip_threshold:
-			msg.sidemove_setpoint = 0.2
+			msg.sidemove_setpoint = 1.0
 		elif delta_x > x_strip_threshold:
-			msg.sidemove_setpoint = -0.2
+			msg.sidemove_setpoint = -1.0
 
-		if abs(rectData['angle']) < 7:
+		if abs(rectData['angle']) < 5:
 			# Keep going forward
-			msg.heading_setpoint = rectData['heading']
-			msg.forward_setpoint = 0.4
+			msg.forward_setpoint = 0.8
 			rospy.loginfo('forward!')
+		elif abs(delta_x) > 0.4:
+			# Apply sidemove only
+			msg.heading_setpoint = rectData['heading']
+			msg.sidemove_setpoint = math.copysign(2.5, -delta_x)
+			print("sidemove only!")
 		else:
 			# Correct for angle
 			if rectData['angle'] > 45:
-				return TemporaryState(0.2, StraightLineState, speed=0.1)
+				return TemporaryState(0.2, StraightLineState, speed=0.2)
 
 			if msg.sidemove_setpoint == 0 and abs(rectData['angle']) > 10:
-				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.2
+				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.3
 
 			msg.heading_setpoint = rectData['heading'] - rectData['angle']
-			publishMovement(msg)
+			print("Correcting for angle\nheading: from " + str(rectData['heading']) + " to " + str(msg.heading_setpoint) + "\nrect angle: " + str(rectData['angle']))
 #			print("Turn a little to " + str(msg.heading_setpoint) + " degrees")
 		publishMovement(msg)
 		return self

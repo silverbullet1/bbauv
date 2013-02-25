@@ -13,7 +13,7 @@
 
 
 int manual_speed[6];
-unsigned long currentTime, loopTime;
+unsigned long currentTime, loopTime, delayTime;
 
 /***********/
 
@@ -331,7 +331,7 @@ void setup()
 void loop()
 {
   currentTime= millis();
-  if (currentTime >= (loopTime + 50))
+  if (currentTime >= (loopTime + delayTime))
   {
     //nh.spinOnce();
     digitalWrite(13, LOW);
@@ -341,8 +341,7 @@ void loop()
     runThruster();
     digitalWrite(13, HIGH);
     loopTime=currentTime;
-  }
- nh.spinOnce(); 
+  } 
 }    
 
 
@@ -371,7 +370,10 @@ void updateControllerMode (const bbauv_msgs::controller_onoff &msg)
   inSidemovePID=true;
   inHeadingPID=true;
   }
-
+  if(msg.loop_freq>0)
+  {
+    delayTime=1000/msg.loop_freq;
+  }
 }
 
 void updateTranslationalControllerConstants(const bbauv_msgs::controller_translational_constants &msg)

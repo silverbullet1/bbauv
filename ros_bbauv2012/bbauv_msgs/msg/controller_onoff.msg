@@ -7,3 +7,4 @@ bool sidemove_PID
 bool teleop
 bool superimpose
 bool reset
+int16 loop_freq
