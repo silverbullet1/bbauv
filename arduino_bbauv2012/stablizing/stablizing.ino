@@ -191,7 +191,11 @@ void getHeadingPIDUpdate()
     }
     if (heading_setpoint > (heading_input+180))
     {
-      heading_input+=359;
+      heading_input+=360;
+    }
+    if (heading_input > (heading_setpoint+180))
+    {
+      heading_input-=360;
     }  
   
   headingPID.SetMode(inHeadingPID);

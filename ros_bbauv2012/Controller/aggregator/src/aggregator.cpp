@@ -20,7 +20,8 @@ using namespace std;
 /* Global Variable declaration */
 
 double depthAtSurface;
-double inTopside;
+bool inTopside;
+bool inStateMachine;
 
 /* Function prototypes */
 
@@ -76,21 +77,37 @@ int main(int argc,char** argv) {
   dynamic_reconfigure::Server<aggregator::controller_paramConfig>::CallbackType f;
   f = boost::bind(&dynamic_reconfigure_callback, _1, _2);
   server.setCallback(f);
-
+  
+  inStateMachine = false;
+  inTopside = true;
   //finish setup and declaration, go to loop
   ros::Rate loop_rate(16);
   while (ros::ok()) {
 
     //get Parameters from Param Server
         //Due to the use of an absolute pressure sensor, we need to subtract the pressure at atm bef we enter the water in order to obtain accurate depths
-    nh.getParam("/aggregator/depthAtSurface",depthAtSurface); 
-    nh.getParam("/aggregator/inTopside",inTopside);
+    nh.getParamCached("/aggregator/depthAtSurface", depthAtSurface); 
+        //Are we engaging all PIDs?
+    nh.getParamCached("/aggregator/inTopside", inTopside);
+        //Are we in a state machine?
+    nh.getParamCached("/aggregator/inStateMachine", inStateMachine);
+
+    if(inStateMachine)
+    {
+        if(!inTopside)
+        {
+            mode.topside=false;
+        }
+        else
+        {
+            mode.topside=true;
+        }
+    }
 
     controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);
     controller_trans_const_pub.publish(trans_const);
-    controller_rot_const_pub.publish(rot_const);
-
+    controller_rot_const_pub.publish(rot_const);   
     ros::spinOnce();
     loop_rate.sleep();
   }
@@ -183,8 +200,8 @@ void dynamic_reconfigure_callback(aggregator::controller_paramConfig &config, ui
   mode.depth_PID=config.depth_PID;
   mode.heading_PID=config.heading_PID;
   mode.forward_PID=config.forward_PID;
-  mode.sidemove_PID=config.sidemove_PID;  
-  mode.topside=config.topside;
+  mode.sidemove_PID=config.sidemove_PID;
+  mode.topside = config.topside;
   mode.teleop=config.teleop;
 
 }
