@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <node pkg="map_store" type="map_saver" name="map_saver" />
+  <node pkg="map_store" type="map_manager" name="map_manager" output="screen">
+     <!--- unused topics -->
+     <remap from="dynamic_map" to="map_store_dynamic_map"/>
+     <remap from="map" to="map_store_map"/>
+  </node> 
+
+</launch>
+

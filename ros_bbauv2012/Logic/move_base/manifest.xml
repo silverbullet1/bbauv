@@ -1,0 +1,21 @@
+<package>
+  <description brief="move_base">
+
+This node subscribes to a topic of type geometry_msgs/Twist and converts it to geometry_msgs/TwistStamped
+
+    Originally written to send data from /cmd_vel topic into /g500/twist (as seen in the default launch of UWSim)
+
+  </description>
+  <author>Ong Tian Chang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/move_base_bbauv2012</url>
+
+  <depend package="geometry_msgs"/>
+  <depend package="nav_msgs"/>
+  <depend package="std_msgs"/>
+  <depend package="bbauv_msgs"/>
+
+</package>
+
+

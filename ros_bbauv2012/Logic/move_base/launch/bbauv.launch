@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!--  -->
+
+<launch>
+
+  <param name="/use_sim_time" value="false" />
+
+  <!-- Load the URDF/Xacro model of our robot -->
+
+  <param name="robot_description" command="cat $(find move_base_bbauv2012)/description/bbauv2012.urdf" />
+
+<!-- Start robot_state publisher and joint state publisher -->
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" ></node>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+
+<!-- Start robot_pose_ekf -->
+
+  <!-- The odometry estimator 
+   <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf">
+    <param name="freq" value="10.0"/>
+    <param name="sensor_timeout" value="1.0"/>
+    <param name="publish_tf" value="true"/>
+    <param name="odom_used" value="true"/>
+    <param name="imu_used" value="true"/>
+    <param name="vo_used" value="false"/>
+    <param name="output_frame" value="odom_move_base"/>
+    <remap from="imu_data" to="imu/data"/>
+  </node>
+-->
+
+<!--
+  <node pkg="move_base_bbauv2012" type="odom_ekf.py" name="odom_ekf" output="screen">
+    <remap from="input" to="/odom_ekf"/>
+    <remap from="output" to="/odom"/>
+  </node>
+-->
+
+  <!-- Run the map server with a blank map
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find rbx1_nav)/maps/blank_map.yaml"/>
+-->
+
+  <include file="$(find move_base_bbauv2012)/launch/move_base.launch" />
+
+  <!-- Run a static transform between /odom and /map--> 
+  <node pkg="tf" type="static_transform_publisher" name="odom_map_broadcaster" args="0 0 0 0 0 0 /map /odom 100" />
+
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find move_base_bbauv2012)/move_base_bbauv.vcg" />
+
+</launch>
