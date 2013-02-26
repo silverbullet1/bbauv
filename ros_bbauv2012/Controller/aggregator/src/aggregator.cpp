@@ -20,11 +20,7 @@ using namespace std;
 /* Global Variable declaration */
 
 double depthAtSurface;
-const float sqrt2 = 1.4142;
-const int mapRatio = 2560;
-bool yaw_mode = false;
-bool xy_mode = false;
-float x,y,z,yaw;
+double inTopside;
 
 /* Function prototypes */
 
@@ -88,41 +84,9 @@ int main(int argc,char** argv) {
     //get Parameters from Param Server
         //Due to the use of an absolute pressure sensor, we need to subtract the pressure at atm bef we enter the water in order to obtain accurate depths
     nh.getParam("/aggregator/depthAtSurface",depthAtSurface); 
-    
-    if (yaw_mode == true) {
-	    ROS_DEBUG("yaw axis");
-	    thrusterMsg.speed1 = mapRatio*yaw*0.5;
-	    thrusterMsg.speed2 = -mapRatio*yaw*0.5;
-	    thrusterMsg.speed3 = mapRatio*yaw*0.5;
-	    thrusterMsg.speed4 = -mapRatio*yaw*0.5;
-	    thrusterMsg.speed5 = mapRatio*z;
-	    thrusterMsg.speed6 = mapRatio*z;
-    }
-    if (xy_mode == true) {
-	    if (absolute(x) >= absolute(y)) {
-		    ROS_DEBUG("x axis");
-		    thrusterMsg.speed1 = -mapRatio*x;
-		    thrusterMsg.speed2 = -mapRatio*x;
-		    thrusterMsg.speed3 = mapRatio*x;
-		    thrusterMsg.speed4 = mapRatio*x;
-	        thrusterMsg.speed5 = mapRatio*z;
-	        thrusterMsg.speed6 = mapRatio*z;
-	    }
-    
-	    else {
-		    ROS_DEBUG("y axis");
-		    thrusterMsg.speed1 = mapRatio*y;
-		    thrusterMsg.speed2 = -mapRatio*y;
-		    thrusterMsg.speed3 = -mapRatio*y;
-		    thrusterMsg.speed4 = mapRatio*y;
-	        thrusterMsg.speed5 = mapRatio*z;
-	        thrusterMsg.speed6 = mapRatio*z;
-	    }
-    }
+    nh.getParam("/aggregator/inTopside",inTopside);
 
-
-    controller_input_pub.publish(ctrl);   
-    pub.publish(thrusterMsg);           
+    controller_input_pub.publish(ctrl);
     controller_mode_pub.publish(mode);
     controller_trans_const_pub.publish(trans_const);
     controller_rot_const_pub.publish(rot_const);
