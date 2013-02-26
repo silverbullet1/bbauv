@@ -66,8 +66,8 @@ class LookForLineState:
 		return self
 
 class TemporaryState:
-	def __init__(self, secondsToReverse, nextState, speed=-0.2):
-		rospy.loginfo("Forward setpoint: " + str(speed) + " for " + str(secondsToReverse) + " secs")
+	def __init__(self, secondsToReverse, nextState, speed=-0.6):
+		rospy.loginfo("Reversing for " + str(secondsToReverse) + " secs")
 		self.transitionTime = rospy.get_time() + secondsToReverse
 		self.nextState = nextState
 		self.speed = speed
@@ -90,44 +90,45 @@ class StraightLineState:
 	def gotFrame(self, cvimg, rectData):
 		if rectData['maxRect'] == None:
 			# Lost the line, so reverse a bit, then look again
-			return TemporaryState(0.1, LookForLineState)
+			return TemporaryState(0.5, LookForLineState)
 
 		screen_center_x = cvimg.shape[0] / 2
-		# Calculate distance of center of box from screen center
 		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / cvimg.shape[0]
 
-		x_strip_threshold = 0.1
+		print('delta_x: {0}'.format(delta_x))
+		x_strip_threshold = 0.2
 
 		msg = controller_input()
 		msg.depth_setpoint = DEPTH_POINT
-		msg.heading_setpoint = rectData['heading']
 
-		print('deltax: ' + str(delta_x))
+		# if the rect is too far off centre, do aggressive sidemove
+		if abs(delta_x) > 0.4:
+			rospy.loginfo('Box too far off centre! Aggressive sidemove')
+			msg.heading_setpoint = rectData['heading']
+			msg.sidemove_setpoint = math.copysign(1.0, -delta_x)
+			publishMovement(msg)
+			return self
 
 		if delta_x < -x_strip_threshold:
-			msg.sidemove_setpoint = 1.0
+			msg.sidemove_setpoint = 0.5
 		elif delta_x > x_strip_threshold:
-			msg.sidemove_setpoint = -1.0
+			msg.sidemove_setpoint = -0.5
 
-		if abs(rectData['angle']) < 5:
+		if abs(rectData['angle']) < 10:
 			# Keep going forward
+			msg.heading_setpoint = rectData['heading']
 			msg.forward_setpoint = 0.8
 			rospy.loginfo('forward!')
-		elif abs(delta_x) > 0.4:
-			# Apply sidemove only
-			msg.heading_setpoint = rectData['heading']
-			msg.sidemove_setpoint = math.copysign(2.5, -delta_x)
-			print("sidemove only!")
 		else:
 			# Correct for angle
 			if rectData['angle'] > 45:
-				return TemporaryState(0.2, StraightLineState, speed=0.2)
+				return TemporaryState(0.3, StraightLineState, speed=-0.4)
 
 			if msg.sidemove_setpoint == 0 and abs(rectData['angle']) > 10:
-				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.3
+				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.2
 
 			msg.heading_setpoint = rectData['heading'] - rectData['angle']
-			print("Correcting for angle\nheading: from " + str(rectData['heading']) + " to " + str(msg.heading_setpoint) + "\nrect angle: " + str(rectData['angle']))
+			publishMovement(msg)
 #			print("Turn a little to " + str(msg.heading_setpoint) + " degrees")
 		publishMovement(msg)
 		return self
