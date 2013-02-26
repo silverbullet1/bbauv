@@ -16,8 +16,9 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 # CONSTANTS
-DEPTH_POINT = 0.8
-secondsToRun = 4 * 60
+DEPTH_POINT = 0.6
+secondsToRun = 2.25 * 60
+x_strip_threshold = 0.2
 
 
 # Publisher to controller input
@@ -120,6 +121,41 @@ class SurfaceState:
 	def gotFrame(self, cvimg, rectData):
 		return self
 
+class OffCenterState:
+	def __init__(self):
+		rospy.loginfo("Line off center")
+
+	def gotFrame(self, cvimg, rectData):
+		rospy.loginfo('Applying sidemove')
+
+		if rectData['maxRect'] == None:
+			return LookForLineState()
+
+		screen_width = cvimg.shape[0]
+		screen_height = cvimg.shape[1]
+		screen_center_x = screen_width / 2
+
+		if all([abs(float(pt[0] - screen_center_x))/screen_width < 0.2 for pt in rectData['points']]):
+			return StraightLineState()
+
+		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / screen_width
+
+		msg = controller_input()
+		msg.depth_setpoint = DEPTH_POINT
+		msg.sidemove_setpoint = math.copysign(1.5, -delta_x)
+
+		if all([float(pt[0])/screen_height > 0.4 for pt in rectData['points']]):
+			msg.forward_setpoint = -0.2
+		elif all([float(pt[0])/screen_height < 0.4 for pt in rectData['points']]):
+			msg.forward_setpoint = 0.2
+
+		if abs(rectData['angle']) > 10:
+			msg.heading_setpoint = rectData['heading'] - rectData['angle']
+
+		publishMovement(msg)
+
+		return self
+
 class StraightLineState:
 	def __init__(self):
 		rospy.loginfo("Following a straight line")
@@ -129,11 +165,13 @@ class StraightLineState:
 			# Lost the line, so reverse a bit, then look again
 			return TemporaryState(0.5, LookForLineState)
 
-		screen_center_x = cvimg.shape[0] / 2
-		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / cvimg.shape[0]
+		screen_width = cvimg.shape[0]
+		screen_center_x = screen_width / 2
 
-		print('delta_x: {0}'.format(delta_x))
-		x_strip_threshold = 0.2
+#		if any([abs(float(pt[0] - screen_center_x))/screen_width > 0.4 for pt in rectData['points']]):
+#			return OffCenterState()
+
+		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / screen_width
 
 		msg = controller_input()
 		msg.depth_setpoint = DEPTH_POINT
@@ -141,10 +179,12 @@ class StraightLineState:
 		# if the rect is too far off centre, do aggressive sidemove
 		if abs(delta_x) > 0.4:
 			rospy.loginfo('Box too far off centre! Aggressive sidemove')
-			msg.heading_setpoint = rectData['heading']
+			msg.heading_setpoint = normHeading(rectData['heading'] - rectData['angle'])
 			msg.sidemove_setpoint = math.copysign(1.0, -delta_x)
 			publishMovement(msg)
 			return self
+
+		print(rectData['angle'])
 
 		if delta_x < -x_strip_threshold:
 			msg.sidemove_setpoint = 0.5
@@ -158,8 +198,8 @@ class StraightLineState:
 			rospy.loginfo('forward!')
 		else:
 			# Correct for angle
-			if rectData['angle'] > 45:
-				return TemporaryState(0.3, StraightLineState, speed=-0.4)
+#			if rectData['angle'] > 45:
+#				return TemporaryState(0.3, StraightLineState, speed=-0.4)
 
 			if msg.sidemove_setpoint == 0 and abs(rectData['angle']) > 10:
 				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.2
