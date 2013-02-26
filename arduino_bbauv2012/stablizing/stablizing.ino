@@ -1,7 +1,6 @@
-#include <smcDriver.h>
-
 //using for 3rd integration
 #include <ros.h>
+#include <smcDriver.h>
 #include <PID_v1.h> //based on http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/ 
 #include <controller_input.h>
 #include <controller_translational_constants.h>
@@ -11,9 +10,10 @@
 #include <SoftwareSerial.h>
 #include <ArduinoHardware.h>
 
+long currentTime,loopTime;
 
 int manual_speed[6];
-unsigned long currentTime, loopTime, delayTime;
+long time_elapsed;
 
 /***********/
 
@@ -68,6 +68,67 @@ PID forwardPID(&forward_input, &forward_output, &forward_setpoint,1,0,0, DIRECT)
 double sidemove_setpoint,sidemove_input,sidemove_output;
 PID sidemovePID(&sidemove_input, &sidemove_output, &sidemove_setpoint,1,0,0, DIRECT);
 
+/***********/
+
+void setup()
+{
+
+  //initialize value for variables
+  inTopside=true;
+  inTeleop=false;
+  
+  inDepthPID= false;
+  inHeadingPID= false;
+  inForwardPID=false;
+  inSidemovePID=false; 
+  
+  //Initialize thruster ratio to 1:1:1:1:1:1
+  float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; //see excel file in bbauv/clan folder
+                          
+  for(int i=0;i<6;i++)
+    manual_speed[i]=0;
+  
+  time_elapsed=0;
+    
+  //initialize Motor driver and ROS
+  mDriver.init();
+  nh.initNode();
+  nh.subscribe(controller_mode);
+  nh.subscribe(controller_sub);
+  nh.subscribe(pidconst_trans_sub);
+  nh.subscribe(pidconst_rot_sub);
+  nh.subscribe(teleopcontrol_sub);
+  nh.advertise(thruster_pub);
+  
+  mDriver.setThrusterRatio(ratio);
+  
+  //Note the sample time here is 50ms. ETS SONIA's control loop runs at 70ms.
+
+  depthPID.SetMode(AUTOMATIC);
+  depthPID.SetSampleTime(20);
+  depthPID.SetOutputLimits(-2560,2560);
+  depthPID.SetControllerDirection(REVERSE);
+  
+  headingPID.SetMode(AUTOMATIC);
+  headingPID.SetSampleTime(20);
+// too high a limit will result in too much overshoot.
+  headingPID.SetOutputLimits(-800,800);
+  headingPID.SetControllerDirection(DIRECT);
+  
+  forwardPID.SetMode(AUTOMATIC);
+  forwardPID.SetSampleTime(20);
+  forwardPID.SetOutputLimits(-1000,1260);
+  forwardPID.SetControllerDirection(DIRECT);
+  
+  sidemovePID.SetMode(AUTOMATIC);
+  sidemovePID.SetSampleTime(20);
+  sidemovePID.SetOutputLimits(-500,500);
+  sidemovePID.SetControllerDirection(DIRECT);
+  
+  pinMode(13, OUTPUT); 
+  currentTime=millis();
+  loopTime=currentTime;
+}
 
 /************************************************************/
 
@@ -261,65 +322,6 @@ void rotatePIDoutput()
 */
 
 }
-/***********/
-
-void setup()
-{
-
-  //initialize value for variables
-  inTopside=true;
-  inTeleop=false;
-  
-  inDepthPID= false;
-  inHeadingPID= false;
-  inForwardPID=false;
-  inSidemovePID=false; 
-  
-  //Initialize thruster ratio to 1:1:1:1:1:1
-  float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; //see excel file in bbauv/clan folder
-                          
-  for(int i=0;i<6;i++)
-    manual_speed[i]=0;
- 
-    
-  //initialize Motor driver and ROS
-  mDriver.init();
-  nh.initNode();
-  nh.subscribe(controller_mode);
-  nh.subscribe(controller_sub);
-  nh.subscribe(pidconst_trans_sub);
-  nh.subscribe(pidconst_rot_sub);
-  nh.subscribe(teleopcontrol_sub);
-  nh.advertise(thruster_pub);
-  mDriver.setThrusterRatio(ratio);
-  
-  //Note the sample time here is 50ms. ETS SONIA's control loop runs at 70ms.
-
-  depthPID.SetMode(AUTOMATIC);
-  depthPID.SetSampleTime(5);
-  depthPID.SetOutputLimits(-2560,2560);
-  depthPID.SetControllerDirection(REVERSE);
-  
-  headingPID.SetMode(AUTOMATIC);
-  headingPID.SetSampleTime(5);
-// too high a limit will result in too much overshoot.
-  headingPID.SetOutputLimits(-800,800);
-  headingPID.SetControllerDirection(DIRECT);
-  
-  forwardPID.SetMode(AUTOMATIC);
-  forwardPID.SetSampleTime(5);
-  forwardPID.SetOutputLimits(-1000,1260);
-  forwardPID.SetControllerDirection(DIRECT);
-  
-  sidemovePID.SetMode(AUTOMATIC);
-  sidemovePID.SetSampleTime(5);
-  sidemovePID.SetOutputLimits(-500,500);
-  sidemovePID.SetControllerDirection(DIRECT);
-  
-  currentTime=millis();
-  loopTime=currentTime;
-  pinMode(13, OUTPUT); 
-}
 
 /************************************************************/
 // MAIN LOOP
@@ -330,20 +332,20 @@ void setup()
 
 void loop()
 {
-  currentTime= millis();
-  if (currentTime >= (loopTime + delayTime))
-  {
-    //nh.spinOnce();
-    digitalWrite(13, LOW);
-    superImposePIDoutput();
-    //rotatePIDoutput();
-    thruster_pub.publish(&thrusterSpeed);
-    runThruster();
-    digitalWrite(13, HIGH);
-    loopTime=currentTime;
-  } 
-}    
-
+    currentTime=millis();
+    if( currentTime >= (loopTime + 40))
+    {
+      digitalWrite(13,HIGH);
+      superImposePIDoutput();
+      //rotatePIDoutput();
+      
+      thruster_pub.publish(&thrusterSpeed);
+      runThruster();
+      nh.spinOnce(); //if nh.spinOnce is not called regularly, will result in lost sync issues with ROS.
+      digitalWrite(13,LOW);   
+      loopTime=currentTime;
+    }
+}
 
 /************************************************************/
 
@@ -370,15 +372,11 @@ void updateControllerMode (const bbauv_msgs::controller_onoff &msg)
   inSidemovePID=true;
   inHeadingPID=true;
   }
-  if(msg.loop_freq>0)
-  {
-    delayTime=1000/msg.loop_freq;
-  }
+
 }
 
 void updateTranslationalControllerConstants(const bbauv_msgs::controller_translational_constants &msg)
 {
-
   depthPID.SetTunings(msg.depth_kp,msg.depth_ki,msg.depth_kd);
   forwardPID.SetTunings(msg.forward_kp,msg.forward_ki,msg.forward_kd);
   sidemovePID.SetTunings(msg.sidemove_kp,msg.sidemove_ki,msg.sidemove_kd);

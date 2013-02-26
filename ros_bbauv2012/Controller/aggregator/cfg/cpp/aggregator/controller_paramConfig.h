@@ -551,7 +551,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.depth_kp = 50000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.depth_kp = 9000.0;
+      __default__.depth_kp = 4000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("depth_kp", "double", 0, "P const for depth controller", "", &controller_paramConfig::depth_kp)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -561,7 +561,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.depth_ki = 50000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.depth_ki = 5000.0;
+      __default__.depth_ki = 2000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("depth_ki", "double", 0, "I const for depth controller", "", &controller_paramConfig::depth_ki)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -571,7 +571,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.depth_kd = 50000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.depth_kd = 2000.0;
+      __default__.depth_kd = 1000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("depth_kd", "double", 0, "D const for depth controller", "", &controller_paramConfig::depth_kd)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -581,7 +581,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.heading_kp = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.heading_kp = 20.0;
+      __default__.heading_kp = 15.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_kp", "double", 0, "P const for heading controller", "", &controller_paramConfig::heading_kp)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -591,7 +591,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.heading_ki = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.heading_ki = 18.0;
+      __default__.heading_ki = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_ki", "double", 0, "I const for heading controller", "", &controller_paramConfig::heading_ki)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -601,7 +601,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.heading_kd = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.heading_kd = 10.0;
+      __default__.heading_kd = 3.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_kd", "double", 0, "D const for heading controller", "", &controller_paramConfig::heading_kd)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -611,7 +611,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.forward_kp = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.forward_kp = 5000.0;
+      __default__.forward_kp = 7000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_kp", "double", 0, "P const for forward controller", "", &controller_paramConfig::forward_kp)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -651,7 +651,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.sidemove_kp = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.sidemove_kp = 5000.0;
+      __default__.sidemove_kp = 7000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("sidemove_kp", "double", 0, "P const for sidemove controller", "", &controller_paramConfig::sidemove_kp)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"

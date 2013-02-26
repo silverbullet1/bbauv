@@ -12,6 +12,7 @@
 	<!-- Launching Joystick Control -->
 <!--  	<include file="$(find launch)/teleop.launch" /> -->
 
-    <!-- <node pkg="dynamic_reconfigure" name="dynamic_reconfigure" type="reconfigure_gui"/> -->
+	<!-- Launching Joystick Control -->
+  	<include file="$(find Openups)/openups.launch" />
 
 </launch> 

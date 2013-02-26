@@ -15,14 +15,23 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
 
+# CONSTANTS
+DEPTH_POINT = 0.8
+secondsToRun = 4 * 60
+
+
 # Publisher to controller input
 movementPub = None
 def publishMovement(movement):
 	movementPub.publish(movement)
 
-history = []
-
-DEPTH_POINT = 0.8
+# Helper function to normalize heading
+def normHeading(heading):
+	if heading > 360:
+		return heading - 360
+	if heading < 0:
+		return heading + 360
+	return heading
 
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
@@ -83,6 +92,34 @@ class TemporaryState:
 		publishMovement(msg)
 		return self
 
+class DiveState:
+	def __init__(self, secondsToDive, nextState):
+		rospy.loginfo("Diving for " + str(secondsToDive) + " secs")
+		self.transitionTime = rospy.get_time() + secondsToDive
+		self.nextState = nextState
+
+	def gotFrame(self, cvimg, rectData):
+		if rospy.get_time() > self.transitionTime:
+			return self.nextState()
+		# Dive
+		msg = controller_input()
+		msg.depth_setpoint = DEPTH_POINT
+		msg.heading_setpoint = rectData['heading']
+		publishMovement(msg)
+		return self
+
+class SurfaceState:
+	def __init__(self, heading):
+		rospy.loginfo("Surfacing")
+
+		msg = controller_input()
+		msg.depth_setpoint = 0.2
+		msg.heading_setpoint = heading
+		publishMovement(msg)
+
+	def gotFrame(self, cvimg, rectData):
+		return self
+
 class StraightLineState:
 	def __init__(self):
 		rospy.loginfo("Following a straight line")
@@ -127,9 +164,8 @@ class StraightLineState:
 			if msg.sidemove_setpoint == 0 and abs(rectData['angle']) > 10:
 				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.2
 
-			msg.heading_setpoint = rectData['heading'] - rectData['angle']
-			publishMovement(msg)
-#			print("Turn a little to " + str(msg.heading_setpoint) + " degrees")
+			msg.heading_setpoint = normHeading(rectData['heading'] - rectData['angle'])
+
 		publishMovement(msg)
 		return self
 
@@ -150,6 +186,7 @@ class LineFollower:
 		# Initial following state
 		self.heading = 0.0
 		self.state = LookForLineState()
+		self.enabled = False
 
 		# Configurable parameters
 		self.params = { 'grayLow': 0, 'grayHigh': 10, 'contourMinArea': 300 }
@@ -233,7 +270,8 @@ class LineFollower:
 			else:
 				rectData['angle'] = math.atan(edges[1][0] / edges[1][1]) / math.pi * 180
 
-		self.state = self.state.gotFrame(imgGray, rectData)
+		if self.enabled:
+			self.state = self.state.gotFrame(imgGray, rectData)
 
 		cv2.imshow("src", imgNew)
 		cv2.imshow("gray", imgGray)
@@ -243,6 +281,17 @@ class LineFollower:
 	# Callback for subscribing to compass data
 	def gotHeading(self, msg):
 		self.heading = msg.yaw
+
+	# Start by diving
+	def start(self):
+		self.state = DiveState(0.2, StraightLineState)
+		self.enabled = True
+
+	# End by surfacing
+	def stop(self):
+		self.state = SurfaceState(self.heading)
+		self.enabled = False
+		
 
 
 if __name__ == '__main__':
@@ -257,9 +306,22 @@ if __name__ == '__main__':
 	rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
 	movementPub = rospy.Publisher('/line_follower', controller_input)
 
+	endTime = 0
+
 	r = rospy.Rate(loopRateHz)
 	while not rospy.is_shutdown():
 		key = cv2.waitKey(20)
 		if key == 27: # Exit on getting the Esc key
 			break
+
+		# Hit space to start!
+		if key == 32:
+			app.start()
+			endTime = rospy.get_time() + secondsToRun
+
+		if key == ord('q'):
+			app.stop()
+
+		if endTime <= rospy.get_time() and app.enabled:
+			app.stop()
 		r.sleep()
