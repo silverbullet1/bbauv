@@ -86,11 +86,11 @@ int main(int argc,char** argv) {
 
     //get Parameters from Param Server
         //Due to the use of an absolute pressure sensor, we need to subtract the pressure at atm bef we enter the water in order to obtain accurate depths
-    nh.getParamCached("/aggregator/depthAtSurface", depthAtSurface); 
+    nh.getParam("/aggregator/depthAtSurface", depthAtSurface); 
         //Are we engaging all PIDs?
-    nh.getParamCached("/aggregator/inTopside", inTopside);
+    nh.getParam("/aggregator/inTopside", inTopside);
         //Are we in a state machine?
-    nh.getParamCached("/aggregator/inStateMachine", inStateMachine);
+    nh.getParam("/aggregator/inStateMachine", inStateMachine);
 
     if(inStateMachine)
     {
@@ -98,7 +98,7 @@ int main(int argc,char** argv) {
         {
             mode.topside=false;
         }
-        else
+        if(inTopside)
         {
             mode.topside=true;
         }
