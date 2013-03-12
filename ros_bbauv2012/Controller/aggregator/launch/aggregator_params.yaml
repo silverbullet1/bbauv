@@ -1,3 +1,5 @@
-depthAtSurface: 10.159
+depthAtSurface: 10.1591644287
 inTopside: true
 inStateMachine: false
+inNavigation: false
+inVisionTracking: true

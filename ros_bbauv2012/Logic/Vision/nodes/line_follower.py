@@ -13,10 +13,11 @@ import math
 import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+from collections import deque
 
 
 # CONSTANTS
-DEPTH_POINT = 0.6
+DEPTH_POINT = 1.1
 secondsToRun = 2.25 * 60
 x_strip_threshold = 0.2
 
@@ -93,6 +94,7 @@ class TemporaryState:
 		publishMovement(msg)
 		return self
 
+
 class DiveState:
 	def __init__(self, secondsToDive, nextState):
 		rospy.loginfo("Diving for " + str(secondsToDive) + " secs")
@@ -121,40 +123,7 @@ class SurfaceState:
 	def gotFrame(self, cvimg, rectData):
 		return self
 
-class OffCenterState:
-	def __init__(self):
-		rospy.loginfo("Line off center")
-
-	def gotFrame(self, cvimg, rectData):
-		rospy.loginfo('Applying sidemove')
-
-		if rectData['maxRect'] == None:
-			return LookForLineState()
-
-		screen_width = cvimg.shape[0]
-		screen_height = cvimg.shape[1]
-		screen_center_x = screen_width / 2
-
-		if all([abs(float(pt[0] - screen_center_x))/screen_width < 0.2 for pt in rectData['points']]):
-			return StraightLineState()
-
-		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / screen_width
-
-		msg = controller_input()
-		msg.depth_setpoint = DEPTH_POINT
-		msg.sidemove_setpoint = math.copysign(1.5, -delta_x)
-
-		if all([float(pt[0])/screen_height > 0.4 for pt in rectData['points']]):
-			msg.forward_setpoint = -0.2
-		elif all([float(pt[0])/screen_height < 0.4 for pt in rectData['points']]):
-			msg.forward_setpoint = 0.2
-
-		if abs(rectData['angle']) > 10:
-			msg.heading_setpoint = rectData['heading'] - rectData['angle']
-
-		publishMovement(msg)
-
-		return self
+hist = deque([])
 
 class StraightLineState:
 	def __init__(self):
@@ -165,19 +134,16 @@ class StraightLineState:
 			# Lost the line, so reverse a bit, then look again
 			return TemporaryState(0.5, LookForLineState)
 
-		screen_width = cvimg.shape[0]
+		screen_width = cvimg.shape[1]
 		screen_center_x = screen_width / 2
 
-#		if any([abs(float(pt[0] - screen_center_x))/screen_width > 0.4 for pt in rectData['points']]):
-#			return OffCenterState()
-
-		delta_x = (rectData['maxRect'][0][0] - screen_center_x) / screen_width
+		delta_x = float(rectData['maxRect'][0][0] - screen_center_x) / screen_width
 
 		msg = controller_input()
 		msg.depth_setpoint = DEPTH_POINT
 
 		# if the rect is too far off centre, do aggressive sidemove
-		if abs(delta_x) > 0.4:
+		if abs(delta_x) > 0.3:
 			rospy.loginfo('Box too far off centre! Aggressive sidemove')
 			msg.heading_setpoint = normHeading(rectData['heading'] - rectData['angle'])
 			msg.sidemove_setpoint = math.copysign(1.0, -delta_x)
@@ -185,6 +151,15 @@ class StraightLineState:
 			return self
 
 		print(rectData['angle'])
+		# Based on previous angle, determine if the new angle should be pointing the opposite direction
+#		if len(hist) >= 1 and abs(rectData['heading'] - rectData['angle']) > 45:
+		if len(hist) >= 1:
+			oppAngle = rectData['angle'] + (-180 if rectData['angle'] > 0 else 180)
+			if abs(rectData['angle'] - hist[0]) > abs(oppAngle - hist[0]):
+				rectData['angle'] = oppAngle
+				print('new angle: ' + str(oppAngle))
+
+		hist.appendleft(rectData['angle'])
 
 		if delta_x < -x_strip_threshold:
 			msg.sidemove_setpoint = 0.5
@@ -194,7 +169,7 @@ class StraightLineState:
 		if abs(rectData['angle']) < 10:
 			# Keep going forward
 			msg.heading_setpoint = rectData['heading']
-			msg.forward_setpoint = 0.8
+			msg.forward_setpoint = 0.9
 			rospy.loginfo('forward!')
 		else:
 			# Correct for angle
@@ -204,7 +179,10 @@ class StraightLineState:
 			if msg.sidemove_setpoint == 0 and abs(rectData['angle']) > 10:
 				msg.sidemove_setpoint = rectData['angle'] / 60 * 0.2
 
-			msg.heading_setpoint = normHeading(rectData['heading'] - rectData['angle'])
+			angle_diff = rectData['angle']
+			if abs(angle_diff) > 30:
+				angle_diff = math.copysign(30, angle_diff)
+			msg.heading_setpoint = normHeading(rectData['heading'] - angle_diff)
 
 		publishMovement(msg)
 		return self
@@ -310,6 +288,10 @@ class LineFollower:
 			else:
 				rectData['angle'] = math.atan(edges[1][0] / edges[1][1]) / math.pi * 180
 
+			if rectData['angle'] == 90:
+				if maxRect[0][0] > (cvimg.shape[1] / 2):
+					rectData['angle'] = -90
+
 		if self.enabled:
 			self.state = self.state.gotFrame(imgGray, rectData)
 
@@ -341,6 +323,7 @@ if __name__ == '__main__':
 	compassTopic = rospy.get_param('~compass', '/os5000_data')
 
 	app = LineFollower()
+	app.start()
 
 	rospy.Subscriber(imageTopic, Image, app.gotRosFrame)
 	rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
@@ -354,14 +337,14 @@ if __name__ == '__main__':
 		if key == 27: # Exit on getting the Esc key
 			break
 
-		# Hit space to start!
-		if key == 32:
-			app.start()
-			endTime = rospy.get_time() + secondsToRun
-
-		if key == ord('q'):
-			app.stop()
-
-		if endTime <= rospy.get_time() and app.enabled:
-			app.stop()
+#		# Hit space to start!
+#		if key == 32:
+#			app.start()
+#			endTime = rospy.get_time() + secondsToRun
+#
+#		if key == ord('q'):
+#			app.stop()
+#
+#		if endTime <= rospy.get_time() and app.enabled:
+#			app.stop()
 		r.sleep()

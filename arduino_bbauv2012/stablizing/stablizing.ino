@@ -117,12 +117,12 @@ void setup()
   
   forwardPID.SetMode(AUTOMATIC);
   forwardPID.SetSampleTime(20);
-  forwardPID.SetOutputLimits(-1000,1260);
+  forwardPID.SetOutputLimits(-1260,1760);
   forwardPID.SetControllerDirection(DIRECT);
   
   sidemovePID.SetMode(AUTOMATIC);
   sidemovePID.SetSampleTime(20);
-  sidemovePID.SetOutputLimits(-500,500);
+  sidemovePID.SetOutputLimits(-1000,1000);
   sidemovePID.SetControllerDirection(DIRECT);
   
   pinMode(13, OUTPUT); 

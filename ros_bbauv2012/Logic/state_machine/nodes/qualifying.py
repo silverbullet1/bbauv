@@ -82,7 +82,7 @@ def main():
         smach.StateMachine.add('NAV_TRUE',NavigationSwitch(True),transitions={'succeeded':'TOPSIDE_FALSE'})                                       
         smach.StateMachine.add('TOPSIDE_FALSE',TopsideSwitch(False),transitions={'succeeded':'COUNTDOWN_MISSION'})  
                               
-        smach.StateMachine.add('COUNTDOWN_MISSION',Countdown(240),transitions={'succeeded':'TOPSIDE_TRUE'})
+        smach.StateMachine.add('COUNTDOWN_MISSION',Countdown(180),transitions={'succeeded':'TOPSIDE_TRUE'})
         
         smach.StateMachine.add('TOPSIDE_TRUE',TopsideSwitch(True),transitions={'succeeded':'COUNTDOWN_END'})
         smach.StateMachine.add('COUNTDOWN_END',Countdown(0.1),transitions={'succeeded':'VISION_TRACK_FALSE'})

@@ -269,6 +269,10 @@ class DEFAULT
         if("sidemove_PID"==(*i)->name){sidemove_PID = boost::any_cast<bool>(val);}
         if("teleop"==(*i)->name){teleop = boost::any_cast<bool>(val);}
         if("topside"==(*i)->name){topside = boost::any_cast<bool>(val);}
+        if("depth_setpoint"==(*i)->name){depth_setpoint = boost::any_cast<double>(val);}
+        if("heading_setpoint"==(*i)->name){heading_setpoint = boost::any_cast<double>(val);}
+        if("forward_setpoint"==(*i)->name){forward_setpoint = boost::any_cast<double>(val);}
+        if("sidemove_setpoint"==(*i)->name){sidemove_setpoint = boost::any_cast<double>(val);}
         if("depth_kp"==(*i)->name){depth_kp = boost::any_cast<double>(val);}
         if("depth_ki"==(*i)->name){depth_ki = boost::any_cast<double>(val);}
         if("depth_kd"==(*i)->name){depth_kd = boost::any_cast<double>(val);}
@@ -278,7 +282,6 @@ class DEFAULT
         if("forward_kp"==(*i)->name){forward_kp = boost::any_cast<double>(val);}
         if("forward_ki"==(*i)->name){forward_ki = boost::any_cast<double>(val);}
         if("forward_kd"==(*i)->name){forward_kd = boost::any_cast<double>(val);}
-        if("forward_setpoint"==(*i)->name){forward_setpoint = boost::any_cast<double>(val);}
         if("sidemove_kp"==(*i)->name){sidemove_kp = boost::any_cast<double>(val);}
         if("sidemove_ki"==(*i)->name){sidemove_ki = boost::any_cast<double>(val);}
         if("sidemove_kd"==(*i)->name){sidemove_kd = boost::any_cast<double>(val);}
@@ -291,6 +294,10 @@ bool forward_PID;
 bool sidemove_PID;
 bool teleop;
 bool topside;
+double depth_setpoint;
+double heading_setpoint;
+double forward_setpoint;
+double sidemove_setpoint;
 double depth_kp;
 double depth_ki;
 double depth_kd;
@@ -300,7 +307,6 @@ double heading_kd;
 double forward_kp;
 double forward_ki;
 double forward_kd;
-double forward_setpoint;
 double sidemove_kp;
 double sidemove_ki;
 double sidemove_kd;
@@ -326,6 +332,14 @@ double sidemove_kd;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       bool topside;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      double depth_setpoint;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      double heading_setpoint;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      double forward_setpoint;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      double sidemove_setpoint;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       double depth_kp;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       double depth_ki;
@@ -343,8 +357,6 @@ double sidemove_kd;
       double forward_ki;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       double forward_kd;
-//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      double forward_setpoint;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       double sidemove_kp;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -547,6 +559,46 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<bool>("topside", "bool", 0, "Manual-0 or Auto-1", "", &controller_paramConfig::topside)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.depth_setpoint = 0.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.depth_setpoint = 2.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.depth_setpoint = 0.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("depth_setpoint", "double", 0, "Setpoint for depth controller", "", &controller_paramConfig::depth_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("depth_setpoint", "double", 0, "Setpoint for depth controller", "", &controller_paramConfig::depth_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.heading_setpoint = -360.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.heading_setpoint = 360.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.heading_setpoint = 0.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_setpoint", "double", 0, "Setpoint for heading controller", "", &controller_paramConfig::heading_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_setpoint", "double", 0, "Setpoint for heading controller", "", &controller_paramConfig::heading_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.forward_setpoint = -1.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.forward_setpoint = 1.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.forward_setpoint = 0.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_setpoint", "double", 0, "Setpoint for forward controller", "", &controller_paramConfig::forward_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_setpoint", "double", 0, "Setpoint for forward controller", "", &controller_paramConfig::forward_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __min__.sidemove_setpoint = -1.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __max__.sidemove_setpoint = 1.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __default__.sidemove_setpoint = 0.0;
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("sidemove_setpoint", "double", 0, "Setpoint for sidemove controller", "", &controller_paramConfig::sidemove_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
+      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("sidemove_setpoint", "double", 0, "Setpoint for sidemove controller", "", &controller_paramConfig::sidemove_setpoint)));
+//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.depth_kp = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.depth_kp = 50000.0;
@@ -581,7 +633,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.heading_kp = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.heading_kp = 15.0;
+      __default__.heading_kp = 20.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_kp", "double", 0, "P const for heading controller", "", &controller_paramConfig::heading_kp)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -591,7 +643,7 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __max__.heading_ki = 10000.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.heading_ki = 0.0;
+      __default__.heading_ki = 2.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("heading_ki", "double", 0, "I const for heading controller", "", &controller_paramConfig::heading_ki)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -636,16 +688,6 @@ controller_paramConfig::GroupDescription<controller_paramConfig::DEFAULT, contro
       Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_kd", "double", 0, "D const for forward controller", "", &controller_paramConfig::forward_kd)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_kd", "double", 0, "D const for forward controller", "", &controller_paramConfig::forward_kd)));
-//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __min__.forward_setpoint = -1.0;
-//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __max__.forward_setpoint = 1.0;
-//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __default__.forward_setpoint = 0.0;
-//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      Default.abstract_parameters.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_setpoint", "double", 0, "Setpoint for forward controller", "", &controller_paramConfig::forward_setpoint)));
-//#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __param_descriptions__.push_back(controller_paramConfig::AbstractParamDescriptionConstPtr(new controller_paramConfig::ParamDescription<double>("forward_setpoint", "double", 0, "Setpoint for forward controller", "", &controller_paramConfig::forward_setpoint)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.sidemove_kp = 0.0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
