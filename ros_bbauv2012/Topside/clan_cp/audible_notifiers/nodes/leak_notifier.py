@@ -5,6 +5,9 @@ import rospy
 import pycanberra
 from bbauv_msgs.msg import env_data
 
+def destroyCanberra():
+    canberra.destroy() 
+
 def main():
 
     water_status = {'waterSensor1':'0','waterSensor2':'0','waterSensor3':'0'}
@@ -28,6 +31,7 @@ def main():
                 rospy.loginfo("Hey dude, you've got water in your TUBE man!")  
                 
         rospy.sleep(1)
+        rospy.on_shutdown(destroyCanberra)
 
 if __name__ == '__main__':
     main()

@@ -6,6 +6,9 @@ import pycanberra
 from bbauv_msgs.msg import battery_info
 from bbauv_msgs.msg import openups
 
+def destroyCanberra():
+    canberra.destroy()  
+
 def main():
 
     charge_status = {'oUPS1':'0','oUPS2':'0','oUPS3':'0','oUPS4':'0'}
@@ -28,8 +31,9 @@ def main():
                 canberra.easy_play_sync("suspend-error")
                 canberra.destroy()  
                 rospy.loginfo('Hey dude, give me some POWER man.')
-                
+                        
         rospy.sleep(1)
+        rospy.on_shutdown(destroyCanberra)
 
 if __name__ == '__main__':
     main()

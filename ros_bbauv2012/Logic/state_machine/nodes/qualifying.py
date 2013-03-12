@@ -80,14 +80,10 @@ def main():
         smach.StateMachine.add('SMACH_TRUE',SmachSwitch(True),transitions={'succeeded':'VISION_TRACK_TRUE'}) 
         smach.StateMachine.add('VISION_TRACK_TRUE',TrackerSwitch(False),transitions={'succeeded':'NAV_TRUE'})                                        
         smach.StateMachine.add('NAV_TRUE',NavigationSwitch(True),transitions={'succeeded':'TOPSIDE_FALSE'})                                       
-        smach.StateMachine.add('TOPSIDE_FALSE',TopsideSwitch(False),transitions={'succeeded':'COUNTDOWN_DIVE'})  
+        smach.StateMachine.add('TOPSIDE_FALSE',TopsideSwitch(False),transitions={'succeeded':'COUNTDOWN_MISSION'})  
                               
-        smach.StateMachine.add('COUNTDOWN_DIVE',Countdown(3),transitions={'succeeded':'VISION_TRACK_TRUE1'})
-        smach.StateMachine.add('VISION_TRACK_TRUE1',TrackerSwitch(True),transitions={'succeeded':'NAV_TRUE1'})                                        
-        smach.StateMachine.add('NAV_TRUE1',NavigationSwitch(False),transitions={'succeeded':'COUNTDOWN_MISSION2'})                                       
-
-        smach.StateMachine.add('COUNTDOWN_MISSION2',Countdown(240),transitions={'succeeded':'TOPSIDE_TRUE'})
-
+        smach.StateMachine.add('COUNTDOWN_MISSION',Countdown(240),transitions={'succeeded':'TOPSIDE_TRUE'})
+        
         smach.StateMachine.add('TOPSIDE_TRUE',TopsideSwitch(True),transitions={'succeeded':'COUNTDOWN_END'})
         smach.StateMachine.add('COUNTDOWN_END',Countdown(0.1),transitions={'succeeded':'VISION_TRACK_FALSE'})
         smach.StateMachine.add('VISION_TRACK_FALSE',TrackerSwitch(False),transitions={'succeeded':'NAV_FALSE'})                                        
