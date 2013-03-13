@@ -1,0 +1,16 @@
+INSTRUCTIONS FOR USING THE FILES IN sbc_config
+----------------------------------------------
+
+53-bumblebee.rules:
+- This file contains udev rules for our hardware.
+- As root, create a hard link to this file from /etc/udev/rules.d:
+    `ln 53-bumblebee.rules /etc/udev/rules.d/53-bumblebee.rules`
+
+ups.conf
+- This contains the OpenUPS configuration.
+- As root, create a hard link to this file from /etc/nut:
+    `ln ups.conf /etc/nut/ups.conf`
+
+startup-trigger-ups.sh
+- This is a script to trigger the UPS driver on startup.
+- For GNOME/Unity, click on Power button -> Startup Applications, and add the script to the list.
