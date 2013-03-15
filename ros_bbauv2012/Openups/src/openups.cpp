@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 		{
 			ostringstream os;
 			os << "upsc openups" << ups_id << "@localhost > tmp";
-			system(os.str().c_str());
+			//system(os.str().c_str());
 			ifstream infile("tmp");
 
 			if (infile)

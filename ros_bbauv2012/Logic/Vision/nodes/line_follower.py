@@ -317,25 +317,26 @@ class LineFollower:
 
 
 if __name__ == '__main__':
-	rospy.init_node('line_follower', anonymous=True)
-	loopRateHz = rospy.get_param('~loopHz', 20)
-	imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_raw')
-	compassTopic = rospy.get_param('~compass', '/os5000_data')
+    rospy.init_node('line_follower', anonymous=True)
+    loopRateHz = rospy.get_param('~loopHz', 20)
+    imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_raw')
+    #imageTopic = rospy.get_param('~image', '/camera/rgb/image_color')
+    compassTopic = rospy.get_param('~compass', '/os5000_data')
 
-	app = LineFollower()
-	app.start()
+    app = LineFollower()
+    app.start()
 
-	rospy.Subscriber(imageTopic, Image, app.gotRosFrame)
-	rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
-	movementPub = rospy.Publisher('/line_follower', controller_input)
+    rospy.Subscriber(imageTopic, Image, app.gotRosFrame)
+    rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
+    movementPub = rospy.Publisher('/line_follower', controller_input)
 
-	endTime = 0
+    endTime = 0
 
-	r = rospy.Rate(loopRateHz)
-	while not rospy.is_shutdown():
-		key = cv2.waitKey(20)
-		if key == 27: # Exit on getting the Esc key
-			break
+    r = rospy.Rate(loopRateHz)
+    while not rospy.is_shutdown():
+        key = cv2.waitKey(20)
+        if key == 27: # Exit on getting the Esc key
+	        break
 
 #		# Hit space to start!
 #		if key == 32:
@@ -347,4 +348,4 @@ if __name__ == '__main__':
 #
 #		if endTime <= rospy.get_time() and app.enabled:
 #			app.stop()
-		r.sleep()
+    r.sleep()

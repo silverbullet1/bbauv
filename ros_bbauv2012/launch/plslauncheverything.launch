@@ -6,6 +6,9 @@
 	<!-- Launching Sensors -->
 	<include file="$(find launch)/sensors.launch" />
 
+	<!-- Launching Cameras -->
+	<include file="$(find uvc_cam)/bb_cam.launch" />
+	
     <!-- Launching Aggregator -->
     <include file="$(find aggregator)/launch/aggregator.launch" />
 
