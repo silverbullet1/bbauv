@@ -1,7 +1,7 @@
 <launch>
 
     <!-- Launching Actuators -->
-<!--    <include file="$(find launch)/actuators.launch" /> -->
+    <include file="$(find launch)/actuators.launch" />
 
 	<!-- Launching Sensors -->
 	<include file="$(find launch)/sensors.launch" />
