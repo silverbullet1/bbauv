@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
@@ -33,14 +34,14 @@ int main(int argc, char** argv)
 		for (int ups_id=1; ups_id<=NUM_UPS; ++ups_id)
 		{
 			ostringstream os;
-			os << "upsc openups" << ups_id << "@localhost > tmp";
-			//system(os.str().c_str());
-			ifstream infile("tmp");
+			os << "upsc openups" << ups_id << "@localhost 2> /dev/null";
+			FILE *fp = popen(os.str().c_str(), "r");
 
-			if (infile)
+			if (fp)
 			{
-				char s[10000];
-				infile.get(s, 10000, 0);
+				const int MAX_BUFFER = 10000;
+				char s[MAX_BUFFER] = { 0 };
+				fread(s, 1, MAX_BUFFER-1, fp);
 
 				bbauv_msgs::battery_info *battery = &openupsMsg.batteries[ups_id-1];
 
@@ -51,9 +52,9 @@ int main(int argc, char** argv)
 
 				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, battery->batteryCharge, battery->batteryCurrent, battery->batteryRuntime, battery->batteryVoltage);
 			}
-			pub.publish(openupsMsg);
-
+			pclose(fp);
 		}
+		pub.publish(openupsMsg);
 
 		ros::spinOnce();
 		loop_rate.sleep();
