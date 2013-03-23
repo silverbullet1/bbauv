@@ -13,5 +13,5 @@ ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0042", KERNEL=="ttyACM[0-9]", ATTRS{
 ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0042", KERNEL=="ttyACM[0-9]", ATTRS{serial}=="7413335343735171C082", SYMLINK+="ttyThrusters"
 
 # Microsoft Webcams
-KERNEL=="video[0-9]", ATTRS{idVendor}=="045e", ATTRS{idProduct}=="075d", KERNELS=="3-3.1.1", SYMLINK+="videoFront"
+KERNEL=="video[0-9]", ATTRS{idVendor}=="045e", ATTRS{idProduct}=="075d", KERNELS=="1-1.1", SYMLINK+="videoFront"
 KERNEL=="video[0-9]", ATTRS{idVendor}=="045e", ATTRS{idProduct}=="075d", KERNELS=="3-3.1.2", SYMLINK+="videoBottom"
