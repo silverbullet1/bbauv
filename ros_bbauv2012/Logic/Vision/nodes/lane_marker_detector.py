@@ -22,6 +22,23 @@ def normHeading(heading):
         return heading + 360
     return heading
 
+# Helper function to parameterize a ray
+def get_ray(pt, angle):
+    radians = angle / 180.0 * math.pi
+    u = -math.sin(radians)
+    v = math.cos(radians)
+    return ( pt, (u,v) )
+
+# Helper function to get the t's of the intersection of the parameterized rays
+def ray_intersection(ray1, ray2):
+    ((x1, y1), (u1, v1)) = ray1
+    ((x2, y2), (u2, v2)) = ray2
+    det = 1.0 / (u2*v1 - u1*v2)
+    xd, yd = x2 - x1, y2 - y1
+    t1 = det * (-v2 * xd + u2 * yd)
+    t2 = det * (-v1 * xd + u1 * yd)
+    return (t1, t2)
+
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
     hist_bins = 256
@@ -58,7 +75,7 @@ class LaneDetector:
         self.heading = 0.0
 
         # Configurable parameters
-        self.params = { 'hueLow': 11, 'hueHigh': 30, 'contourMinArea': 300 }
+        self.params = { 'hueLow': 11, 'hueHigh': 35, 'contourMinArea': 4 }
 
         # Set up param configuration window
         def paramSetter(key):
@@ -68,7 +85,7 @@ class LaneDetector:
         cv2.namedWindow("settings", cv2.CV_WINDOW_AUTOSIZE)
         cv2.createTrackbar("Hue Low:", "settings", self.params['hueLow'], 180, paramSetter('hueLow'));
         cv2.createTrackbar("Hue High:", "settings", self.params['hueHigh'], 180, paramSetter('hueHigh'));
-        cv2.createTrackbar("Min contour area:", "settings", self.params['contourMinArea'], 3000, paramSetter('contourMinArea'));
+        cv2.createTrackbar("Min contour area (%):", "settings", self.params['contourMinArea'], 100, paramSetter('contourMinArea'));
 
         ## Example filters
         ## Original image - its Laplacian
@@ -98,6 +115,7 @@ class LaneDetector:
 
         imgBW = cv2.inRange(imghsv, np.array([self.params['hueLow'],0,0]), np.array([self.params['hueHigh'], 255, 255]))
 
+        # Close up the gaps in the detected regions
         structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT,
                                 (3,3), (1,1))
         imgBW = cv2.dilate(imgBW, structuringElt)
@@ -109,44 +127,76 @@ class LaneDetector:
         # Retrieve the contours of the black regions
         contours, _ = cv2.findContours(imgBW2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         # Find the bounding rectangles of the contours that are larger than our threshold
-        # Give an array of rects in tuples of the form: ( (center_x,center_y), (w,h), theta )
+        # Give an array of rects in dictionaries of the form:
+        # {
+        #    'rect':   ((center_x,center_y), (w,h), theta),
+        #    'points': [... array of the 4 corners of the rect ...],
+        #    'edges':  [... array of 2 perpendicular edges (as vectors) of the rect ...],
+        #    'angle':  (float) angle of the box from the vertical (0 deg), with positive counterclockwise,
+        #    'heading':(float) heading that the box should be pointing to
+        # }
         foundRects = [ ]
         for contour in contours:
             curArea = cv2.contourArea(contour)
-            if curArea >= self.params['contourMinArea']:
+            if curArea >= self.params['contourMinArea'] * cvimg.shape[0] * cvimg.shape[1] / 100:
                 maxRect = cv2.minAreaRect(contour)
-                foundRects.append(maxRect)
-
+                foundRects.append({'rect': maxRect})
 
         # Perform operations on rectangles found
+        count = 0
         for rect in foundRects:
             # Obtain the actual corners of the box
-            points = cv2.cv.BoxPoints(rect)
-            # Draw the lines
+            points = cv2.cv.BoxPoints(rect['rect'])
+
+            rect['points'] = points
+            rect['edges'] = edges = [ np.array(points[1]) - np.array(points[0]), np.array(points[2]) - np.array(points[1]) ]
+
+            # Calculate angle from the vertical
+            if cv2.norm(edges[0]) > cv2.norm(edges[1]):
+                rect['angle'] = math.atan(edges[0][0] / edges[0][1]) / math.pi * 180
+            else:
+                rect['angle'] = math.atan(edges[1][0] / edges[1][1]) / math.pi * 180
+
+            if rect['angle'] == 90:
+                # Need some way to distinguish between left-pointing and right-pointing
+                # when the box is horizontal:
+                # we'll assume that if the centre of the box is on the right, it points to the right
+                if rect['rect'][0][0] > (cvimg.shape[1] / 2):
+                    rect['angle'] = -90
+
+            # Try to correct the angles if we have more lines to test against
+            if count > 0:
+                # Construct rays from the centres of the boxes
+                ray1 = get_ray(foundRects[0]['rect'][0], foundRects[0]['angle'])
+                ray2 = get_ray(rect['rect'][0], rect['angle'])
+                (t1, t2) = ray_intersection(ray1, ray2)
+                # We want t1 and t2 to both be negative
+                # If t1 is positive, flip ray2; and vice versa
+                if t1 > 0:
+                    rect['angle'] += 180 if rect['angle'] < 0 else -180
+                if t2 > 0:
+                    foundRects[0]['angle'] += 180 if foundRects[0]['angle'] < 0 else -180
+
+            count += 1
+
+            # Draw the lines for debugging
             for i in range(4):
                 # The line function doesn't accept floating point values
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                 cv2.line(imgBW, pt1, pt2, 255, 1)
 
-            #TODO: publish the rects (with target headings)
+        #TODO: publish the rects (with target headings)
 
-#            # Prepare other data about the bounding rect for the state machine
-#            rectData['points'] = points
-#            rectData['edges'] = edges = [ np.array(points[1]) - np.array(points[0]), np.array(points[2]) - np.array(points[1]) ]
-#            # Calculate angle from the vertical
-#            if cv2.norm(edges[0]) > cv2.norm(edges[1]):
-#                rectData['angle'] = math.atan(edges[0][0] / edges[0][1]) / math.pi * 180
-#            else:
-#                rectData['angle'] = math.atan(edges[1][0] / edges[1][1]) / math.pi * 180
-#
-#            if rectData['angle'] == 90:
-#                if maxRect[0][0] > (cvimg.shape[1] / 2):
-#                    rectData['angle'] = -90
+        # Debug output
+        count = 0
+        for rect in foundRects:
+            print 'Angle', count, ':', rect['angle']
+            count += 1
 
         # Screens for debugging
         cv2.imshow("src", cvimg)
-        cv2.imshow("gray", imghsv)
+        cv2.imshow("hsv", imghsv)
         cv2.imshow("bw", imgBW)
 
 
@@ -173,5 +223,7 @@ if __name__ == '__main__':
         key = cv2.waitKey(20)
         if key == 27: # Exit on getting the Esc key
             break
+
+        r.sleep()
 
 # vim: set sw=4 ts=4 expandtab:
