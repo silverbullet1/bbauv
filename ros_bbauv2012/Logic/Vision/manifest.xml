@@ -17,6 +17,8 @@
   <depend package="image_transport"/>
   <depend package="bbauv_msgs"/>
   <depend package="dynamic_reconfigure"/>
+  <depend package="smach_ros"/>
+  <depend package="smach"/>
 
 </package>
 

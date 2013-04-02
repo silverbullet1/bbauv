@@ -1,8 +1,10 @@
+<?xml version="1.0"?>
+
 <launch>
-    <arg name="input" />
+    <arg name="input" default="/home/ongtianchang/bbauv_workspace/bbauv/ros_bbauv2012/Logic/Vision/videos/Parking.mp4" />
     
-    <node pkg="rbx1_vision" name="video2ros" type="video2ros.py" output="screen">
-	  <remap from="output" to="/camera/rgb/image_color" />
+    <node pkg="Vision" name="video2ros" type="video2ros.py" output="screen">
+	  <remap from="output" to="frontcam/camera/image_raw" />
 	  <param name="input" value="$(arg input)" />
 	  <param name="fps" value="25" />
 	  <param name="loop" value="False" />

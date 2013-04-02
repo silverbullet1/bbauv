@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node pkg="Vision" name="Parking" type="parking.py" output="screen">
+    <remap from="input_rgb_image" to="/camera/rgb/image_color" />
+    <remap from="input_rgb_image" to="/frontcam/camera/image_raw" />
+    <rosparam>
+
+    </rosparam>
+  </node>
+</launch>
