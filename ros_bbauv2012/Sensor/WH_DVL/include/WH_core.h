@@ -184,7 +184,9 @@ public:
     //! Pointer to a timer.
     Timing *timer;
 
-    // Data needed for ROS node
+
+protected:
+    /*----------------DATA NEEDED FOR ROS NODE---------------------*/
     //coordinate frame
     string header_frame_id;
     string child_frame_id;
@@ -205,6 +207,19 @@ public:
     double lastAngX, lastAngY, lastAngZ;
     double lastXvel, lastYvel, lastZvel;
     double lastTotalSec;
+
+    //data needed to compute covariance matrix
+    bool z_vel_var_set;
+    int count;
+    double start_time;
+    double xy_vel_error;
+    double xy_vel_var, z_vel_var;
+    double ang_x_vel_var, ang_y_vel_var, ang_z_vel_var; 
+    double ang_x_var, ang_y_var, ang_z_var;
+    double last_ang_x_var, last_ang_y_var, last_ang_z_var;
+    double mean_xy_vel;
+    double square_mean_xy_vel;
+
 
 private:
     //! The full received string

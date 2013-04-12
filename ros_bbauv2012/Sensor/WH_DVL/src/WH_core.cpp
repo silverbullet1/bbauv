@@ -18,6 +18,8 @@ DVL::DVL(string _portname, int _baud, int _init_time) : Serial::Serial(_portname
 
     decoder = Decoder();
 
+    z_vel_var_set = false;
+
     // Set up the DVL.
     setup();
 
@@ -26,8 +28,24 @@ DVL::DVL(string _portname, int _baud, int _init_time) : Serial::Serial(_portname
     y = 0;
     z = 0;
 
-    // zero other data
-    totalSec = 0;
+    // zero time data
+    totalSec   = 0;
+    count      = 0;
+    start_time = 0;
+
+    // zero mean data
+    xy_vel_var         = 0;
+    z_vel_var          = 0;
+    ang_x_var          = 0;
+    ang_y_var          = 0;
+    ang_z_var          = 0;
+    last_ang_x_var     = 0;
+    last_ang_y_var     = 0;
+    last_ang_z_var     = 0;
+    mean_xy_vel        = 0;
+    square_mean_xy_vel = 0;
+
+    // zero the covariance matrix
     for (int i=0; i < 36; i++) {
         posCov[i] = 0;
         velCov[i] = 0;
@@ -290,8 +308,11 @@ void DVL::assignData() {
     lastAngZ = angZ;
 
     angX = varLeader.Roll    / 100.0;
+    angX = angX * M_PI / 180.0;
     angY = varLeader.Pitch   / 100.0;
+    angY = angY * M_PI / 180.0;
     angZ = varLeader.Heading / 100.0;
+    angZ = angZ * M_PI / 180.0;
 
     lastXvel = xvel;
     lastYvel = yvel;
@@ -318,26 +339,104 @@ void DVL::computeDistance() {
         z += (zvel + lastZvel) * delta / 2.0;
     }
 
-    //todo: fill in covariance matrix
+    //data to fill in covariance matrix
+    if (start_time == 0) start_time = totalSec;
+    xy_vel_error = botTrack.Velocity[3];
+
+    mean_xy_vel = (mean_xy_vel * count + xy_vel_error) * 1.0 / (count + 1);
+    
+    square_mean_xy_vel = (square_mean_xy_vel*count + xy_vel_error*xy_vel_error);
+    square_mean_xy_vel = square_mean_xy_vel * 1.0 / (count + 1);
+    
+    xy_vel_var = square_mean_xy_vel - mean_xy_vel * mean_xy_vel;
+
+    // set z velocity variance equal to xy if no input through param
+    if (z_vel_var_set == false) z_vel_var = xy_vel_var;
+
+    // fill in covariance matrix
+    posCov[0]  = xy_vel_var * (totalSec - start_time);
+    posCov[7]  = xy_vel_var * (totalSec - start_time);
+    posCov[14] = z_vel_var * (totalSec - start_time);
+    //cout << "z_vel_var_set: " << z_vel_var_set << endl;
+    //cout << "z_vel_var    : " << z_vel_var << endl;
+    //cout << "passed time  : " << totalSec - start_time << endl;
+
+
+    velCov[0]  = xy_vel_var;
+    velCov[7]  = xy_vel_var;
+    velCov[14] = z_vel_var;
+
+    count++;
 
     return;
 }
 
 void DVL::computeAngVel() {
     double delta = totalSec - lastTotalSec;
-    angXvel = (angX - lastAngX) / delta;
-    angYvel = (angY - lastAngY) / delta;
-    angZvel = (angZ - lastAngZ) / delta;
+    angXvel = (angX - lastAngX) * 1.0 / delta;
+    angYvel = (angY - lastAngY) * 1.0 / delta;
+    angZvel = (angZ - lastAngZ) * 1.0 / delta;
 
-    //todo: fill in covariance matrix
+    //data to fill in covariance matrix
+    if (start_time == 0) start_time = totalSec;
+
+    last_ang_x_var = ang_x_var;
+    last_ang_y_var = ang_y_var;
+    last_ang_z_var = ang_z_var;
+
+    ang_x_var = varLeader.RollStddev * varLeader.RollStddev;
+    ang_y_var = varLeader.PitchStddev * varLeader.PitchStddev;
+    ang_z_var = varLeader.HeadingStddev * varLeader.HeadingStddev;
+
+    if ( ang_x_var == 0) 
+        ROS_INFO("Zero roll variance");
+    if ( ang_y_var == 0)
+        ROS_INFO("Zero pitch variance");
+    if ( ang_z_var == 0)
+        ROS_INFO("Zero heading variance");
+
+    ang_x_vel_var = (ang_x_var + last_ang_x_var) * 1.0 / delta;
+    ang_y_vel_var = (ang_y_var + last_ang_y_var) * 1.0 / delta;
+    ang_z_vel_var = (ang_z_var + last_ang_z_var) * 1.0 / delta;
+
+    // fill in the covariance matrix
+    posCov[21] = ang_x_var * M_PI / 180.0;
+    posCov[28] = ang_y_var * M_PI / 180.0;
+    posCov[35] = ang_z_var * M_PI / 180.0;
+
+    velCov[21] = ang_x_vel_var * M_PI / 180.0;
+    velCov[28] = ang_y_vel_var * M_PI / 180.0;
+    velCov[35] = ang_z_vel_var * M_PI / 180.0;
 
     return;
 }
 
 void DVL::zeroDistance() {
+    // distance
     x = 0;
     y = 0;
     z = 0;
+
+    // time variable
+    count      = 0;
+    start_time = 0;
+
+    // linear variances
+    xy_vel_var = 0;
+
+    // angular variances
+    ang_x_var = 0;
+    ang_y_var = 0;
+    ang_z_var = 0;
+    last_ang_x_var = 0;
+    last_ang_y_var = 0;
+    last_ang_z_var = 0; 
+
+    // linear means 
+    mean_xy_vel = 0;
+    square_mean_xy_vel = 0;
+
+    return;
 }
 
 void DVL::sendCommand(string command, bool send_break) {

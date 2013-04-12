@@ -40,7 +40,7 @@ void RDI_DVL::publishOdomData(ros::Publisher *pubData) {
     odomData.pose.pose.position.z = z;
 
     // orientation
-    odomData.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(angX*M_PI/180.0, angY*M_PI/180.0, angZ*M_PI/180.0);
+    odomData.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(angX, angY, angZ);
     ROS_DEBUG("DVL quaternions = %.1f, %.1f, %.1f, %.1f", 
             odomData.pose.pose.orientation.x, 
             odomData.pose.pose.orientation.y, 
@@ -77,6 +77,15 @@ void RDI_DVL::configCallback(WH_DVL::WH_DVLConfig &config, uint32_t level) {
     init_time = config.init_time;
     portname  = config.port.c_str();
     ros_rate  = config.ros_rate;
+
+    // input for z velocity variance
+    // an input 0 will make the z velocity variance
+    // equals to xy velocity variance
+    if (config.z_velocity_var == 0) z_vel_var_set = false;
+    else {
+        z_vel_var = config.z_velocity_var;
+        z_vel_var_set = true;
+    }
 
     // send start pinging (CS) command
     if (config.pinging == true && cmdMode == true) {
