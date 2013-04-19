@@ -2,10 +2,13 @@
 
 <launch>
   <node pkg="Vision" name="Parking" type="parking.py" output="screen">
-    <remap from="input_rgb_image" to="/camera/rgb/image_color" />
     <remap from="input_rgb_image" to="/frontcam/camera/image_raw" />
-    <rosparam>
-
-    </rosparam>
+    <param name="hmin" value="60" />
+    <param name="hmax" value="90" />
+    <param name="smin" value="100" />
+    <param name="smax" value="255" />
+    <param name="vmin" value="100" />
+    <param name="vmax" value="180" />
+                
   </node>
 </launch>
