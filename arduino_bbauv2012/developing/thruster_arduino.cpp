@@ -2,7 +2,7 @@
 
 //------------------ Includes--------------  //External libraries
     #include <ros.h>
-    #include <smcDriver.h>  //From Pololu Robotics and Electronics
+    #include <smcDriver_v2.h>  //From Pololu Robotics and Electronics
     #include <PID_v1.h> //@Author: Brett, Website: brettbeauregard.com
   //ROS Messages' libraries for Arduino
     #include <controller_input.h>
@@ -51,11 +51,6 @@
   bbauv_msgs::thruster thrusterSpeed;
   ros::Publisher thruster_pub("thruster_feedback",&thrusterSpeed);
 
-//------------------ Setup smcDriver --------------------------
-  #define rxPin 36 // Orange wire <-- receive from the 1st SMC Tx pin
-  #define txPin 37 // Red wire --> transmit to all SMCs Rx pin
-  smcDriver mDriver= smcDriver(rxPin,txPin);
-
 //------------------ Setup PID ---------------------------------
   //PID control parameters
   bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID, inTopside, inSuperimpose, inTeleop;
@@ -72,6 +67,9 @@
   double sidemove_setpoint,sidemove_input,sidemove_output;
   PID sidemovePID(&sidemove_input, &sidemove_output, &sidemove_setpoint,1,0,0, DIRECT);
 
+//------------------ Setup smcDriver --------------------------
+  smcDriver mDriver(&Serial1); //Use Serial1 to handle UART communication with motor controllers
+
 void setup()
 {
   //Initialize Value for PID Control (Mode) Variables
@@ -84,11 +82,12 @@ void setup()
     inSidemovePID=false; 
   
   //Initialize Motor Controller
-    //Thruster Ratio:
-    float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; //see excel file in bbauv/clan folder
-    //Controller Handler:
+    //Set Baud rate for Serial1, which is used for UART connection
+    Serial1.begin(115200);
     mDriver.init();
-    mDriver.setThrusterRatio(ratio);
+    //Set Thruster Ratio:
+    //float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; 
+    //mDriver.setThrusterRatio(ratio);
     
   //Initialize Manual Control
    for(int i=0;i<6;i++) 
