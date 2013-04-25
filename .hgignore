@@ -15,6 +15,11 @@ bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/msg/__init__.py
 bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/msg/_TopicInfo.py
 bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/msg/_Log.py
 bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/__init__.py
+*.cmake
+*.o
+*.internal
+*.make
+*.out
 *.pyc
 *.orig
 *~
