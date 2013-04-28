@@ -77,7 +77,6 @@ class Gate:
         contours,hierarchy = cv2.findContours(cv_single, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contourIdx = -1
         contourImg = np.zeros((240,320,3),dtype=np.uint8)
-        #contourImg = contourImg*255
         color = cv2.cv.Scalar(100,100,100)
         centroidx = list()
         centroidy = list()

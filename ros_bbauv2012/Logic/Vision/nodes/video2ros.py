@@ -21,7 +21,7 @@
       
 """
 
-import roslib; roslib.load_manifest('rbx1_vision')
+import roslib; roslib.load_manifest('Vision')
 import rospy
 import sys
 from cv2 import cv as cv
