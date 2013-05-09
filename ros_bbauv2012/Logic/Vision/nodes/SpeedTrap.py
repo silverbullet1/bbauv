@@ -8,6 +8,7 @@ Created on Apr 25, 2013
 #User libraries
 from com.histogram.histogram import Hist_constants
 from com.histogram.histogram import bbHistogram
+from com.shape.ShapeAnalysis import ShapeAnalysis
 
 #ROS and System libraries
 import roslib; roslib.load_manifest('Vision')
@@ -40,7 +41,6 @@ class Foo(smach.State):
         else:
             return 'outcome2'
 
-
 # define state Bar
 class Bar(smach.State):
     def __init__(self):
@@ -56,7 +56,7 @@ class SpeedTrap:
     histClass = bbHistogram(Hist_constants.DUAL_CHANNEL_MODE)
     isAlignState = True
     isLoweringState = True
-    trainingContour = list()
+    shapeClass = ShapeAnalysis()
     ''' 
     Utility Methods
     '''
@@ -70,15 +70,7 @@ class SpeedTrap:
         def setter(val):
             self.stParams[key] = val
         return setter    
-    def computeMoments(self,image):
-        cv2.namedWindow("training data")
-        
-        retval,thresImg = cv2.threshold(image, 230 , 255, cv2.THRESH_BINARY_INV)
-        trgContours,hierarchy = cv2.findContours(thresImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        #thresImg = 
-        #cv2.imshow("training data",np.array(thresImg,dtype=np.uint8))
-        print "shape" + str(trgContours[0].shape)
-        return trgContours
+  
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
         # Convert from ROS Image to old OpenCV image
@@ -107,69 +99,16 @@ class SpeedTrap:
     Node Functions
     '''    
     def __init__(self):
-        os.chdir("/home/gohew/fuerte_workspace/bbauv/ros_bbauv2012/Logic/Vision/nodes/")
-        trgData = np.array(cv2.imread("assets/sword.png"),dtype=np.uint8)
-        trgData = cv2.cvtColor(trgData,cv2.COLOR_BGR2GRAY)
-        self.trainingContour.append(self.computeMoments(trgData))
-        trgData = np.array(cv2.imread("assets/shield.png"),dtype=np.uint8)
-        trgData = cv2.cvtColor(trgData,cv2.COLOR_BGR2GRAY)
-        self.trainingContour.append(self.computeMoments(trgData))
         imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_raw')
         compassTopic = rospy.get_param('~compass', '/os5000_data')
         self.image_pub = rospy.Publisher("/Vision/SpeedTrap/image_filter",Image)
         self.bridge = CvBridge()
         self.histClass.setParams(self.params)
         cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
-        cv2.namedWindow("Shape Target Analysis",cv2.CV_WINDOW_AUTOSIZE)
         cv2.moveWindow("Sub Alignment",512,30)
-        cv2.moveWindow("Shape Target Analysis", 512, 350)
         cv2.createTrackbar("Canny Threshold:", "Sub Alignment", self.stParams['canny'], 500, self.stParamSetter('canny'));
         self.image_sub = rospy.Subscriber(imageTopic, Image,self.processImage)
         self.bridge = CvBridge()
-        
-    def findShapeTarget(self,image):
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        #cv_single = cv2.morphologyEx(cv_single, cv2.MORPH_OPEN,kernel)
-        image = cv2.morphologyEx(image, cv2.MORPH_CLOSE,kernel_close,iterations=2)
-        contoursTarget,hierarchyTarget = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        targetImg = np.zeros((240,320,3),dtype=np.uint8)
-        minContour = 5000
-        minContourIdx = 0
-        contourListIdx = list()
-        errorList = list()
-        for i in range(0,len(contoursTarget)):
-            moments =cv2.moments(contoursTarget[i],binaryImage=False)
-            if moments['m00'] > 200 and moments['m00'] < 7000:
-                humoments = cv2.HuMoments(moments)
-                cv2.drawContours(targetImg, contoursTarget, i, (100,255,100),thickness= 1) 
-                '''
-                if abs(humoments[1][0] - 0.8) < 0.005:
-                    colorText = (0,0,255)
-                    imgTxt = "sword:" + "u1:" + str(np.round(humoments[1][0],3))
-                elif abs(humoments[1][0] - 0.020) < 0.02:
-                    colorText = (0,0,255)
-                    imgTxt = "window:" + "u1:" + str(np.round(humoments[1][0],3))
-                else:
-                    imgTxt = "u1:" + str(np.round(humoments[1][0],3))
-                    colorText = (100,100,100)
-                '''
-                error = cv2.matchShapes(self.trainingContour[1][0],contoursTarget[i], cv2.cv.CV_CONTOURS_MATCH_I1,0)
-                errorList.append(error)
-                contourListIdx.append(i)
-                if(minContour > error):
-                    minContour = error
-                    minContourIdx = i
-                print minContour
-        for i in range(0,len(errorList)):
-            if(minContourIdx == contourListIdx[i]):
-                colorText = (0,0,255)
-                imgTxt = "sword:" + str(np.round(errorList[i],3))
-            else:
-                colorText = (100,100,100)
-                imgTxt = str(np.round(errorList[i],3))
-            cv2.putText(targetImg,imgTxt, (contoursTarget[contourListIdx[i]][0][0][0],contoursTarget[contourListIdx[i]][0][0][1]), cv2.FONT_HERSHEY_PLAIN, 0.8, colorText)
-        return targetImg
                
     def processImage(self,data):
         try:
@@ -221,14 +160,14 @@ class SpeedTrap:
                         #calculate central plane for AUV to aim towards
                     if(self.isLoweringState):
                         shape_array = cv2.split(cv_image)
-                        retval, shape_image = cv2.threshold(shape_array[2], self.params['valLow'], 255, cv2.THRESH_OTSU)
+                        #retval, shape_image = cv2.threshold(shape_array[2], self.params['valLow'], 255, cv2.THRESH_OTSU)
                         self.histClass.setTrackBarPosition("Value Low:", int(retval))
                         retval, white_image = cv2.threshold(shape_array[0], self.params['valLow'], 255, cv2.THRESH_OTSU)
                         self.histClass.setTrackBarPosition("Hue Low:", int(retval))
-                        shape_image = shape_image - white_image
+                        shape_image = shape_array[2] - white_image
                         shape_image1 = np.copy(shape_image)
-                        final_image = self.findShapeTarget(shape_image1)
-                        cv2.imshow("Shape Target Analysis", final_image)
+                        self.shapeClass.predictSurf(shape_array[2])
+                        #final_image = self.findShapeTarget(shape_image1)
                     if(len(centroidx) > 1):
                         for j in range(0,len(centroidx) -1):
                             cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)

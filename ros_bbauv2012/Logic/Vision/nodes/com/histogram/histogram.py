@@ -18,7 +18,7 @@ class bbHistogram():
     '''
     windowName = ["Hue histogram", "Sat histogram","Value histogram"]
     windowColor = [(255,0,0),(0,255,0),(0,0,255)]
-    params = { 'satLow': 0, 'satHigh': 255, 'hueLow': 48, 'hueHigh':86,'valLow':0,'valHigh':255,'grayLow': 0, 'grayHigh': 255}
+    params = { 'satLow': 0, 'satHigh': 255, 'hueLow': 0, 'hueHigh':255,'valLow':0,'valHigh':255,'grayLow': 0, 'grayHigh': 255}
     thresColor = (100,50,200)
     type = None
     def __init__(self,type=Hist_constants.TRIPLE_CHANNEL):
