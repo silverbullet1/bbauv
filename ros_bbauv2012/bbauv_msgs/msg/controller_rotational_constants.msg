@@ -1,9 +1,0 @@
-float32 heading_kp
-float32 heading_ki
-float32 heading_kd 
-float32 roll_kp
-float32 roll_ki
-float32 roll_kd
-float32 pitch_kp
-float32 pitch_ki
-float32 pitch_kd

@@ -1,9 +1,0 @@
-bool topside
-bool depth_PID
-bool heading_PID
-bool forward_PID
-bool backward_PID
-bool sidemove_PID
-bool teleop
-bool superimpose
-bool reset

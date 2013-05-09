@@ -1,1 +1,4 @@
-battery_info[4] batteries
+uint8 battery1
+uint8 battery2
+uint8 battery3
+uint8 battery4

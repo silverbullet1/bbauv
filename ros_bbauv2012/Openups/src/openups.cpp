@@ -17,14 +17,13 @@ float battery_current(string s);
 int battery_runtime(string s);
 float battery_voltage(string s);
 
-//string port(string s);
-
 int main(int argc, char** argv)
 {
 
 	ros::init(argc, argv, "openupsPublisher");
 	ros::NodeHandle n;
 	bbauv_msgs::openups openupsMsg;
+	int8_t *charges = &openupsMsg.battery1;
 
 	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups",1000);
 	ros::Rate loop_rate(10);
@@ -43,14 +42,9 @@ int main(int argc, char** argv)
 				char s[MAX_BUFFER] = { 0 };
 				fread(s, 1, MAX_BUFFER-1, fp);
 
-				bbauv_msgs::battery_info *battery = &openupsMsg.batteries[ups_id-1];
+				charges[ups_id-1] = battery_charge(s);
 
-				battery->batteryCharge=battery_charge(s);
-				battery->batteryCurrent=battery_current(s);
-				battery->batteryRuntime=battery_runtime(s);
-				battery->batteryVoltage=battery_voltage(s);
-
-				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, battery->batteryCharge, battery->batteryCurrent, battery->batteryRuntime, battery->batteryVoltage);
+//				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, (int)charges[ups_id-1]);
 			}
 			pclose(fp);
 		}
