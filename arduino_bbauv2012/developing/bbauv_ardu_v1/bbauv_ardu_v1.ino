@@ -1,6 +1,5 @@
 //bbauv_ardu_v1 - Combine Thruster and Sensor arduino
 //***************************************************
-
 //Include Libraries
 #include <ros.h>
 #include <smcDriver_v2.h> //Simple Motor Controller from Pololu Robotics and Electronics
@@ -12,7 +11,7 @@
 #include <manipulator.h> //For servos control
 #include <openups.h>    //battery capacity
 #include <hull_status.h> //Temperature, Water Sensor
-#include <depth.h>  
+#include <depth.h>
 //Constant declaration
 #include "defines.h"
 //Constants definition
@@ -20,7 +19,9 @@
 #define DEBUG_MODE DEBUG_BB
 
 //Timming variables - to ensure the loop run at correct frequency
-long currentTime,loopTime,time_elapsed;
+static uint32_t currentTime,loopTime, fast_loop,time_elapsed, medium_loop, slow_loop;
+
+uint32_t slow_loop_ctr;
 
 //Declare Subscribers, Publishers & Call back functions in ROS
     ros::NodeHandle nh;
@@ -58,10 +59,10 @@ long currentTime,loopTime,time_elapsed;
     int16_t adc;
 
 //Pressure Sensor Definitions
-    
+
     static float depth;
 
-//Temperature Sensor Definitions 
+//Temperature Sensor Definitions
     float temp1 = 0;
     float temp2 = 0;
     float temp3 = 0;
@@ -81,7 +82,7 @@ void setup()
     Serial1.begin(115200);
     mDriver.init();
     //Set Thruster Ratio:
-        //float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; 
+        //float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1};
         //mDriver.setThrusterRatio(ratio);
 
 //Initialize Manipulators
@@ -102,25 +103,62 @@ void setup()
       Serial2.begin(9600);
       Serial2.println("Debug Mode");
     #endif
-
 }
 
 void loop()
 {
   currentTime=millis();
-  if( currentTime >= (loopTime + 40))
+  
+  //100 Hertz Loop for Pressure Sensor filtering
+  if( currentTime >= (fast_loop + 10))
   {
-    readTemperature();
-    readPressure();
-    readWater();
-
+    readPressureFilter();
+    #if DEBUG_MODE == DEBUG_BB
+      Serial2.println(currentTime - fast_loop);
+    #endif
+    fast_loop = currentTime;
+  }
+   
+  //20 Hertz Loop for Control Loop
+  currentTime=millis();
+  
+  if( currentTime >= (medium_loop + 50))
+  {
+     #if DEBUG_MODE == DEBUG_BB
+      Serial2.println(currentTime - medium_loop);
+    #endif
     runThruster();
-
-    env_pub.publish(&env_msg);
+    depth_msg.depth = depth;
     depth_pub.publish(&depth_msg);
     nh.spinOnce();
-    loopTime=currentTime;
+    medium_loop = currentTime;
   }
+  
+ //1Hertz Loop for critical sensors
+ currentTime=millis();
+  
+ if(currentTime >=(slow_loop + 333))
+ {
+   switch(slow_loop_ctr)
+   {
+     case 0:
+       readTemperature();
+       break;
+     case 1:
+       readWater();
+       env_pub.publish(&env_msg);
+       break;
+     case 2:
+       //LCD code here
+       break;
+   }
+   if(slow_loop_ctr != 3)  slow_loop_ctr++;
+   else  slow_loop_ctr = 0;
+    #if DEBUG_MODE == DEBUG_BB
+    Serial2.println(currentTime - slow_loop);
+    #endif
+   slow_loop = currentTime;
+ } 
 }
 
 //Supporting functions:
@@ -128,24 +166,34 @@ int32_t fmap(int32_t input, int32_t in_min, int32_t in_max, int32_t out_min, int
   return (input- in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+
 //Sensor Tasks Callbacks ---------------------------------------------------------
-void readPressure()
+float readPressure()
 {
     int32_t pressure;
+    float temp_depth;
  #if PRESSURE_TYPE == PRESSURE_TYPE_GAUGE_30
     adc = ads1115.readADC_SingleEnded(0);
     pressure = fmap(adc, 5340,26698,ATM,PSI30);
-    depth = (float) pressure*100/(1000*9.81); //In centimetres
+    temp_depth = (float) pressure*100/(1000*9.81); //In centimetres
  #elif PRESSURE_TYPE == PRESSURE_TYPE_ABSOLUTE_100
     adc = ads1115.readADC_SingleEnded(1);
     pressure = fmap(adc, 3277,29491,0, PSI100);
-    depth = (float) pressure*100/(1000*9.81);
+    temp_depth = (float) pressure*100/(1000*9.81);
  #endif
 
  #if DEBUG_MODE == DEBUG_BB
-    Serial2.println(depth);
+    //Serial2.println(temp_depth);
  #endif
-    depth_msg.depth = depth;
+ 
+ return temp_depth;
+}
+
+/* Discrete Low Pass Filter to reduce noise in signal */
+void readPressureFilter()
+{
+   float temp = readPressure();
+   depth = depth + LPF_CONSTANT*(temp -depth);
 }
 
 float readTempSensor(int8_t addr)
@@ -164,11 +212,8 @@ float readTempSensor(int8_t addr)
         temp = (float) reading*0.0625;
  #if DEBUG_MODE == DEBUG_BB
         //reading >>= 4;
-        Serial2.print(reading);
-        Serial2.print(" ");
-        Serial2.print(temp,4);   // print the reading
-        Serial2.print(" ");
- #endif
+      //  Serial2.println(temp,4);   // print the reading
+       #endif
         return temp;
       } else return 0;
 }
@@ -203,7 +248,7 @@ void runThruster()
     mDriver.setMotorSpeed(2,thrusterSpeed.speed2);
     mDriver.setMotorSpeed(3,thrusterSpeed.speed3);
     mDriver.setMotorSpeed(
-    
+
     4,thrusterSpeed.speed4);
     mDriver.setMotorSpeed(5,thrusterSpeed.speed5);
     mDriver.setMotorSpeed(6,thrusterSpeed.speed6);
