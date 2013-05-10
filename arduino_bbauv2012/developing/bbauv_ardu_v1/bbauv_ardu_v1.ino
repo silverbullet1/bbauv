@@ -26,7 +26,7 @@ long currentTime,loopTime,time_elapsed;
     ros::NodeHandle nh;
 
     //Thruster Controller
-    void getThrusterSpeed(const bbauv_msgs::thruster &msg){}
+    void getThrusterSpeed(const bbauv_msgs::thruster &msg);
     ros::Subscriber<bbauv_msgs::thruster> thruster_sub("thruster_speed",&getThrusterSpeed);
 
     //Manipulator Controller
@@ -46,7 +46,7 @@ long currentTime,loopTime,time_elapsed;
     ros::Publisher depth_pub("depth",&depth_msg);
 
 //Motor Driver definitions
-  
+  bbauv_msgs::thruster thrusterSpeed;
   smcDriver mDriver(&Serial1); //Use Serial1 to handle UART communication with motor controllers
 
 //Manipulators definitions
@@ -81,8 +81,8 @@ void setup()
     Serial1.begin(115200);
     mDriver.init();
     //Set Thruster Ratio:
-    //float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; 
-    //mDriver.setThrusterRatio(ratio);
+        //float ratio[6]={0.8471, 0.9715, 0.9229, 0.9708, 0.8858, 1}; 
+        //mDriver.setThrusterRatio(ratio);
 
 //Initialize Manipulators
     myservo.attach(9);
@@ -91,6 +91,7 @@ void setup()
 //Initialize I2C bus:
 
     Wire.begin();
+
 //Initialize MainLoop Timming variables
     time_elapsed=0;
     currentTime=millis();
@@ -98,8 +99,8 @@ void setup()
 
 //Debug Mode: to be removed by the compiler if not in debug mode.
     #if DEBUG_MODE == DEBUG_BB
-      Serial.begin(9600);
-      Serial.println("Debug Mode");
+      Serial2.begin(9600);
+      Serial2.println("Debug Mode");
     #endif
 
 }
@@ -109,6 +110,14 @@ void loop()
   currentTime=millis();
   if( currentTime >= (loopTime + 40))
   {
+    readTemperature();
+    readPressure();
+    readWater();
+
+    runThruster();
+
+    env_pub.publish(&env_msg);
+    depth_pub.publish(&depth_msg);
     nh.spinOnce();
     loopTime=currentTime;
   }
@@ -123,19 +132,19 @@ int32_t fmap(int32_t input, int32_t in_min, int32_t in_max, int32_t out_min, int
 void readPressure()
 {
     int32_t pressure;
-#if PRESSURE_TYPE == PRESSURE_TYPE_GAUGE_30
+ #if PRESSURE_TYPE == PRESSURE_TYPE_GAUGE_30
     adc = ads1115.readADC_SingleEnded(0);
     pressure = fmap(adc, 5340,26698,ATM,PSI30);
     depth = (float) pressure*100/(1000*9.81); //In centimetres
-#elif PRESSURE_TYPE == PRESSURE_TYPE_ABSOLUTE_100
+ #elif PRESSURE_TYPE == PRESSURE_TYPE_ABSOLUTE_100
     adc = ads1115.readADC_SingleEnded(1);
     pressure = fmap(adc, 3277,29491,0, PSI100);
     depth = (float) pressure*100/(1000*9.81);
-#endif
+ #endif
 
-#if DEBUG_MODE == DEBUG_BB
-    Serial.println(depth);
-#endif
+ #if DEBUG_MODE == DEBUG_BB
+    Serial2.println(depth);
+ #endif
     depth_msg.depth = depth;
 }
 
@@ -153,14 +162,14 @@ float readTempSensor(int8_t addr)
         store |= Wire.read() >> 4; // receive low byte as lower 8 bits
         reading |= store;
         temp = (float) reading*0.0625;
-#if DEBUG_MODE == DEBUG_BB
+ #if DEBUG_MODE == DEBUG_BB
         //reading >>= 4;
-        Serial.print(reading);
-        Serial.print(" ");
-        Serial.print(temp,4);   // print the reading
-        Serial.print(" ");
-#endif
-        return reading;
+        Serial2.print(reading);
+        Serial2.print(" ");
+        Serial2.print(temp,4);   // print the reading
+        Serial2.print(" ");
+ #endif
+        return temp;
       } else return 0;
 }
 
@@ -173,18 +182,34 @@ void readTemperature()
     env_msg.Temp0 = temp1;
     env_msg.Temp1 = temp2;
     env_msg.Temp2 = temp3;
-#if DEBUG_MODE == DEBUG_BB
-        Serial.println();
-#endif
+ #if DEBUG_MODE == DEBUG_BB
+        Serial2.println();
+ #endif
 }
 
 void readWater()
 {
-      env_msg.WaterDetA = 1-digitalRead(WaterPin1);
-      env_msg.WaterDetB = 1-digitalRead(WaterPin2);
-      env_msg.WaterDetC = 1-digitalRead(WaterPin3);
+    env_msg.WaterDetA = 1-digitalRead(WaterPin1);
+    env_msg.WaterDetB = 1-digitalRead(WaterPin2);
+    env_msg.WaterDetC = 1-digitalRead(WaterPin3);
     //turn-on LED when water is detected
     if (env_msg.WaterDetA==1 || env_msg.WaterDetB==1 || env_msg.WaterDetC==1)
         digitalWrite(waterLedPin,HIGH);
 }
 
+void runThruster()
+{
+    mDriver.setMotorSpeed(1,thrusterSpeed.speed1);
+    mDriver.setMotorSpeed(2,thrusterSpeed.speed2);
+    mDriver.setMotorSpeed(3,thrusterSpeed.speed3);
+    mDriver.setMotorSpeed(
+    
+    4,thrusterSpeed.speed4);
+    mDriver.setMotorSpeed(5,thrusterSpeed.speed5);
+    mDriver.setMotorSpeed(6,thrusterSpeed.speed6);
+}
+
+void getThrusterSpeed(const bbauv_msgs::thruster &msg)
+{
+    thrusterSpeed=msg;
+}
