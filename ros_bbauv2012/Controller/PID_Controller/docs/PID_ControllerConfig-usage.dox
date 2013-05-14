@@ -1,0 +1,33 @@
+\subsubsection usage Usage
+\verbatim
+<node name="PID_Controller" pkg="PID_Controller" type="PID_Controller">
+  <param name="depth_PID" type="bool" value="False" />
+  <param name="heading_PID" type="bool" value="False" />
+  <param name="forward_PID" type="bool" value="False" />
+  <param name="sidemove_PID" type="bool" value="False" />
+  <param name="teleop" type="bool" value="False" />
+  <param name="topside" type="bool" value="True" />
+  <param name="depth_setpoint" type="double" value="0.0" />
+  <param name="heading_setpoint" type="double" value="0.0" />
+  <param name="forward_setpoint" type="double" value="0.0" />
+  <param name="sidemove_setpoint" type="double" value="0.0" />
+  <param name="pitch_setpoint" type="double" value="0.0" />
+  <param name="depth_offset" type="double" value="0.0" />
+  <param name="depth_Kp" type="double" value="1.2" />
+  <param name="depth_Ti" type="double" value="0.0" />
+  <param name="depth_Td" type="double" value="0.0" />
+  <param name="pitch_Kp" type="double" value="1.2" />
+  <param name="pitch_Ti" type="double" value="0.0" />
+  <param name="pitch_Td" type="double" value="0.0" />
+  <param name="heading_Kp" type="double" value="1.2" />
+  <param name="heading_Ti" type="double" value="0.0" />
+  <param name="heading_Td" type="double" value="0.0" />
+  <param name="forward_Kp" type="double" value="1.2" />
+  <param name="forward_Ti" type="double" value="0.0" />
+  <param name="forward_Td" type="double" value="0.0" />
+  <param name="sidemove_kp" type="double" value="1.2" />
+  <param name="sidemove_ti" type="double" value="0.0" />
+  <param name="sidemove_td" type="double" value="0.0" />
+</node>
+\endverbatim
+

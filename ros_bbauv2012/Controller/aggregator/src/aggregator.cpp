@@ -15,7 +15,6 @@
 //#include <geometry_msgs/PoseWithCovariance.h>
 //#include <geometry_msgs/TwistWithCovariance.h>
 
-
 using namespace std;
 
 /* Global Variable declaration */

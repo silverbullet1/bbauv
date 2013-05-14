@@ -1,0 +1,10 @@
+<launch>
+
+    <!-- Launching Actuators -->
+    <include file="$(find launch)/actuators.launch" />
+	<!-- Launching Joystick Control -->
+  	<include file="$(find launch)/teleop.launch" />
+       <!-- Launching Joystick Control -->
+        <include file="$(find Openups)/openups.launch" />
+
+</launch> 
