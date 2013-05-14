@@ -93,8 +93,8 @@ int main(int argc,char** argv) {
 			}
 			if (yaw_mode == true) {
 				ROS_DEBUG("yaw axis");
-				thrusterMsg.speed1 = mapRatio*yaw*0.5;
-				thrusterMsg.speed2 = -mapRatio*yaw*0.5;
+				thrusterMsg.speed1 = -mapRatio*yaw*0.5;
+				thrusterMsg.speed2 = mapRatio*yaw*0.5;
 				thrusterMsg.speed3 = mapRatio*yaw*0.5;
 				thrusterMsg.speed4 = -mapRatio*yaw*0.5;
 			}
@@ -102,15 +102,15 @@ int main(int argc,char** argv) {
 				if (absolute(x) >= absolute(y)) {
 					ROS_DEBUG("x axis");
 					thrusterMsg.speed1 = -mapRatio*x;
-					thrusterMsg.speed2 = -mapRatio*x;
-					thrusterMsg.speed3 = mapRatio*x;
+					thrusterMsg.speed2 = mapRatio*x;
+					thrusterMsg.speed3 = -mapRatio*x;
 					thrusterMsg.speed4 = mapRatio*x;
 				}
 				else {
 					ROS_DEBUG("y axis");
-					thrusterMsg.speed1 = mapRatio*y;
+					thrusterMsg.speed1 = -mapRatio*y;
 					thrusterMsg.speed2 = -mapRatio*y;
-					thrusterMsg.speed3 = -mapRatio*y;
+					thrusterMsg.speed3 = mapRatio*y;
 					thrusterMsg.speed4 = mapRatio*y;
 				}
 			}

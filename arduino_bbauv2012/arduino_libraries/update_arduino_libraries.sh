@@ -6,5 +6,5 @@ sudo cp -r Adafruit_ADS1X15 /usr/share/arduino/libraries/
 
 rosrun rosserial_client make_library.py . bbauv_msgs
 
-sudo cp -r ros_lib/bbauv_msgs/ /usr/share/arduino-1.0.4/libraries/
+sudo cp -r ros_lib/bbauv_msgs/ /usr/share/arduino/libraries/
 rm -r ros_lib
