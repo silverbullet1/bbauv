@@ -242,6 +242,17 @@ void DVL::findData() {
         return;
     }
 
+    // Find the last data string
+    int temp_start = start_location;
+    int temp_end = end_location;
+    while (temp_start != (int)string::npos && temp_end != (int)string::npos) {
+        start_location = temp_start;
+        end_location   = temp_end;
+        temp_start     = rcvStr.find(WH_HEADER_ID, temp_end);
+        temp_end       = rcvStr.find(CMD_END, temp_start);
+    }
+
+
     dataStr = rcvStr.substr(start_location, end_location - start_location);
     /*
     i = 0;
@@ -262,7 +273,7 @@ void DVL::findData() {
         }
         i++;
     }*/
-    rcvStr.erase(start_location, end_location - start_location + 2);
+    rcvStr.erase(0, end_location + 2);
     found_complete_message = true;
 
     return;
