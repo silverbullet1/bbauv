@@ -31,7 +31,7 @@ thruster thrusterSpeed;
 double depth_offset = 0;
 
 //State Machines
-bool inTopside;
+bool inTopside,inTeleop;
 bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID;
 bool inNavigation;
 bool inVisionTracking;
@@ -86,15 +86,16 @@ int main(int argc, char **argv)
 	{
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
-		if(!inTopside)
+		if(!inTeleop && !inTopside)
 		{
-			headingPID_output = getHeadingPIDUpdate();
-			depthPID_output = depthPID.computePID(0.8,ctrl.depth_input);
+			if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
+			if(inDepthPID)	depthPID_output = depthPID.computePID(ctrl.depth_setpoint,ctrl.depth_input);
+			if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
+			if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
 			setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 			setVertThrustSpeed(depthPID_output,pitchPID_output);
 		}
 
-		if(inHeadingPID)	getHeadingPIDUpdate();
 		spinOnce();
 		loop_rate.sleep();
 	}
@@ -120,8 +121,8 @@ void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,doubl
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
   {
-    thrusterSpeed.speed5=-depthPID_output + pitchPID_output;
-    thrusterSpeed.speed6=-depthPID_output - pitchPID_output;
+    thrusterSpeed.speed5= - depthPID_output + pitchPID_output;
+    thrusterSpeed.speed6= - depthPID_output - pitchPID_output;
   }
 
 /***********Subscriber Callbacks*****************/
@@ -155,6 +156,8 @@ void collectTeleop(const thruster &msg)
 
 void callback(PID_ControllerConfig &config, uint32_t level) {
   inTopside = config.topside;
+  inTeleop = config.teleop;
+  inForwardPID = config.forward_PID;
   inHeadingPID = config.heading_PID;
   inDepthPID = config.depth_PID;
   inSidemovePID = config.sidemove_PID;

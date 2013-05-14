@@ -11,7 +11,7 @@
 #include <manipulator.h> //For servos control
 #include <openups.h>    //battery capacity
 #include <hull_status.h> //Temperature, Water Sensor
-#include <depth.h>
+#include <std_msgs.h>
 //Constant declaration
 #include "defines.h"
 //Constants definition
@@ -42,9 +42,9 @@ uint32_t slow_loop_ctr;
     bbauv_msgs::hull_status env_msg;
     ros::Publisher env_pub("hull_status", &env_msg);
 
-    //Depth publisher
-    bbauv_msgs::depth depth_msg;
-    ros::Publisher depth_pub("depth",&depth_msg);
+    //Pressure publisher
+    std_msgs::Int16 pressure_msg;
+    ros::Publisher pressure_pub("pressure",&pressure_msg);
 
 //Motor Driver definitions
   bbauv_msgs::thruster thrusterSpeed;
@@ -56,11 +56,10 @@ uint32_t slow_loop_ctr;
 
 //ADC definitions
     Adafruit_ADS1115 ads1115;
-    int16_t adc;
 
 //Pressure Sensor Definitions
 
-    static float depth;
+    static int16_t depth;
 
 //Temperature Sensor Definitions
     float temp1 = 0;
@@ -168,32 +167,33 @@ int32_t fmap(int32_t input, int32_t in_min, int32_t in_max, int32_t out_min, int
 
 
 //Sensor Tasks Callbacks ---------------------------------------------------------
-float readPressure()
+int16_t readPressure()
 {
-    int32_t pressure;
-    float temp_depth;
+    //int32_t pressure;
+    //float temp_depth;
+    int16_t adc;
  #if PRESSURE_TYPE == PRESSURE_TYPE_GAUGE_30
     adc = ads1115.readADC_SingleEnded(0);
-    pressure = fmap(adc, 5340,26698,ATM,PSI30);
-    temp_depth = (float) pressure*100/(1000*9.81); //In centimetres
+    //pressure = fmap(adc, 5340,26698,ATM,PSI30);
+    //temp_depth = (float) pressure*100/(1000*9.81); //In centimetres
  #elif PRESSURE_TYPE == PRESSURE_TYPE_ABSOLUTE_100
     adc = ads1115.readADC_SingleEnded(1);
-    pressure = fmap(adc, 3277,29491,0, PSI100);
-    temp_depth = (float) pressure*100/(1000*9.81);
+    //pressure = fmap(adc, 3277,29491,0, PSI100);
+    //temp_depth = (float) pressure*100/(1000*9.81);
  #endif
 
  #if DEBUG_MODE == DEBUG_BB
     //Serial2.println(temp_depth);
  #endif
  
- return temp_depth;
+ return adc;
 }
 
 /* Discrete Low Pass Filter to reduce noise in signal */
 void readPressureFilter()
 {
-   float temp = readPressure();
-   depth = depth + LPF_CONSTANT*(temp -depth);
+   int16_t temp = readPressure();
+   depth = depth + LPF_CONSTANT*(float)(temp -depth);
 }
 
 float readTempSensor(int8_t addr)
@@ -247,9 +247,7 @@ void runThruster()
     mDriver.setMotorSpeed(1,thrusterSpeed.speed1);
     mDriver.setMotorSpeed(2,thrusterSpeed.speed2);
     mDriver.setMotorSpeed(3,thrusterSpeed.speed3);
-    mDriver.setMotorSpeed(
-
-    4,thrusterSpeed.speed4);
+    mDriver.setMotorSpeed(4,thrusterSpeed.speed4);
     mDriver.setMotorSpeed(5,thrusterSpeed.speed5);
     mDriver.setMotorSpeed(6,thrusterSpeed.speed6);
 }
