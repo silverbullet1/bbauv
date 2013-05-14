@@ -14,7 +14,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <PID_Controller/PID_ControllerConfig.h>
 #include <std_msgs/Float32.h>
-#include <std_msgs/Float32.h>
+#include <std_msgs/Int16.h>
 #include <stdio.h>
 #include <PID_Controller/PID.h>
 
@@ -26,8 +26,13 @@ using namespace bbauv;
 using namespace PID_Controller;
 
 const static int loop_frequency = 20;
+const static int PSI30 = 206842;
+const static int PSI100 = 689475;
+const static int ATM = 99974; //Pascals or 14.5PSI
+
 controller ctrl;
 thruster thrusterSpeed;
+depth depthReading;
 double depth_offset = 0;
 
 //State Machines
@@ -39,17 +44,19 @@ bool inVisionTracking;
 /**********************Function Prototypes**********************************/
 //void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const compass_data& msg);
-void collectDepth(const depth& msg);
+void collectDepth(const Int16& msg);
 void collectTeleop(const thruster& msg);
 void callback(PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output);
+double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 /**********************Publisher**********************************/
 Publisher thrusterPub;
+Publisher depthPub;
 /**********************Subscriber**********************************/
 Subscriber orientationSub;
-Subscriber depthSub;
+Subscriber pressureSub;
 Subscriber teleopSub;
 
 /**********************PID Controllers**********************************/
@@ -68,10 +75,12 @@ int main(int argc, char **argv)
 	//Initialize Node
 	init(argc, argv, "Controller");
 	NodeHandle nh;
-	//Initialize Publisher
+	//Initialize Publishers
 	thrusterPub = nh.advertise<thruster>("/thruster_speed", 1000);
+	depthPub = nh.advertise<depth>("/controller/depth",1000);
+	//Initialize Subscribers
 	orientationSub = nh.subscribe("/WH_DVL_data",100,collectOrientation);
-	depthSub = nh.subscribe("/depth",100,collectDepth);
+	pressureSub = nh.subscribe("/pressure",100,collectDepth);
 	teleopSub = nh.subscribe("/teleop_controller",100,collectTeleop);
 	dynamic_reconfigure::Server<PID_ControllerConfig> server;
 	dynamic_reconfigure::Server<PID_ControllerConfig>::CallbackType f;
@@ -133,11 +142,15 @@ void collectOrientation(const compass_data& msg)
 	 ctrl.heading_input = msg.pitch;
 }
 
-void collectDepth(const depth& msg)
+void collectDepth(const Int16& msg)
 {
-	ctrl.depth_input = msg.depth;
+	double pressure = fmap(msg.data, 5340,26698,ATM,PSI30);
+	double depth = pressure/(1000*9.81) - depth_offset;
+	ctrl.depth_input = depth;
+	depthReading.depth = depth;
+	depthReading.pressure = pressure;
+	depthPub.publish(depthReading);
 }
-
 void collectTeleop(const thruster &msg)
 {
 	if(inTopside)
@@ -173,4 +186,10 @@ void callback(PID_ControllerConfig &config, uint32_t level) {
   headingPID.setTi(config.heading_Ti);
   headingPID.setTd(config.heading_Td);
   depth_offset = config.depth_offset;
+}
+
+/*****************Helper Functions*********************/
+
+double fmap(int input, int in_min, int in_max, int out_min, int out_max){
+  return (input- in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
