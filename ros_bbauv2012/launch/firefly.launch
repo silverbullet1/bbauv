@@ -4,12 +4,13 @@
   <node pkg="camera1394" type="camera1394_node" name="firefly_camera_node" ns="bottomcam">
     <param name="~guid" value="00b09d0100bc5162" />
     <param name="~bayer_pattern" value="rggb" />
+    <param name="~bayer_method" value="" />
     <param name="~video_mode" value="640x480_mono8" />
     <param name="~iso_speed" value="400" />
     <param name="~frame_rate" value="30" />
   </node>
 
-  <node ns="bottomcam" pkg="image_proc" type="image_proc" name="firefly_image_proc_node">
+  <node ns="bottomcam/camera" pkg="image_proc" type="image_proc" name="firefly_image_proc_node" output="screen">
   </node>
 
 </launch>
