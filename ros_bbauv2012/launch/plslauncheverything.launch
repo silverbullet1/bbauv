@@ -1,21 +1,15 @@
 <launch>
 
-    <!-- Launching Actuators -->
-    <include file="$(find launch)/actuators.launch" />
-
-	<!-- Launching Sensors -->
-	<include file="$(find launch)/sensors.launch" />
-
-	<!-- Launching Cameras -->
-	<include file="$(find uvc_cam)/bb_cam.launch" />
-	
-    <!-- Launching Aggregator -->
-    <include file="$(find aggregator)/launch/aggregator.launch" />
-
 	<!-- Launching Joystick Control -->
 <!--  	<include file="$(find launch)/teleop.launch" /> -->
 
-	<!-- Launching Joystick Control -->
+  	<!-- Launch PID Controller -->
+	<include file="$(find launch)/controller.launch" />  	
+
+  	<!-- Launching Actuators -->
+    <include file="$(find launch)/actuators.launch" />
+
+	<!-- Launching OpenUPS -->
   	<include file="$(find Openups)/openups.launch" />
 
 </launch> 

@@ -44,7 +44,7 @@ bool inVisionTracking;
 /**********************Function Prototypes**********************************/
 //void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const compass_data& msg);
-void collectDepth(const Int16& msg);
+void collectPressure(const Int16& msg);
 void collectTeleop(const thruster& msg);
 void callback(PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
@@ -77,11 +77,11 @@ int main(int argc, char **argv)
 	NodeHandle nh;
 	//Initialize Publishers
 	thrusterPub = nh.advertise<thruster>("/thruster_speed", 1000);
-	depthPub = nh.advertise<depth>("/controller/depth",1000);
+	depthPub = nh.advertise<depth>("/depth",1000);
 	//Initialize Subscribers
-	orientationSub = nh.subscribe("/WH_DVL_data",100,collectOrientation);
-	pressureSub = nh.subscribe("/pressure",100,collectDepth);
-	teleopSub = nh.subscribe("/teleop_controller",100,collectTeleop);
+	orientationSub = nh.subscribe("/WH_DVL_data",1000,collectOrientation);
+	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
+	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
 	dynamic_reconfigure::Server<PID_ControllerConfig> server;
 	dynamic_reconfigure::Server<PID_ControllerConfig>::CallbackType f;
 	f = boost::bind(&callback, _1, _2);
@@ -104,6 +104,8 @@ int main(int argc, char **argv)
 			setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 			setVertThrustSpeed(depthPID_output,pitchPID_output);
 		}
+
+		thrusterPub.publish(thrusterSpeed);
 
 		spinOnce();
 		loop_rate.sleep();
@@ -142,18 +144,18 @@ void collectOrientation(const compass_data& msg)
 	 ctrl.heading_input = msg.pitch;
 }
 
-void collectDepth(const Int16& msg)
+void collectPressure(const Int16& msg)
 {
 	double pressure = fmap(msg.data, 5340,26698,ATM,PSI30);
 	double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;
-	depthReading.pressure = pressure;
+	//depthReading.pressure = pressure;
 	depthPub.publish(depthReading);
 }
 void collectTeleop(const thruster &msg)
 {
-	if(inTopside)
+	if(inTopside && inTeleop)
 	{
 		thrusterSpeed.speed1 = msg.speed1;
 		thrusterSpeed.speed2 = msg.speed2;
@@ -161,13 +163,13 @@ void collectTeleop(const thruster &msg)
 		thrusterSpeed.speed4 = msg.speed4;
 		thrusterSpeed.speed5 = msg.speed5;
 		thrusterSpeed.speed6 = msg.speed6;
-		thrusterPub.publish(thrusterSpeed);
 	}
 }
 
 /***********Dynamic Reconfigure Callbacks*****************/
 
 void callback(PID_ControllerConfig &config, uint32_t level) {
+  cout<<config.topside<<endl;
   inTopside = config.topside;
   inTeleop = config.teleop;
   inForwardPID = config.forward_PID;

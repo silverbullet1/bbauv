@@ -11,12 +11,12 @@
 #include <manipulator.h> //For servos control
 #include <openups.h>    //battery capacity
 #include <hull_status.h> //Temperature, Water Sensor
-#include <std_msgs.h>
+#include <std_msgs/Int16.h>
 //Constant declaration
 #include "defines.h"
 //Constants definition
 #define PRESSURE_TYPE PRESSURE_TYPE_GAUGE_30
-#define DEBUG_MODE DEBUG_BB
+#define DEBUG_MODE NORMAL
 
 //Timming variables - to ensure the loop run at correct frequency
 static uint32_t currentTime,loopTime, fast_loop,time_elapsed, medium_loop, slow_loop;
@@ -41,10 +41,13 @@ uint32_t slow_loop_ctr;
     //Hull Status Publishers - Temperature, Water Sensor
     bbauv_msgs::hull_status env_msg;
     ros::Publisher env_pub("hull_status", &env_msg);
+    
+    //bbauv_msgs::thruster thruster_msg;
+    //ros::Publisher thruster_pub("thruster_status", &thruster_msg);
 
     //Pressure publisher
     std_msgs::Int16 pressure_msg;
-    ros::Publisher pressure_pub("pressure",&pressure_msg);
+    ros::Publisher pressure_pub("pressure_data",&pressure_msg);
 
 //Motor Driver definitions
   bbauv_msgs::thruster thrusterSpeed;
@@ -59,7 +62,7 @@ uint32_t slow_loop_ctr;
 
 //Pressure Sensor Definitions
 
-    static int16_t depth;
+    int16_t pressure;
 
 //Temperature Sensor Definitions
     float temp1 = 0;
@@ -74,7 +77,8 @@ void setup()
     nh.subscribe(manipulator_sub);
     nh.subscribe(battery_sub);
     nh.advertise(env_pub);
-    nh.advertise(depth_pub);
+    //nh.advertise(thruster_pub);
+    nh.advertise(pressure_pub);
 
 //Initialize Motor Driver:
     //Set Baud rate for Serial1 (UART communication)
@@ -113,7 +117,7 @@ void loop()
   {
     readPressureFilter();
     #if DEBUG_MODE == DEBUG_BB
-      Serial2.println(currentTime - fast_loop);
+     // Serial2.println(currentTime - fast_loop);
     #endif
     fast_loop = currentTime;
   }
@@ -124,11 +128,11 @@ void loop()
   if( currentTime >= (medium_loop + 50))
   {
      #if DEBUG_MODE == DEBUG_BB
-      Serial2.println(currentTime - medium_loop);
+      //Serial2.println(currentTime - medium_loop);
     #endif
     runThruster();
-    depth_msg.depth = depth;
-    depth_pub.publish(&depth_msg);
+    pressure_msg.data = pressure;
+    pressure_pub.publish(&pressure_msg);
     nh.spinOnce();
     medium_loop = currentTime;
   }
@@ -154,7 +158,7 @@ void loop()
    if(slow_loop_ctr != 3)  slow_loop_ctr++;
    else  slow_loop_ctr = 0;
     #if DEBUG_MODE == DEBUG_BB
-    Serial2.println(currentTime - slow_loop);
+    //Serial2.println(currentTime - slow_loop);
     #endif
    slow_loop = currentTime;
  } 
@@ -193,7 +197,7 @@ int16_t readPressure()
 void readPressureFilter()
 {
    int16_t temp = readPressure();
-   depth = depth + LPF_CONSTANT*(float)(temp -depth);
+   pressure = pressure + LPF_CONSTANT*(float)(temp - pressure);
 }
 
 float readTempSensor(int8_t addr)
@@ -244,12 +248,15 @@ void readWater()
 
 void runThruster()
 {
+    //thruster_pub.publish(&thrusterSpeed);
+    //Serial2.println(thrusterSpeed.speed1);
     mDriver.setMotorSpeed(1,thrusterSpeed.speed1);
     mDriver.setMotorSpeed(2,thrusterSpeed.speed2);
     mDriver.setMotorSpeed(3,thrusterSpeed.speed3);
     mDriver.setMotorSpeed(4,thrusterSpeed.speed4);
     mDriver.setMotorSpeed(5,thrusterSpeed.speed5);
     mDriver.setMotorSpeed(6,thrusterSpeed.speed6);
+    
 }
 
 void getThrusterSpeed(const bbauv_msgs::thruster &msg)

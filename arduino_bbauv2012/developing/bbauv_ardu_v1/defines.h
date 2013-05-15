@@ -7,9 +7,9 @@
 #define LPF_CONSTANT 0.7
 #define PRESSURE_TYPE_ABSOLUTE_100 0
 #define PRESSURE_TYPE_GAUGE_30 1
-#define WaterPin1 4 // green
-#define WaterPin2 5 // yellow
-#define WaterPin3 6 // orange
+#define WaterPin1 26 // green
+#define WaterPin2 25 // yellow
+#define WaterPin3 27 // orange
 #define waterLedPin 7
 #define TempAddr1 0x49 // V+
 #define TempAddr2 0x4A	// SDA
