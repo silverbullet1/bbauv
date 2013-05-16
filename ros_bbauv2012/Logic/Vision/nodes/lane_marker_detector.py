@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
-
-# Code to identify RoboSub lane markers
+'''
+Code to identify RoboSub lane markers
+'''
 
 import roslib; roslib.load_manifest('Vision')
 import rospy
@@ -75,7 +76,7 @@ class LaneDetector:
         self.heading = 0.0
 
         # Configurable parameters
-        self.params = { 'hueLow': 11, 'hueHigh': 35, 'contourMinArea': 4 }
+        self.params = { 'hueLow': 11, 'hueHigh': 35, 'contourMinArea': 15 }
 
         # Set up param configuration window
         def paramSetter(key):
@@ -85,7 +86,7 @@ class LaneDetector:
         cv2.namedWindow("settings", cv2.CV_WINDOW_AUTOSIZE)
         cv2.createTrackbar("Hue Low:", "settings", self.params['hueLow'], 180, paramSetter('hueLow'));
         cv2.createTrackbar("Hue High:", "settings", self.params['hueHigh'], 180, paramSetter('hueHigh'));
-        cv2.createTrackbar("Min contour area (%):", "settings", self.params['contourMinArea'], 100, paramSetter('contourMinArea'));
+        cv2.createTrackbar("Min contour area (1/1000):", "settings", self.params['contourMinArea'], 1000, paramSetter('contourMinArea'));
 
         ## Example filters
         ## Original image - its Laplacian
@@ -138,7 +139,7 @@ class LaneDetector:
         foundRects = [ ]
         for contour in contours:
             curArea = cv2.contourArea(contour)
-            if curArea >= self.params['contourMinArea'] * cvimg.shape[0] * cvimg.shape[1] / 100:
+            if curArea >= self.params['contourMinArea'] * cvimg.shape[0] * cvimg.shape[1] / 1000:
                 maxRect = cv2.minAreaRect(contour)
                 foundRects.append({'rect': maxRect})
 
@@ -180,11 +181,12 @@ class LaneDetector:
             count += 1
 
             # Draw the lines for debugging
+            imgBW = cv2.merge([imgBW, imgBW, imgBW])
             for i in range(4):
                 # The line function doesn't accept floating point values
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                cv2.line(imgBW, pt1, pt2, 255, 1)
+                cv2.line(imgBW, pt1, pt2, (255,255,0), 2)
 
         #TODO: publish the rects (with target headings)
 
@@ -195,7 +197,7 @@ class LaneDetector:
             count += 1
 
         # Screens for debugging
-        cv2.imshow("src", cvimg)
+#        cv2.imshow("src", cvimg)
         cv2.imshow("hsv", imghsv)
         cv2.imshow("bw", imgBW)
 
