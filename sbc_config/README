@@ -11,6 +11,11 @@ ups.conf
 - As root, create a hard link to this file from /etc/nut:
     `ln ups.conf /etc/nut/ups.conf`
 
+usbhid-ups
+- This is a hacked version of the UPS driver.
+- As root, replace /lib/nut/usbhid-ups with this:
+    `cp usbhid-ups /lib/nut`
+
 startup-trigger-ups.sh
 - This is a script to trigger the UPS driver on startup.
 - For GNOME/Unity, click on Power button -> Startup Applications, and add the script to the list.
