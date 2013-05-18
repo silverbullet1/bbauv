@@ -7,6 +7,9 @@
  * Config  : WH_DVL.cfg <WH_DVL, WH_DVL>  
  *----------------------------------------------------------------------------*/
 
+#include <iostream>
+#include <fstream>
+
 // ROS includes.
 #include <ros/ros.h>
 #include <ros/time.h>
@@ -26,6 +29,9 @@ using namespace std;
 int main(int argc, char **argv)
 {
     string printString;
+
+    ofstream myfile;
+    myfile.open("rawData.txt");
 
     // Set up ROS.
     ros::init(argc, argv, "WH_DVL");
@@ -72,8 +78,10 @@ int main(int argc, char **argv)
             if (rdi_dvl->cmdMode) {
                 rdi_dvl->getRawData();
                 printString = rdi_dvl->getPrintString();
-                if (printString != "")
+                if (printString != "") {
+                    myfile << printString;
                     cout << printString;
+                }
             }
             else {
                 rdi_dvl->getData();
@@ -95,5 +103,6 @@ int main(int argc, char **argv)
         r.sleep();
     }
 
+    myfile.close();
     return 0;
 } // end main()
