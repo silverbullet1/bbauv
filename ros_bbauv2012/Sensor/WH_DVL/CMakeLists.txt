@@ -26,6 +26,7 @@ include_directories (include)
 
 # Build the executable that will be used to run this node
 rosbuild_add_executable(${BINNAME} ${SRCS})
+rosbuild_add_executable(Q2E src/Q2E.cpp)
 
 # Add dynamic reconfigure API
 rosbuild_find_ros_package (dynamic_reconfigure)

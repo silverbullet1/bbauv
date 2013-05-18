@@ -333,6 +333,8 @@ void DVL::assignData() {
     yvel = botTrack.Velocity[1] / 1000.0;//North
     zvel = botTrack.Velocity[2] / 1000.0;//vertical
 
+    botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
+
     return;
 }
 
@@ -351,7 +353,11 @@ void DVL::computeDistance() {
     }
 
     //data to fill in covariance matrix
-    if (start_time == 0) start_time = totalSec;
+    if (start_time == 0) {
+        start_time = totalSec;
+        ROS_INFO("start time: %lf", start_time);
+    }
+    
     xy_vel_error = botTrack.Velocity[3];
 
     mean_xy_vel = (mean_xy_vel * count + xy_vel_error) * 1.0 / (count + 1);
@@ -629,11 +635,11 @@ double DVL::toSec(int year, int mon, int day, int hour, int min, int sec, int se
 }
 
 
-/* 
+/*----------------------------------------------------------------------
  * return the printStr 
  * the printStr will be cleaned after it is readed
  * through this function
- */
+ *--------------------------------------------------------------------*/
 string DVL::getPrintString() {
     string newStr =  printStr;
     printStr = "";

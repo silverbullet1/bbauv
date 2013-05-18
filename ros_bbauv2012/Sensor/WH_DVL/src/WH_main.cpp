@@ -56,11 +56,11 @@ int main(int argc, char **argv)
     // Set up publishers.
     ros::Publisher pubData = n.advertise<nav_msgs::Odometry>(pub_topic_name.c_str(), 1000);
 
-    // Tell ROS to run this node at the rate that the compass is sending messages to us.
+    // Tell ROS to run this node at the rate that the DVL is sending messages to us.
     ros::Rate r(rdi_dvl->ros_rate);
     ROS_INFO("ros_rate: %d", rdi_dvl->ros_rate);
 
-    // Connect to the Ocean Server compass.
+    // Connect to the Workhorse DVL
     if (rdi_dvl->fd < 0) {
         ROS_ERROR("Could not connect to DVL on port %s at %d baud. You can try changing the parameters using the dynamic reconfigure gui.", rdi_dvl->portname.c_str(), rdi_dvl->baud);
     }
