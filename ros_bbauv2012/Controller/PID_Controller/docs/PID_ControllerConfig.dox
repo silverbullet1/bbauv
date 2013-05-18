@@ -6,7 +6,7 @@ Reads and maintains the following parameters on the ROS server
 - \b "~heading_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
 - \b "~forward_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
 - \b "~sidemove_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
-- \b "~teleop" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~teleop" : \b [bool] Manual-0 or Auto-1 min: False, default: True, max: True
 - \b "~topside" : \b [bool] Manual-0 or Auto-1 min: False, default: True, max: True
 - \b "~depth_setpoint" : \b [double] Setpoint for depth controller min: 0.0, default: 0.0, max: 20.0
 - \b "~heading_setpoint" : \b [double] Setpoint for heading controller min: 0.0, default: 0.0, max: 360.0

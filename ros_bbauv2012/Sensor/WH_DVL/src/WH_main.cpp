@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     string pub_topic_name;
 
     // Initialize node parameters.
-    private_node_handle_.param("baud", baud, int(9600));
+    private_node_handle_.param("baud", baud, int(57600));
     private_node_handle_.param("init_time", init_time, int(5));
     private_node_handle_.param("port", port_name, string("/dev/ttyUSB0"));
     private_node_handle_.param("pub_topic_name", pub_topic_name, string("WH_DVL_data"));

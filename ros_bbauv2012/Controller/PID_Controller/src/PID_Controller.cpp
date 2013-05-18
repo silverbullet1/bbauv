@@ -150,7 +150,7 @@ void collectPressure(const Int16& msg)
 	double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;
-	//depthReading.pressure = pressure;
+	depthReading.pressure = pressure;
 	depthPub.publish(depthReading);
 }
 void collectTeleop(const thruster &msg)

@@ -5,7 +5,7 @@
   <param name="heading_PID" type="bool" value="False" />
   <param name="forward_PID" type="bool" value="False" />
   <param name="sidemove_PID" type="bool" value="False" />
-  <param name="teleop" type="bool" value="False" />
+  <param name="teleop" type="bool" value="True" />
   <param name="topside" type="bool" value="True" />
   <param name="depth_setpoint" type="double" value="0.0" />
   <param name="heading_setpoint" type="double" value="0.0" />
