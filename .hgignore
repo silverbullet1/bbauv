@@ -26,5 +26,10 @@ bbauvSoftware/rosserial/rosserial_msgs/src/rosserial_msgs/__init__.py
 *.cfgc
 ros_bbauv2012/Sensor/os5000/include/.os5000_ros.h.swp
 ros_bbauv2012/Sensor/os5000/src/.os5000_ros.cpp.swp
-ros_bbauv2012/Sensor/WH_DVL/include/.os5000_ros.h.swp
-ros_bbauv2012/Sensor/WH_DVL/include/.os5000_core.h.swp
+ros_bbauv2012/Sensor/WH_DVL/src/WH_DVL/cfg/__init__.py
+ros_bbauv2012/Sensor/WH_DVL/src/WH_DVL/cfg/WH_DVLConfig.py
+ros_bbauv2012/Sensor/WH_DVL/src/WH_DVL/__init__.py
+ros_bbauv2012/Sensor/WH_DVL/docs/WH_DVLConfig.wikidoc
+ros_bbauv2012/Sensor/WH_DVL/docs/WH_DVLConfig.dox
+ros_bbauv2012/Sensor/WH_DVL/docs/WH_DVLConfig-usage.dox
+ros_bbauv2012/Sensor/WH_DVL/cfg/cpp/WH_DVL/WH_DVLConfig.h
