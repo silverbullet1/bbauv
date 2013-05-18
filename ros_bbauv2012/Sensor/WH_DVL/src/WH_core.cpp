@@ -301,7 +301,7 @@ void DVL::decodeData() {
 
 void DVL::assignData() {
     header_frame_id = "odom"; 
-    child_frame_id  = "odom";
+    child_frame_id  = "base_footprint";
 
     year   = (varLeader.TSRecordingTime).Year;
     month  = (varLeader.TSRecordingTime).Month;
