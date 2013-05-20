@@ -25,5 +25,6 @@
 #define SERVO_4 17
 #define SERVO_5 18
 #define SERVO_6 19
+#define EMAGNET 8
 
 #endif // _DEFINES_H
