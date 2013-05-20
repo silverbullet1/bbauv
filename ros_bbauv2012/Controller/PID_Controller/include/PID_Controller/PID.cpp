@@ -8,6 +8,7 @@
 #include "PID.h"
 #include <ros/ros.h>
 #include <std_msgs/Float32.h>
+#include <math.h>
 
 namespace bbauv {
 
@@ -28,14 +29,16 @@ void bbPID::setTd(double D)
 	Td = D;
 }
 
-void bbPID::setActuatorSatModel(int min=0,int max=1000)
+void bbPID::setActuatorSatModel(int min=-1000,int max=1000)
 {
 	actMax = max;
-	actMin = 0;
+	actMin = min;
 }
 
 //Constructor
 bbPID::bbPID(double P,double I,double D, int Ncut) {
+	derivative = 0;
+	integral = 0;
 	Kp = P;
 	Ti = I;
 	Td = D;
@@ -46,19 +49,24 @@ double bbPID::computePID(double setpoint, double input)
 {
 	ros::Time nowTime = ros::Time::now();
 	double dt = nowTime.nsec - oldTime.nsec;
-	double output;
+	double output,total;
+	double Tt = sqrt(Ti*Td);
 	if(oldTime.nsec > nowTime.nsec) dt = (nowTime.nsec + 1000000000 - oldTime.nsec)/1000000;
 	else	dt = (nowTime.nsec - oldTime.nsec)/1000000;
 
 	double proportional = Kp*(setpoint - input);
 
-	//This implements the deri_Controller/PID.h>vative with set point weighting and bandwidth limitation
+	//This implements the derivative with set point weighting and bandwidth limitation
 	//for filtering of noisy signals. Equivalent to low pass filters.
-	derivative = (Td/(Td + N*dt))*(derivative - Kp*N*(inputOld - input)/(Td + N*dt));
-	integral = integral + Kp*dt*(setpoint - input)/Ti;
+	derivative = (Td/(Td + N*dt))*(derivative - Kp*N*(input - inputOld));
+	total = proportional + derivative + integral;
 
-	output = actuatorConstrain(proportional + derivative + integral);
-
+	output = actuatorConstrain(total);
+	std::cout<<" P: "<<proportional<<" D: "<<derivative<<" I: "<<integral<<std::endl;
+	std::cout<<"output: "<<output<<std::endl;
+	//Integrator with wind up protection
+	if(Ti) integral = integral + Kp*dt*(setpoint - input)/Ti + (output - total)*dt/Tt;
+	else integral = 0;
 	//Update old time and input for derivative computation
 	oldTime = nowTime;
 	inputOld = input;
@@ -84,6 +92,7 @@ double  bbPID::actuatorConstrain(double val)
 	double constrain_val = 0;
 	if(val > actMax)	constrain_val = actMax;
 	else if(val < actMin) constrain_val = actMin;
+	else constrain_val = val;
 
 	return constrain_val;
 }

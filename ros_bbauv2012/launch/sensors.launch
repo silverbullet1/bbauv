@@ -1,11 +1,5 @@
 <launch>
-    <arg name="port" default="/dev/ttySensors" />
-    <node
-        pkg="sensorArduino" name="env_sensors" type="serial_node.py" args="$(arg port)" >
+    <arg name="port" default="/dev/ttyUSB0" />
+    <node pkg="os5000" name="oscompass" type="oscompass">
     </node>
-    
-    <node
-        pkg="os5000" name="oscompass" type="oscompass">
-    </node>
-
 </launch>

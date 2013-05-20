@@ -16,12 +16,16 @@
   <param name="depth_Kp" type="double" value="1.2" />
   <param name="depth_Ti" type="double" value="0.0" />
   <param name="depth_Td" type="double" value="0.0" />
+  <param name="depth_min" type="int" value="-3200" />
+  <param name="depth_max" type="int" value="3200" />
   <param name="pitch_Kp" type="double" value="1.2" />
   <param name="pitch_Ti" type="double" value="0.0" />
   <param name="pitch_Td" type="double" value="0.0" />
   <param name="heading_Kp" type="double" value="1.2" />
   <param name="heading_Ti" type="double" value="0.0" />
   <param name="heading_Td" type="double" value="0.0" />
+  <param name="heading_min" type="int" value="-3200" />
+  <param name="heading_max" type="int" value="3200" />
   <param name="forward_Kp" type="double" value="1.2" />
   <param name="forward_Ti" type="double" value="0.0" />
   <param name="forward_Td" type="double" value="0.0" />

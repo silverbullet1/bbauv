@@ -1,10 +1,7 @@
 <launch>
+    <arg name="port" default="/dev/ttyArduino" />
+    <node
+        pkg="thrusterArduino" name="thrusterArduino" type="serial_node.py" args="$(arg port)" >
+    </node>
 
-    <!-- Launching Actuators -->
-    <include file="$(find launch)/actuators.launch" />
-	<!-- Launching Joystick Control -->
-  	<include file="$(find launch)/teleop.launch" />
-       <!-- Launching Joystick Control -->
-        <include file="$(find Openups)/openups.launch" />
-
-</launch> 
+</launch>

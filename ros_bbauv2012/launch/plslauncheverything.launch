@@ -6,8 +6,8 @@
   	<!-- Launch PID Controller -->
 	<include file="$(find launch)/controller.launch" />  	
 
-  	<!-- Launching Actuators -->
-    <include file="$(find launch)/actuators.launch" />
+  	<!-- Launching Embedded Systems -->
+    <include file="$(find launch)/embedded.launch" />
 
 	<!-- Launching OpenUPS -->
   	<include file="$(find Openups)/openups.launch" />
