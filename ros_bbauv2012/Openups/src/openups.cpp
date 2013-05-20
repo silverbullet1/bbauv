@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 	uint8_t *charges = &openupsMsg.battery1;
 
 	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups",1000);
-	ros::Rate loop_rate(10);
+	ros::Rate loop_rate(1);
 
 	while (ros::ok())
 	{
