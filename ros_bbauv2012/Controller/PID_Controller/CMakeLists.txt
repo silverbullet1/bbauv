@@ -31,7 +31,7 @@ rosbuild_genmsg()
 #target_link_libraries(${PROJECT_NAME} another_library)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
-rosbuild_add_executable(Controller src/PID_Controller.cpp include/PID_Controller/PID.cpp)
+rosbuild_add_executable(Controller src/PID_Controller.cpp include/PID_Controller/PID.cpp include/NavUtils/NavUtils.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
 

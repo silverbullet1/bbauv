@@ -17,6 +17,8 @@
 #include <std_msgs/Int16.h>
 #include <stdio.h>
 #include <PID_Controller/PID.h>
+#include <NavUtils/NavUtils.h>
+#include <sensor_msgs/Imu.h>
 
 using namespace std_msgs;
 using namespace ros;
@@ -43,7 +45,7 @@ bool inVisionTracking;
 
 /**********************Function Prototypes**********************************/
 //void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
-void collectOrientation(const compass_data& msg);
+void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
 void collectPressure(const Int16& msg);
 void collectTeleop(const thruster& msg);
 void callback(PID_ControllerConfig &config, uint32_t level);
@@ -66,6 +68,8 @@ bbPID headingPID(1.2,0,0,20);
 bbPID sidemovePID(1.2,0,0,20);
 bbPID pitchPID(1.2,0,0,20);
 
+NavUtils navHelper;
+
 int manual_speed[6] = {0,0,0,0,0,0};
 
 int main(int argc, char **argv)
@@ -79,13 +83,15 @@ int main(int argc, char **argv)
 	thrusterPub = nh.advertise<thruster>("/thruster_speed", 1000);
 	depthPub = nh.advertise<depth>("/depth",1000);
 	//Initialize Subscribers
-	orientationSub = nh.subscribe("/os5000_data",1000,collectOrientation);
+	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
 	dynamic_reconfigure::Server<PID_ControllerConfig> server;
 	dynamic_reconfigure::Server<PID_ControllerConfig>::CallbackType f;
 	f = boost::bind(&callback, _1, _2);
 	server.setCallback(f);
+
+	navHelper = NavUtils();
 
 	//Execute PID Loop computation at 20Hz
 	Rate loop_rate(loop_frequency);
@@ -136,10 +142,14 @@ void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
 
 /***********Subscriber Callbacks*****************/
 
-void collectOrientation(const compass_data& msg)
+void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
 {
-	 ctrl.heading_input = msg.yaw;
-	 ctrl.pitch_input = msg.pitch;
+	double q0 = (msg->orientation).w;
+	double q1 = (msg->orientation).x;
+	double q2 = (msg->orientation).y;
+	double q3 = (msg->orientation).z;
+	ctrl.heading_input = navHelper.quaternionToYaw(q0,q1,q2,q3);
+	ctrl.pitch_input = navHelper.quaternionToPitch(q0,q1,q2,q3);
 }
 
 void collectPressure(const Int16& msg)
