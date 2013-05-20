@@ -78,8 +78,8 @@ if __name__ == '__main__':
     global D_Compass
     global myStr1
     rospy.init_node('SpartonDigitalCompassIMU')
-    Pos_pub = rospy.Publisher('imu/HeadingTrue', Pose2D)
-    Imu_pub = rospy.Publisher('imu/data', Imu)
+    Pos_pub = rospy.Publisher('AHRS8_HeadingTrue', Pose2D)
+    Imu_pub = rospy.Publisher('AHRS8_data', Imu)
     SpartonPose2D=Pose2D()
     SpartonPose2D.x=float(0.0)
     SpartonPose2D.y=float(0.0)
@@ -200,18 +200,18 @@ if __name__ == '__main__':
                                 imu_data.header.stamp = rospy.Time.from_sec(DataTimeSec-len(data)/11520.) # this is timestamp with a bit time offset 10bit per byte @115200bps
                                 imu_data.orientation = Quaternion()
                                 # IMU outputs [w,x,y,z] NED, convert to [x,y,z,w] ENU
-                                imu_data.orientation.x = y
-                                imu_data.orientation.y = x
+                                imu_data.orientation.x = x
+                                imu_data.orientation.y = -y
                                 imu_data.orientation.z = -z
                                 imu_data.orientation.w = w
                                 
                                 # again note NED to ENU converstion
-                                imu_data.angular_velocity.x = Gy
-                                imu_data.angular_velocity.y = Gx
+                                imu_data.angular_velocity.x = Gx
+                                imu_data.angular_velocity.y = -Gy
                                 imu_data.angular_velocity.z = -Gz
                                 # again note NED to ENU converstion
-                                imu_data.linear_acceleration.x = Ay
-                                imu_data.linear_acceleration.y = Ax
+                                imu_data.linear_acceleration.x = Ax
+                                imu_data.linear_acceleration.y = -Ay
                                 imu_data.linear_acceleration.z = -Az
 
                                 Imu_pub.publish(imu_data)
