@@ -9,7 +9,7 @@
 
 /*----------------DVL() - Constructor---------------------------------*/
 RDI_DVL::RDI_DVL(string _portname, int _baud, int _init_time) : DVL::DVL(_portname, _baud, _init_time) {
-    ros_rate    = 2;
+    ros_rate    = 4;
     cmdMode     = true;
     verifying   = false;
     //calibrating = false;
@@ -48,13 +48,27 @@ void RDI_DVL::publishOdomData(ros::Publisher *pubData) {
             odomData.pose.pose.orientation.w);
 
     // covariance matrix
-    for ( int i=0; i < 36; i++)
+    for ( int i=0; i < 36; i++) {
         odomData.pose.covariance[i] = posCov[i];
+    }
 
     // FILL IN TWIST DATA
     // covariance matrix
     for ( int i=0; i < 36; i++)
         odomData.twist.covariance[i] = velCov[i];
+
+    // fill in fake covariance data incase real data fail
+    for ( int i=0; i < 36; i++) 
+        if (i==0 || i==7 || i==14 || i==21 || i==28 || i==35) {
+            if (odomData.pose.covariance[i] == 0){
+                odomData.pose.covariance[i] = 0.1;
+                ROS_INFO("Using fake pose covariance");
+            }
+            if (odomData.twist.covariance[i] == 0){
+                odomData.twist.covariance[i] = 0.1;
+                ROS_INFO("Using fake twist covariance");
+            }
+        }
 
     odomData.twist.twist.angular.z = angZvel;
     odomData.twist.twist.angular.x = angXvel;
@@ -135,17 +149,17 @@ void RDI_DVL::configCallback(WH_DVL::WH_DVLConfig &config, uint32_t level) {
     // CANNOT CONTINUE, NO POINT
     // start the calibration
     if (config.calibrate == true && calibrating == false) {
-        ROS_INFO("Calibrate compass sent");
-        cmdMode = true;
-        calibrateCompass();
+    ROS_INFO("Calibrate compass sent");
+    cmdMode = true;
+    calibrateCompass();
     }
     else if (config.calibrate == false && calibrating == true) {
-        ROS_INFO("Stop calibrating compass");
-        cmdMode = true;
-        stopCalibrating();
+    ROS_INFO("Stop calibrating compass");
+    cmdMode = true;
+    stopCalibrating();
     }
     calibrating = config.calibrate;
-    */
+     */
 
     // print out the full data set
     if (config.print_data == true) {
@@ -166,12 +180,12 @@ void RDI_DVL::configCallback(WH_DVL::WH_DVLConfig &config, uint32_t level) {
     // TOO DANGEROUS OPTION
     // reset to factory settings then send all standard settings again
     if (config.reset_settings == true) {
-        ROS_INFO("Reset to basic settings");
-        cmdMode = true;
-        resetSettings();
-        config.reset_settings = false;
+    ROS_INFO("Reset to basic settings");
+    cmdMode = true;
+    resetSettings();
+    config.reset_settings = false;
     }
-    */
+     */
 
     // Check to see if we should attempt to reconnect to the compass.
     if (config.reconnect) {

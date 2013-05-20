@@ -373,7 +373,7 @@ void DVL::computeDistance() {
     // fill in covariance matrix
     posCov[0]  = xy_vel_var * (totalSec - start_time);
     posCov[7]  = xy_vel_var * (totalSec - start_time);
-    posCov[14] = z_vel_var * (totalSec - start_time);
+    posCov[14] = z_vel_var  * (totalSec - start_time);
     //cout << "z_vel_var_set: " << z_vel_var_set << endl;
     //cout << "z_vel_var    : " << z_vel_var << endl;
     //cout << "passed time  : " << totalSec - start_time << endl;
