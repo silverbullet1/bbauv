@@ -55,7 +55,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "openupsPublisher");
 	ros::NodeHandle n;
 	bbauv_msgs::openups openupsMsg;
-	uint8_t *charges = &openupsMsg.battery1;
+	int8_t *charges = &openupsMsg.battery1;
 
 	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups", 1);
 	ros::Rate loop_rate(1);

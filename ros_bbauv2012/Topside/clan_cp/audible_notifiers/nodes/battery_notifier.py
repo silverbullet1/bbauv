@@ -26,7 +26,7 @@ def main():
     while not rospy.is_shutdown():
         
         for key,value in charge_status.iteritems():
-            if value == 255:
+            if value == -1:
                 canberra = pycanberra.Canberra()
                 canberra.easy_play_sync("suspend-error")
                 canberra.destroy()  
