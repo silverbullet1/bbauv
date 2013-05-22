@@ -1,9 +1,9 @@
 INSTRUCTIONS FOR USING THE FILES IN sbc_config
 ----------------------------------------------
 
-53-bumblebee.rules:
-- This file contains udev rules for our hardware.
-- As root, create a hard link to this file from /etc/udev/rules.d:
+*.rules:
+- These files contain udev rules for our hardware.
+- As root, create a hard link to these files from /etc/udev/rules.d, e.g.:
     `ln 53-bumblebee.rules /etc/udev/rules.d/53-bumblebee.rules`
 
 ups.conf
