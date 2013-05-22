@@ -12,10 +12,42 @@ const int NUM_UPS = 4;
 
 using namespace std;
 
-int battery_charge(string s);
-float battery_current(string s);
-int battery_runtime(string s);
-float battery_voltage(string s);
+// Template function to extract property values from the battery state output
+// by the OpenUPS driver.
+//
+// Known properties are:
+// - battery.charge  (int)
+// - battery.current (float)
+// - battery.runtime (int)
+// - battery.voltage (float)
+//
+// Returns defaultVal if the property cannot be found.
+template<class T>
+T extractBatteryState(const string& upsOutput, const string& property, const T& defaultVal)
+{
+	string searchStr = property + ": ";
+	size_t found = upsOutput.find(searchStr);
+	if (found != string::npos) {
+		T value;
+		istringstream sstr(upsOutput.substr(found+searchStr.length()));
+		sstr >> value;
+		return value;
+	}
+	return defaultVal;
+}
+template<>
+string extractBatteryState<string>(const string& upsOutput, const string& property, const string& defaultVal)
+{
+	string searchStr = property + ": ";
+	size_t found = upsOutput.find(searchStr);
+	if (found != string::npos) {
+		string value;
+		istringstream sstr(upsOutput.substr(found+searchStr.length()));
+		getline(sstr, value, '\n');
+		return value;
+	}
+	return defaultVal;
+}
 
 int main(int argc, char** argv)
 {
@@ -25,7 +57,7 @@ int main(int argc, char** argv)
 	bbauv_msgs::openups openupsMsg;
 	uint8_t *charges = &openupsMsg.battery1;
 
-	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups",1000);
+	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups", 1);
 	ros::Rate loop_rate(1);
 
 	while (ros::ok())
@@ -39,10 +71,18 @@ int main(int argc, char** argv)
 			if (fp)
 			{
 				const int MAX_BUFFER = 10000;
-				char s[MAX_BUFFER] = { 0 };
-				fread(s, 1, MAX_BUFFER-1, fp);
+				char tmp[MAX_BUFFER] = { 0 };
+				fread(tmp, 1, MAX_BUFFER-1, fp);
+				string upsOutput(tmp);
 
-				charges[ups_id-1] = battery_charge(s);
+				string status = extractBatteryState<string>(upsOutput, "ups.status", "");
+
+				//HACK: if "DISCHRG" not found in status, return default value
+				if (status.find("DISCHRG") == string::npos) {
+					charges[ups_id-1] = -1;
+				} else {
+					charges[ups_id-1] = extractBatteryState<int>(upsOutput, "battery.charge", -1);
+				}
 
 //				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, (int)charges[ups_id-1]);
 			}
@@ -56,64 +96,3 @@ int main(int argc, char** argv)
 
 	return 0;
 }
-
-int battery_charge(string s)
-{
-	string str ("battery.charge: ");
-	size_t found;
-	found=s.find(str);
-	if(found!=string::npos)
-	{
-		int charge;
-		istringstream sstr(s.substr(found+str.length()));
-		sstr >> charge;
-		return charge;
-	}
-	return -1;
-}
-
-float battery_current(string s)
-{
-	string str ("battery.current: ");
-	size_t found;
-	found=s.find(str);
-	if(found!=string::npos)
-	{
-		float current;
-		istringstream sstr(s.substr(found+str.length()));
-		sstr >> current;
-		return current;
-	}
-	return -1;
-}  
-
-int battery_runtime(string s)
-{
-	string str ("battery.runtime: ");
-	size_t found;
-	found=s.find(str);
-	if(found!=string::npos)
-	{
-		int runtime;
-		istringstream sstr(s.substr(found+str.length()));
-		sstr >> runtime;
-		return runtime;
-	}
-	return -1;
-}  
-
-float battery_voltage(string s)
-{
-	string str ("battery.voltage: ");
-	size_t found;
-	found=s.find(str);
-	if(found!=string::npos)
-	{
-		float voltage;
-		istringstream sstr(s.substr(found+str.length()));
-		sstr >> voltage;
-		return voltage;
-	}
-	return -1;
-}  
-
