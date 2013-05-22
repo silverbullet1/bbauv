@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find launch)/firefly.launch" />
+    <include file="$(find launch)/bumblebee.launch" />
+</launch>

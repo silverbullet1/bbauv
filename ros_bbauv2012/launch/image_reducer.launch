@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="Vision" type="image_reducer.py" name="image_reducer"
+        args="/bottomcam/camera/image_color /stereo_camera/left/image_color /stereo_camera/right/image_color">
+    <param name="~factor" value="0.5" />
+  </node>
+</launch>
