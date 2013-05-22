@@ -102,7 +102,9 @@ int main(int argc, char **argv)
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
+		else headingPID_output = 0;
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
+		else depthPID_output = 0;
 		//if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
 		//if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
@@ -148,8 +150,11 @@ void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
 	double q1 = (msg->orientation).x;
 	double q2 = (msg->orientation).y;
 	double q3 = (msg->orientation).z;
-	ctrl.heading_input = navHelper.quaternionToYaw(q0,q1,q2,q3);
-	ctrl.pitch_input = navHelper.quaternionToPitch(q0,q1,q2,q3);
+
+	ctrl.heading_input =  360 - (navHelper.quaternionToYaw(q0,q1,q2,q3) + 180);
+	//ctrl.pitch_input = navHelper.quaternionToPitch(q0,q1,q2,q3);
+	cout<<ctrl.heading_input<<endl;
+
 }
 
 void collectPressure(const Int16& msg)
