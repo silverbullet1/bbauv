@@ -5,6 +5,7 @@
   <param name="heading_PID" type="bool" value="False" />
   <param name="forward_PID" type="bool" value="False" />
   <param name="sidemove_PID" type="bool" value="False" />
+  <param name="pitch_PID" type="bool" value="False" />
   <param name="teleop" type="bool" value="True" />
   <param name="topside" type="bool" value="True" />
   <param name="depth_setpoint" type="double" value="0.0" />
@@ -13,25 +14,31 @@
   <param name="sidemove_setpoint" type="double" value="0.0" />
   <param name="pitch_setpoint" type="double" value="0.0" />
   <param name="depth_offset" type="double" value="0.0" />
-  <param name="depth_Kp" type="double" value="1.2" />
-  <param name="depth_Ti" type="double" value="0.0" />
-  <param name="depth_Td" type="double" value="0.0" />
-  <param name="depth_min" type="int" value="-3200" />
-  <param name="depth_max" type="int" value="3200" />
+  <param name="depth_Kp" type="double" value="12000.0" />
+  <param name="depth_Ti" type="double" value="8500.0" />
+  <param name="depth_Td" type="double" value="1000.0" />
+  <param name="depth_min" type="int" value="-2541" />
+  <param name="depth_max" type="int" value="2541" />
   <param name="pitch_Kp" type="double" value="1.2" />
   <param name="pitch_Ti" type="double" value="0.0" />
   <param name="pitch_Td" type="double" value="0.0" />
-  <param name="heading_Kp" type="double" value="1.2" />
+  <param name="pitch_min" type="int" value="-817" />
+  <param name="pitch_max" type="int" value="817" />
+  <param name="heading_Kp" type="double" value="25.0" />
   <param name="heading_Ti" type="double" value="0.0" />
-  <param name="heading_Td" type="double" value="0.0" />
-  <param name="heading_min" type="int" value="-3200" />
-  <param name="heading_max" type="int" value="3200" />
-  <param name="forward_Kp" type="double" value="1.2" />
+  <param name="heading_Td" type="double" value="300.0" />
+  <param name="heading_min" type="int" value="-817" />
+  <param name="heading_max" type="int" value="817" />
+  <param name="forward_Kp" type="double" value="8000.0" />
   <param name="forward_Ti" type="double" value="0.0" />
-  <param name="forward_Td" type="double" value="0.0" />
-  <param name="sidemove_kp" type="double" value="1.2" />
-  <param name="sidemove_ti" type="double" value="0.0" />
-  <param name="sidemove_td" type="double" value="0.0" />
+  <param name="forward_Td" type="double" value="1000.0" />
+  <param name="forward_min" type="int" value="-1634" />
+  <param name="forward_max" type="int" value="1634" />
+  <param name="sidemove_Kp" type="double" value="8000.0" />
+  <param name="sidemove_Ti" type="double" value="0.0" />
+  <param name="sidemove_Td" type="double" value="1000.0" />
+  <param name="sidemove_min" type="int" value="-817" />
+  <param name="sidemove_max" type="int" value="817" />
 </node>
 \endverbatim
 

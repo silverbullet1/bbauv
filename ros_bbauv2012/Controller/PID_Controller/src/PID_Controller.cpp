@@ -19,6 +19,7 @@
 #include <PID_Controller/PID.h>
 #include <NavUtils/NavUtils.h>
 #include <sensor_msgs/Imu.h>
+#include <nav_msgs/Odometry.h>
 
 using namespace std_msgs;
 using namespace ros;
@@ -35,16 +36,18 @@ const static int ATM = 99974; //Pascals or 14.5PSI
 controller ctrl;
 thruster thrusterSpeed;
 depth depthReading;
+compass_data orientationAngles;
+nav_msgs::Odometry odom_data;
 double depth_offset = 0;
 
 //State Machines
 bool inTopside,inTeleop;
-bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID;
+bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID,inPitchPID;
 bool inNavigation;
 bool inVisionTracking;
 
 /**********************Function Prototypes**********************************/
-//void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
+void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
 void collectPressure(const Int16& msg);
 void collectTeleop(const thruster& msg);
@@ -56,6 +59,7 @@ double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 /**********************Publisher**********************************/
 Publisher thrusterPub;
 Publisher depthPub;
+Publisher orientationPub;
 /**********************Subscriber**********************************/
 Subscriber orientationSub;
 Subscriber pressureSub;
@@ -82,6 +86,7 @@ int main(int argc, char **argv)
 	//Initialize Publishers
 	thrusterPub = nh.advertise<thruster>("/thruster_speed", 1000);
 	depthPub = nh.advertise<depth>("/depth",1000);
+	orientationPub = nh.advertise<compass_data>("/euler",1000);
 	//Initialize Subscribers
 	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
@@ -105,8 +110,12 @@ int main(int argc, char **argv)
 		else headingPID_output = 0;
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
 		else depthPID_output = 0;
-		//if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
-		//if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
+		if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
+		else forwardPIDoutput = 0;
+		if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
+		else sidemovePID_output = 0;
+		if(inPitchPID) pitchPID_output = pitchPID.computePID(ctrl.pitch_setpoint,ctrl.pitch_input);
+		else pitchPID_output = 0;
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
@@ -152,9 +161,11 @@ void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
 	double q3 = (msg->orientation).z;
 
 	ctrl.heading_input =  360 - (navHelper.quaternionToYaw(q0,q1,q2,q3) + 180);
-	//ctrl.pitch_input = navHelper.quaternionToPitch(q0,q1,q2,q3);
-	cout<<ctrl.heading_input<<endl;
-
+	ctrl.pitch_input = 360 - (navHelper.quaternionToPitch(q0,q1,q2,q3) + 180);
+	orientationAngles.yaw = ctrl.heading_input;
+	orientationAngles.pitch = ctrl.pitch_input;
+	orientationPub.publish(orientationAngles);
+	//cout<<ctrl.pitch_input<<endl;
 }
 
 void collectPressure(const Int16& msg)
@@ -167,6 +178,12 @@ void collectPressure(const Int16& msg)
 	depthReading.depth = depth;
 	depthReading.pressure = pressure;
 	depthPub.publish(depthReading);
+}
+void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg)
+{
+	ctrl.forward_input = msg->twist.twist.linear.x;
+	ctrl.sidemove_input = msg->twist.twist.linear.y;
+	cout<<ctrl.forward_input<<endl;
 }
 
 /*****************Helper Functions*********************/
@@ -205,19 +222,36 @@ void callback(PID_ControllerConfig &config, uint32_t level) {
   inHeadingPID = config.heading_PID;
   inDepthPID = config.depth_PID;
   inSidemovePID = config.sidemove_PID;
+  inPitchPID = config.pitch_PID;
 
   ctrl.heading_setpoint = config.heading_setpoint;
   ctrl.depth_setpoint = config.depth_setpoint;
   ctrl.sidemove_setpoint = config.sidemove_setpoint;
   ctrl.forward_setpoint = config.forward_setpoint;
+  ctrl.pitch_setpoint = config.pitch_setpoint;
   depthPID.setKp(config.depth_Kp);
   depthPID.setTi(config.depth_Ti);
   depthPID.setTd(config.depth_Td);
+  depth_offset = config.depth_offset;
   depthPID.setActuatorSatModel(config.depth_min,config.depth_max);
+
   headingPID.setKp(config.heading_Kp);
   headingPID.setTi(config.heading_Ti);
   headingPID.setTd(config.heading_Td);
   headingPID.setActuatorSatModel(config.heading_min,config.heading_max);
-  depth_offset = config.depth_offset;
+
+  forwardPID.setKp(config.forward_Kp);
+  forwardPID.setTi(config.forward_Ti);
+  forwardPID.setTd(config.forward_Td);
+  forwardPID.setActuatorSatModel(config.forward_min,config.forward_max);
+  sidemovePID.setKp(config.sidemove_Kp);
+  sidemovePID.setTi(config.sidemove_Ti);
+  sidemovePID.setTd(config.sidemove_Td);
+  sidemovePID.setActuatorSatModel(config.sidemove_min,config.sidemove_max);
+
+  pitchPID.setKp(config.pitch_Kp);
+  pitchPID.setTd(config.pitch_Td);
+  pitchPID.setTi(config.pitch_Ti);
+  pitchPID.setActuatorSatModel(config.pitch_min,config.pitch_max);
 }
 
