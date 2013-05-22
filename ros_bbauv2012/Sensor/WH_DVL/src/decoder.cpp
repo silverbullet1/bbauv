@@ -103,7 +103,7 @@ void Decoder::solveVarLeader(ushort offset) {
     varLeader.MPT.Sec100              = invByteHexToDec(rcvStr.substr(offset*2 + 60, 2));
     varLeader.HeadingStddev           = invByteHexToDec(rcvStr.substr(offset*2 + 62, 2));
     varLeader.PitchStddev             = invByteHexToDec(rcvStr.substr(offset*2 + 64, 2));
-    varLeader.Roll                    = invByteHexToDec(rcvStr.substr(offset*2 + 66, 2));
+    varLeader.RollStddev              = invByteHexToDec(rcvStr.substr(offset*2 + 66, 2));
     for (int i=0; i < 8; i++)
     {
         varLeader.ADC[i]              = invByteHexToDec(rcvStr.substr(offset*2 + 68 +2*i, 2));

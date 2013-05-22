@@ -40,7 +40,7 @@ void RDI_DVL::publishOdomData(ros::Publisher *pubData) {
     odomData.pose.pose.position.z = z;
 
     // orientation
-    odomData.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(angX, angY, angZ);
+    odomData.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(angX, -angY, -angZ);
     ROS_DEBUG("DVL quaternions = %.1f, %.1f, %.1f, %.1f", 
             odomData.pose.pose.orientation.x, 
             odomData.pose.pose.orientation.y, 

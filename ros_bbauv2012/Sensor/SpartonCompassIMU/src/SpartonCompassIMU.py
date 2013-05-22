@@ -84,27 +84,27 @@ if __name__ == '__main__':
     SpartonPose2D.x=float(0.0)
     SpartonPose2D.y=float(0.0)
     #Init D_Compass port
-    D_Compassport = rospy.get_param('~port','/dev/ttyUSB0')
+    D_Compassport = rospy.get_param('~port','/dev/ttyAHRS')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
     D_Compassprintmodulus = rospy.get_param('~printmodulus',1)
     #Digital compass heading offset in degree
     D_Compass_offset = rospy.get_param('~offset',0.)
     imu_data = Imu()
-    imu_data = Imu(header=rospy.Header(frame_id="SpartonCompassIMU"))
+    imu_data = Imu(header=rospy.Header(frame_id="AHRS8"))
     
     #TODO find a right way to convert imu acceleration/angularvel./orientation accuracy to covariance
-    imu_data.orientation_covariance = [1e-6, 0, 0, 
-                                       0, 1e-6, 0, 
-                                       0, 0, 1e-6]
+    imu_data.orientation_covariance = [1e-3, 0, 0, 
+                                       0, 1e-3, 0, 
+                                       0, 0, 1e-3]
     
-    imu_data.angular_velocity_covariance = [1e-6, 0, 0,
-                                            0, 1e-6, 0, 
-                                            0, 0, 1e-6]
+    imu_data.angular_velocity_covariance = [1e-3, 0, 0,
+                                            0, 1e-3, 0, 
+                                            0, 0, 1e-3]
     
-    imu_data.linear_acceleration_covariance = [1e-6, 0, 0, 
-                                               0, 1e-6, 0, 
-                                               0, 0, 1e-6]
+    imu_data.linear_acceleration_covariance = [1e-3, 0, 0, 
+                                               0, 1e-3, 0, 
+                                               0, 0, 1e-3]
     myStr1='\r\n\r\nprinttrigger 0 set drop\r\n'
     myStr2='printmask gyrop_trigger accelp_trigger or quat_trigger or yawt_trigger or time_trigger or set drop\r\n'
         # set the number high to get lower update rate , the IMU data is 100Hz rate , the string is 130 byte with 10 bit/byte , the max sampling rate is 88Hz

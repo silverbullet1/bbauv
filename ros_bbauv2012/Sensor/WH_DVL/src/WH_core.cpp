@@ -329,9 +329,9 @@ void DVL::assignData() {
     lastYvel = yvel;
     lastZvel = zvel;
 
-    xvel = botTrack.Velocity[0] / 1000.0;//East
-    yvel = botTrack.Velocity[1] / 1000.0;//North
-    zvel = botTrack.Velocity[2] / 1000.0;//vertical
+    xvel = -botTrack.Velocity[1] / 1000.0;//forward
+    yvel = botTrack.Velocity[0] / 1000.0;//North
+    zvel = -botTrack.Velocity[2] / 1000.0;//vertical
 
     botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
 
