@@ -12,4 +12,7 @@
 	<!-- Launching OpenUPS -->
   	<include file="$(find Openups)/openups.launch" />
 
+    <!-- Launching Sensors -->
+    <include file="$(find launch)/sensors.launch" />
+
 </launch> 

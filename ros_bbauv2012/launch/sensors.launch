@@ -1,5 +1,7 @@
 <launch>
-    <arg name="port" default="/dev/ttyUSB0" />
-    <node pkg="os5000" name="oscompass" type="oscompass">
+    <node pkg="SpartonCompassIMU" type="SpartonCompassIMU.py" name="SpartonCompassIMU" respawn="true" output="screen">
+    </node>
+
+    <node pkg="WH_DVL" type="WH_DVL" name="WH_DVL" respawn="true" output="screen">
     </node>
 </launch>

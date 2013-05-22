@@ -320,17 +320,17 @@ void DVL::assignData() {
 
     angX = varLeader.Roll    / 100.0;
     angX = angX * M_PI / 180.0;
-    angY = varLeader.Pitch   / 100.0;
+    angY = -varLeader.Pitch  / 100.0;
     angY = angY * M_PI / 180.0;
-    angZ = varLeader.Heading / 100.0;
+    angZ = -varLeader.Heading/ 100.0;
     angZ = angZ * M_PI / 180.0;
 
     lastXvel = xvel;
     lastYvel = yvel;
     lastZvel = zvel;
 
-    xvel = -botTrack.Velocity[1] / 1000.0;//forward
-    yvel = botTrack.Velocity[0] / 1000.0;//North
+    xvel = -botTrack.Velocity[1] / 1000.0;//Forward
+    yvel =  botTrack.Velocity[0] / 1000.0;//Starboard
     zvel = -botTrack.Velocity[2] / 1000.0;//vertical
 
     botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
