@@ -256,8 +256,7 @@ class LineFollower:
 
 		imgBW = cv2.inRange(imgGray, np.array(self.params['grayLow']), np.array(self.params['grayHigh']))
 
-		structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT,
-					(3,3), (1,1))
+		structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3), (1,1))
 		imgBW = cv2.dilate(imgBW, structuringElt)
 		imgBW = cv2.erode(imgBW, structuringElt)
 
