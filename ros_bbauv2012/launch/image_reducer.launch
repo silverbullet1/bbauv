@@ -3,4 +3,13 @@
         args="/bottomcam/camera/image_color /stereo_camera/left/image_color /stereo_camera/right/image_color">
     <param name="~factor" value="0.5" />
   </node>
+  <node ns="/debug/bottomcam/camera" pkg="image_transport" type="republish" name="republish_bottom"
+        args="raw in:=image_color compressed out:=image_color">
+  </node>
+  <node ns="/debug/stereo_camera/left" pkg="image_transport" type="republish" name="republish_left"
+        args="raw in:=image_color compressed out:=image_color">
+  </node>
+  <node ns="/debug/stereo_camera/right" pkg="image_transport" type="republish" name="republish_right"
+        args="raw in:=image_color compressed out:=image_color">
+  </node>
 </launch>
