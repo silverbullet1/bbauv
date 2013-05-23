@@ -16,7 +16,7 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
 
-DEBUG = False
+DEBUG = True
 
 
 # Helper function to normalize heading
@@ -104,7 +104,7 @@ class LaneDetector:
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
 #        imghsv = cv2.equalizeHist(imghsv)
 
-        imgBW = cv2.inRange(imghsv, np.array([self.params['hueLow'],0,0]), np.array([self.params['hueHigh'], 255, 255]))
+        imgBW = np.array(cv2.inRange(imghsv, np.array([self.params['hueLow'],0,0],np.uint8), np.array([self.params['hueHigh'], 255, 255],np.uint8)))
 
         # Close up the gaps in the detected regions
         structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
@@ -133,15 +133,15 @@ class LaneDetector:
 
         # Find lines in each region
         for rect in contourRects:
-            mask = np.zeros_like(imgBW)
-            points = np.int0(cv2.cv.BoxPoints(rect))
+            mask = np.zeros_like(imgBW, dtype=np.uint8)
+            points = np.int32(cv2.cv.BoxPoints(rect))
             cv2.fillPoly(mask, [points], 255)
             rectImg = np.bitwise_and(imgBW, mask)
 
             if DEBUG:
                 debugTmp = np.bitwise_or(rectImg, debugTmp)
 
-            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, 80, 30, 10)
+            lines = cv2.HoughLinesP(rectImg, 1, 0.01745329251, 80, None, 30, 10)
 
             # Find median gradient of lines
             # Store as (x,y) (centre of box), angle (orientation of box)
@@ -184,7 +184,7 @@ class LaneDetector:
                         cv2.line(debugTmp2, pt1, pt2, (0,0,255), 1)
 
         for line in foundLines:
-            line['heading'] = norm_heading(-line['angle'] - 90)
+            line['heading'] = norm_heading(self.heading + norm_heading(-line['angle'] - 90))
 
         # Screens for debugging
         if DEBUG:
@@ -212,13 +212,13 @@ class LaneDetector:
 if __name__ == '__main__':
     rospy.init_node('line_follower', anonymous=True)
     loopRateHz = rospy.get_param('~loopHz', 20)
-    imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_raw')
-    compassTopic = rospy.get_param('~compass', '/os5000_data')
+    imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_color')
+    compassTopic = rospy.get_param('~compass', '/euler')
 
     app = LaneDetector()
 
     rospy.Subscriber(imageTopic, Image, app.gotRosFrame)
-#    rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
+    rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
 #    movementPub = rospy.Publisher('/line_follower', controller_input)
 
     r = rospy.Rate(loopRateHz)
