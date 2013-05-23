@@ -15,4 +15,8 @@
     <!-- Launching Sensors -->
     <include file="$(find launch)/sensors.launch" />
 
+    <!-- Launching cameras and image reducer -->
+    <include file="$(find launch)/cameras.launch" />
+    <include file="$(find launch)/image_reducer.launch" />
+
 </launch> 

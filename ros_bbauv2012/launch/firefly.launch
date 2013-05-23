@@ -8,6 +8,7 @@
     <param name="~video_mode" value="640x480_mono8" />
     <param name="~iso_speed" value="400" />
     <param name="~frame_rate" value="30" />
+    <param name="~camera_info_url" value="file://$(find launch)/firefly.yaml" />
   </node>
 
   <node ns="bottomcam/camera" pkg="image_proc" type="image_proc" name="firefly_image_proc_node" output="screen">

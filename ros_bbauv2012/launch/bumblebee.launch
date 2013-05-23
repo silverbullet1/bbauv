@@ -5,8 +5,8 @@
     <param name="bayer_pattern" value="bggr" />
     <param name="bayer_method" value="" />
     <param name="stereo_method" value="Interlaced" />
-    <param name="camera_info_url_left" value="" />
-    <param name="camera_info_url_right" value="" />
+    <param name="camera_info_url_left" value="file://$(find launch)/bumblebee_left.yaml" />
+    <param name="camera_info_url_right" value="file://$(find launch)/bumblebee_right.yaml" />
   </node>
 
   <node ns="stereo_camera" pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc" output="screen" >
