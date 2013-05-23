@@ -6,7 +6,6 @@ Code to identify RoboSub lane markers
 import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
-
 from bbauv_msgs.msg import compass_data
 
 import math
@@ -14,6 +13,8 @@ from random import randint
 import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+
+from com.camdebug.camdebug import CamDebug
 
 
 DEBUG = True
@@ -75,6 +76,7 @@ class LaneDetector:
 
     def __init__(self):
         self.cvbridge = CvBridge()
+        self.debug = CamDebug('lane_marker_detector', debugOn=DEBUG)
 
         # Initial state
         self.heading = 0.0
@@ -199,8 +201,10 @@ class LaneDetector:
                 cv2.line(debugTmp2, startpt, endpt, (255,0,0), 2)
 
             imgDebug = np.bitwise_xor(cv2.merge([debugTmp, debugTmp, debugTmp]), debugTmp2)
-            cv2.imshow("hsv", imghsv)
-            cv2.imshow("bw", imgDebug)
+            self.debug.publishImage('hsv', imghsv)
+            self.debug.publishImage('bw', imgDebug)
+#            cv2.imshow("hsv", imghsv)
+#            cv2.imshow("bw", imgDebug)
 
 
     # Callback for subscribing to compass data
@@ -210,7 +214,7 @@ class LaneDetector:
 
 # Main
 if __name__ == '__main__':
-    rospy.init_node('line_follower', anonymous=True)
+    rospy.init_node('lane_marker_detector', anonymous=True)
     loopRateHz = rospy.get_param('~loopHz', 20)
     imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_color')
     compassTopic = rospy.get_param('~compass', '/euler')
