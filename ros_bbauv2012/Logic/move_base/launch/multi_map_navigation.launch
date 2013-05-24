@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-
-  <node pkg="multi_map_navigation" type="multi_map_navigation" name="multi_map_navigation" output="screen">
-        <param name="definition_file" value="$(find move_base_bbauv2012)/maps/cfg.yaml" />
-  </node>
-</launch>
-

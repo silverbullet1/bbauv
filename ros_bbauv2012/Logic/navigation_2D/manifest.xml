@@ -1,0 +1,24 @@
+<package>
+  <description brief="navigation_2D">
+
+     navigation_2D; This package moves Bumblebee from point to point
+
+  </description>
+  <author>Ong Tian Chang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/navigation_2D</url>
+
+  <depend package="move_base"/>
+  <depend package="bbauv_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="nav_msgs"/>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="tf"/>
+  <depend package="tf_conversions"/>
+  <depend package="kdl"/>
+
+</package>
+
+

@@ -40,7 +40,7 @@
     <visual>
       <origin rpy="1.57 0 1.57" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://move_base_bbauv2012/description/bbauv2012.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://navigation_2D/description/bbauv2012.stl" scale="0.001 0.001 0.001"/>
       </geometry>
         <material name="yellow">
           <color rgba="0.8 0.8 0 1" />
