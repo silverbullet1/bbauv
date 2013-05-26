@@ -62,8 +62,9 @@ double bbPID::computePID(double setpoint, double input)
 	total = proportional + derivative + integral;
 
 	output = actuatorConstrain(total);
-	std::cout<<" P: "<<proportional<<" D: "<<derivative<<" I: "<<integral<<std::endl;
-	std::cout<<"output: "<<output<<std::endl;
+	ROS_INFO("Control Loop");
+	//std::cout<<" P: "<<proportional<<" D: "<<derivative<<" I: "<<integral<<std::endl;
+	//std::cout<<"output: "<<output<<std::endl;
 	//Integrator with wind up protection
 	if(Ti) integral = integral + Kp*dt*(setpoint - input)/Ti + (output - total)*dt/Tt;
 	else integral = 0;

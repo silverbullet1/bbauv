@@ -1,0 +1,8 @@
+#goal definition
+float32 setpoint
+---
+#result definition
+float32 final_input
+---
+#feedback
+int32 thruster

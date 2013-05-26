@@ -20,23 +20,19 @@
 #include <NavUtils/NavUtils.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-
-using namespace std_msgs;
-using namespace ros;
-using namespace bbauv_msgs;
-using namespace std;
-using namespace bbauv;
-using namespace PID_Controller;
+#include <actionlib/server/simple_action_server.h>
+#include <PID_Controller/ControllerAction.h>
+#include <ControllerActionServer/ControllerActionServer.h>
 
 const static int loop_frequency = 20;
 const static int PSI30 = 206842;
 const static int PSI100 = 689475;
 const static int ATM = 99974; //Pascals or 14.5PSI
 
-controller ctrl;
-thruster thrusterSpeed;
-depth depthReading;
-compass_data orientationAngles;
+bbauv_msgs::controller ctrl;
+bbauv_msgs::thruster thrusterSpeed;
+bbauv_msgs::depth depthReading;
+bbauv_msgs::compass_data orientationAngles;
 nav_msgs::Odometry odom_data;
 double depth_offset = 0;
 
@@ -49,32 +45,35 @@ bool inVisionTracking;
 /**********************Function Prototypes**********************************/
 void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
-void collectPressure(const Int16& msg);
-void collectTeleop(const thruster& msg);
-void collectAutonomous(const controller& msg);
-void callback(PID_ControllerConfig &config, uint32_t level);
+void collectPressure(const std_msgs::Int16& msg);
+void collectTeleop(const bbauv_msgs::thruster& msg);
+void collectAutonomous(const bbauv_msgs::controller& msg);
+void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output);
 double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 /**********************Publisher**********************************/
-Publisher thrusterPub;
-Publisher depthPub;
-Publisher orientationPub;
+ros::Publisher thrusterPub;
+ros::Publisher depthPub;
+ros::Publisher orientationPub;
 /**********************Subscriber**********************************/
-Subscriber orientationSub;
-Subscriber pressureSub;
-Subscriber teleopSub;
-Subscriber autonomousSub;
-Subscriber velocitySub;
+ros::Subscriber orientationSub;
+ros::Subscriber pressureSub;
+ros::Subscriber teleopSub;
+ros::Subscriber autonomousSub;
+ros::Subscriber velocitySub;
 
-/**********************Subscriber**********************************/
+/**********************Action Server**********************************/
+
+
+
 /**********************PID Controllers**********************************/
-bbPID forwardPID(1.2,0,0,20);
-bbPID depthPID(1.2,0,0,20);
-bbPID headingPID(1.2,0,0,20);
-bbPID sidemovePID(1.2,0,0,20);
-bbPID pitchPID(1.2,0,0,20);
+bbauv::bbPID forwardPID(1.2,0,0,20);
+bbauv::bbPID depthPID(1.2,0,0,20);
+bbauv::bbPID headingPID(1.2,0,0,20);
+bbauv::bbPID sidemovePID(1.2,0,0,20);
+bbauv::bbPID pitchPID(1.2,0,0,20);
 
 NavUtils navHelper;
 
@@ -82,34 +81,48 @@ int manual_speed[6] = {0,0,0,0,0,0};
 
 int main(int argc, char **argv)
 {
+	//Initialize PID output variables
+
 	double forwardPIDoutput, headingPID_output,depthPID_output,sidemovePID_output,pitchPID_output;
 
 	//Initialize Node
-	init(argc, argv, "Controller");
-	NodeHandle nh;
+
+	ros::init(argc, argv, "Controller");
+	ros::NodeHandle nh;
 	//Initialize Publishers
-	thrusterPub = nh.advertise<thruster>("/thruster_speed", 1000);
-	depthPub = nh.advertise<depth>("/depth",1000);
-	orientationPub = nh.advertise<compass_data>("/euler",1000);
+
+	thrusterPub = nh.advertise<bbauv_msgs::thruster>("/thruster_speed", 1000);
+	depthPub = nh.advertise<bbauv_msgs::depth>("/depth",1000);
+	orientationPub = nh.advertise<bbauv_msgs::compass_data>("/euler",1000);
+
 	//Initialize Subscribers
+
 	autonomousSub = nh.subscribe("/controller_input",1000,collectAutonomous);
 	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
 	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
-	dynamic_reconfigure::Server<PID_ControllerConfig> server;
-	dynamic_reconfigure::Server<PID_ControllerConfig>::CallbackType f;
+	dynamic_reconfigure::Server <PID_Controller::PID_ControllerConfig> server;
+	dynamic_reconfigure::Server<PID_Controller::PID_ControllerConfig>::CallbackType f;
 	f = boost::bind(&callback, _1, _2);
 	server.setCallback(f);
 
+	/* Initialize Quaternion Conversion Helper*/
+
 	navHelper = NavUtils();
 
-	//Execute PID Loop computation at 20Hz
-	Rate loop_rate(loop_frequency);
+	/* Initialize Action Server */
 
+	ControllerActionServer asSway("SwayAction");
+	ControllerActionServer asForward("ForwardAction");
+	//Execute PID Loop computation at 20Hz
+	ros::Rate loop_rate(loop_frequency);
+
+	ROS_INFO("PID Controllers Initialized.");
 	//PID Initialization
-	while(ok())
+	while(ros::ok())
 	{
+		ROS_INFO("Loop!");
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
@@ -125,9 +138,14 @@ int main(int argc, char **argv)
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
+		/*Update Action Server Positions*/
+
+		asSway.updateState(ctrl.forward_input);
+		asForward.updateState(ctrl.sidemove_input);
+
 		thrusterPub.publish(thrusterSpeed);
 
-		spinOnce();
+		ros::spinOnce();
 		loop_rate.sleep();
 	}
 
@@ -185,7 +203,7 @@ void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
 	//cout<<ctrl.pitch_input<<endl;
 }
 
-void collectPressure(const Int16& msg)
+void collectPressure(const std_msgs::Int16& msg)
 {
 	//double pressure = fmap(msg.data, 5340,26698,0,PSI30);
 	double pressure = 3*(double) msg.data/2048 - 7.5; //In PSI
@@ -198,9 +216,8 @@ void collectPressure(const Int16& msg)
 }
 void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg)
 {
-	ctrl.forward_input = msg->twist.twist.linear.x;
-	ctrl.sidemove_input = msg->twist.twist.linear.y;
-	cout<<ctrl.forward_input<<endl;
+	ctrl.forward_input = msg->pose.pose.position.x;
+	ctrl.sidemove_input = msg->pose.pose.position.y;
 }
 
 /*****************Helper Functions*********************/
@@ -209,7 +226,7 @@ double fmap(int input, int in_min, int in_max, int out_min, int out_max){
   return (input- in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void collectTeleop(const thruster &msg)
+void collectTeleop(const bbauv_msgs::thruster &msg)
 {
 	if(inTopside && inTeleop)
 	{
@@ -230,7 +247,7 @@ void collectTeleop(const thruster &msg)
 	}
 }
 
-void collectAutonomous(const controller& msg)
+void collectAutonomous(const bbauv_msgs::controller& msg)
 {
 	ctrl.heading_setpoint = msg.heading_setpoint;
 	ctrl.forward_setpoint = msg.forward_setpoint;
@@ -238,7 +255,7 @@ void collectAutonomous(const controller& msg)
 }
 /***********Dynamic Reconfigure Callbacks*****************/
 
-void callback(PID_ControllerConfig &config, uint32_t level) {
+void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inTopside = config.topside;
   inTeleop = config.teleop;
   inForwardPID = config.forward_PID;

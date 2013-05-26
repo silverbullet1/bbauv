@@ -9,6 +9,11 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
+
+rosbuild_find_ros_package(actionlib_msgs)
+include(${actionlib_msgs_PACKAGE_PATH}/cmake/actionbuild.cmake)
+genaction()
+
 rosbuild_init()
 
 #set the default path for built executables to the "bin" directory
@@ -20,6 +25,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_find_ros_package(dynamic_reconfigure)
 include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
 gencfg()
+
 #uncomment if you have defined messages
 rosbuild_genmsg()
 #uncomment if you have defined services
@@ -28,9 +34,10 @@ rosbuild_genmsg()
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
-rosbuild_add_executable(Controller src/PID_Controller.cpp include/PID_Controller/PID.cpp include/NavUtils/NavUtils.cpp)
+rosbuild_add_boost_directories()
+rosbuild_add_executable(PID_Controller src/PID_Controller.cpp include/PID_Controller/PID.cpp include/NavUtils/NavUtils.cpp include/ControllerActionServer/ControllerActionServer.cpp)
+rosbuild_add_executable(Test_Controller src/ControllerTest.cpp)
+rosbuild_link_boost(PID_Controller thread)
 #target_link_libraries(example ${PROJECT_NAME})
 
 
