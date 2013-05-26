@@ -1,12 +1,12 @@
 #######################################
-# Syntax Coloring Map For LiquidTWI
+# Syntax Coloring Map For CharacterOLED
 #######################################
 
 #######################################
 # Datatypes (KEYWORD1)
 #######################################
 
-LiquidTWI	KEYWORD1
+CharacterOLED KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -30,7 +30,6 @@ rightToLeft	KEYWORD2
 scrollDisplayLeft	KEYWORD2
 scrollDisplayRight	KEYWORD2
 createChar	KEYWORD2
-setBacklight	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

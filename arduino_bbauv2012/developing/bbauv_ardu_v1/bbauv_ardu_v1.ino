@@ -9,7 +9,7 @@
 #include <Servo.h> //Manipulator
 #include <Adafruit_ADS1015.h> //Display
 #include <Wire.h> //For I2C
-#include "LiquidTWI.h"
+#include <Adafruit_CharacterOLED.h>
 
 //Messages to communicate with ROS
 #include <thruster.h>   //thruster speed
@@ -48,7 +48,7 @@ ros::Subscriber<bbauv_msgs::manipulator> manipulator_sub("manipulator",&getManip
 
 //Battery reading - openups
 void getBatteryReading(const bbauv_msgs::openups &msg);
-ros::Subscriber<bbauv_msgs::openups> battery_sub("battery_reading",&getBatteryReading);
+ros::Subscriber<bbauv_msgs::openups> battery_sub("openups",&getBatteryReading);
 
 //Hull Status Publishers - Temperature, Water Sensor
 bbauv_msgs::hull_status env_msg;
@@ -63,7 +63,7 @@ bbauv_msgs::thruster thrusterSpeed;
 smcDriver mDriver(&Serial1); //Use Serial1 to handle UART communication with motor controllers
 
 //OLED LCD Driver
-LiquidTWI lcd(0);
+Adafruit_CharacterOLED lcd(9, 8, 7, 6, 5, 4, 2);
 
 //Manipulators definitions
 Servo myservo;
@@ -128,6 +128,14 @@ void setup()
     lcd.print("BBAUV says hi!");
     delay(2000);
     lcd.clear();
+	lcd.setCursor(0,1);
+	lcd.print("B1:");
+	lcd.setCursor(5,1);
+	lcd.print("B2:");
+	lcd.setCursor(10,1);
+	lcd.print("B3:");
+	lcd.setCursor(10,0);
+	lcd.print("B4:");
 //Debug Mode: to be removed by the compiler if not in debug mode.
     #if DEBUG_MODE == DEBUG_BB
       Serial2.begin(9600);
@@ -341,8 +349,6 @@ void getBatteryReading(const bbauv_msgs::openups &msg)
 		if(ops.battery1 != msg.battery1)
 		{
 			ops.battery1 = msg.battery1;
-			lcd.setCursor(0,1);
-			lcd.print("B1:");
 			lcd.setCursor(3,1);
 			lcd.print(msg.battery1);
 		}
@@ -352,8 +358,6 @@ void getBatteryReading(const bbauv_msgs::openups &msg)
 		if(ops.battery2 != msg.battery2)
 		{
 			ops.battery2 = msg.battery2;
-			lcd.setCursor(5,1);
-			lcd.print("B2:");
 			lcd.setCursor(8,1);
 			lcd.print(msg.battery2);
 		}
@@ -362,8 +366,6 @@ void getBatteryReading(const bbauv_msgs::openups &msg)
 	case 2:
 		if(ops.battery3 != msg.battery3)
 		{
-			lcd.setCursor(10,1);
-			lcd.print("B3:");
 			lcd.setCursor(13,1);
 			lcd.print(msg.battery3);
 		}
@@ -372,9 +374,7 @@ void getBatteryReading(const bbauv_msgs::openups &msg)
 	case 3:
 		if(ops.battery4 != msg.battery4)
 		{
-			lcd.setCursor(5,0);
-			lcd.print("B4:");
-			lcd.setCursor(10,0);
+			lcd.setCursor(14,0);
 			lcd.print(msg.battery4);
 		}
 		lcd_ctr++;

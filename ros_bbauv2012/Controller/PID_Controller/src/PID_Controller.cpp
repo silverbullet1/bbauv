@@ -51,6 +51,7 @@ void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
 void collectPressure(const Int16& msg);
 void collectTeleop(const thruster& msg);
+void collectAutonomous(const controller& msg);
 void callback(PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
@@ -64,7 +65,10 @@ Publisher orientationPub;
 Subscriber orientationSub;
 Subscriber pressureSub;
 Subscriber teleopSub;
+Subscriber autonomousSub;
+Subscriber velocitySub;
 
+/**********************Subscriber**********************************/
 /**********************PID Controllers**********************************/
 bbPID forwardPID(1.2,0,0,20);
 bbPID depthPID(1.2,0,0,20);
@@ -88,6 +92,8 @@ int main(int argc, char **argv)
 	depthPub = nh.advertise<depth>("/depth",1000);
 	orientationPub = nh.advertise<compass_data>("/euler",1000);
 	//Initialize Subscribers
+	autonomousSub = nh.subscribe("/controller_input",1000,collectAutonomous);
+	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
 	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
@@ -147,12 +153,23 @@ void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,doubl
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
   {
-    thrusterSpeed.speed5= - depthPID_output + pitchPID_output + manual_speed[4];
-    thrusterSpeed.speed6= - depthPID_output - pitchPID_output + manual_speed[5];
+	double speed5_output = - depthPID_output + pitchPID_output + manual_speed[4];
+	double speed6_output = - depthPID_output - pitchPID_output + manual_speed[5];
+    if(speed5_output < -3200) thrusterSpeed.speed5 = -3200;
+    else if(speed5_output >3200) thrusterSpeed.speed5 = 3200;
+    else thrusterSpeed.speed5= speed5_output;
+
+    if(speed6_output < -3200) thrusterSpeed.speed6 = -3200;
+    else if(speed6_output >3200) thrusterSpeed.speed6 = 3200;
+    else thrusterSpeed.speed6= speed6_output;
   }
 
 /***********Subscriber Callbacks*****************/
 
+void collectInput(const bbauv_msgs::controller &msg)
+{
+
+}
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
 {
 	double q0 = (msg->orientation).w;
@@ -213,6 +230,12 @@ void collectTeleop(const thruster &msg)
 	}
 }
 
+void collectAutonomous(const controller& msg)
+{
+	ctrl.heading_setpoint = msg.heading_setpoint;
+	ctrl.forward_setpoint = msg.forward_setpoint;
+	ctrl.sidemove_setpoint = msg.sidemove_setpoint;
+}
 /***********Dynamic Reconfigure Callbacks*****************/
 
 void callback(PID_ControllerConfig &config, uint32_t level) {
