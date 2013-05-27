@@ -7,6 +7,11 @@ import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
 from bbauv_msgs.msg import compass_data
+from bbauv_msgs.msg import depth
+
+import actionlib
+import PID_Controller.msg
+from PID_Controller.msg import ControllerAction
 
 import math
 from random import randint
@@ -90,6 +95,7 @@ class LaneDetector:
 
         # Initial state
         self.heading = 0.0
+        self.depth = 0.0
 
 
     # Callback for subscribing to Image topic
@@ -122,10 +128,6 @@ class LaneDetector:
                 lambda contour: cv2.contourArea(contour) >= areaThreshold,
                 contours)
         ]
-       # for contour in contours:
-       #     curArea = cv2.contourArea(contour)
-       #     if curArea >= areaThreshold:
-       #         contourRects.append(cv2.minAreaRect(contour))
 
         debugTmp, debugTmp2 = None, None
         if DEBUG:
@@ -210,6 +212,8 @@ class LaneDetector:
     # Callback for subscribing to compass data
     def gotHeading(self, msg):
         self.heading = msg.yaw
+    def gotDepth(self, msg):
+        self.depth = msg.depth
 
 
 class MedianFilter:
@@ -254,11 +258,29 @@ class SearchState(smach.State):
         global laneDetector
         laneDetector = LaneDetector()
 
-        #TODO: Move around until can find the expected number of lane markers
+        actionClient = actionlib.SimpleActionClient('search', ControllerAction)
+        actionClient.wait_for_server()
+
+        #TODO: Move around in a smarter way to keep all lanes on screen
         rospy.loginfo('moving around to find lane')
         while len(laneDetector.foundLines) != userdata.expectedLanes:
             if rospy.is_shutdown(): return 'aborted'
+
+            #TODO: use values related to spin rate
+            goal = PID_Controller.msg.ControllerGoal()
+            goal.heading_setpoint = self.heading + 0.1
+            goal.depth_setpoint = self.depth
+            goal.forward_setpoint = 0.1
+
+            actionClient.sendGoal(goal)
+            actionClient.waitForResult() #TODO: use a timeout here?
+
             rosRate.sleep()
+
+        goal = PID_Controller.msg.ControllerGoal()
+        goal.heading_setpoint = self.heading
+        goal.depth_setpoint = self.depth
+        actionClient.sendGoal(goal) # Don't wait, just continue
 
         return 'foundLane'
 
@@ -315,6 +337,17 @@ class FoundState(smach.State):
         rospy.loginfo('locking on and going')
         for heading in userdata.headings:
             print heading
+        # Just take the first heading for now
+        actionClient = actionlib.SimpleActionClient('search', ControllerAction)
+        actionClient.wait_for_server()
+
+        goal = PID_Controller.msg.ControllerGoal()
+        goal.heading_setpoint = userdata.headings[0]
+        goal.depth_setpoint = self.depth
+
+        actionClient.sendGoal(goal)
+        actionClient.waitForResult()
+
         return 'succeeded'
 
 
@@ -326,13 +359,9 @@ if __name__ == '__main__':
     rospy.init_node('lane_marker_detector', anonymous=True)
     loopRateHz = rospy.get_param('~loopHz', 20)
     imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_color')
-    expectedLanes = rospy.get_param('~lanes', 1)
+    depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
-
-#    laneDetector = LaneDetector()
-#    rospy.Subscriber(imageTopic, Image, laneDetector.gotRosFrame)
-#    rospy.Subscriber(compassTopic, compass_data, laneDetector.gotHeading)
-#    movementPub = rospy.Publisher('/line_follower', controller_input)
+    expectedLanes = rospy.get_param('~lanes', 1)
 
     # Set up param configuration window
     def configCallback(config, level):
@@ -348,8 +377,10 @@ if __name__ == '__main__':
     rosRate = rospy.Rate(loopRateHz)
     def gotRosFrame(rosImage): laneDetector.gotRosFrame(rosImage)
     def gotHeading(msg): laneDetector.gotHeading(msg)
+    def gotDepth(msg): laneDetector.gotDepth(msg)
     rospy.Subscriber(imageTopic, Image, gotRosFrame)
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
+    rospy.Subscriber(depthTopic, depth, gotDepth)
 
     sm = smach.StateMachine(outcomes=['attempting', 'succeeded', 'aborted'])
     sm.userdata.expectedLanes = expectedLanes
