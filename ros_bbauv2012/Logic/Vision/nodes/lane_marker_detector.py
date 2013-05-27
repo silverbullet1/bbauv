@@ -282,7 +282,7 @@ class SearchState(smach.State):
         goal = PID_Controller.msg.ControllerGoal()
         goal.heading_setpoint = laneDetector.heading
         goal.depth_setpoint = laneDetector.depth
-        actionClient.sendGoal(goal) # Don't wait, just continue
+        actionClient.send_goal(goal) # Don't wait, just continue
 
         return 'foundLane'
 
@@ -347,8 +347,8 @@ class FoundState(smach.State):
         goal.heading_setpoint = userdata.headings[0]
         goal.depth_setpoint = laneDetector.depth
 
-        actionClient.sendGoal(goal)
-        actionClient.waitForResult()
+        actionClient.send_goal(goal)
+        actionClient.wait_for_result()
 
         return 'succeeded'
 
