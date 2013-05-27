@@ -258,8 +258,10 @@ class SearchState(smach.State):
         global laneDetector
         laneDetector = LaneDetector()
 
-        actionClient = actionlib.SimpleActionClient('search', ControllerAction)
+        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+        print 'wait'
         actionClient.wait_for_server()
+        print 'done'
 
         #TODO: Move around in a smarter way to keep all lanes on screen
         rospy.loginfo('moving around to find lane')
@@ -268,18 +270,18 @@ class SearchState(smach.State):
 
             #TODO: use values related to spin rate
             goal = PID_Controller.msg.ControllerGoal()
-            goal.heading_setpoint = self.heading + 0.1
-            goal.depth_setpoint = self.depth
+            goal.heading_setpoint = laneDetector.heading + 0.1
+            goal.depth_setpoint = laneDetector.depth
             goal.forward_setpoint = 0.1
 
-            actionClient.sendGoal(goal)
-            actionClient.waitForResult() #TODO: use a timeout here?
+            actionClient.send_goal(goal)
+            actionClient.wait_for_result() #TODO: use a timeout here?
 
             rosRate.sleep()
 
         goal = PID_Controller.msg.ControllerGoal()
-        goal.heading_setpoint = self.heading
-        goal.depth_setpoint = self.depth
+        goal.heading_setpoint = laneDetector.heading
+        goal.depth_setpoint = laneDetector.depth
         actionClient.sendGoal(goal) # Don't wait, just continue
 
         return 'foundLane'
@@ -343,7 +345,7 @@ class FoundState(smach.State):
 
         goal = PID_Controller.msg.ControllerGoal()
         goal.heading_setpoint = userdata.headings[0]
-        goal.depth_setpoint = self.depth
+        goal.depth_setpoint = laneDetector.depth
 
         actionClient.sendGoal(goal)
         actionClient.waitForResult()
