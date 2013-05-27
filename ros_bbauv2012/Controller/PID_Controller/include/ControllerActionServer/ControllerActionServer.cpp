@@ -31,25 +31,20 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 }
 
 
-void ControllerActionServer::premptCB()
-{
-
-}
-
 void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConstPtr &goal)
 {
 	bool isForwardDone = false,isDepthDone = false, isHeadingDone = false, isSidemoveDone = false;
 	// helper variables
 	ros::Rate r(10);
 	bool success = true;
-
+	goal_ = *goal;
 	// push_back the seeds for the fibonacci sequence
 	//feedback_.forward_error = 1000;
 
 	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
 		// publish info to the console for the user
-		ROS_INFO("error: %f",fabs(goal->heading_setpoint - _heading_input) );
+		//ROS_INFO("error: %f",fabs(goal->heading_setpoint - _heading_input) );
 
 		// check that preempt has not been requested by the client
 		if (as_.isPreemptRequested() || !ros::ok())
@@ -84,12 +79,12 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 			//ROS_INFO("isHeadingDone");
 		}
 		//Update Feedback
-		feedback_.forward_error = 1000;
-		feedback_.depth_error = 1000;
-		feedback_.sidemove_error = 1000;
-		feedback_.heading_error = 1000;
+		//feedback_.forward_error = 1000;
+		//feedback_.depth_error = 1000;
+		//feedback_.sidemove_error = 1000;
+		//feedback_.heading_error = 1000;
  		// publish the feedback
-		as_.publishFeedback(feedback_);
+		//as_.publishFeedback(feedback_);
 		// this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
 		r.sleep();
 	}
@@ -113,6 +108,24 @@ void ControllerActionServer::updateState(float forward,float sidemove,float head
 	_sidemove_input = sidemove;
 	_heading_input =  heading;
 	_depth_input = depth;
+}
+
+//****************Getter Functions******************
+float ControllerActionServer::getForward()
+{
+	return goal_.forward_setpoint;
+}
+float ControllerActionServer::getSidemove()
+{
+	return goal_.sidemove_setpoint;
+}
+float ControllerActionServer::getHeading()
+{
+	return goal_.heading_setpoint;
+}
+float ControllerActionServer::getDepth()
+{
+	return goal_.depth_setpoint;
 }
 
 ControllerActionServer::~ControllerActionServer() {

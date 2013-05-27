@@ -15,7 +15,6 @@
 #include <PID_Controller/PID_ControllerConfig.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int16.h>
-#include <stdio.h>
 #include <PID_Controller/PID.h>
 #include <NavUtils/NavUtils.h>
 #include <sensor_msgs/Imu.h>
@@ -23,6 +22,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include <PID_Controller/ControllerAction.h>
 #include <ControllerActionServer/ControllerActionServer.h>
+#include <geometry_msgs/Twist.h>
 
 const static int loop_frequency = 20;
 const static int PSI30 = 206842;
@@ -47,7 +47,7 @@ void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
-void collectAutonomous(const bbauv_msgs::controller& msg);
+void collectAutonomous(const geometry_msgs::Twist & msg);
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 
 	//Initialize Subscribers
 
-	autonomousSub = nh.subscribe("/controller_input",1000,collectAutonomous);
+	autonomousSub = nh.subscribe("/cmd_val",1000,collectAutonomous);
 	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
 	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 	{
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
+		if(inNavigation)
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
 		else headingPID_output = 0;
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
@@ -137,6 +138,10 @@ int main(int argc, char **argv)
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
 		/*Update Action Server Positions*/
+		ctrl.forward_setpoint = as.getForward();
+		ctrl.sidemove_setpoint = as.getSidemove();
+		ctrl.heading_setpoint = as.getHeading();
+		ctrl.depth_setpoint = as.getDepth();
 
 		as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
 
@@ -244,11 +249,10 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 	}
 }
 
-void collectAutonomous(const bbauv_msgs::controller& msg)
+void collectAutonomous(const geometry_msgs::Twist & msg)
 {
-	ctrl.heading_setpoint = msg.heading_setpoint;
-	ctrl.forward_setpoint = msg.forward_setpoint;
-	ctrl.sidemove_setpoint = msg.sidemove_setpoint;
+	ctrl.forward_input = msg.linear.x;
+	ctrl.sidemove_input = msg.linear.x;
 }
 /***********Dynamic Reconfigure Callbacks*****************/
 
