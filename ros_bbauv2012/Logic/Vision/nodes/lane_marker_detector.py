@@ -16,8 +16,17 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from com.camdebug.camdebug import CamDebug
 
+from dynamic_reconfigure.server import Server
+from Vision.cfg import LaneMarkerDetectorConfig
+
+import smach
+
 
 DEBUG = True
+camdebug = None
+
+params = { 'hueLow': 11, 'hueHigh': 65, 'contourMinArea': 15 }
+laneDetector = None
 
 
 # Helper function to normalize heading
@@ -76,23 +85,11 @@ class LaneDetector:
 
     def __init__(self):
         self.cvbridge = CvBridge()
-        self.debug = CamDebug('lane_marker_detector', debugOn=DEBUG)
+        self.foundLines = []
+        self.frameCallback = None
 
         # Initial state
         self.heading = 0.0
-
-        # Configurable parameters
-        self.params = { 'hueLow': 11, 'hueHigh': 65, 'contourMinArea': 15 }
-
-        # Set up param configuration window
-        def paramSetter(key):
-            def setter(val):
-                self.params[key] = val
-            return setter
-        cv2.namedWindow("settings", cv2.CV_WINDOW_AUTOSIZE)
-        cv2.createTrackbar("Hue Low:", "settings", self.params['hueLow'], 180, paramSetter('hueLow'));
-        cv2.createTrackbar("Hue High:", "settings", self.params['hueHigh'], 180, paramSetter('hueHigh'));
-        cv2.createTrackbar("Min contour area (1/1000):", "settings", self.params['contourMinArea'], 1000, paramSetter('contourMinArea'));
 
 
     # Callback for subscribing to Image topic
@@ -106,7 +103,7 @@ class LaneDetector:
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
 #        imghsv = cv2.equalizeHist(imghsv)
 
-        imgBW = np.array(cv2.inRange(imghsv, np.array([self.params['hueLow'],0,0],np.uint8), np.array([self.params['hueHigh'], 255, 255],np.uint8)))
+        imgBW = np.array(cv2.inRange(imghsv, np.array([params['hueLow'],0,0],np.uint8), np.array([params['hueHigh'], 255, 255],np.uint8)))
 
         # Close up the gaps in the detected regions
         structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
@@ -119,12 +116,16 @@ class LaneDetector:
         # Retrieve the contours of the important regions
         contours, _ = cv2.findContours(imgBW2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         # Find the bounding rects of the contours that are larger than our threshold
-        areaThreshold = self.params['contourMinArea'] * cvimg.shape[0] * cvimg.shape[1] / 1000
-        contourRects = []
-        for contour in contours:
-            curArea = cv2.contourArea(contour)
-            if curArea >= areaThreshold:
-                contourRects.append(cv2.minAreaRect(contour))
+        areaThreshold = params['contourMinArea'] * cvimg.shape[0] * cvimg.shape[1] / 1000
+        contourRects = [cv2.minAreaRect(contour) for contour in
+            filter(
+                lambda contour: cv2.contourArea(contour) >= areaThreshold,
+                contours)
+        ]
+       # for contour in contours:
+       #     curArea = cv2.contourArea(contour)
+       #     if curArea >= areaThreshold:
+       #         contourRects.append(cv2.minAreaRect(contour))
 
         debugTmp, debugTmp2 = None, None
         if DEBUG:
@@ -143,7 +144,7 @@ class LaneDetector:
             if DEBUG:
                 debugTmp = np.bitwise_or(rectImg, debugTmp)
 
-            lines = cv2.HoughLinesP(rectImg, 1, 0.01745329251, 80, None, 30, 10)
+            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, 80, None, 30, 10)
 
             # Find median gradient of lines
             # Store as (x,y) (centre of box), angle (orientation of box)
@@ -168,8 +169,7 @@ class LaneDetector:
                     ray1 = get_ray(foundLines[0]['pos'], foundLines[0]['angle'])
                     ray2 = get_ray(rect[0], angle)
                     (t1, t2) = ray_intersection(ray1, ray2)
-                    # We want t1 and t2 to both be negative
-                    # If t1 is positive, flip ray2; and vice versa
+
                     if t2 > 0:
                         angle += (180 if angle < 0 else -180)
                     if t1 > 0:
@@ -188,6 +188,10 @@ class LaneDetector:
         for line in foundLines:
             line['heading'] = norm_heading(self.heading + norm_heading(-line['angle'] - 90))
 
+        self.foundLines = foundLines
+        if self.frameCallback:
+            self.frameCallback()
+
         # Screens for debugging
         if DEBUG:
             for i,line in enumerate(foundLines):
@@ -201,10 +205,8 @@ class LaneDetector:
                 cv2.line(debugTmp2, startpt, endpt, (255,0,0), 2)
 
             imgDebug = np.bitwise_xor(cv2.merge([debugTmp, debugTmp, debugTmp]), debugTmp2)
-            self.debug.publishImage('hsv', imghsv)
-            self.debug.publishImage('bw', imgDebug)
-#            cv2.imshow("hsv", imghsv)
-#            cv2.imshow("bw", imgDebug)
+            camdebug.publishImage('hsv', imghsv)
+            camdebug.publishImage('bw', imgDebug)
 
 
     # Callback for subscribing to compass data
@@ -212,25 +214,155 @@ class LaneDetector:
         self.heading = msg.yaw
 
 
-# Main
+class MedianFilter:
+    def __init__(self, sampleWindow=30):
+        self.samples = []
+        self.sampleWindow = sampleWindow
+        self.lastSampled = rospy.Time()
+
+    def newSample(self, sample):
+        curTime = rospy.Time()
+        # Discard previous samples if we only sampled them a long time ago
+        if (curTime - self.lastSampled) > rospy.Duration(1,0):
+            self.samples = []
+
+        self.lastSampled = curTime
+        if len(self.samples) >= self.sampleWindow:
+            self.samples.pop(0)
+        self.samples.append(sample)
+
+        return np.median(self.samples)
+
+    def getVariance(self):
+        if len(self.samples) >= self.sampleWindow:
+            return np.var(self.samples)
+        else:
+            return 999 # Just a big value
+
+
+
+'''
+States
+'''
+class SearchState(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['foundLane', 'aborted'],
+                             input_keys=['expectedLanes'],
+                             output_keys=['expectedLanes'])
+
+    def execute(self, userdata):
+        global laneDetector
+        laneDetector = LaneDetector()
+
+        #TODO: Move around until can find the expected number of lane markers
+        rospy.loginfo('moving around to find lane')
+        while len(laneDetector.foundLines) != userdata.expectedLanes:
+            if rospy.is_shutdown(): return 'aborted'
+            rosRate.sleep()
+
+        return 'foundLane'
+
+class ConfirmingState(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['confirmed', 'searchAgain', 'aborted'],
+                             input_keys=['expectedLanes'],
+                             output_keys=['expectedLanes'])
+
+    def execute(self, userdata):
+        self.headings = []
+        self.medianFilters = []
+        for i in range(userdata.expectedLanes):
+            self.medianFilters.append(MedianFilter())
+
+        global laneDetector
+        laneDetector = LaneDetector()
+
+        self.status = 'started'
+
+        # Check the last few headings and see if they lie within a certain
+        # tolerance level
+        rospy.loginfo('checking last few headings')
+        def frameCallback():
+            if len(laneDetector.foundLines) >= userdata.expectedLanes:
+                headings = sorted([line['heading'] for line in laneDetector.foundLines[0:userdata.expectedLanes]])
+                for i, heading in enumerate(headings):
+                    self.medianFilters[i].newSample(heading)
+                self.status = 'searching'
+            else:
+                self.status = 'lost'
+
+        laneDetector.frameCallback = frameCallback
+
+        while True:
+            if rospy.is_shutdown(): return 'aborted'
+            if self.status == 'lost': return 'searchAgain'
+            if all([medianFilter.getVariance() < 5 for medianFilter in self.medianFilters]):
+                return 'confirmed'
+
+            rosRate.sleep()
+
+        return 'searchAgain'
+
+class FoundState(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded', 'aborted'])
+
+    def execute(self, userdata):
+        #TODO: Lock on to confirmed heading and go towards it
+        rospy.loginfo('locking on and going')
+        return 'succeeded'
+
+
+
+'''
+Main
+'''
 if __name__ == '__main__':
     rospy.init_node('lane_marker_detector', anonymous=True)
     loopRateHz = rospy.get_param('~loopHz', 20)
     imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_color')
+    expectedLanes = rospy.get_param('~lanes', 1)
     compassTopic = rospy.get_param('~compass', '/euler')
 
-    app = LaneDetector()
-
-    rospy.Subscriber(imageTopic, Image, app.gotRosFrame)
-    rospy.Subscriber(compassTopic, compass_data, app.gotHeading)
+#    laneDetector = LaneDetector()
+#    rospy.Subscriber(imageTopic, Image, laneDetector.gotRosFrame)
+#    rospy.Subscriber(compassTopic, compass_data, laneDetector.gotHeading)
 #    movementPub = rospy.Publisher('/line_follower', controller_input)
 
-    r = rospy.Rate(loopRateHz)
-    while not rospy.is_shutdown():
-        key = cv2.waitKey(20)
-        if key == 27: # Exit on getting the Esc key
-            break
+    # Set up param configuration window
+    def configCallback(config, level):
+        for param in params:
+            print config[param]
+            params[param] = config[param]
+        return config
+    srv = Server(LaneMarkerDetectorConfig, configCallback)
 
-        r.sleep()
+    camdebug = CamDebug('lane_marker_detector', debugOn=DEBUG)
+
+
+    global rosRate
+    rosRate = rospy.Rate(loopRateHz)
+    def gotRosFrame(rosImage): laneDetector.gotRosFrame(rosImage)
+    def gotHeading(msg): laneDetector.gotHeading(msg)
+    rospy.Subscriber(imageTopic, Image, gotRosFrame)
+    rospy.Subscriber(compassTopic, compass_data, gotHeading)
+
+    sm = smach.StateMachine(outcomes=['attempting', 'succeeded', 'aborted'])
+    sm.userdata.expectedLanes = expectedLanes
+    with sm:
+        smach.StateMachine.add('SearchState', SearchState(),
+                                transitions={'foundLane': 'ConfirmingState',
+                                             'aborted': 'aborted'})
+        smach.StateMachine.add('ConfirmingState', ConfirmingState(),
+                                transitions={'confirmed': 'FoundState',
+                                             'searchAgain': 'SearchState',
+                                             'aborted': 'aborted'})
+        smach.StateMachine.add('FoundState', FoundState(),
+                                transitions={'succeeded': 'succeeded',
+                                             'aborted': 'aborted'})
+
+    outcome = sm.execute()
 
 # vim: set sw=4 ts=4 expandtab:
