@@ -19,6 +19,7 @@
   <depend package="dynamic_reconfigure"/>
   <depend package="smach_ros"/>
   <depend package="smach"/>
+  <depend package="PID_Controller"/>
 
 </package>
 
