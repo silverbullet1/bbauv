@@ -33,13 +33,14 @@ if __name__ == '__main__':
         rospy.init_node('Test_Controller_Py')
         client = actionlib.SimpleActionClient('LocomotionServer', PID_Controller.msg.ControllerAction)
         client.wait_for_server()
-    
+        
          # Creates a goal to send to the action server.
-        goal = PID_Controller.msg.ControllerGoal(forward_setpoint=1,heading_setpoint=0,depth_setpoint=0.5,sidemove_setpoint=0.3)
+        goal = PID_Controller.msg.ControllerGoal(forward_setpoint=0.5,heading_setpoint=0,depth_setpoint=0.5,sidemove_setpoint=0.3)
 
         # Sends the goal to the action sserver.
         client.send_goal(goal,doneCB,None,feedbackCB)
-    
+        client.wait_for_result(rospy.Duration(5))
+        
         #print "Result:",result.final_input
         while True:
             print "client looping!"

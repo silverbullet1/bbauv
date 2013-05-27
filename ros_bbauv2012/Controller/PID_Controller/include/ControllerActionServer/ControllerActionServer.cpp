@@ -37,10 +37,15 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 	// helper variables
 	ros::Rate r(10);
 	bool success = true;
-	goal_ = *goal;
+	goal_.depth_setpoint =  goal->depth_setpoint;
+	goal_.heading_setpoint =  goal->heading_setpoint;
+	goal_.forward_setpoint =  goal->forward_setpoint + _forward_input;
+	goal_.sidemove_setpoint =  goal->sidemove_setpoint + _sidemove_input;
 	// push_back the seeds for the fibonacci sequence
 	//feedback_.forward_error = 1000;
 
+	ROS_INFO("Goal received - f: %f, s: %f,h: %f, d: %f" , goal_.forward_setpoint,
+			goal_.sidemove_setpoint, goal_.heading_setpoint,goal_.depth_setpoint);
 	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
 		// publish info to the console for the user
@@ -99,7 +104,7 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 		 	ROS_INFO("%s: Succeeded", action_name_.c_str());
 		 	as_.setSucceeded(result_);
 		 	// set the action state to succeeded
-	    } else as_.setAborted(result_);
+	    }
 }
 
 void ControllerActionServer::updateState(float forward,float sidemove,float heading,float depth)

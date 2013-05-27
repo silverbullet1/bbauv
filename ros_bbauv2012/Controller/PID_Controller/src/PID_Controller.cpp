@@ -47,7 +47,7 @@ void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
-void collectAutonomous(const geometry_msgs::Twist & msg);
+void collectAutonomous(const bbauv_msgs::controller & msg);
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 
 	//Initialize Subscribers
 
-	autonomousSub = nh.subscribe("/cmd_val",1000,collectAutonomous);
+	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
 	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
 	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
@@ -123,7 +123,6 @@ int main(int argc, char **argv)
 	{
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
-		if(inNavigation)
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
 		else headingPID_output = 0;
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
@@ -249,10 +248,11 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 	}
 }
 
-void collectAutonomous(const geometry_msgs::Twist & msg)
+void collectAutonomous(const bbauv_msgs::controller & msg)
 {
-	ctrl.forward_input = msg.linear.x;
-	ctrl.sidemove_input = msg.linear.x;
+	ctrl.forward_setpoint = msg.forward_setpoint;
+	ctrl.sidemove_setpoint = msg.sidemove_setpoint;
+	ctrl.heading_setpoint = msg.heading_setpoint;
 }
 /***********Dynamic Reconfigure Callbacks*****************/
 
