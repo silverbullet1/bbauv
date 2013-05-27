@@ -8,6 +8,7 @@
 #include "ControllerActionServer.h"
 #include <actionlib/server/simple_action_server.h>
 #include <PID_Controller/ControllerAction.h>
+#include <math.h>
 
 ControllerActionServer::ControllerActionServer(std::string name) :
 as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false),
@@ -17,6 +18,15 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 	//as_.registerGoalCallback(boost::bind(&goalCB));
 	//as_.registerPreemptCallback(boost::bind(&preemptCB, this));
 
+	_forward_input = 0.0;
+	_sidemove_input = 0.0;
+	_heading_input = 0.0;
+	_depth_input = 0.0;
+
+	MIN_FORWARD = 0.05;
+	MIN_SIDEMOVE = 0.05;
+	MIN_HEADING = 1.0;
+	MIN_DEPTH = 0.01;
 	as_.start();
 }
 
@@ -28,41 +38,81 @@ void ControllerActionServer::premptCB()
 
 void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConstPtr &goal)
 {
+	bool isForwardDone = false,isDepthDone = false, isHeadingDone = false, isSidemoveDone = false;
 	// helper variables
-	ros::Rate r(1);
+	ros::Rate r(10);
 	bool success = true;
 
 	// push_back the seeds for the fibonacci sequence
-	feedback_.thruster = 1000;
+	//feedback_.forward_error = 1000;
 
-	// publish info to the console for the user
-	ROS_INFO(" Executing...");
-
-	// check that preempt has not been requested by the client
-	if (as_.isPreemptRequested() || !ros::ok())
+	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
-		ROS_INFO("%s: Preempted", action_name_.c_str());
-		// set the action state to preempted
-		as_.setPreempted();
-		success = false;
+		// publish info to the console for the user
+		ROS_INFO("error: %f",fabs(goal->heading_setpoint - _heading_input) );
+
+		// check that preempt has not been requested by the client
+		if (as_.isPreemptRequested() || !ros::ok())
+		{
+			ROS_INFO("%s: Preempted", action_name_.c_str());
+			// set the action state to preempted
+			as_.setPreempted();
+			success = false;
+		}
+
+		if(fabs(goal->forward_setpoint - _forward_input) < MIN_FORWARD)
+		{
+			isForwardDone = true;
+			//ROS_INFO("isForwardDone");
+		}
+
+		if(fabs(goal->sidemove_setpoint - _sidemove_input) < MIN_SIDEMOVE)
+		{
+			isSidemoveDone = true;
+			//ROS_INFO("isSidemoveDone");
+		}
+
+		if(fabs(goal->depth_setpoint - _depth_input) < MIN_DEPTH)
+		{
+			isDepthDone = true;
+			//ROS_INFO("isDepthDone");
+		}
+
+		if(fabs(goal->heading_setpoint - _heading_input) < MIN_HEADING)
+		{
+			isHeadingDone = true;
+			//ROS_INFO("isHeadingDone");
+		}
+		//Update Feedback
+		feedback_.forward_error = 1000;
+		feedback_.depth_error = 1000;
+		feedback_.sidemove_error = 1000;
+		feedback_.heading_error = 1000;
+ 		// publish the feedback
+		as_.publishFeedback(feedback_);
+		// this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
+		r.sleep();
 	}
-	feedback_.thruster = 1000;
-	// publish the feedback
-	as_.publishFeedback(feedback_);
-	// this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
-	r.sleep();
-	if(success && _position > goal->setpoint)
-	{
-		result_.final_input = _position;
-		ROS_INFO("%s: Succeeded", action_name_.c_str());
-		// set the action state to succeeded
-		as_.setSucceeded(result_);
-	} else as_.setAborted(result_);
+
+	 if(success)
+	    {
+			result_.forward_final = _forward_input;
+			result_.sidemove_final = _sidemove_input;
+			result_.heading_final = _heading_input;
+			result_.depth_final = _depth_input;
+
+		 	ROS_INFO("%s: Succeeded", action_name_.c_str());
+		 	as_.setSucceeded(result_);
+		 	// set the action state to succeeded
+	    } else as_.setAborted(result_);
 }
 
-void ControllerActionServer::updateState(float val)
+void ControllerActionServer::updateState(float forward,float sidemove,float heading,float depth)
 {
-	_position = val;
+	_forward_input = forward;
+	_sidemove_input = sidemove;
+	_heading_input =  heading;
+	_depth_input = depth;
 }
 
 ControllerActionServer::~ControllerActionServer() {

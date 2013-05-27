@@ -69,11 +69,11 @@ ros::Subscriber velocitySub;
 
 
 /**********************PID Controllers**********************************/
-bbauv::bbPID forwardPID(1.2,0,0,20);
-bbauv::bbPID depthPID(1.2,0,0,20);
-bbauv::bbPID headingPID(1.2,0,0,20);
-bbauv::bbPID sidemovePID(1.2,0,0,20);
-bbauv::bbPID pitchPID(1.2,0,0,20);
+bbauv::bbPID forwardPID("f",1.2,0,0,20);
+bbauv::bbPID depthPID("d",1.2,0,0,20);
+bbauv::bbPID headingPID("h",1.2,0,0,20);
+bbauv::bbPID sidemovePID("s",1.2,0,0,20);
+bbauv::bbPID pitchPID("p",1.2,0,0,20);
 
 NavUtils navHelper;
 
@@ -113,8 +113,7 @@ int main(int argc, char **argv)
 
 	/* Initialize Action Server */
 
-	ControllerActionServer asSway("SwayAction");
-	ControllerActionServer asForward("ForwardAction");
+	ControllerActionServer as("LocomotionServer");
 	//Execute PID Loop computation at 20Hz
 	ros::Rate loop_rate(loop_frequency);
 
@@ -122,7 +121,6 @@ int main(int argc, char **argv)
 	//PID Initialization
 	while(ros::ok())
 	{
-		ROS_INFO("Loop!");
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
@@ -140,8 +138,7 @@ int main(int argc, char **argv)
 
 		/*Update Action Server Positions*/
 
-		asSway.updateState(ctrl.forward_input);
-		asForward.updateState(ctrl.sidemove_input);
+		as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
 
 		thrusterPub.publish(thrusterSpeed);
 

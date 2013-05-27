@@ -41,7 +41,7 @@ void activeCb()
 // Called every time feedback is received for the goal
 void feedbackCb(const PID_Controller::ControllerFeedbackConstPtr& feedback)
 {
-  ROS_INFO("Got Feedback of length %i", feedback->thruster);
+  //ROS_INFO("Got Feedback of length %i", feedback->thruster);
 }
 
 
@@ -64,7 +64,7 @@ int main (int argc, char **argv)
 
 	  // send a goal to the action
 	 PID_Controller::ControllerGoal goal;
-	 goal.setpoint = 10;
+	 //goal.setpoint = 10;
 	 ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
 	   //wait for the action to return
 	  bool finished_before_timeout = ac.waitForResult(ros::Duration(30));
@@ -75,7 +75,7 @@ int main (int argc, char **argv)
 	  }
 	  else
 	    ROS_INFO("Action did not finish before the time out.");
-	  goal.setpoint = 200;
+	  //goal.setpoint = 200;
 	  ac2.sendGoal(goal, &done2Cb);
 	  finished_before_timeout = ac2.waitForResult(ros::Duration(30));
 

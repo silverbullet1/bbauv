@@ -13,7 +13,7 @@ namespace bbauv {
 
 class bbPID {
 public:
-	bbPID(double,double,double,int);
+	bbPID(std::string,double,double,double,int);
 
 	void setKp(double P);
 	void setTi(double I);
@@ -37,6 +37,7 @@ private:
 	ros::Time oldTime;
 	double inputOld;
 	double integral;
+	std::string _name;
 };
 
 } /* namespace bbauv */

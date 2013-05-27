@@ -15,13 +15,20 @@
 class ControllerActionServer {
 public:
 	ControllerActionServer(std::string name);
-	void updateState(float val);
+	void updateState(float forward,float sidemove,float heading,float depth);
 	void premptCB();
 	void executeCB(const PID_Controller::ControllerGoalConstPtr &goal);
 	virtual ~ControllerActionServer();
 
 private:
-	float _position;
+	float _forward_input;
+	float _sidemove_input;
+	float _heading_input;
+	float _depth_input;
+	float MIN_FORWARD;
+	float MIN_SIDEMOVE;
+	float MIN_HEADING;
+	float MIN_DEPTH;
 protected:
 
   ros::NodeHandle nh_;

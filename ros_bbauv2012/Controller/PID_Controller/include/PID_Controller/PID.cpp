@@ -36,13 +36,14 @@ void bbPID::setActuatorSatModel(int min=-1000,int max=1000)
 }
 
 //Constructor
-bbPID::bbPID(double P,double I,double D, int Ncut) {
+bbPID::bbPID(std::string name, double P,double I,double D, int Ncut) {
 	derivative = 0;
 	integral = 0;
 	Kp = P;
 	Ti = I;
 	Td = D;
 	N = Ncut;
+	_name = name;
 }
 
 double bbPID::computePID(double setpoint, double input)
@@ -62,7 +63,7 @@ double bbPID::computePID(double setpoint, double input)
 	total = proportional + derivative + integral;
 
 	output = actuatorConstrain(total);
-	ROS_INFO("Control Loop");
+	ROS_INFO("n: %s P: %2.f, I: %2.f, D: %2.f",_name.c_str(),proportional,integral, derivative);
 	//std::cout<<" P: "<<proportional<<" D: "<<derivative<<" I: "<<integral<<std::endl;
 	//std::cout<<"output: "<<output<<std::endl;
 	//Integrator with wind up protection
