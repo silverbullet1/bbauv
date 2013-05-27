@@ -195,8 +195,6 @@ class LaneDetector:
         # Screens for debugging
         if DEBUG:
             for i,line in enumerate(foundLines):
-                print i, line
-
                 # Draw a debug line
                 startpt = line['pos']
                 gradient = np.deg2rad(line['angle'])
@@ -231,7 +229,8 @@ class MedianFilter:
             self.samples.pop(0)
         self.samples.append(sample)
 
-        return np.median(self.samples)
+        self.median = np.median(self.samples)
+        return self.median
 
     def getVariance(self):
         if len(self.samples) >= self.sampleWindow:
@@ -268,7 +267,7 @@ class ConfirmingState(smach.State):
         smach.State.__init__(self,
                              outcomes=['confirmed', 'searchAgain', 'aborted'],
                              input_keys=['expectedLanes'],
-                             output_keys=['expectedLanes'])
+                             output_keys=['expectedLanes', 'headings'])
 
     def execute(self, userdata):
         self.headings = []
@@ -299,6 +298,7 @@ class ConfirmingState(smach.State):
             if rospy.is_shutdown(): return 'aborted'
             if self.status == 'lost': return 'searchAgain'
             if all([medianFilter.getVariance() < 5 for medianFilter in self.medianFilters]):
+                userdata.headings = [m.median for m in self.medianFilters]
                 return 'confirmed'
 
             rosRate.sleep()
@@ -307,11 +307,14 @@ class ConfirmingState(smach.State):
 
 class FoundState(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded', 'aborted'])
+        smach.State.__init__(self, outcomes=['succeeded', 'aborted'],
+                                   input_keys=['headings'])
 
     def execute(self, userdata):
         #TODO: Lock on to confirmed heading and go towards it
         rospy.loginfo('locking on and going')
+        for heading in userdata.headings:
+            print heading
         return 'succeeded'
 
 
@@ -334,7 +337,6 @@ if __name__ == '__main__':
     # Set up param configuration window
     def configCallback(config, level):
         for param in params:
-            print config[param]
             params[param] = config[param]
         return config
     srv = Server(LaneMarkerDetectorConfig, configCallback)
