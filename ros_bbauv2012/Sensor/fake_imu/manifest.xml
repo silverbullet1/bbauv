@@ -1,0 +1,17 @@
+<package>
+    <description brief="fake_imu">
+
+    fake_imu
+
+    </description>
+    <author>bbauvsbc1</author>
+    <license>BSD</license>
+    <review status="unreviewed" notes=""/>
+    <url>http://ros.org/wiki/fake_imu</url>
+    <depend package="roscpp"/>
+    <depend package="nav_msgs"/>
+    <depend package="sensor_msgs"/>
+
+</package>
+
+

@@ -66,13 +66,13 @@ def main():
 
         output = controller()
 
-        new_position_x = integral(linear_vel['x'], position['x'], 0.5)
-        new_position_y = integral(linear_vel['y'], position['y'], 0.5)
+        new_position_x = integral(linear_vel['x'], position['x'], 1)
+        new_position_y = integral(linear_vel['y'], position['y'], 1)
 
         print "current orientation = %f" % orientation['yaw']
         print "angle to turn = %f" % angular_vel['z']
 
-        new_yaw = normalize_angle(integral(angular_vel['z'], orientation['yaw'], 0.5))
+        new_yaw = normalize_angle(integral(angular_vel['z'], orientation['yaw'], 1))
 
         print "new yaw = %f" % new_yaw
 
@@ -84,7 +84,7 @@ def main():
 
         t2 = rospy.Time.now()
         #print (t2-t1).to_sec()
-        p = 0.5 - (t2-t1).to_sec()
+        p = 0.2 - (t2-t1).to_sec()
         if p < 0.0 : p = 0.0
         rospy.sleep(p)
 

@@ -125,6 +125,7 @@ int main(int argc, char **argv)
 		  Autonomous Control only if not in Topside state*/
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
 		else headingPID_output = 0;
+		ROS_INFO("%f, %f",ctrl.depth_setpoint,ctrl.depth_input);
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
 		else depthPID_output = 0;
 		if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
@@ -137,12 +138,15 @@ int main(int argc, char **argv)
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
 		/*Update Action Server Positions*/
-		ctrl.forward_setpoint = as.getForward();
-		ctrl.sidemove_setpoint = as.getSidemove();
-		ctrl.heading_setpoint = as.getHeading();
-		ctrl.depth_setpoint = as.getDepth();
+		if(!inNavigation)
+		{
+			ctrl.forward_setpoint = as.getForward();
+			ctrl.sidemove_setpoint = as.getSidemove();
+			ctrl.heading_setpoint = as.getHeading();
+			ctrl.depth_setpoint = as.getDepth();
+			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
 
-		as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
+		}
 
 		thrusterPub.publish(thrusterSpeed);
 
@@ -250,9 +254,12 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 
 void collectAutonomous(const bbauv_msgs::controller & msg)
 {
-	ctrl.forward_setpoint = msg.forward_setpoint;
-	ctrl.sidemove_setpoint = msg.sidemove_setpoint;
-	ctrl.heading_setpoint = msg.heading_setpoint;
+	if(inNavigation)
+	{
+		ctrl.forward_setpoint = msg.forward_setpoint;
+		ctrl.sidemove_setpoint = msg.sidemove_setpoint;
+		ctrl.heading_setpoint = msg.heading_setpoint;
+	}
 }
 /***********Dynamic Reconfigure Callbacks*****************/
 
@@ -264,6 +271,7 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inDepthPID = config.depth_PID;
   inSidemovePID = config.sidemove_PID;
   inPitchPID = config.pitch_PID;
+  inNavigation = config.navigation;
 
   ctrl.heading_setpoint = config.heading_setpoint;
   ctrl.depth_setpoint = config.depth_setpoint;

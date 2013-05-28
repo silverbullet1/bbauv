@@ -269,19 +269,23 @@ class SearchState(smach.State):
             if rospy.is_shutdown(): return 'aborted'
 
             #TODO: use values related to spin rate
-            goal = PID_Controller.msg.ControllerGoal()
-            goal.heading_setpoint = laneDetector.heading + 0.1
-            goal.depth_setpoint = laneDetector.depth
-            goal.forward_setpoint = 0.1
+            goal = PID_Controller.msg.ControllerGoal(
+                heading_setpoint = laneDetector.heading + 10,
+                depth_setpoint = laneDetector.depth,
+                forward_setpoint = 1,
+                sidemove_setpoint = 0)
 
             actionClient.send_goal(goal)
-            actionClient.wait_for_result() #TODO: use a timeout here?
+            actionClient.wait_for_result(rospy.Duration(2,0))
+            print 'finished goal'
 
             rosRate.sleep()
 
-        goal = PID_Controller.msg.ControllerGoal()
-        goal.heading_setpoint = laneDetector.heading
-        goal.depth_setpoint = laneDetector.depth
+        goal = PID_Controller.msg.ControllerGoal(
+                heading_setpoint = laneDetector.heading,
+                depth_setpoint = laneDetector.depth,
+                forward_setpoint = 0,
+                sidemove_setpoint = 0)
         actionClient.send_goal(goal) # Don't wait, just continue
 
         return 'foundLane'
@@ -343,9 +347,11 @@ class FoundState(smach.State):
         actionClient = actionlib.SimpleActionClient('search', ControllerAction)
         actionClient.wait_for_server()
 
-        goal = PID_Controller.msg.ControllerGoal()
-        goal.heading_setpoint = userdata.headings[0]
-        goal.depth_setpoint = laneDetector.depth
+        goal = PID_Controller.msg.ControllerGoal(
+                heading_setpoint = userdata.headings[0],
+                depth_setpoint = laneDetector.depth,
+                sidemove_setpoint = 0,
+                forward_setpoint = 5)
 
         actionClient.send_goal(goal)
         actionClient.wait_for_result()
