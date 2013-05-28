@@ -1,0 +1,47 @@
+: cal3D                           	// start compiling a new word, called cal3D
+calmode 1 set                     	// set the calibration mode to 3D
+." Calibration starting" cr       	// tell the user we are starting then <CR>
+
+calCommand cal_start set          	// issue the cal_start command
+
+." Press any key to take next point, ESC to finish" cr
+ // Tell the user what to do
+ // The code now grabs a point, the user changes the
+ // compass position and repeats the cal3DState
+ // from 4-12 times total.
+
+begin                             	// begin a begin-while-repeat loop
+	key 27 = 0=                   	// wait for key input compare with ESC
+                                    // invert the logic (0=)
+	while                         	// only continue if the TOS has a true,
+								  	// i.e. user hit a key != ESC
+		calCommand cal_capture set  // take another point
+		250 delay                 	// wait 250 msecs to allow point to be counted
+		calNumPoints di.          	// print out point number
+repeat                            	// end of begin-while-repeat
+
+ // Now the points are captured,
+ // command the SW to compute the cal values:
+
+calCommand cal_end_capture set    	// issue command to end the capture of points
+." Starting error settling" cr    	// tell user what’s going on
+." Press any key to terminate" cr 	// issue instructions
+
+ // The user observes magErr to watch it settle
+ // at a minimum value (EKit can display every sec or so):
+
+begin                             	// keep printing magErr at .250 sec intervals
+	?key 0=                       	// ?key returns false hit a key is hit
+								  	// 0= inverts so then...
+	while                         	// while tests for no key pressed
+	magErr di.       			  	// print the mag error
+	250 delay					  	// wait 250 msecs to print again
+repeats 						  	// end of begin-while-repeat
+." Calibration done!" cr          	// celllll-e-braaaate good times, come on!
+calCommand cal_end set            	// cal computation
+calmode 0 set                     	// terminate but “I’ll be back”
+;                                 	// end of compiliation
+ // To execute the calibration simply type
+ cal3D
+ // To unload this program type
+ // forget cal3D
