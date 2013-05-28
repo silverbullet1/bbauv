@@ -272,21 +272,21 @@ class SearchState(smach.State):
             goal = PID_Controller.msg.ControllerGoal(
                 heading_setpoint = laneDetector.heading + 10,
                 depth_setpoint = laneDetector.depth,
-                forward_setpoint = 1,
+                forward_setpoint = 0,
                 sidemove_setpoint = 0)
 
             actionClient.send_goal(goal)
-            actionClient.wait_for_result(rospy.Duration(2,0))
+            actionClient.wait_for_result(rospy.Duration(4,0))
             print 'finished goal'
 
             rosRate.sleep()
 
-        goal = PID_Controller.msg.ControllerGoal(
-                heading_setpoint = laneDetector.heading,
-                depth_setpoint = laneDetector.depth,
-                forward_setpoint = 0,
-                sidemove_setpoint = 0)
-        actionClient.send_goal(goal) # Don't wait, just continue
+#        goal = PID_Controller.msg.ControllerGoal(
+#                heading_setpoint = laneDetector.heading,
+#                depth_setpoint = laneDetector.depth,
+#                forward_setpoint = 0,
+#                sidemove_setpoint = 0)
+#        actionClient.send_goal(goal) # Don't wait, just continue
 
         return 'foundLane'
 
@@ -325,7 +325,7 @@ class ConfirmingState(smach.State):
         while True:
             if rospy.is_shutdown(): return 'aborted'
             if self.status == 'lost': return 'searchAgain'
-            if all([medianFilter.getVariance() < 5 for medianFilter in self.medianFilters]):
+            if all([medianFilter.getVariance() < 16 for medianFilter in self.medianFilters]):
                 userdata.headings = [m.median for m in self.medianFilters]
                 return 'confirmed'
 
