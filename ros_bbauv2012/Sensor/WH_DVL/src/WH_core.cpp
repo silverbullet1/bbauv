@@ -349,7 +349,10 @@ void DVL::computeDistance() {
     else {
         x += (xvel + lastXvel) * delta / 2.0;
         y += (yvel + lastYvel) * delta / 2.0;
-        z += (zvel + lastZvel) * delta / 2.0;
+        //z += (zvel + lastZvel) * delta / 2.0;
+        //z is changed to altitude
+        //z is no longer the integral of the z velocity
+        z = botTrack.Range[0];
     }
 
     //data to fill in covariance matrix
