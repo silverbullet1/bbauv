@@ -15,6 +15,7 @@
   <depend package="rospy"/>
   <depend package="tf"/>
   <depend package="sensor_msgs"/>
+  <depend package="bbauv_msgs"/>
 
 </package>
 

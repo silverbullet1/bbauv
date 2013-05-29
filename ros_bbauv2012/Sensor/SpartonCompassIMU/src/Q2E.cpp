@@ -15,7 +15,7 @@ int main(int argc, char**argv)
     max_z_ang_vel = 0;
     max_x_ang_vel = 0;
 
-    ros::Subscriber sub = nh.subscribe("AHRS8_data", 1000, callBack);
+    ros::Subscriber sub = nh.subscribe("AHRS8_data_q", 1000, callBack);
     ros::spin();
     return 0;
 }

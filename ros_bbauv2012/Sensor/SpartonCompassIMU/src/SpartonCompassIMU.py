@@ -46,7 +46,8 @@
 import roslib; roslib.load_manifest('SpartonCompassIMU')
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import Pose2D
+#from geometry_msgs.msg import Pose2D
+from bbauv_msgs.msg import imu_data
 
 import serial, string, math, time, calendar
 
@@ -54,7 +55,7 @@ import serial, string, math, time, calendar
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Quaternion
 
-gyroSampleRate = 108.62 #hard-coded gyroSampleRate
+gyroSampleRate = 107.95 #hard-coded gyroSampleRate
 
 def wrapTo2PI(theta):
     '''Normalize an angle in radians to [0, 2*pi]
@@ -79,31 +80,33 @@ if __name__ == '__main__':
     global D_Compass
     global myStr1
     rospy.init_node('SpartonDigitalCompassIMU')
-    Pos_pub = rospy.Publisher('AHRS8_HeadingTrue', Pose2D)
-    Imu_pub = rospy.Publisher('AHRS8_data', Imu)
-    SpartonPose2D=Pose2D()
-    SpartonPose2D.x=float(0.0)
-    SpartonPose2D.y=float(0.0)
+    #Pos_pub = rospy.Publisher('AHRS8_HeadingTrue', Pose2D)
+    Imu_pub_q = rospy.Publisher('AHRS8_data_q', Imu)
+    Imu_pub_e = rospy.Publisher('AHRS8_data_e', imu_data)
+    #SpartonPose2D=Pose2D()
+    #SpartonPose2D.x=float(0.0)
+    #SpartonPose2D.y=float(0.0)
     #Init D_Compass port
     D_Compassport = rospy.get_param('~port','/dev/ttyAHRS')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
-    D_Compassprintmodulus = rospy.get_param('~printmodulus',1)
+    D_Compassprintmodulus = rospy.get_param('~printmodulus',11)
     #Digital compass heading offset in degree
     D_Compass_offset = rospy.get_param('~offset',0.)
-    imu_data = Imu()
-    imu_data = Imu(header=rospy.Header(frame_id="AHRS8"))
+    Imu_data = Imu()
+    imu_data = imu_data()
+    Imu_data = Imu(header=rospy.Header(frame_id="AHRS8"))
     
     #TODO find a right way to convert imu acceleration/angularvel./orientation accuracy to covariance
-    imu_data.orientation_covariance = [1e-3, 0, 0, 
+    Imu_data.orientation_covariance = [1e-3, 0, 0, 
                                        0, 1e-3, 0, 
                                        0, 0, 1e-3]
     
-    imu_data.angular_velocity_covariance = [1e-3, 0, 0,
+    Imu_data.angular_velocity_covariance = [1e-3, 0, 0,
                                             0, 1e-3, 0, 
                                             0, 0, 1e-3]
     
-    imu_data.linear_acceleration_covariance = [1e-3, 0, 0, 
+    Imu_data.linear_acceleration_covariance = [1e-3, 0, 0, 
                                                0, 1e-3, 0, 
                                                0, 0, 1e-3]
     myStr1='\r\n\r\nprinttrigger 0 set drop\r\n'
@@ -181,11 +184,12 @@ if __name__ == '__main__':
 
             try:
                 if len(fields)>16:
-                            if 'P:apgpytq' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]):
+                        if 'P:apgpytq' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]):
 
                                 #      0  1 mSec 2  3Ax  4Ay     5Az     5  7Gx  8Gy  9G    10 11YawT 1213w  14x   15y  16z
                                 #data='P:,878979,ap,-6.34,-22.46,1011.71,gp,0.00,0.00,-0.00,yt,342.53,q,0.98,-0.01,0.01,-0.15'
 
+                                # notice the coordinate transformation
                                 Ax=float(fields[3])/1000. # convert to g/s from mg/s
                                 Ay=float(fields[4])/1000.
                                 Az=float(fields[5])/1000.
@@ -197,34 +201,54 @@ if __name__ == '__main__':
                                 y =float(fields[15])
                                 z =float(fields[16])
                                 
+                                # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 #imu_data.header.stamp = rospy.Time.now() # Should add an offset here
-                                imu_data.header.stamp = rospy.Time.from_sec(DataTimeSec-len(data)/11520.) # this is timestamp with a bit time offset 10bit per byte @115200bps
-                                imu_data.orientation = Quaternion()
-                                # IMU outputs [w,x,y,z] NED, convert to [x,y,z,w] ENU
-                                imu_data.orientation.x = x
-                                imu_data.orientation.y = -y
-                                imu_data.orientation.z = -z
-                                imu_data.orientation.w = w
+                                Imu_data.header.stamp = rospy.Time.from_sec(DataTimeSec-len(data)/11520.) # this is timestamp with a bit time offset 10bit per byte @115200bps
+                                Imu_data.orientation = Quaternion()
+                                # orientation
+                                Imu_data.orientation.x = x
+                                Imu_data.orientation.y = -y
+                                Imu_data.orientation.z = z
+                                Imu_data.orientation.w = w
                                 
-                                # again note NED to ENU converstion
+                                # angular velocity
+                                Imu_data.angular_velocity.x = Gx
+                                Imu_data.angular_velocity.y = -Gy
+                                Imu_data.angular_velocity.z = Gz
+                                
+                                # acceleration
+                                Imu_data.linear_acceleration.x = Ax
+                                Imu_data.linear_acceleration.y = -Ay
+                                Imu_data.linear_acceleration.z = Az
+
+                                # Euler message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                                # orientation
+                                imu_data.orientation.x = math.atan2(2. * (w*x + y*z), 1-2. * (x*x + y*y))
+                                imu_data.orientation.y = -math.asin(2. * (w*y - z*x))
+                                imu_data.orientation.z = math.pi + math.atan2(2. * (w*z + x*y), 1-2.*(y*y + z*z))
+                                
+                                # angular velocity
                                 imu_data.angular_velocity.x = Gx
                                 imu_data.angular_velocity.y = -Gy
-                                imu_data.angular_velocity.z = -Gz
-                                # again note NED to ENU converstion
+                                imu_data.angular_velocity.z = Gz
+
+                                # acceleration
                                 imu_data.linear_acceleration.x = Ax
                                 imu_data.linear_acceleration.y = -Ay
-                                imu_data.linear_acceleration.z = -Az
+                                imu_data.linear_acceleration.z = Az
+                                
+                                # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                                Imu_pub_q.publish(Imu_data)
+                                Imu_pub_e.publish(imu_data)
 
-                                Imu_pub.publish(imu_data)
+                                #SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
+                                #SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed
+                                #SpartonPose2D.theta = wrapToPI(math.radians(90.-float(fields[11])-D_Compass_offset))
 
-                                SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
-                                SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed
-                                SpartonPose2D.theta = wrapToPI(math.radians(90.-float(fields[11])-D_Compass_offset))
-
-                                Pos_pub.publish(SpartonPose2D)
+                                #Pos_pub.publish(SpartonPose2D)
 
 
-                            else:
+                        else:
                                 rospy.logerr("[3]Received a sentence but not correct. Sentence was: %s" % data)
                 else:
                         rospy.logerr("[4]Received a sentence but not correct. Sentence was: %s" % data)
