@@ -54,6 +54,7 @@ import serial, string, math, time, calendar
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Quaternion
 
+gyroSampleRate = 108.62 #hard-coded gyroSampleRate
 
 def wrapTo2PI(theta):
     '''Normalize an angle in radians to [0, 2*pi]
@@ -188,9 +189,9 @@ if __name__ == '__main__':
                                 Ax=float(fields[3])/1000. # convert to g/s from mg/s
                                 Ay=float(fields[4])/1000.
                                 Az=float(fields[5])/1000.
-                                Gx=float(fields[7]) * (math.pi/180.0) # convert to radians from degrees
-                                Gy=float(fields[8]) * (math.pi/180.0)
-                                Gz=float(fields[9]) * (math.pi/180.0)
+                                Gx=float(fields[7]) * gyroSampleRate
+                                Gy=float(fields[8]) * gyroSampleRate
+                                Gz=float(fields[9]) * gyroSampleRate
                                 w =float(fields[13])
                                 x =float(fields[14])
                                 y =float(fields[15])
