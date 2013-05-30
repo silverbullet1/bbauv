@@ -6,15 +6,13 @@ Code to identify RoboSub lane markers
 import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data
-from bbauv_msgs.msg import depth
+from bbauv_msgs.msg import compass_data, depth
 
 import actionlib
 import PID_Controller.msg
 from PID_Controller.msg import ControllerAction
 
 import math
-from random import randint
 import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -28,15 +26,16 @@ import smach
 
 
 DEBUG = True
+#HACK:
 camdebug = None
-
-params = { 'hueLow': 11, 'hueHigh': 65, 'contourMinArea': 15 }
 laneDetector = None
+
+params = { 'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0, 'valLow':0, 'valHigh':0, 'contourMinArea':0 } # Dynamic reconfigure params; see LaneMarkerDetector.cfg
 
 
 # Helper function to normalize heading
 def norm_heading(heading):
-    if heading > 360:
+    if heading >= 360:
         return heading - 360
     if heading < 0:
         return heading + 360
@@ -58,6 +57,10 @@ def ray_intersection(ray1, ray2):
     t1 = det * (-v2 * xd + u2 * yd)
     t2 = det * (-v1 * xd + u1 * yd)
     return (t1, t2)
+
+# Helper function to convert angles from calculated image space to heading space
+def to_heading_space(angle):
+    return -angle - 90
 
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
@@ -92,6 +95,7 @@ class LaneDetector:
         self.cvbridge = CvBridge()
         self.foundLines = []
         self.frameCallback = None
+        self.inputHeading = 0
 
         # Initial state
         self.heading = 0.0
@@ -105,14 +109,21 @@ class LaneDetector:
 
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
+        filteredImg = None
+        cv2.GaussianBlur(cvimg, filteredImg, 3, 0)
+
         # Find the orange regions
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
-#        imghsv = cv2.equalizeHist(imghsv)
+        imghue, imgsat, imgval = cv2.split(imghsv)
+        imghsv = cv2.merge([imghue, cv2.equalizeHist(imgsat), imgval])
 
-        imgBW = np.array(cv2.inRange(imghsv, np.array([params['hueLow'],0,0],np.uint8), np.array([params['hueHigh'], 255, 255],np.uint8)))
+        imgBW = np.array(cv2.inRange(imghsv,
+                    np.array([params['hueLow'], params['satLow'], params['valLow']], np.uint8),
+                    np.array([params['hueHigh'], params['satHigh'], params['valHigh']], np.uint8)))
+        imgBW = np.invert(imgBW)
 
         # Close up the gaps in the detected regions
-        structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
+        structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (-1,-1))
         imgBW = cv2.dilate(imgBW, structuringElt)
         imgBW = cv2.erode(imgBW, structuringElt)
 
@@ -129,10 +140,10 @@ class LaneDetector:
                 contours)
         ]
 
-        debugTmp, debugTmp2 = None, None
         if DEBUG:
             debugTmp = np.zeros_like(imgBW)
             debugTmp2 = cv2.merge([debugTmp, debugTmp, debugTmp])
+            debugThresh = imgBW.copy()
 
         foundLines = []
 
@@ -146,7 +157,7 @@ class LaneDetector:
             if DEBUG:
                 debugTmp = np.bitwise_or(rectImg, debugTmp)
 
-            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, 80, None, 30, 10)
+            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, 80, None, 60, 10)
 
             # Find median gradient of lines
             # Store as (x,y) (centre of box), angle (orientation of box)
@@ -158,24 +169,24 @@ class LaneDetector:
 
                 angle = np.rad2deg(gradient)
 
-                if angle == 0:
-                    # Need some way to distinguish between left-pointing and right-pointing
-                    # when the line is horizontal:
-                    # we'll assume that if the centre of the box is on the right, it points to the right
-                    if rect[0][0] > (rectImg.shape[1] / 2):
-                        angle = 180
+                # Correct angle based on the input heading (always go away from the last task)
+                if 90 < abs(inputHeading - norm_heading(self.heading+to_heading_space(angle))) < 270:
+                    angle += (180 if angle < 0 else - 180)
 
                 # Try to correct the angles if we have more lines to test against
                 if len(foundLines) > 0:
-                    # Construct rays from the centres of the boxes
-                    ray1 = get_ray(foundLines[0]['pos'], foundLines[0]['angle'])
-                    ray2 = get_ray(rect[0], angle)
-                    (t1, t2) = ray_intersection(ray1, ray2)
+                    if abs(foundLines[0]['angle'] - angle) < 0.0005 or abs(180 - abs(foundLines[0]['angle'] - angle)) < 0.0005:
+                        angle = foundLines[0]['angle']
+                    else:
+                        # Construct rays from the centres of the boxes
+                        ray1 = get_ray(foundLines[0]['pos'], foundLines[0]['angle'])
+                        ray2 = get_ray(rect[0], angle)
+                        (t1, t2) = ray_intersection(ray1, ray2)
 
-                    if t2 > 0:
-                        angle += (180 if angle < 0 else -180)
-                    if t1 > 0:
-                        foundLines[0]['angle'] += (180 if foundLines[0]['angle'] < 0 else -180)
+                        if t2 > 0:
+                            angle += (180 if angle < 0 else -180)
+                        if t1 > 0:
+                            foundLines[0]['angle'] += (180 if foundLines[0]['angle'] < 0 else -180)
 
                 foundLines.append({'pos':rect[0], 'angle':angle})
 
@@ -188,7 +199,7 @@ class LaneDetector:
                         cv2.line(debugTmp2, pt1, pt2, (0,0,255), 1)
 
         for line in foundLines:
-            line['heading'] = norm_heading(self.heading + norm_heading(-line['angle'] - 90))
+            line['heading'] = norm_heading(self.heading + to_heading_space(line['angle']))
 
         self.foundLines = foundLines
         if self.frameCallback:
@@ -206,10 +217,10 @@ class LaneDetector:
 
             imgDebug = np.bitwise_xor(cv2.merge([debugTmp, debugTmp, debugTmp]), debugTmp2)
             camdebug.publishImage('hsv', imghsv)
+            camdebug.publishImage('thresh', debugThresh)
             camdebug.publishImage('bw', imgDebug)
 
-
-    # Callback for subscribing to compass data
+    # Callbacks
     def gotHeading(self, msg):
         self.heading = msg.yaw
     def gotDepth(self, msg):
@@ -258,35 +269,38 @@ class SearchState(smach.State):
         global laneDetector
         laneDetector = LaneDetector()
 
-        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
-        print 'wait'
-        actionClient.wait_for_server()
-        print 'done'
+#        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+#        print 'wait'
+#        actionClient.wait_for_server()
+#        print 'done'
 
         #TODO: Move around in a smarter way to keep all lanes on screen
         rospy.loginfo('moving around to find lane')
-        while len(laneDetector.foundLines) != userdata.expectedLanes:
+        while len(laneDetector.foundLines) < userdata.expectedLanes:
             if rospy.is_shutdown(): return 'aborted'
 
-            #TODO: use values related to spin rate
-            goal = PID_Controller.msg.ControllerGoal(
-                heading_setpoint = laneDetector.heading + 10,
-                depth_setpoint = laneDetector.depth,
-                forward_setpoint = 0,
-                sidemove_setpoint = 0)
-
-            actionClient.send_goal(goal)
-            actionClient.wait_for_result(rospy.Duration(4,0))
-            print 'finished goal'
+#            #TODO: use values related to spin rate
+#            goal = PID_Controller.msg.ControllerGoal(
+#                heading_setpoint = laneDetector.heading + 10,
+#                depth_setpoint = laneDetector.depth,
+#                forward_setpoint = 0,
+#                sidemove_setpoint = 0)
+#
+#            actionClient.send_goal(goal)
+#            actionClient.wait_for_result(rospy.Duration(3,0))
+#            print 'done waiting for goal'
 
             rosRate.sleep()
 
+        print 'found a line, steadying heading'
 #        goal = PID_Controller.msg.ControllerGoal(
 #                heading_setpoint = laneDetector.heading,
 #                depth_setpoint = laneDetector.depth,
 #                forward_setpoint = 0,
 #                sidemove_setpoint = 0)
-#        actionClient.send_goal(goal) # Don't wait, just continue
+#        actionClient.send_goal(goal)
+#        actionClient.wait_for_result(rospy.Duration(4,0))
+        print 'done steadying'
 
         return 'foundLane'
 
@@ -347,12 +361,21 @@ class FoundState(smach.State):
         actionClient = actionlib.SimpleActionClient('search', ControllerAction)
         actionClient.wait_for_server()
 
+        # Turn to heading
+        goal = PID_Controller.msg.ControllerGoal(
+                heading_setpoint = userdata.headings[0],
+                depth_setpoint = laneDetector.depth,
+                sidemove_setpoint = 0,
+                forward_setpoint = 0)
+        actionClient.send_goal(goal)
+        actionClient.wait_for_result()
+
+        # Move forward
         goal = PID_Controller.msg.ControllerGoal(
                 heading_setpoint = userdata.headings[0],
                 depth_setpoint = laneDetector.depth,
                 sidemove_setpoint = 0,
                 forward_setpoint = 5)
-
         actionClient.send_goal(goal)
         actionClient.wait_for_result()
 
@@ -364,7 +387,7 @@ class FoundState(smach.State):
 Main
 '''
 if __name__ == '__main__':
-    rospy.init_node('lane_marker_detector', anonymous=True)
+    rospy.init_node('lane_marker_detector', anonymous=False)
     loopRateHz = rospy.get_param('~loopHz', 20)
     imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_color')
     depthTopic = rospy.get_param('~depth', '/depth')
@@ -380,6 +403,7 @@ if __name__ == '__main__':
 
     camdebug = CamDebug('lane_marker_detector', debugOn=DEBUG)
 
+    inputHeading = 0 #TODO: take in the input heading for the previous task
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)
