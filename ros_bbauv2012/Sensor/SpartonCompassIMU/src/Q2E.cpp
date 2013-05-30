@@ -38,10 +38,10 @@ void callBack(const sensor_msgs::Imu::ConstPtr& msg){
     ROS_INFO("AHRS8_Q2E Call Back - Roll, Pitch, Yaw");
     printf("%06.2lf -- %06.2lf -- %06.2lf\n", r, p ,y);
 
-//    if (abs((msg->angular_velocity).z) > max_z_ang_vel) 
+    if (abs((msg->angular_velocity).z) > max_z_ang_vel) 
         max_z_ang_vel = abs((msg->angular_velocity).z);
 
-//  if (abs((msg->angular_velocity).x) > max_x_ang_vel) 
+    if (abs((msg->angular_velocity).x) > max_x_ang_vel) 
         max_x_ang_vel = abs((msg->angular_velocity).x);
 
 

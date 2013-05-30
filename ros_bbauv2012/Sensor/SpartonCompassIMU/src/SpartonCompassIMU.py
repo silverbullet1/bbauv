@@ -207,34 +207,34 @@ if __name__ == '__main__':
                                 Imu_data.orientation = Quaternion()
                                 # orientation
                                 Imu_data.orientation.x = x
-                                Imu_data.orientation.y = -y
+                                Imu_data.orientation.y = y
                                 Imu_data.orientation.z = z
                                 Imu_data.orientation.w = w
                                 
                                 # angular velocity
                                 Imu_data.angular_velocity.x = Gx
-                                Imu_data.angular_velocity.y = -Gy
+                                Imu_data.angular_velocity.y = Gy
                                 Imu_data.angular_velocity.z = Gz
                                 
                                 # acceleration
                                 Imu_data.linear_acceleration.x = Ax
-                                Imu_data.linear_acceleration.y = -Ay
+                                Imu_data.linear_acceleration.y = Ay
                                 Imu_data.linear_acceleration.z = Az
 
                                 # Euler message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 # orientation
                                 imu_data.orientation.x = math.atan2(2. * (w*x + y*z), 1-2. * (x*x + y*y))
-                                imu_data.orientation.y = -math.asin(2. * (w*y - z*x))
+                                imu_data.orientation.y = math.asin(2. * (w*y - z*x))
                                 imu_data.orientation.z = math.pi + math.atan2(2. * (w*z + x*y), 1-2.*(y*y + z*z))
                                 
                                 # angular velocity
                                 imu_data.angular_velocity.x = Gx
-                                imu_data.angular_velocity.y = -Gy
+                                imu_data.angular_velocity.y = Gy
                                 imu_data.angular_velocity.z = Gz
 
                                 # acceleration
                                 imu_data.linear_acceleration.x = Ax
-                                imu_data.linear_acceleration.y = -Ay
+                                imu_data.linear_acceleration.y = Ay
                                 imu_data.linear_acceleration.z = Az
                                 
                                 # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
