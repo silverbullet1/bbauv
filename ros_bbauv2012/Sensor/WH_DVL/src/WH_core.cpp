@@ -320,9 +320,9 @@ void DVL::assignData() {
 
     angX = varLeader.Roll    / 100.0;
     angX = angX * M_PI / 180.0;
-    angY = -varLeader.Pitch  / 100.0;
+    angY = varLeader.Pitch  / 100.0;
     angY = angY * M_PI / 180.0;
-    angZ = -varLeader.Heading/ 100.0;
+    angZ = varLeader.Heading/ 100.0;
     angZ = angZ * M_PI / 180.0;
 
     lastXvel = xvel;
@@ -330,8 +330,8 @@ void DVL::assignData() {
     lastZvel = zvel;
 
     xvel = -botTrack.Velocity[1] / 1000.0;//Forward
-    yvel =  botTrack.Velocity[0] / 1000.0;//Starboard
-    zvel = -botTrack.Velocity[2] / 1000.0;//vertical
+    yvel = -botTrack.Velocity[0] / 1000.0;//Starboard
+    zvel = botTrack.Velocity[2]  / 1000.0;//vertical
 
     botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
 
@@ -349,10 +349,10 @@ void DVL::computeDistance() {
     else {
         x += (xvel + lastXvel) * delta / 2.0;
         y += (yvel + lastYvel) * delta / 2.0;
-        //z += (zvel + lastZvel) * delta / 2.0;
+        z += (zvel + lastZvel) * delta / 2.0;
         //z is changed to altitude
         //z is no longer the integral of the z velocity
-        z = botTrack.Range[0];
+        //z = botTrack.Range[0];
     }
 
     //data to fill in covariance matrix
