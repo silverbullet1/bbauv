@@ -107,16 +107,18 @@ class SearchState(smach.State):
         while len(laneDetector.foundLines) < userdata.expectedLanes:
             if rospy.is_shutdown(): return 'aborted'
 
-#            #TODO: use values related to spin rate
-#            goal = PID_Controller.msg.ControllerGoal(
-#                heading_setpoint = laneDetector.heading + 10,
-#                depth_setpoint = laneDetector.depth,
-#                forward_setpoint = 0,
-#                sidemove_setpoint = 0)
-#
-#            actionClient.send_goal(goal)
+            #TODO: use values related to spin rate
+            goal = PID_Controller.msg.ControllerGoal(
+                heading_setpoint = laneDetector.heading + 10,
+                depth_setpoint = laneDetector.depth,
+                forward_setpoint = 0,
+                sidemove_setpoint = 0)
+
+            actionClient.send_goal(goal)
 #            actionClient.wait_for_result(rospy.Duration(3,0))
-#            print 'done waiting for goal'
+            print 'waiting for goal'
+            actionClient.wait_for_result()
+            print 'done waiting for goal'
 
             rosRate.sleep()
 

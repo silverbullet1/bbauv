@@ -11,14 +11,7 @@ import math
 import numpy as np
 import cv2
 
-
-# Helper function to normalize heading
-def norm_heading(heading):
-    if heading >= 360:
-        return heading - 360
-    if heading < 0:
-        return heading + 360
-    return heading
+from com.utils.utils import norm_heading, to_heading_space
 
 # Helper function to parameterize a ray
 def get_ray(pt, angle):
@@ -36,10 +29,6 @@ def ray_intersection(ray1, ray2):
     t1 = det * (-v2 * xd + u2 * yd)
     t2 = det * (-v1 * xd + u1 * yd)
     return (t1, t2)
-
-# Helper function to convert angles from calculated image space to heading space
-def to_heading_space(angle):
-    return -angle - 90
 
 
 class LaneDetector:
