@@ -18,6 +18,7 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
 from com.camdebug.camdebug import CamDebug
+from com.lane_detector.lane_detector import LaneDetector
 
 from dynamic_reconfigure.server import Server
 from Vision.cfg import LaneMarkerDetectorConfig
@@ -32,35 +33,6 @@ laneDetector = None
 
 params = { 'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0, 'valLow':0, 'valHigh':0, 'contourMinArea':0 } # Dynamic reconfigure params; see LaneMarkerDetector.cfg
 
-
-# Helper function to normalize heading
-def norm_heading(heading):
-    if heading >= 360:
-        return heading - 360
-    if heading < 0:
-        return heading + 360
-    return heading
-
-# Helper function to parameterize a ray
-def get_ray(pt, angle):
-    radians = angle / 180.0 * math.pi
-    u = math.cos(radians)
-    v = math.sin(radians)
-    return ( pt, (u,v) )
-
-# Helper function to get the t's of the intersection of the parameterized rays
-def ray_intersection(ray1, ray2):
-    ((x1, y1), (u1, v1)) = ray1
-    ((x2, y2), (u2, v2)) = ray2
-    det = 1.0 / (u2*v1 - u1*v2)
-    xd, yd = x2 - x1, y2 - y1
-    t1 = det * (-v2 * xd + u2 * yd)
-    t2 = det * (-v1 * xd + u1 * yd)
-    return (t1, t2)
-
-# Helper function to convert angles from calculated image space to heading space
-def to_heading_space(angle):
-    return -angle - 90
 
 # Helper function to draw a histogram image
 def get_hist_img(cv_img):
@@ -80,151 +52,6 @@ def get_hist_img(cv_img):
 
     return histImg
 
-
-# Actual lane marker detection class
-class LaneDetector:
-    # Convert a ROS Image to the Numpy matrix used by cv2 functions
-    def rosimg2cv(self, ros_image):
-        # Convert from ROS Image to old OpenCV image
-        frame = self.cvbridge.imgmsg_to_cv(ros_image, ros_image.encoding)
-        # Convert from old OpenCV image to Numpy matrix
-        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
-
-
-    def __init__(self):
-        self.cvbridge = CvBridge()
-        self.foundLines = []
-        self.frameCallback = None
-        self.inputHeading = 0
-
-        # Initial state
-        self.heading = 0.0
-        self.depth = 0.0
-
-
-    # Callback for subscribing to Image topic
-    def gotRosFrame(self, rosImage):
-        cvimg = self.rosimg2cv(rosImage)
-        self.gotFrame(cvimg)
-
-    # Function that gets called after conversion from ROS Image to OpenCV image
-    def gotFrame(self, cvimg):
-        filteredImg = None
-        cv2.GaussianBlur(cvimg, filteredImg, 3, 0)
-
-        # Find the orange regions
-        imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
-        imghue, imgsat, imgval = cv2.split(imghsv)
-        imghsv = cv2.merge([imghue, cv2.equalizeHist(imgsat), imgval])
-
-        imgBW = np.array(cv2.inRange(imghsv,
-                    np.array([params['hueLow'], params['satLow'], params['valLow']], np.uint8),
-                    np.array([params['hueHigh'], params['satHigh'], params['valHigh']], np.uint8)))
-        imgBW = np.invert(imgBW)
-
-        # Close up the gaps in the detected regions
-        structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (-1,-1))
-        imgBW = cv2.dilate(imgBW, structuringElt)
-        imgBW = cv2.erode(imgBW, structuringElt)
-
-        # Make a copy because findContours modifies the original image
-        imgBW2 = imgBW.copy()
-
-        # Retrieve the contours of the important regions
-        contours, _ = cv2.findContours(imgBW2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        # Find the bounding rects of the contours that are larger than our threshold
-        areaThreshold = params['contourMinArea'] * cvimg.shape[0] * cvimg.shape[1] / 1000
-        contourRects = [cv2.minAreaRect(contour) for contour in
-            filter(
-                lambda contour: cv2.contourArea(contour) >= areaThreshold,
-                contours)
-        ]
-
-        if DEBUG:
-            debugTmp = np.zeros_like(imgBW)
-            debugTmp2 = cv2.merge([debugTmp, debugTmp, debugTmp])
-            debugThresh = imgBW.copy()
-
-        foundLines = []
-
-        # Find lines in each region
-        for rect in contourRects:
-            mask = np.zeros_like(imgBW, dtype=np.uint8)
-            points = np.int32(cv2.cv.BoxPoints(rect))
-            cv2.fillPoly(mask, [points], 255)
-            rectImg = np.bitwise_and(imgBW, mask)
-
-            if DEBUG:
-                debugTmp = np.bitwise_or(rectImg, debugTmp)
-
-            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, 80, None, 60, 10)
-
-            # Find median gradient of lines
-            # Store as (x,y) (centre of box), angle (orientation of box)
-            gradient = 0
-            if lines != None:
-                gradients = [math.atan2(endy-starty, endx-startx)
-                                for startx, starty, endx, endy in lines[0]]
-                gradient = np.median(gradients)
-
-                angle = np.rad2deg(gradient)
-
-                # Correct angle based on the input heading (always go away from the last task)
-                if 90 < abs(inputHeading - norm_heading(self.heading+to_heading_space(angle))) < 270:
-                    angle += (180 if angle < 0 else - 180)
-
-                # Try to correct the angles if we have more lines to test against
-                if len(foundLines) > 0:
-                    if abs(foundLines[0]['angle'] - angle) < 0.0005 or abs(180 - abs(foundLines[0]['angle'] - angle)) < 0.0005:
-                        angle = foundLines[0]['angle']
-                    else:
-                        # Construct rays from the centres of the boxes
-                        ray1 = get_ray(foundLines[0]['pos'], foundLines[0]['angle'])
-                        ray2 = get_ray(rect[0], angle)
-                        (t1, t2) = ray_intersection(ray1, ray2)
-
-                        if t2 > 0:
-                            angle += (180 if angle < 0 else -180)
-                        if t1 > 0:
-                            foundLines[0]['angle'] += (180 if foundLines[0]['angle'] < 0 else -180)
-
-                foundLines.append({'pos':rect[0], 'angle':angle})
-
-                if DEBUG:
-                    # Draw bounding rect
-                    for i in range(4):
-                        # The line function doesn't accept floating point values
-                        pt1 = (points[i][0], points[i][1])
-                        pt2 = (points[(i+1)%4][0], points[(i+1)%4][1])
-                        cv2.line(debugTmp2, pt1, pt2, (0,0,255), 1)
-
-        for line in foundLines:
-            line['heading'] = norm_heading(self.heading + to_heading_space(line['angle']))
-
-        self.foundLines = foundLines
-        if self.frameCallback:
-            self.frameCallback()
-
-        # Screens for debugging
-        if DEBUG:
-            for i,line in enumerate(foundLines):
-                # Draw a debug line
-                startpt = line['pos']
-                gradient = np.deg2rad(line['angle'])
-                endpt = (int(startpt[0] + 100 * math.cos(gradient)), int(startpt[1] + 100 * math.sin(gradient)))
-                startpt = (int(startpt[0]), int(startpt[1]))
-                cv2.line(debugTmp2, startpt, endpt, (255,0,0), 2)
-
-            imgDebug = np.bitwise_xor(cv2.merge([debugTmp, debugTmp, debugTmp]), debugTmp2)
-            camdebug.publishImage('hsv', imghsv)
-            camdebug.publishImage('thresh', debugThresh)
-            camdebug.publishImage('bw', imgDebug)
-
-    # Callbacks
-    def gotHeading(self, msg):
-        self.heading = msg.yaw
-    def gotDepth(self, msg):
-        self.depth = msg.depth
 
 
 class MedianFilter:
@@ -262,12 +89,13 @@ class SearchState(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['foundLane', 'aborted'],
-                             input_keys=['expectedLanes'],
-                             output_keys=['expectedLanes'])
+                             input_keys=['expectedLanes', 'inputHeading'],
+                             output_keys=['expectedLanes', 'inputHeading'])
 
     def execute(self, userdata):
         global laneDetector
-        laneDetector = LaneDetector()
+        laneDetector = LaneDetector(params, camdebug)
+        laneDetector.inputHeading = userdata.inputHeading
 
 #        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
 #        print 'wait'
@@ -308,8 +136,8 @@ class ConfirmingState(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['confirmed', 'searchAgain', 'aborted'],
-                             input_keys=['expectedLanes'],
-                             output_keys=['expectedLanes', 'headings'])
+                             input_keys=['expectedLanes', 'inputHeading'],
+                             output_keys=['expectedLanes', 'inputHeading', 'headings'])
 
     def execute(self, userdata):
         self.headings = []
@@ -318,7 +146,8 @@ class ConfirmingState(smach.State):
             self.medianFilters.append(MedianFilter())
 
         global laneDetector
-        laneDetector = LaneDetector()
+        laneDetector = LaneDetector(params, camdebug)
+        laneDetector.inputHeading = userdata.inputHeading
 
         self.status = 'started'
 
@@ -416,6 +245,7 @@ if __name__ == '__main__':
 
     sm = smach.StateMachine(outcomes=['attempting', 'succeeded', 'aborted'])
     sm.userdata.expectedLanes = expectedLanes
+    sm.userdata.inputHeading = inputHeading
     with sm:
         smach.StateMachine.add('SearchState', SearchState(),
                                 transitions={'foundLane': 'ConfirmingState',
