@@ -22,6 +22,7 @@ public:
 	double actuatorConstrain(double val);
 	double computePID(double setpoint, double input);
 	double wrapAngle360(double error, double heading);
+	void clearIntegrator();
 	virtual ~bbPID();
 private:
 	//User parameters

@@ -23,8 +23,8 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 	_heading_input = 0.0;
 	_depth_input = 0.0;
 
-	MIN_FORWARD = 0.05;
-	MIN_SIDEMOVE = 0.05;
+	MIN_FORWARD = 0.10;
+	MIN_SIDEMOVE = 0.10;
 	MIN_HEADING = 1.0;
 	MIN_DEPTH = 0.01;
 	as_.start();
@@ -49,7 +49,7 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
 		// publish info to the console for the user
-		//ROS_INFO("error: %f",fabs(goal->heading_setpoint - _heading_input) );
+		//ROS_INFO("error: %f", _forward_input);
 
 		// check that preempt has not been requested by the client
 		if (as_.isPreemptRequested() || !ros::ok())
@@ -60,36 +60,36 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 			success = false;
 		}
 
-		if(fabs(goal->forward_setpoint - _forward_input) < MIN_FORWARD)
+		if(fabs(goal_.forward_setpoint - _forward_input) < MIN_FORWARD)
 		{
 			isForwardDone = true;
-			//ROS_INFO("isForwardDone");
+			ROS_INFO("isForwardDone");
 		}
 
-		if(fabs(goal->sidemove_setpoint - _sidemove_input) < MIN_SIDEMOVE)
+		if(fabs(goal_.sidemove_setpoint - _sidemove_input) < MIN_SIDEMOVE)
 		{
 			isSidemoveDone = true;
-			//ROS_INFO("isSidemoveDone");
+			ROS_INFO("isSidemoveDone");
 		}
 
-		if(fabs(goal->depth_setpoint - _depth_input) < MIN_DEPTH)
+		if(fabs(goal_.depth_setpoint - _depth_input) < MIN_DEPTH)
 		{
 			isDepthDone = true;
-			//ROS_INFO("isDepthDone");
+			ROS_INFO("isDepthDone");
 		}
 
-		if(fabs(goal->heading_setpoint - _heading_input) < MIN_HEADING)
+		if(fabs(goal_.heading_setpoint - _heading_input) < MIN_HEADING)
 		{
 			isHeadingDone = true;
-			//ROS_INFO("isHeadingDone");
+			ROS_INFO("isHeadingDone");
 		}
 		//Update Feedback
-		//feedback_.forward_error = 1000;
-		//feedback_.depth_error = 1000;
-		//feedback_.sidemove_error = 1000;
-		//feedback_.heading_error = 1000;
- 		// publish the feedback
-		//as_.publishFeedback(feedback_);
+		feedback_.forward_error = fabs(goal_.forward_setpoint - _forward_input);
+		feedback_.depth_error =fabs(goal_.depth_setpoint - _depth_input) ;
+		feedback_.sidemove_error = fabs(goal_.sidemove_setpoint - _sidemove_input) ;
+		feedback_.heading_error = fabs(goal_.heading_setpoint - _heading_input);
+ 		//publish the feedback
+		as_.publishFeedback(feedback_);
 		// this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
 		r.sleep();
 	}

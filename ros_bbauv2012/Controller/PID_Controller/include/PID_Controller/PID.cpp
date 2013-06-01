@@ -98,6 +98,11 @@ double  bbPID::actuatorConstrain(double val)
 
 	return constrain_val;
 }
+
+void bbPID::clearIntegrator()
+{
+	integral = 0;
+}
 bbPID::~bbPID() {
 	// TODO Auto-generated destructor stub
 }

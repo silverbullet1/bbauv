@@ -1,6 +1,8 @@
 #!/bin/sh
 #cd ~/fuerte_workspace/bbauv/ros_bbauv2012/
-echo "Launching Remote BBAUV System..."
+echo "Connected to Remote AUV System."
+sleep 1
+echo "Launching Bumblebee AUV Systems..."
 tmux start-server
 tmux new-session -d -s bbauv
 tmux rename-window 'Scripts'

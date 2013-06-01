@@ -29,6 +29,9 @@ const static int PSI30 = 206842;
 const static int PSI100 = 689475;
 const static int ATM = 99974; //Pascals or 14.5PSI
 
+//Navigation Constants
+float az = 0.0;
+
 bbauv_msgs::controller ctrl;
 bbauv_msgs::thruster thrusterSpeed;
 bbauv_msgs::depth depthReading;
@@ -37,13 +40,14 @@ nav_msgs::Odometry odom_data;
 double depth_offset = 0;
 
 //State Machines
-bool inTopside,inTeleop;
+bool inTopside,inTeleop,inHovermode = false, oldHovermode = false;
 bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID,inPitchPID;
 bool inNavigation;
 bool inVisionTracking;
 
 /**********************Function Prototypes**********************************/
-void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
+void collectPosition(const nav_msgs::Odometry::ConstPtr& msg);
+void collectNavVel(const geometry_msgs::Twist::ConstPtr& msg);
 void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
@@ -57,12 +61,14 @@ double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 ros::Publisher thrusterPub;
 ros::Publisher depthPub;
 ros::Publisher orientationPub;
+ros::Publisher controllerPub;
 /**********************Subscriber**********************************/
 ros::Subscriber orientationSub;
 ros::Subscriber pressureSub;
 ros::Subscriber teleopSub;
 ros::Subscriber autonomousSub;
 ros::Subscriber velocitySub;
+ros::Subscriber navigationVelSub;
 
 /**********************Action Server**********************************/
 
@@ -74,6 +80,7 @@ bbauv::bbPID depthPID("d",1.2,0,0,20);
 bbauv::bbPID headingPID("h",1.2,0,0,20);
 bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
+bbauv::bbPID angularVelocityPID("av",1.2,0,0,20);
 
 NavUtils navHelper;
 
@@ -94,11 +101,12 @@ int main(int argc, char **argv)
 	thrusterPub = nh.advertise<bbauv_msgs::thruster>("/thruster_speed", 1000);
 	depthPub = nh.advertise<bbauv_msgs::depth>("/depth",1000);
 	orientationPub = nh.advertise<bbauv_msgs::compass_data>("/euler",1000);
+	controllerPub = nh.advertise<bbauv_msgs::controller>("/controller_points",1000);
 
 	//Initialize Subscribers
-
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
-	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
+	//navigationVelSub = nh.subscribe("/cmd_vel",1000,collectNavVel);
+	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectPosition);
 	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
@@ -123,22 +131,49 @@ int main(int argc, char **argv)
 	{
 		/* To enable PID
 		  Autonomous Control only if not in Topside state*/
+		if(inHovermode && inTopside && oldHovermode != inHovermode)
+		{
+			ctrl.forward_setpoint = ctrl.forward_input;
+			ctrl.sidemove_setpoint = ctrl.sidemove_input;
+			ctrl.heading_setpoint = ctrl.heading_input;
+			oldHovermode = inHovermode;
+		}
 		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
-		else headingPID_output = 0;
-		ROS_INFO("%f, %f",ctrl.depth_setpoint,ctrl.depth_input);
+		else
+		{
+			headingPID_output = 0;
+			headingPID.clearIntegrator();
+		}
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
-		else depthPID_output = 0;
+		else
+		{
+			depthPID_output = 0;
+			depthPID.clearIntegrator();
+		}
 		if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
-		else forwardPIDoutput = 0;
+		else
+		{
+			forwardPIDoutput = 0;
+			forwardPID.clearIntegrator();
+		}
 		if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
-		else sidemovePID_output = 0;
+		else
+		{
+			sidemovePID_output = 0;
+			sidemovePID.clearIntegrator();
+		}
 		if(inPitchPID) pitchPID_output = pitchPID.computePID(ctrl.pitch_setpoint,ctrl.pitch_input);
-		else pitchPID_output = 0;
+		else
+		{
+			pitchPID_output = 0;
+			pitchPID.clearIntegrator();
+		}
+
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
 		/*Update Action Server Positions*/
-		if(!inNavigation)
+		if(!inNavigation && !inTopside)
 		{
 			ctrl.forward_setpoint = as.getForward();
 			ctrl.sidemove_setpoint = as.getSidemove();
@@ -149,6 +184,7 @@ int main(int argc, char **argv)
 		}
 
 		thrusterPub.publish(thrusterSpeed);
+		controllerPub.publish(ctrl);
 
 		ros::spinOnce();
 		loop_rate.sleep();
@@ -168,10 +204,10 @@ double getHeadingPIDUpdate()
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
     {
-      thrusterSpeed.speed1=-headingPID_output-forwardPID_output-sidemovePID_output + manual_speed[0];
-      thrusterSpeed.speed2=headingPID_output+forwardPID_output-sidemovePID_output + manual_speed[1];
-      thrusterSpeed.speed3=headingPID_output-forwardPID_output+sidemovePID_output + manual_speed[2];
-      thrusterSpeed.speed4=-headingPID_output+forwardPID_output+sidemovePID_output + manual_speed[3];
+      thrusterSpeed.speed1=-headingPID_output-forwardPID_output + sidemovePID_output + manual_speed[0];
+      thrusterSpeed.speed2=headingPID_output+forwardPID_output + sidemovePID_output + manual_speed[1];
+      thrusterSpeed.speed3=headingPID_output-forwardPID_output - sidemovePID_output + manual_speed[2];
+      thrusterSpeed.speed4=-headingPID_output+forwardPID_output - sidemovePID_output + manual_speed[3];
     }
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
@@ -201,6 +237,8 @@ void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
 	double q3 = (msg->orientation).z;
 
 	ctrl.heading_input =  360 - (navHelper.quaternionToYaw(q0,q1,q2,q3) + 180);
+	//orientationAngles.Az = msg->angular_velocity.z;
+	//ctrl.heading_input = msg-> angular_velocity.z;
 	ctrl.pitch_input = 360 - (navHelper.quaternionToPitch(q0,q1,q2,q3) + 180);
 	orientationAngles.yaw = ctrl.heading_input;
 	orientationAngles.pitch = ctrl.pitch_input;
@@ -212,17 +250,17 @@ void collectPressure(const std_msgs::Int16& msg)
 {
 	//double pressure = fmap(msg.data, 5340,26698,0,PSI30);
 	double pressure = 3*(double) msg.data/2048 - 7.5; //In PSI
-	pressure*= 6895; //Convert to Pascals
+	pressure*= 6895 + ATM; //Convert to Pascals
 	double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;
 	depthReading.pressure = pressure;
 	depthPub.publish(depthReading);
 }
-void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg)
+void collectPosition(const nav_msgs::Odometry::ConstPtr& msg)
 {
-	ctrl.forward_input = msg->pose.pose.position.x;
-	ctrl.sidemove_input = msg->pose.pose.position.y;
+		ctrl.forward_input = msg->pose.pose.position.x;
+		ctrl.sidemove_input = msg->pose.pose.position.y;
 }
 
 /*****************Helper Functions*********************/
@@ -252,6 +290,16 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 	}
 }
 
+void collectNavVel(const geometry_msgs::Twist::ConstPtr& msg)
+{
+	if(inNavigation)
+	{
+		ctrl.forward_setpoint = msg->linear.x;
+		ctrl.sidemove_setpoint = msg->linear.y;
+		ctrl.heading_setpoint  = msg->angular.z;
+	}
+
+}
 void collectAutonomous(const bbauv_msgs::controller & msg)
 {
 	if(inNavigation)
@@ -272,22 +320,19 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inSidemovePID = config.sidemove_PID;
   inPitchPID = config.pitch_PID;
   inNavigation = config.navigation;
+  inHovermode = config.hovermode;
 
   ctrl.heading_setpoint = config.heading_setpoint;
   ctrl.depth_setpoint = config.depth_setpoint;
   ctrl.sidemove_setpoint = config.sidemove_setpoint;
   ctrl.forward_setpoint = config.forward_setpoint;
   ctrl.pitch_setpoint = config.pitch_setpoint;
+
   depthPID.setKp(config.depth_Kp);
   depthPID.setTi(config.depth_Ti);
   depthPID.setTd(config.depth_Td);
   depth_offset = config.depth_offset;
   depthPID.setActuatorSatModel(config.depth_min,config.depth_max);
-
-  headingPID.setKp(config.heading_Kp);
-  headingPID.setTi(config.heading_Ti);
-  headingPID.setTd(config.heading_Td);
-  headingPID.setActuatorSatModel(config.heading_min,config.heading_max);
 
   forwardPID.setKp(config.forward_Kp);
   forwardPID.setTi(config.forward_Ti);
@@ -302,5 +347,10 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   pitchPID.setTd(config.pitch_Td);
   pitchPID.setTi(config.pitch_Ti);
   pitchPID.setActuatorSatModel(config.pitch_min,config.pitch_max);
-}
+
+  headingPID.setKp(config.heading_Kp);
+  headingPID.setTi(config.heading_Ti);
+  headingPID.setTd(config.heading_Td);
+  headingPID.setActuatorSatModel(config.heading_min,config.heading_max);
+  }
 
