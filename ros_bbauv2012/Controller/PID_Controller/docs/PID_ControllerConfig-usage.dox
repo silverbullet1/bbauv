@@ -9,6 +9,7 @@
   <param name="pitch_PID" type="bool" value="False" />
   <param name="teleop" type="bool" value="True" />
   <param name="topside" type="bool" value="True" />
+  <param name="hovermode" type="bool" value="False" />
   <param name="depth_setpoint" type="double" value="0.0" />
   <param name="heading_setpoint" type="double" value="0.0" />
   <param name="forward_setpoint" type="double" value="0.0" />
@@ -25,21 +26,26 @@
   <param name="pitch_Td" type="double" value="130.0" />
   <param name="pitch_min" type="int" value="-800" />
   <param name="pitch_max" type="int" value="800" />
-  <param name="heading_Kp" type="double" value="15.0" />
-  <param name="heading_Ti" type="double" value="0.0" />
-  <param name="heading_Td" type="double" value="300.0" />
-  <param name="heading_min" type="int" value="-817" />
-  <param name="heading_max" type="int" value="817" />
-  <param name="forward_Kp" type="double" value="1200.0" />
+  <param name="heading_Kp" type="double" value="20.0" />
+  <param name="heading_Ti" type="double" value="7000.0" />
+  <param name="heading_Td" type="double" value="3500.0" />
+  <param name="heading_min" type="int" value="-820" />
+  <param name="heading_max" type="int" value="820" />
+  <param name="forward_Kp" type="double" value="1500.0" />
   <param name="forward_Ti" type="double" value="0.0" />
-  <param name="forward_Td" type="double" value="0.0" />
-  <param name="forward_min" type="int" value="-1634" />
-  <param name="forward_max" type="int" value="1634" />
+  <param name="forward_Td" type="double" value="1100.0" />
+  <param name="forward_min" type="int" value="-2000" />
+  <param name="forward_max" type="int" value="2000" />
   <param name="sidemove_Kp" type="double" value="8000.0" />
   <param name="sidemove_Ti" type="double" value="0.0" />
   <param name="sidemove_Td" type="double" value="1000.0" />
-  <param name="sidemove_min" type="int" value="-817" />
-  <param name="sidemove_max" type="int" value="817" />
+  <param name="sidemove_min" type="int" value="-400" />
+  <param name="sidemove_max" type="int" value="400" />
+  <param name="aVel_Kp" type="double" value="1.2" />
+  <param name="aVel_Ti" type="double" value="0.0" />
+  <param name="aVel_Td" type="double" value="0.0" />
+  <param name="aVel_min" type="int" value="-400" />
+  <param name="aVel_max" type="int" value="400" />
 </node>
 \endverbatim
 
