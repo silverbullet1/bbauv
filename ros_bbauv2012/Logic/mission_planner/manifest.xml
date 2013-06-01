@@ -1,0 +1,18 @@
+<package>
+  <description brief="mission_planner">
+
+     mission_planner
+
+  </description>
+  <author>Goh Eng Wei</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/mission_planner</url>
+  <depend package="std_msgs"/>
+  <depend package="bbauv_msgs"/>
+  <depend package="dynamic_reconfigure"/>
+  <depend package="smach_ros"/>
+  <depend package="smach"/>
+</package>
+
+
