@@ -1,0 +1,17 @@
+<package>
+  <description brief="acoustic_TDOA">
+
+     acoustic_TDOA
+
+  </description>
+  <author>SEARCHER</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/acoustic_TDOA</url>
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
+  <depend package="bbauv_msgs"/>
+
+</package>
+
+
