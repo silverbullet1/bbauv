@@ -1,0 +1,8 @@
+bool forward
+bool sidemove
+bool heading
+bool depth
+bool pitch
+bool topside
+---
+bool complete
