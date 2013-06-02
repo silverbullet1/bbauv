@@ -1,7 +1,8 @@
 #node search request
 bool search_request
 #node task complete request
-controller task_complete_request
+bool task_complete_request
+controller task_complete_ctrl
 ---
 #node search response
 bool search_response

@@ -1,5 +1,7 @@
 #start vision node request
+bool start_request
 controller start_ctrl
+
 #abort vision node request
 bool abort_request
 ---

@@ -22,6 +22,7 @@ from sensor_msgs.msg import Image
 from bbauv_msgs.msg import controller_input
 from numpy.numarray.numerictypes import Float
 from com.histogram.histogram import bbHistogram
+from bbauv_msgs.msg._controller import controller
 
 class Gate:
     light = 0
@@ -33,7 +34,19 @@ class Gate:
     client = None;
     centroidx = list();
     centroidy = list();
+    bridge = None
+     # Convert a ROS Image to the Numpy matrix used by cv2 functions
+    def rosimg2cv(self, ros_image):
+        # Convert from ROS Image to old OpenCV image
+        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        # Convert from old OpenCV image to Numpy matrix
+        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
+    
+    
     def __init__(self):
+        imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_color')
+        cv2.namedWindow("Gate Settings",cv2.CV_WINDOW_AUTOSIZE)
+        image_sub = rospy.Subscriber(imageTopic, Image,self.computeImageCallback)
         bridge = CvBridge()
         self.image_pub2 = rospy.Publisher("/Vision/Gate/image_thres",Image)
         histClass = bbHistogram()
@@ -44,14 +57,21 @@ class Gate:
             return setter
         cv2.createTrackbar("Kp constant:", "Gate Settings", self.params['Kp'], 1000, paramSetter('Kp'));
         cv2.createTrackbar("Vmax:", "Gate Settings", self.params['Vmax'], 100, paramSetter('Vmax')); #in m/second
-
+    
     def calcCentroid(self,moments):
         return moments['mu01']/moments['mu00']
     def calcVelocity(self,pos,imgCenter):
         error = imgCenter - pos
         correction = self.params['Kp']
         return correction
-    def computeImageCallback(self,cv_image):
+       
+    def computeImageCallback(self,data):
+        try:
+            cv_image = self.rosimg2cv(data)
+        #cv2.imshow("Actual image", cv_image)   
+        except CvBridgeError, e:
+            print e
+
         self.rows, self.cols, val = cv_image.shape
         cv_image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
         cv_image = np.array(cv_image,dtype=np.uint8)
@@ -110,8 +130,11 @@ class Search(smach.State):
         
     def execute(self,userdata):
         rospy.loginfo('Executing state SEARCH')
-        while(len(gate.centroidx) != 2):
+        while(len(gate.centroidx) != 2 or not rospy.is_shutdown()):
             r.sleep()
+        if rospy.is_shutdown:
+            print "shutting down!"
+            rospy.signal_shutdown()
         return 'search_complete'
 
 class MotionControlProcess(smach.State):
@@ -123,55 +146,50 @@ class MotionControlProcess(smach.State):
                              input_keys=['movement_success_in'])
     def execute(self,userdata):
         rospy.loginfo('Executing state VISION_PROCESSING')
-        while(len(gate.centroidx) != 2):
+        while(len(gate.centroidx) != 2 or not rospy.is_shutdown()):
             r.sleep()
-        #gate.target
-        
-        goal = PID_Controller.msg.ControllerAction
+            
+        goal = bbauv_msgs.msg.ControllerAction
         goal.depth_setpoint = 0
         goal.forward_setpoint = 1
-        #goal.heading_setpoint = 
+            #goal.heading_setpoint = 
         return 'sub_task_complete'
-            #return 'vision_processed'
 
 class Disengage(smach.State):
     isStart = False
     isEnd = False
+    global locomotionGoal
     def handle_srv(self,req):
-        self.isStart = True
-        if(req.ctrl==None):
-            rospy.loginfo("None received!")
-        print req
-        return mission_to_visionResponse(self.isStart)
+        
+        if req.start_request:
+            self.isStart = True
+            # Format for service: start_response, abort_response
+            locomotionGoal.depth_setpoint = req.start_ctrl.depth_setpoint
+        
+        if req.abort_request:
+            isAbort = False
+        
+        return mission_to_visionResponse(self.isStart,False)
     def __init__(self):
         smach.State.__init__(self, outcomes=['start_complete','complete_outcome'])
     def execute(self,userdata):
+        #Service Server
+        if self.preempt_requested():
+            print "pre-empt!"
+        srvServer = rospy.Service('gate_srv', mission_to_vision, self.handle_srv)
+        rospy.loginfo('gate_srv initialized!')
+        
         #Service Client
         rospy.wait_for_service('mission_srv')
         mission_srv = rospy.ServiceProxy('mission_srv', mission_to_vision)
-        resp = mission_srv(ctrl,None)
-        #Service Server
-        s = rospy.Service('gate_srv', mission_to_vision, self.handle_srv)
-        while(True):
+        rospy.loginfo('connected to mission_srv!')
+        #resp = mission_srv(ctrl,None)
+        
+        while(not rospy.is_shutdown()):
             if self.isStart:
                 return 'start_complete'
             if self.isEnd:
                 return 'complete_outcome'
-
-
-# Convert a ROS Image to the Numpy matrix used by cv2 functions
-def rosimg2cv(self, ros_image):
-    # Convert from ROS Image to old OpenCV image
-    frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
-    # Convert from old OpenCV image to Numpy matrix
-    return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
-
-def callback(self,data):
-    try:
-        image = self.rosimg2cv(data)
-            #cv2.imshow("Actual image", cv_image)   
-    except CvBridgeError, e:
-            print e
 
 '''
     GLOBAL VARIABLES
@@ -181,14 +199,13 @@ x = 100
 gate = None
 image = None
 r = None
+isAbort = False
+locomotionGoal = controller()
+
 if __name__ == '__main__':
     rospy.init_node('Gate', anonymous=True)
     r = rospy.Rate(20)
-    imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_rect_color')
     gate = Gate()
-    cv2.namedWindow("Gate Settings",cv2.CV_WINDOW_AUTOSIZE)
-    image_sub = rospy.Subscriber(imageTopic, Image,gate.computeImageCallback)
-    
     #Initialize State Machine
     rospy.loginfo('Executing SM')
     sm_top = smach.StateMachine(outcomes=['gate_complete'])

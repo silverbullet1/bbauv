@@ -23,6 +23,9 @@
 #include <PID_Controller/ControllerAction.h>
 #include <ControllerActionServer/ControllerActionServer.h>
 #include <geometry_msgs/Twist.h>
+#include <bbauv_msgs/imu_data.h>
+#define _USE_MATH_DEFINES // for C++
+#include <math.h>
 
 const static int loop_frequency = 20;
 const static int PSI30 = 206842;
@@ -46,9 +49,8 @@ bool inNavigation;
 bool inVisionTracking;
 
 /**********************Function Prototypes**********************************/
-void collectPosition(const nav_msgs::Odometry::ConstPtr& msg);
-void collectNavVel(const geometry_msgs::Twist::ConstPtr& msg);
-void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg);
+void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
+void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
 void collectAutonomous(const bbauv_msgs::controller & msg);
@@ -105,9 +107,8 @@ int main(int argc, char **argv)
 
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
-	//navigationVelSub = nh.subscribe("/cmd_vel",1000,collectNavVel);
-	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectPosition);
-	orientationSub = nh.subscribe("/AHRS8_data",1000,collectOrientation);
+	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
+	orientationSub = nh.subscribe("/AHRS8_data_e",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
 	dynamic_reconfigure::Server <PID_Controller::PID_ControllerConfig> server;
@@ -143,7 +144,8 @@ int main(int argc, char **argv)
 		{
 			headingPID_output = 0;
 			headingPID.clearIntegrator();
-		}
+			}
+		//ROS_INFO("%f, %f",ctrl.depth_setpoint,ctrl. 	depth_input);
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
 		else
 		{
@@ -155,7 +157,7 @@ int main(int argc, char **argv)
 		{
 			forwardPIDoutput = 0;
 			forwardPID.clearIntegrator();
-		}
+			}
 		if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
 		else
 		{
@@ -168,7 +170,6 @@ int main(int argc, char **argv)
 			pitchPID_output = 0;
 			pitchPID.clearIntegrator();
 		}
-
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
@@ -204,10 +205,10 @@ double getHeadingPIDUpdate()
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
     {
-      thrusterSpeed.speed1=-headingPID_output-forwardPID_output + sidemovePID_output + manual_speed[0];
-      thrusterSpeed.speed2=headingPID_output+forwardPID_output + sidemovePID_output + manual_speed[1];
-      thrusterSpeed.speed3=headingPID_output-forwardPID_output - sidemovePID_output + manual_speed[2];
-      thrusterSpeed.speed4=-headingPID_output+forwardPID_output - sidemovePID_output + manual_speed[3];
+      thrusterSpeed.speed1=-headingPID_output-forwardPID_output+sidemovePID_output + manual_speed[0];
+      thrusterSpeed.speed2=headingPID_output+forwardPID_output+sidemovePID_output + manual_speed[1];
+      thrusterSpeed.speed3=headingPID_output-forwardPID_output-sidemovePID_output + manual_speed[2];
+      thrusterSpeed.speed4=-headingPID_output+forwardPID_output-sidemovePID_output + manual_speed[3];
     }
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
@@ -229,21 +230,13 @@ void collectInput(const bbauv_msgs::controller &msg)
 {
 
 }
-void collectOrientation(const sensor_msgs::Imu::ConstPtr& msg)
+void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg)
 {
-	double q0 = (msg->orientation).w;
-	double q1 = (msg->orientation).x;
-	double q2 = (msg->orientation).y;
-	double q3 = (msg->orientation).z;
-
-	ctrl.heading_input =  360 - (navHelper.quaternionToYaw(q0,q1,q2,q3) + 180);
-	//orientationAngles.Az = msg->angular_velocity.z;
-	//ctrl.heading_input = msg-> angular_velocity.z;
-	ctrl.pitch_input = 360 - (navHelper.quaternionToPitch(q0,q1,q2,q3) + 180);
+	ctrl.heading_input =  msg->orientation.z*180/M_PI;
+	ctrl.pitch_input = msg->orientation.y*180/M_PI;
 	orientationAngles.yaw = ctrl.heading_input;
 	orientationAngles.pitch = ctrl.pitch_input;
 	orientationPub.publish(orientationAngles);
-	//cout<<ctrl.pitch_input<<endl;
 }
 
 void collectPressure(const std_msgs::Int16& msg)

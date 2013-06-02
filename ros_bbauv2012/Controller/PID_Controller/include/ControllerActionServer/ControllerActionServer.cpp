@@ -44,7 +44,7 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 	// push_back the seeds for the fibonacci sequence
 	//feedback_.forward_error = 1000;
 
-	ROS_INFO("Goal received - f: %f, s: %f,h: %f, d: %f" , goal_.forward_setpoint,
+	ROS_INFO("Action Server Goal received - f: %f, s: %f,h: %f, d: %f" , goal_.forward_setpoint,
 			goal_.sidemove_setpoint, goal_.heading_setpoint,goal_.depth_setpoint);
 	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
@@ -54,7 +54,7 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 		// check that preempt has not been requested by the client
 		if (as_.isPreemptRequested() || !ros::ok())
 		{
-			ROS_INFO("%s: Preempted", action_name_.c_str());
+			ROS_DEBUG("%s: Preempted", action_name_.c_str());
 			// set the action state to preempted
 			as_.setPreempted();
 			success = false;
@@ -63,13 +63,13 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 		if(fabs(goal_.forward_setpoint - _forward_input) < MIN_FORWARD)
 		{
 			isForwardDone = true;
-			ROS_INFO("isForwardDone");
+			ROS_DEBUG("isForwardDone");
 		}
 
 		if(fabs(goal_.sidemove_setpoint - _sidemove_input) < MIN_SIDEMOVE)
 		{
 			isSidemoveDone = true;
-			ROS_INFO("isSidemoveDone");
+			ROS_DEBUG("isSidemoveDone");
 		}
 
 		if(fabs(goal_.depth_setpoint - _depth_input) < MIN_DEPTH)
@@ -81,7 +81,7 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 		if(fabs(goal_.heading_setpoint - _heading_input) < MIN_HEADING)
 		{
 			isHeadingDone = true;
-			ROS_INFO("isHeadingDone");
+			ROS_DEBUG("isHeadingDone");
 		}
 		//Update Feedback
 		feedback_.forward_error = fabs(goal_.forward_setpoint - _forward_input);
@@ -102,8 +102,13 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 			result_.depth_final = _depth_input;
 
 		 	ROS_INFO("%s: Succeeded", action_name_.c_str());
-		 	as_.setSucceeded(result_);
 		 	// set the action state to succeeded
+		 	as_.setSucceeded(result_);
+
+	    } else
+	    {
+	    	//ROS_INFO("%s: Aborted", action_name_.c_str());
+	    	//as_.setAborted(result_);
 	    }
 }
 

@@ -16,12 +16,16 @@ class Start(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['start_complete'])
     def execute(self,userdata):
+        #include countdown
         rospy.loginfo('Executing state START')
         return 'start_complete'
 
 class Gate(smach.State):
     client = None
     goal = None
+    isSearchDone = False
+    isTaskComplete = False
+    isAbort = False
     def __init__(self):
         smach.State.__init__(self, outcomes=['gate_complete'])
     
@@ -29,15 +33,18 @@ class Gate(smach.State):
         self.isStart = True
         return sm_startResponse(self.isStart)
        
-    def doneCB(self,state,result):
-        print "I'm done!"
-        print result.forward_final;
-        print result.heading_final;
-        print result.sidemove_final;
-        self.client.send_goal(self.goal,self.doneCB)
+    def doneCB(self,status,result):
+        
+        #print result.forward_final;
+        #print result.heading_final;
+        #print result.sidemove_final;
+        if status == actionlib.GoalStatus.SUCCEEDED:
+            self.client.send_goal(self.goal,self.doneCB)
+        elif status == actionlib.GoalStatus.PREEMPTED:
+            rospy.loginfo(str(rospy.get_name()) + "Nav PREEMPTED.")
     
     def handle_srv(self,req):
-        return   
+        return vision_to_missionResponse(self.isStart)   
     def execute(self,userdata):
         rospy.loginfo('Executing state GATE')
         #s = rospy.Service('search_gate_node', sm_search, self.handle_search_node)
@@ -49,28 +56,40 @@ class Gate(smach.State):
         # Sends the goal to the action server.
         self.client.send_goal(self.goal,self.doneCB)
         rospy.loginfo("Goal sent. Vehicle moving forward towards Gate Task")
+        #Service Server
+        srvServer = rospy.Service('mission_srv', vision_to_mission, self.handle_srv)
+        rospy.loginfo('mission_srv initialized!')
+        
         try:
             ctrl = controller()
-            ctrl.depth_setpoint = 0.3
+            ctrl.depth_setpoint = 0.5
             '''
                 Service declaration
                 ### Mission to Vision
                 
-                
                 ### Vision to Mission
             
             '''
+            
             #Service Client 
+            rospy.loginfo('Waiting for gate_srv to start up...')
             rospy.wait_for_service('gate_srv')
             gate_srv = rospy.ServiceProxy('gate_srv', mission_to_vision)
-            resp = gate_srv(ctrl,None)
-            #Service Server
-            srvServer = rospy.Service('mission_srv', vision_to_mission, self.handle_srv)
+            rospy.loginfo('connected to gate_srv!')
+            # Format for service: start_request, start_ctrl, abort_request
             
+            #Start up Gate Node
+            rospy.loginfo('Starting up Gate Node.')
+            resp = gate_srv(True,ctrl,None)
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
-           # if (resp):
-            
+        while(not rospy.is_shutdown()):
+            if self.isSearchDone:
+                self.client.cancel_all_goals()
+            if self.isAbort:
+                pass
+            if self.isTaskComplete:
+                pass
             
         return 'gate_complete'
 
@@ -81,8 +100,13 @@ class Lane_Gate(smach.State):
         rospy.loginfo('Executing state LANE_GATE')
         return 'lane_complete'
     
+class Mission_planner():
+    def __init__(self):
+        pass
+    
 if __name__ == '__main__':
     rospy.init_node('Mission_planner', anonymous=True)
+    mission_planner = Mission_planner()
     sm_mission = smach.StateMachine(outcomes=['mission_complete'])
     
     with sm_mission:
