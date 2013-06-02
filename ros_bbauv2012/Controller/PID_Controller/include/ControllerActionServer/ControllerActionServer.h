@@ -9,14 +9,14 @@
 #define CONTROLLERACTIONSERVER_H_
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
-#include <PID_Controller/ControllerAction.h>
+#include <bbauv_msgs/ControllerAction.h>
 
 
 class ControllerActionServer {
 public:
 	ControllerActionServer(std::string name);
 	void updateState(float forward,float sidemove,float heading,float depth);
-	void executeCB(const PID_Controller::ControllerGoalConstPtr &goal);
+	void executeCB(const bbauv_msgs::ControllerGoalConstPtr &goal);
 	float getForward();
 	float getSidemove();
 	float getHeading();
@@ -42,13 +42,13 @@ private:
 protected:
 
   ros::NodeHandle nh_;
-  actionlib::SimpleActionServer<PID_Controller::ControllerAction> as_;
+  actionlib::SimpleActionServer<bbauv_msgs::ControllerAction> as_;
   std::string action_name_;
   int data_count_;
   float sum_, sum_sq_;
-  PID_Controller::ControllerGoal goal_;
-  PID_Controller::ControllerFeedback feedback_;
-  PID_Controller::ControllerResult result_;
+  bbauv_msgs::ControllerGoal goal_;
+  bbauv_msgs::ControllerFeedback feedback_;
+  bbauv_msgs::ControllerResult result_;
 };
 
 #endif /* CONTROLLERACTIONSERVER_H_ */

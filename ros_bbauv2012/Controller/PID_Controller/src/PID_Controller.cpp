@@ -20,10 +20,11 @@
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include <actionlib/server/simple_action_server.h>
-#include <PID_Controller/ControllerAction.h>
+#include <bbauv_msgs/ControllerAction.h>
 #include <ControllerActionServer/ControllerActionServer.h>
 #include <geometry_msgs/Twist.h>
 #include <bbauv_msgs/imu_data.h>
+#include <bbauv_msgs/set_controller.h>
 #define _USE_MATH_DEFINES // for C++
 #include <math.h>
 
@@ -88,6 +89,19 @@ NavUtils navHelper;
 
 int manual_speed[6] = {0,0,0,0,0,0};
 
+bool add(bbauv_msgs::set_controller::Request  &req,
+         bbauv_msgs::set_controller::Response &res)
+{
+  inDepthPID = req.depth;
+  inForwardPID = req.forward;
+  inHeadingPID = req.heading;
+  inSidemovePID = req.sidemove;
+  inTopside = req.topside;
+
+  res.complete = true;
+  return true;
+}
+
 int main(int argc, char **argv)
 {
 	//Initialize PID output variables
@@ -103,7 +117,7 @@ int main(int argc, char **argv)
 	thrusterPub = nh.advertise<bbauv_msgs::thruster>("/thruster_speed", 1000);
 	depthPub = nh.advertise<bbauv_msgs::depth>("/depth",1000);
 	orientationPub = nh.advertise<bbauv_msgs::compass_data>("/euler",1000);
-	controllerPub = nh.advertise<bbauv_msgs::controller>("/controller_points",1000);
+	controllerPub = nh.advertise<bbauv_msgs::controller>("/controller_points",100);
 
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
@@ -116,6 +130,10 @@ int main(int argc, char **argv)
 	f = boost::bind(&callback, _1, _2);
 	server.setCallback(f);
 
+	// Initialize Services
+
+	ros::ServiceServer service = nh.advertiseService("set_controller_srv", add);
+	ROS_INFO("set_controller_srv ready.");
 	/* Initialize Quaternion Conversion Helper*/
 
 	navHelper = NavUtils();
@@ -183,7 +201,7 @@ int main(int argc, char **argv)
 			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
 
 		}
-
+		controllerPub.publish(ctrl);
 		thrusterPub.publish(thrusterSpeed);
 		controllerPub.publish(ctrl);
 

@@ -7,7 +7,7 @@
 #include <ros/ros.h>
 #include "ControllerActionServer.h"
 #include <actionlib/server/simple_action_server.h>
-#include <PID_Controller/ControllerAction.h>
+#include <bbauv_msgs/ControllerAction.h>
 #include <math.h>
 
 ControllerActionServer::ControllerActionServer(std::string name) :
@@ -31,7 +31,7 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 }
 
 
-void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConstPtr &goal)
+void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr &goal)
 {
 	bool isForwardDone = false,isDepthDone = false, isHeadingDone = false, isSidemoveDone = false;
 	// helper variables
@@ -54,9 +54,13 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 		// check that preempt has not been requested by the client
 		if (as_.isPreemptRequested() || !ros::ok())
 		{
-			ROS_DEBUG("%s: Preempted", action_name_.c_str());
+			ROS_INFO("%s: Preempted", action_name_.c_str());
 			// set the action state to preempted
 			as_.setPreempted();
+			goal_.forward_setpoint = _forward_input;
+			goal_.depth_setpoint = _depth_input;
+			goal_.heading_setpoint = _heading_input;
+			goal_.sidemove_setpoint = _sidemove_input;
 			success = false;
 		}
 
@@ -75,7 +79,7 @@ void ControllerActionServer::executeCB(const PID_Controller::ControllerGoalConst
 		if(fabs(goal_.depth_setpoint - _depth_input) < MIN_DEPTH)
 		{
 			isDepthDone = true;
-			ROS_INFO("isDepthDone");
+			ROS_DEBUG("isDepthDone");
 		}
 
 		if(fabs(goal_.heading_setpoint - _heading_input) < MIN_HEADING)
