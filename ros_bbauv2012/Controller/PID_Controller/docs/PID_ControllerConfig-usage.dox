@@ -1,0 +1,44 @@
+\subsubsection usage Usage
+\verbatim
+<node name="PID_Controller" pkg="PID_Controller" type="PID_Controller">
+  <param name="depth_PID" type="bool" value="False" />
+  <param name="heading_PID" type="bool" value="False" />
+  <param name="forward_PID" type="bool" value="False" />
+  <param name="sidemove_PID" type="bool" value="False" />
+  <param name="pitch_PID" type="bool" value="False" />
+  <param name="teleop" type="bool" value="True" />
+  <param name="topside" type="bool" value="True" />
+  <param name="depth_setpoint" type="double" value="0.0" />
+  <param name="heading_setpoint" type="double" value="0.0" />
+  <param name="forward_setpoint" type="double" value="0.0" />
+  <param name="sidemove_setpoint" type="double" value="0.0" />
+  <param name="pitch_setpoint" type="double" value="0.0" />
+  <param name="depth_offset" type="double" value="0.0" />
+  <param name="depth_Kp" type="double" value="12000.0" />
+  <param name="depth_Ti" type="double" value="8500.0" />
+  <param name="depth_Td" type="double" value="1000.0" />
+  <param name="depth_min" type="int" value="-2400" />
+  <param name="depth_max" type="int" value="2400" />
+  <param name="pitch_Kp" type="double" value="130.0" />
+  <param name="pitch_Ti" type="double" value="7000.0" />
+  <param name="pitch_Td" type="double" value="130.0" />
+  <param name="pitch_min" type="int" value="-800" />
+  <param name="pitch_max" type="int" value="800" />
+  <param name="heading_Kp" type="double" value="15.0" />
+  <param name="heading_Ti" type="double" value="0.0" />
+  <param name="heading_Td" type="double" value="30.0" />
+  <param name="heading_min" type="int" value="-817" />
+  <param name="heading_max" type="int" value="817" />
+  <param name="forward_Kp" type="double" value="13000.0" />
+  <param name="forward_Ti" type="double" value="0.0" />
+  <param name="forward_Td" type="double" value="1000.0" />
+  <param name="forward_min" type="int" value="-1634" />
+  <param name="forward_max" type="int" value="1634" />
+  <param name="sidemove_Kp" type="double" value="8000.0" />
+  <param name="sidemove_Ti" type="double" value="0.0" />
+  <param name="sidemove_Td" type="double" value="1000.0" />
+  <param name="sidemove_min" type="int" value="-817" />
+  <param name="sidemove_max" type="int" value="817" />
+</node>
+\endverbatim
+
