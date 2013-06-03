@@ -6,11 +6,12 @@ Code to identify RoboSub lane markers
 import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
+import bbauv_msgs
+from bbauv_msgs.srv import set_controller
 from bbauv_msgs.msg import compass_data, depth
 
 import actionlib
-import PID_Controller.msg
-from PID_Controller.msg import ControllerAction
+from bbauv_msgs.msg import ControllerAction
 
 import math
 import numpy as np
@@ -19,6 +20,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from com.camdebug.camdebug import CamDebug
 from com.lane_detector.lane_detector import LaneDetector
+from com.utils.utils import norm_heading
 
 from dynamic_reconfigure.server import Server
 from Vision.cfg import LaneMarkerDetectorConfig
@@ -97,39 +99,42 @@ class SearchState(smach.State):
         laneDetector = LaneDetector(params, camdebug)
         laneDetector.inputHeading = userdata.inputHeading
 
-#        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
-#        print 'wait'
-#        actionClient.wait_for_server()
-#        print 'done'
+        initService()
+
+        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+        print 'wait'
+        actionClient.wait_for_server()
+        print 'done'
 
         #TODO: Move around in a smarter way to keep all lanes on screen
         rospy.loginfo('moving around to find lane')
-        while len(laneDetector.foundLines) < userdata.expectedLanes:
+        #while len(laneDetector.foundLines) < userdata.expectedLanes:
+        while len(laneDetector.foundLines) == 0:
             if rospy.is_shutdown(): return 'aborted'
 
             #TODO: use values related to spin rate
-            goal = PID_Controller.msg.ControllerGoal(
-                heading_setpoint = laneDetector.heading + 10,
-                depth_setpoint = laneDetector.depth,
-                forward_setpoint = 0,
-                sidemove_setpoint = 0)
-
-            actionClient.send_goal(goal)
-#            actionClient.wait_for_result(rospy.Duration(3,0))
-            print 'waiting for goal'
-            actionClient.wait_for_result()
-            print 'done waiting for goal'
+#            goal = bbauv_msgs.msg.ControllerGoal(
+#                heading_setpoint = norm_heading(laneDetector.heading + 5),
+#                depth_setpoint = laneDetector.depth,
+#                forward_setpoint = 0,
+#                sidemove_setpoint = 0)
+#
+#            actionClient.send_goal(goal)
+##            actionClient.wait_for_result(rospy.Duration(3,0))
+#            print 'waiting for goal'
+#            actionClient.wait_for_result()
+#            print 'done waiting for goal'
 
             rosRate.sleep()
 
         print 'found a line, steadying heading'
-#        goal = PID_Controller.msg.ControllerGoal(
-#                heading_setpoint = laneDetector.heading,
-#                depth_setpoint = laneDetector.depth,
-#                forward_setpoint = 0,
-#                sidemove_setpoint = 0)
-#        actionClient.send_goal(goal)
-#        actionClient.wait_for_result(rospy.Duration(4,0))
+        goal = bbauv_msgs.msg.ControllerGoal(
+                heading_setpoint = laneDetector.heading,
+                depth_setpoint = laneDetector.depth,
+                forward_setpoint = 0,
+                sidemove_setpoint = 0)
+        actionClient.send_goal(goal)
+        actionClient.wait_for_result(rospy.Duration(4,0))
         print 'done steadying'
 
         return 'foundLane'
@@ -189,11 +194,12 @@ class FoundState(smach.State):
         for heading in userdata.headings:
             print heading
         # Just take the first heading for now
-        actionClient = actionlib.SimpleActionClient('search', ControllerAction)
+        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         actionClient.wait_for_server()
 
+        print "Turn to heading"
         # Turn to heading
-        goal = PID_Controller.msg.ControllerGoal(
+        goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.headings[0],
                 depth_setpoint = laneDetector.depth,
                 sidemove_setpoint = 0,
@@ -201,18 +207,26 @@ class FoundState(smach.State):
         actionClient.send_goal(goal)
         actionClient.wait_for_result()
 
+        print "Move forward"
         # Move forward
-        goal = PID_Controller.msg.ControllerGoal(
+        goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.headings[0],
                 depth_setpoint = laneDetector.depth,
                 sidemove_setpoint = 0,
-                forward_setpoint = 5)
+                forward_setpoint = 2)
         actionClient.send_goal(goal)
         actionClient.wait_for_result()
 
         return 'succeeded'
 
 
+def initService():
+    print "waiting for service"
+    rospy.wait_for_service('set_controller_srv')
+    set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
+    rospy.wait_for_service('set_controller_srv')
+    set_controller_request(True, True, True, True, False, False)
+    print "set controller request"
 
 '''
 Main

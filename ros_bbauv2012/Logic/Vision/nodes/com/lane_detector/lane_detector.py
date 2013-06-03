@@ -65,8 +65,7 @@ class LaneDetector:
 
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
-        filteredImg = None
-        cv2.GaussianBlur(cvimg, filteredImg, 3, 0)
+        filteredImg = cv2.GaussianBlur(cvimg, (3,3), 0)
 
         # Find the orange regions
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
@@ -95,6 +94,12 @@ class LaneDetector:
                 lambda contour: cv2.contourArea(contour) >= areaThreshold,
                 contours)
         ]
+
+        self.offset = reduce(lambda a,b: (a[0]+b[0],a[1]+b[1]), [r[0] for r in contourRects], (0,0))
+        if len(contourRects):
+            self.offset = (self.offset[0]/len(contourRects), self.offset[1]/len(contourRects))
+        shape = imgBW.shape
+        self.offset = (self.offset[0]/float(shape[1])-0.5, self.offset[1]/float(shape[0]-0.5)) 
 
         if self.DEBUG:
             debugTmp = np.zeros_like(imgBW)
