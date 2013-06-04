@@ -56,6 +56,7 @@ class LaneDetector:
         # Initial state
         self.heading = 0.0
         self.depth = 0.0
+        self.offset = (0,0)
 
 
     # Callback for subscribing to Image topic
@@ -95,11 +96,12 @@ class LaneDetector:
                 contours)
         ]
 
+        centroid = (-1,-1)
         self.offset = reduce(lambda a,b: (a[0]+b[0],a[1]+b[1]), [r[0] for r in contourRects], (0,0))
         if len(contourRects):
-            self.offset = (self.offset[0]/len(contourRects), self.offset[1]/len(contourRects))
-        shape = imgBW.shape
-        self.offset = (self.offset[0]/float(shape[1])-0.5, self.offset[1]/float(shape[0]-0.5)) 
+            centroid = self.offset = (self.offset[0]/len(contourRects), self.offset[1]/len(contourRects))
+            shape = imgBW.shape
+            self.offset = (self.offset[0]/float(shape[1])-0.5, self.offset[1]/float(shape[0])-0.5) 
 
         if self.DEBUG:
             debugTmp = np.zeros_like(imgBW)
@@ -177,6 +179,7 @@ class LaneDetector:
                 cv2.line(debugTmp2, startpt, endpt, (255,0,0), 2)
 
             imgDebug = np.bitwise_xor(cv2.merge([debugTmp, debugTmp, debugTmp]), debugTmp2)
+            cv2.circle(imgDebug, (int(centroid[0]),int(centroid[1])), 2, (255,0,0), 2)
             self.camdebug.publishImage('hsv', imghsv)
             self.camdebug.publishImage('thresh', debugThresh)
             self.camdebug.publishImage('bw', imgDebug)

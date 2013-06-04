@@ -95,6 +95,7 @@ class SearchState(smach.State):
                              output_keys=['expectedLanes', 'inputHeading'])
 
     def execute(self, userdata):
+        EPSILON_X, EPSILON_Y = 0.2, 0.2
         global laneDetector
         laneDetector = LaneDetector(params, camdebug)
         laneDetector.inputHeading = userdata.inputHeading
@@ -109,21 +110,30 @@ class SearchState(smach.State):
         #TODO: Move around in a smarter way to keep all lanes on screen
         rospy.loginfo('moving around to find lane')
         #while len(laneDetector.foundLines) < userdata.expectedLanes:
-        while len(laneDetector.foundLines) == 0:
+        heading = laneDetector.heading
+        depth = laneDetector.depth
+        while len(laneDetector.foundLines) == 0 or abs(laneDetector.offset[0])>EPSILON_X or abs(laneDetector.offset[1])>EPSILON_Y:
             if rospy.is_shutdown(): return 'aborted'
 
-            #TODO: use values related to spin rate
-#            goal = bbauv_msgs.msg.ControllerGoal(
-#                heading_setpoint = norm_heading(laneDetector.heading + 5),
-#                depth_setpoint = laneDetector.depth,
-#                forward_setpoint = 0,
-#                sidemove_setpoint = 0)
-#
-#            actionClient.send_goal(goal)
-##            actionClient.wait_for_result(rospy.Duration(3,0))
-#            print 'waiting for goal'
-#            actionClient.wait_for_result()
-#            print 'done waiting for goal'
+            x_off = abs(laneDetector.offset[0])>EPSILON_X
+            y_off = abs(laneDetector.offset[1])>EPSILON_Y
+
+            if x_off or y_off:
+                goal = bbauv_msgs.msg.ControllerGoal(
+                    heading_setpoint = heading,
+                    depth_setpoint = depth
+                )
+                if x_off:
+                    goal.sidemove_setpoint = laneDetector.offset[0]#*0.55
+                if y_off:
+                    goal.forward_setpoint = -laneDetector.offset[1]#*0.55
+
+                print 'Setting goal:', goal
+
+                actionClient.send_goal(goal)
+                print 'adjusting'
+                actionClient.wait_for_result(rospy.Duration(6,0))
+                print 'done adjusting'
 
             rosRate.sleep()
 
@@ -134,7 +144,7 @@ class SearchState(smach.State):
                 forward_setpoint = 0,
                 sidemove_setpoint = 0)
         actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(4,0))
+        actionClient.wait_for_result(rospy.Duration(5,0))
         print 'done steadying'
 
         return 'foundLane'
@@ -150,7 +160,7 @@ class ConfirmingState(smach.State):
         self.headings = []
         self.medianFilters = []
         for i in range(userdata.expectedLanes):
-            self.medianFilters.append(MedianFilter())
+            self.medianFilters.append(MedianFilter(sampleWindow=10))
 
         global laneDetector
         laneDetector = LaneDetector(params, camdebug)
