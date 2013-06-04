@@ -76,6 +76,7 @@ using namespace std;
 #ifndef WH_DELAY
 #define WH_SERIAL_DELAY 200000
 #define WH_CMD_DELAY 3000000
+#define WH_DIST_TIMEOUT 5
 #endif // WH_SERIAL_DELAY
 
 #ifndef WH_ERROR_CONDITION

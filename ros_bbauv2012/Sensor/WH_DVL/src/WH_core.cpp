@@ -313,6 +313,16 @@ void DVL::assignData() {
 
     lastTotalSec = totalSec;
     totalSec     = toSec(year,month,day,hour,min,sec,sec100);
+    
+    if (totalSec - lastTotalSec >= WH_DIST_TIMEOUT){
+        ROS_INFO("WH_DVL::timeout: reset start time")
+        start_time = 0;
+    }
+
+    if (start_time == 0){
+        start_time = totalSec;
+        ROS_INFO("start time: %lf", start_time);
+    }
 
     lastAngX = angX;
     lastAngY = angY;
@@ -320,9 +330,9 @@ void DVL::assignData() {
 
     angX = varLeader.Roll    / 100.0;
     angX = angX * M_PI / 180.0;
-    angY = varLeader.Pitch  / 100.0;
+    angY = varLeader.Pitch   / 100.0;
     angY = angY * M_PI / 180.0;
-    angZ = varLeader.Heading/ 100.0;
+    angZ = varLeader.Heading / 100.0;
     angZ = angZ * M_PI / 180.0;
 
     lastXvel = xvel;
@@ -331,7 +341,7 @@ void DVL::assignData() {
 
     xvel = -botTrack.Velocity[1] / 1000.0;//Forward
     yvel = -botTrack.Velocity[0] / 1000.0;//Starboard
-    zvel = botTrack.Velocity[2]  / 1000.0;//vertical
+    zvel =  botTrack.Velocity[2] / 1000.0;//vertical
 
     botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
 
@@ -339,28 +349,19 @@ void DVL::assignData() {
 }
 
 void DVL::computeDistance() {
-    double delta = totalSec - lastTotalSec;
     if (xvel == WH_LOST_BOTTOM || lastXvel == WH_LOST_BOTTOM
         || yvel == WH_LOST_BOTTOM || lastYvel == WH_LOST_BOTTOM
         || zvel == WH_LOST_BOTTOM || lastZvel == WH_LOST_BOTTOM) {
         ROS_INFO("DVL::Bottom lock is lost");
         return;
     }
-    else {
-        x += (xvel + lastXvel) * delta / 2.0;
-        y += (yvel + lastYvel) * delta / 2.0;
-        z += (zvel + lastZvel) * delta / 2.0;
-        //z is changed to altitude
-        //z is no longer the integral of the z velocity
-        //z = botTrack.Range[0];
-    }
 
-    //data to fill in covariance matrix
-    if (start_time == 0) {
-        start_time = totalSec;
-        ROS_INFO("start time: %lf", start_time);
-    }
-    
+    double delta = totalSec - lastTotalSec;
+    x += (xvel + lastXvel) * delta / 2.0;
+    y += (yvel + lastYvel) * delta / 2.0;
+    z += (zvel + lastZvel) * delta / 2.0;
+
+    //data to fill in covariance matrix 
     xy_vel_error = botTrack.Velocity[3];
 
     mean_xy_vel = (mean_xy_vel * count + xy_vel_error) * 1.0 / (count + 1);
@@ -377,10 +378,6 @@ void DVL::computeDistance() {
     posCov[0]  = xy_vel_var * (totalSec - start_time);
     posCov[7]  = xy_vel_var * (totalSec - start_time);
     posCov[14] = z_vel_var  * (totalSec - start_time);
-    //cout << "z_vel_var_set: " << z_vel_var_set << endl;
-    //cout << "z_vel_var    : " << z_vel_var << endl;
-    //cout << "passed time  : " << totalSec - start_time << endl;
-
 
     velCov[0]  = xy_vel_var;
     velCov[7]  = xy_vel_var;
