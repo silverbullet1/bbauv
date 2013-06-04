@@ -315,7 +315,7 @@ void DVL::assignData() {
     totalSec     = toSec(year,month,day,hour,min,sec,sec100);
     
     if (totalSec - lastTotalSec >= WH_DIST_TIMEOUT){
-        ROS_INFO("WH_DVL::timeout: reset start time")
+        ROS_INFO("WH_DVL::timeout: reset start time");
         start_time = 0;
     }
 
@@ -353,6 +353,12 @@ void DVL::computeDistance() {
         || yvel == WH_LOST_BOTTOM || lastYvel == WH_LOST_BOTTOM
         || zvel == WH_LOST_BOTTOM || lastZvel == WH_LOST_BOTTOM) {
         ROS_INFO("DVL::Bottom lock is lost");
+        return;
+    }
+
+    if (abs(xvel) > 5 || abs(yvel) > 5 || abs(zvel) > 5
+        || abs(lastXvel) > 5 || abs(lastYvel) > 5 || abs(lastZvel) > 5){
+        ROS_INFO("WH_DVL::too high velocity");
         return;
     }
 
