@@ -125,3 +125,11 @@ ros_bbauv2012/bbauv_msgs/srv_gen/lisp/_package_vision_to_mission.lisp
 ros_bbauv2012/bbauv_msgs/srv_gen/lisp/mission_to_vision.lisp
 ros_bbauv2012/bbauv_msgs/srv_gen/lisp/sm_start.lisp
 ros_bbauv2012/bbauv_msgs/srv_gen/lisp/vision_to_mission.lisp
+ros_bbauv2012/Sensor/earth_odom/docs/earth_odomConfig.dox
+ros_bbauv2012/Sensor/earth_odom/docs/earth_odomConfig-usage.dox
+ros_bbauv2012/Sensor/earth_odom/cfg/cpp/earth_odom/earth_odomConfig.h
+ros_bbauv2012/Sensor/WH_DVL/include/.WH_ros.h.swp
+ros_bbauv2012/Sensor/earth_odom/src/earth_odom/cfg/earth_odomConfig.py
+ros_bbauv2012/Sensor/earth_odom/src/earth_odom/cfg/__init__.py
+ros_bbauv2012/Sensor/earth_odom/src/earth_odom/__init__.py
+ros_bbauv2012/Sensor/earth_odom/docs/earth_odomConfig.wikidoc
