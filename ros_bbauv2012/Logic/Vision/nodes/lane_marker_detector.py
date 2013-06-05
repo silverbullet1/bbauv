@@ -7,7 +7,7 @@ import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
 import bbauv_msgs
-from bbauv_msgs.srv import set_controller
+from bbauv_msgs.srv import set_controller, mission_to_vision, mission_to_visionResponse
 from bbauv_msgs.msg import compass_data, depth
 
 import actionlib
@@ -26,34 +26,21 @@ from dynamic_reconfigure.server import Server
 from Vision.cfg import LaneMarkerDetectorConfig
 
 import smach
+import smach_ros
 
 
 DEBUG = True
 #HACK:
+firstRun = True
+firstRunAction = True
 camdebug = None
 laneDetector = None
 
-params = { 'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0, 'valLow':0, 'valHigh':0, 'contourMinArea':0 } # Dynamic reconfigure params; see LaneMarkerDetector.cfg
-
-
-# Helper function to draw a histogram image
-def get_hist_img(cv_img):
-    hist_bins = 256
-    hist_ranges = [(0,255)]
-
-    hist, _ = np.histogram(cv_img, hist_bins, (0, 255))
-    maxVal = np.max(hist)
-
-    histImg = np.array( [255] * (hist_bins * hist_bins), dtype=np.uint8 ).reshape([hist_bins, hist_bins])
-    hpt = int(0.9 * hist_bins)
-
-    for h in range(hist_bins):
-        binVal = float(hist[h])
-        intensity = int(binVal * hpt / maxVal)
-        cv2.line(histImg, (h, hist_bins), (h, hist_bins-intensity), 0)
-
-    return histImg
-
+params = {  'hueLow':0, 'hueHigh':0,
+            'satLow':0, 'satHigh':0,
+            'valLow':0, 'valHigh':0,
+            'contourMinArea':0
+} # Dynamic reconfigure params; see LaneMarkerDetector.cfg
 
 
 class MedianFilter:
@@ -83,42 +70,105 @@ class MedianFilter:
             return 999 # Just a big value
 
 
-
 '''
 States
 '''
-class SearchState(smach.State):
+class Disengage(smach.State):
+    def handle_srv(self, req):
+        print 'got a request!'
+        if req.start_request:
+            self.isStart = True
+
+        return mission_to_visionResponse(self.isStart, False)
+
     def __init__(self):
-        smach.State.__init__(self,
-                             outcomes=['foundLane', 'aborted'],
-                             input_keys=['expectedLanes', 'inputHeading'],
-                             output_keys=['expectedLanes', 'inputHeading'])
+        self.isStart = False
+        smach.State.__init__(
+                        self,
+                        outcomes=['start_complete', 'aborted'],
+                        output_keys=['expectedLanes', 'inputHeading', 'outDir']
+        )
+
+    def execute(self, userdata):
+        global laneDetector
+        laneDetector = None
+
+        self.isStart = False
+
+        global firstRun
+        if firstRun:
+            srvServer = rospy.Service('lane_srv', mission_to_vision, self.handle_srv)
+            rospy.loginfo('lane_srv initialized!')
+
+#            rospy.wait_for_service('mission_srv')
+#            mission_srv = rospy.ServiceProxy('mission_srv', mission_to_vision)
+#            rospy.loginfo('connected to mission_srv!')
+
+            firstRun = False
+
+        while not self.isStart:
+            if rospy.is_shutdown(): return 'aborted'
+            rosRate.sleep()
+
+        laneDetector = LaneDetector(params, camdebug)
+        #TODO: get number of expected lanes, in heading, out direction
+        userdata.inputHeading = laneDetector.inputHeading = 0
+        userdata.expectedLanes = expectedLanes
+        userdata.outDir = outDir # 'left' or 'right'
+        return 'start_complete'
+
+
+class Search(smach.State):
+    def __init__(self):
+        smach.State.__init__(
+                        self,
+                        outcomes=['search_complete', 'aborted'],
+                        input_keys=['expectedLanes', 'inputHeading', 'outDir'],
+                        output_keys=['expectedLanes', 'inputHeading', 'outDir']
+        )
+
+    def execute(self, userdata):
+        rospy.loginfo('Searching for lanes')
+
+        while len(laneDetector.foundLines) == 0:
+            if rospy.is_shutdown(): return 'aborted'
+            rosRate.sleep()
+
+        return 'search_complete'
+
+
+class Stabilize(smach.State):
+    def __init__(self):
+        smach.State.__init__(
+                        self,
+                        outcomes=['foundLane', 'aborted'],
+                        input_keys=['expectedLanes', 'inputHeading', 'outDir'],
+                        output_keys=['expectedLanes', 'inputHeading', 'outDir']
+        )
 
     def execute(self, userdata):
         EPSILON_X, EPSILON_Y = 0.2, 0.2
-        global laneDetector
-        laneDetector = LaneDetector(params, camdebug)
-        laneDetector.inputHeading = userdata.inputHeading
 
-        initService()
+        laneDetector.frameCallback = None
 
         actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
-        print 'wait'
+        print 'waiting for action server...'
         actionClient.wait_for_server()
         print 'done'
 
-        #TODO: Move around in a smarter way to keep all lanes on screen
         rospy.loginfo('moving around to find lane')
-        #while len(laneDetector.foundLines) < userdata.expectedLanes:
         heading = laneDetector.heading
         depth = laneDetector.depth
-        while len(laneDetector.foundLines) == 0 or abs(laneDetector.offset[0])>EPSILON_X or abs(laneDetector.offset[1])>EPSILON_Y:
+        while len(laneDetector.foundLines) < userdata.expectedLanes or abs(laneDetector.offset[0])>EPSILON_X or abs(laneDetector.offset[1])>EPSILON_Y:
             if rospy.is_shutdown(): return 'aborted'
 
             x_off = abs(laneDetector.offset[0])>EPSILON_X
             y_off = abs(laneDetector.offset[1])>EPSILON_Y
 
             if x_off or y_off:
+                #TODO: remove this in actual run
+                initService()
+
                 goal = bbauv_msgs.msg.ControllerGoal(
                     heading_setpoint = heading,
                     depth_setpoint = depth
@@ -128,7 +178,7 @@ class SearchState(smach.State):
                 if y_off:
                     goal.forward_setpoint = -laneDetector.offset[1]#*0.55
 
-                print 'Setting goal:', goal
+                #print 'Setting goal:', goal
 
                 actionClient.send_goal(goal)
                 print 'adjusting'
@@ -149,22 +199,21 @@ class SearchState(smach.State):
 
         return 'foundLane'
 
-class ConfirmingState(smach.State):
+
+class Confirm(smach.State):
     def __init__(self):
-        smach.State.__init__(self,
-                             outcomes=['confirmed', 'searchAgain', 'aborted'],
-                             input_keys=['expectedLanes', 'inputHeading'],
-                             output_keys=['expectedLanes', 'inputHeading', 'headings'])
+        smach.State.__init__(
+                        self,
+                        outcomes=['confirmed', 'search_again', 'aborted'],
+                        input_keys=['expectedLanes', 'inputHeading', 'outDir'],
+                        output_keys=['expectedLanes', 'inputHeading', 'headings', 'outDir']
+        )
 
     def execute(self, userdata):
         self.headings = []
         self.medianFilters = []
         for i in range(userdata.expectedLanes):
             self.medianFilters.append(MedianFilter(sampleWindow=10))
-
-        global laneDetector
-        laneDetector = LaneDetector(params, camdebug)
-        laneDetector.inputHeading = userdata.inputHeading
 
         self.status = 'started'
 
@@ -184,33 +233,50 @@ class ConfirmingState(smach.State):
 
         while True:
             if rospy.is_shutdown(): return 'aborted'
-            if self.status == 'lost': return 'searchAgain'
+            if self.status == 'lost': return 'search_again'
             if all([medianFilter.getVariance() < 16 for medianFilter in self.medianFilters]):
                 userdata.headings = [m.median for m in self.medianFilters]
                 return 'confirmed'
 
             rosRate.sleep()
 
-        return 'searchAgain'
+        return 'search_again'
 
-class FoundState(smach.State):
+
+class Found(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded', 'aborted'],
-                                   input_keys=['headings'])
+        smach.State.__init__(
+                        self,
+                        outcomes=['succeeded', 'aborted'],
+                        input_keys=['expectedLanes', 'headings', 'outDir']
+        )
 
     def execute(self, userdata):
-        #TODO: Lock on to confirmed heading and go towards it
+        laneDetector.frameCallback = None
+
+        # Lock on to confirmed heading and go towards it
         rospy.loginfo('locking on and going')
-        for heading in userdata.headings:
-            print heading
-        # Just take the first heading for now
+        print 'Headings:', userdata.headings
+
         actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         actionClient.wait_for_server()
+
+        finalHeading = userdata.headings[0]
+        if userdata.expectedLanes > 1:
+            # Assume we only have up to two lanes for now
+            angleDelta = userdata.headings[1] - userdata.headings[0]
+            leftIndex = 0 if 0 < angleDelta < 180 or angleDelta < -180 else 1
+
+            leftHeading, rightHeading = userdata.headings[leftIndex], userdata.headings[1-leftIndex]
+            if userdata.outDir == 'left':
+                finalHeading = leftHeading
+            elif userdata.outDir == 'right':
+                finalHeading = rightHeading
 
         print "Turn to heading"
         # Turn to heading
         goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = userdata.headings[0],
+                heading_setpoint = finalHeading,
                 depth_setpoint = laneDetector.depth,
                 sidemove_setpoint = 0,
                 forward_setpoint = 0)
@@ -220,7 +286,7 @@ class FoundState(smach.State):
         print "Move forward"
         # Move forward
         goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = userdata.headings[0],
+                heading_setpoint = finalHeading,
                 depth_setpoint = laneDetector.depth,
                 sidemove_setpoint = 0,
                 forward_setpoint = 2)
@@ -231,23 +297,31 @@ class FoundState(smach.State):
 
 
 def initService():
-    print "waiting for service"
-    rospy.wait_for_service('set_controller_srv')
-    set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
-    rospy.wait_for_service('set_controller_srv')
-    set_controller_request(True, True, True, True, False, False)
-    print "set controller request"
+    global firstRunAction
+    if firstRunAction:
+        print "waiting for service"
+        rospy.wait_for_service('set_controller_srv')
+        set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
+        rospy.wait_for_service('set_controller_srv')
+        set_controller_request(True, True, True, True, False, False)
+        print "set controller request"
+
+        firstRunAction = False
+
 
 '''
 Main
 '''
 if __name__ == '__main__':
+    global expectedLanes
+
     rospy.init_node('lane_marker_detector', anonymous=False)
     loopRateHz = rospy.get_param('~loopHz', 20)
     imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_color')
     depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
     expectedLanes = rospy.get_param('~lanes', 1)
+    outDir = rospy.get_param('~out', 'left')
 
     # Set up param configuration window
     def configCallback(config, level):
@@ -258,31 +332,57 @@ if __name__ == '__main__':
 
     camdebug = CamDebug('lane_marker_detector', debugOn=DEBUG)
 
+    global inputHeading
     inputHeading = 0 #TODO: take in the input heading for the previous task
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)
-    def gotRosFrame(rosImage): laneDetector.gotRosFrame(rosImage)
-    def gotHeading(msg): laneDetector.gotHeading(msg)
-    def gotDepth(msg): laneDetector.gotDepth(msg)
+    def gotRosFrame(rosImage):
+        if laneDetector: laneDetector.gotRosFrame(rosImage)
+    def gotHeading(msg):
+        if laneDetector: laneDetector.gotHeading(msg)
+    def gotDepth(msg):
+        if laneDetector: laneDetector.gotDepth(msg)
     rospy.Subscriber(imageTopic, Image, gotRosFrame)
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
     rospy.Subscriber(depthTopic, depth, gotDepth)
 
     sm = smach.StateMachine(outcomes=['attempting', 'succeeded', 'aborted'])
-    sm.userdata.expectedLanes = expectedLanes
-    sm.userdata.inputHeading = inputHeading
     with sm:
-        smach.StateMachine.add('SearchState', SearchState(),
-                                transitions={'foundLane': 'ConfirmingState',
-                                             'aborted': 'aborted'})
-        smach.StateMachine.add('ConfirmingState', ConfirmingState(),
-                                transitions={'confirmed': 'FoundState',
-                                             'searchAgain': 'SearchState',
-                                             'aborted': 'aborted'})
-        smach.StateMachine.add('FoundState', FoundState(),
-                                transitions={'succeeded': 'succeeded',
-                                             'aborted': 'aborted'})
+        smach.StateMachine.add(
+                        'DISENGAGED',
+                        Disengage(),
+                        transitions={'start_complete':'SEARCH',
+                                     'aborted': 'aborted'}
+        )
+        smach.StateMachine.add(
+                        'SEARCH',
+                        Search(),
+                        transitions={'search_complete':'STABILIZE',
+                                     'aborted': 'aborted'}
+        )
+        smach.StateMachine.add(
+                        'STABILIZE',
+                        Stabilize(),
+                        transitions={'foundLane': 'CONFIRM',
+                                     'aborted': 'aborted'}
+        )
+        smach.StateMachine.add(
+                        'CONFIRM',
+                        Confirm(),
+                        transitions={'confirmed': 'FOUND',
+                                     'search_again': 'STABILIZE',
+                                     'aborted': 'aborted'}
+        )
+        smach.StateMachine.add(
+                        'FOUND',
+                        Found(),
+                        transitions={'succeeded': 'DISENGAGED',
+                                     'aborted': 'aborted'}
+        )
+
+    sis = smach_ros.IntrospectionServer('lane_server', sm, 'MISSION/LANE')
+    sis.start()
 
     outcome = sm.execute()
 
