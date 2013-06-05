@@ -1,9 +1,0 @@
-\subsubsection usage Usage
-\verbatim
-<node name="LaneMarkerDetector" pkg="Vision" type="LaneMarkerDetector">
-  <param name="hueLow" type="int" value="11" />
-  <param name="hueHigh" type="int" value="65" />
-  <param name="contourMinArea" type="int" value="15" />
-</node>
-\endverbatim
-

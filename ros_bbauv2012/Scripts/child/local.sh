@@ -26,7 +26,11 @@ tmux new-window -t Pool:5
 tmux rename-window 'filezilla'
 tmux send-keys 'filezilla &' C-m
 tmux new-window -t Pool:7
+tmux rename-window 'auv_gui'
+tmux rosrun auv_gui auv_gui.py
+tmux new-window -t Pool:8
 tmux rename-window 'scripts'
+
 tmux select-window -tPool:0
 tmux split-window -h
 tmux split-window -h

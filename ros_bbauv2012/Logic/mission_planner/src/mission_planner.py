@@ -26,33 +26,44 @@ class Gate(smach.State):
     isSearchDone = False
     isTaskComplete = False
     isAbort = False
+    isStart = False
     def __init__(self):
         smach.State.__init__(self, outcomes=['gate_complete'])
-    
-    def handle_search_node(self,req):
-        self.isStart = True
-        return sm_startResponse(self.isStart)
        
     def doneCB(self,status,result):
         
         #print result.forward_final;
         #print result.heading_final;
         #print result.sidemove_final;
-        if status == actionlib.GoalStatus.SUCCEEDED:
+        if status == actionlib.GoalStatus.SUCCEEDED and not self.isSearchDone:
+            rospy.loginfo("moving vehicle forward 5m again")
             self.client.send_goal(self.goal,self.doneCB)
         elif status == actionlib.GoalStatus.PREEMPTED:
             rospy.loginfo(str(rospy.get_name()) + "Nav PREEMPTED.")
     
     def handle_srv(self,req):
-        return vision_to_missionResponse(self.isStart)   
-    def execute(self,userdata):
-        rospy.loginfo('Executing state GATE')
-        #s = rospy.Service('search_gate_node', sm_search, self.handle_search_node)
+        #Search completion request from Vision Node.
+        if(req.search_request):
+            self.isSearchDone = True
+            rospy.loginfo("search complete")
+            return vision_to_missionResponse(True,False)
         
+        #Task completion request from Vision Node.
+        if(req.task_complete_request):
+            self.isTaskComplete = True
+            #Controller
+            return vision_to_missionResponse(False,True)   
+        
+    def execute(self,userdata):
+        rospy.wait_for_service('set_controller_srv')
+        self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
+        resp = self.set_controller_request(True, True, True, True, True, False)
+            
+        rospy.loginfo('Waiting for LocomotionServer Action Server')
         self.client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
         self.client.wait_for_server()
          # Creates a goal to send to the action server.to move the AUV forward
-        self.goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=5,heading_setpoint=50,depth_setpoint=0.5,sidemove_setpoint=0)
+        self.goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=5,heading_setpoint=55,depth_setpoint=0.6,sidemove_setpoint=0)
         # Sends the goal to the action server.
         self.client.send_goal(self.goal,self.doneCB)
         rospy.loginfo("Goal sent. Vehicle moving forward towards Gate Task")
@@ -62,7 +73,8 @@ class Gate(smach.State):
         
         try:
             ctrl = controller()
-            ctrl.depth_setpoint = 0.5
+            ctrl.depth_setpoint = 0.6
+            ctrl.heading_setpoint = 55
             '''
                 Service declaration
                 ### Mission to Vision
@@ -70,22 +82,30 @@ class Gate(smach.State):
                 ### Vision to Mission
             
             '''
-            
-            #Service Client 
+            #Service Client for Gate
             rospy.loginfo('Waiting for gate_srv to start up...')
             rospy.wait_for_service('gate_srv')
             gate_srv = rospy.ServiceProxy('gate_srv', mission_to_vision)
+            
             rospy.loginfo('connected to gate_srv!')
+            
+            #Service Client for Lane
+            rospy.loginfo('Waiting for lane_srv to start up...')
+            #rospy.wait_for_service('lane_srv')
+            #lane_srv = rospy.ServiceProxy('lane_srv', mission_to_vision)
+            rospy.loginfo('connected to lane_srv!')
+            
             # Format for service: start_request, start_ctrl, abort_request
             
             #Start up Gate Node
             rospy.loginfo('Starting up Gate Node.')
-            resp = gate_srv(True,ctrl,None)
+            resp = gate_srv(True,ctrl,False)
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
         while(not rospy.is_shutdown()):
             if self.isSearchDone:
-                self.client.cancel_all_goals()
+                #self.client.cancel_all_goals()
+                pass
             if self.isAbort:
                 pass
             if self.isTaskComplete:

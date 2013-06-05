@@ -23,10 +23,10 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 	_heading_input = 0.0;
 	_depth_input = 0.0;
 
-	MIN_FORWARD = 0.10;
-	MIN_SIDEMOVE = 0.10;
-	MIN_HEADING = 1.0;
-	MIN_DEPTH = 0.01;
+	MIN_FORWARD = 0.2;
+	MIN_SIDEMOVE = 0.2;
+	MIN_HEADING = 2.0;
+	MIN_DEPTH = 0.05;
 	as_.start();
 }
 
@@ -37,6 +37,7 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	// helper variables
 	ros::Rate r(10);
 	bool success = true;
+	double yaw_error = 0;
 	goal_.depth_setpoint =  goal->depth_setpoint;
 	goal_.heading_setpoint =  goal->heading_setpoint;
 	goal_.forward_setpoint =  goal->forward_setpoint + _forward_input;
@@ -81,8 +82,9 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 			isDepthDone = true;
 			ROS_DEBUG("isDepthDone");
 		}
+		yaw_error = fabs(goal_.heading_setpoint - wrapAngle360(goal_.heading_setpoint,_heading_input));
 
-		if(fabs(goal_.heading_setpoint - _heading_input) < MIN_HEADING)
+		if(yaw_error < MIN_HEADING)
 		{
 			isHeadingDone = true;
 			ROS_DEBUG("isHeadingDone");
@@ -91,7 +93,7 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 		feedback_.forward_error = fabs(goal_.forward_setpoint - _forward_input);
 		feedback_.depth_error =fabs(goal_.depth_setpoint - _depth_input) ;
 		feedback_.sidemove_error = fabs(goal_.sidemove_setpoint - _sidemove_input) ;
-		feedback_.heading_error = fabs(goal_.heading_setpoint - _heading_input);
+		feedback_.heading_error = yaw_error;
  		//publish the feedback
 		as_.publishFeedback(feedback_);
 		// this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
@@ -124,6 +126,20 @@ void ControllerActionServer::updateState(float forward,float sidemove,float head
 	_depth_input = depth;
 }
 
+double ControllerActionServer::wrapAngle360(double setpoint, double heading)
+{
+	double error = setpoint - heading;
+	if (error > 180)
+	{
+		heading +=360;
+	}
+	else if (error < -180)
+	{
+		heading -= 360;
+	}
+
+	return fabs(heading);
+}
 //****************Getter Functions******************
 float ControllerActionServer::getForward()
 {

@@ -30,7 +30,7 @@ private:
 	double Ti;
 	double Td;
 	double Imax;
-	int N;
+	double N;
 	int actMax;
 	int actMin;
 	//Controller variables

@@ -16,6 +16,7 @@ class ControllerActionServer {
 public:
 	ControllerActionServer(std::string name);
 	void updateState(float forward,float sidemove,float heading,float depth);
+
 	void executeCB(const bbauv_msgs::ControllerGoalConstPtr &goal);
 	float getForward();
 	float getSidemove();
@@ -25,6 +26,7 @@ public:
 	virtual ~ControllerActionServer();
 
 private:
+	double wrapAngle360(double error, double heading);
 	float _forward_input;
 	float _sidemove_input;
 	float _heading_input;

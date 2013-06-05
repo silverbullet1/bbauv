@@ -1,8 +1,0 @@
-\subsubsection parameters ROS parameters
-
-Reads and maintains the following parameters on the ROS server
-
-- \b "~hueLow" : \b [int] Hue Low min: 0, default: 11, max: 180
-- \b "~hueHigh" : \b [int] Hue High min: 0, default: 65, max: 180
-- \b "~contourMinArea" : \b [int] Min contour area (1/1000) min: 0, default: 15, max: 1000
-

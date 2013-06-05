@@ -63,7 +63,7 @@ double bbPID::computePID(double setpoint, double input)
 	total = proportional + derivative + integral;
 
 	output = actuatorConstrain(total);
-	ROS_DEBUG("n: %s P: %2.f, I: %2.f, D: %2.f",_name.c_str(),proportional,integral, derivative);
+	ROS_DEBUG("n: %s P: %2.f, I: %2.f, D: %2.f, dt: %2.2f",_name.c_str(),proportional,integral, derivative,dt);
 	//std::cout<<" P: "<<proportional<<" D: "<<derivative<<" I: "<<integral<<std::endl;
 	//std::cout<<"output: "<<output<<std::endl;
 	//Integrator with wind up protection

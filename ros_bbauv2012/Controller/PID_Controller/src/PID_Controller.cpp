@@ -89,15 +89,15 @@ NavUtils navHelper;
 
 int manual_speed[6] = {0,0,0,0,0,0};
 
-bool add(bbauv_msgs::set_controller::Request  &req,
+bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
          bbauv_msgs::set_controller::Response &res)
 {
   inDepthPID = req.depth;
   inForwardPID = req.forward;
   inHeadingPID = req.heading;
   inSidemovePID = req.sidemove;
+  inPitchPID = req.pitch;
   inTopside = req.topside;
-
   res.complete = true;
   return true;
 }
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 
 	// Initialize Services
 
-	ros::ServiceServer service = nh.advertiseService("set_controller_srv", add);
+	ros::ServiceServer service = nh.advertiseService("set_controller_srv", controller_srv_handler);
 	ROS_INFO("set_controller_srv ready.");
 	/* Initialize Quaternion Conversion Helper*/
 
@@ -203,8 +203,7 @@ int main(int argc, char **argv)
 		}
 		controllerPub.publish(ctrl);
 		thrusterPub.publish(thrusterSpeed);
-		controllerPub.publish(ctrl);
-
+		ROS_DEBUG("%i,%i,%i,%i,%i,%i",inForwardPID,inSidemovePID,inHeadingPID,inSidemovePID,inDepthPID,inNavigation);
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
@@ -259,9 +258,13 @@ void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg)
 
 void collectPressure(const std_msgs::Int16& msg)
 {
-	//double pressure = fmap(msg.data, 5340,26698,0,PSI30);
-	double pressure = 3*(double) msg.data/2048 - 7.5; //In PSI
-	pressure*= 6895 + ATM; //Convert to Pascals
+	//Case for Current Loop Sensor shield
+	//double pressure = 3*(double) msg.data/2048 - 7.5; //In PSI
+
+	// Case for Adafruit ADC raw current loop sensing
+	double pressure = 15*(double) msg.data/10684 - 7.498596031;
+
+	pressure*= 6895; //Convert to Pascals
 	double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;

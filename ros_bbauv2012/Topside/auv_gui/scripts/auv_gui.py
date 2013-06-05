@@ -36,12 +36,15 @@ class AUV_gui(QMainWindow):
         goal_layout.addLayout(layout4)
         okButton = QPushButton("Start Goal")
         cancelButton = QPushButton("End Goal")
+        disableButton = QPushButton("Disable PIDs")
         okButton.clicked.connect(self.startBtnHandler)
         cancelButton.clicked.connect(self.endBtnHandler) 
+        disableButton.clicked.connect(self.disableBtnHandler)
         hbox = QHBoxLayout()
        # hbox.addStretch(1)
         hbox.addWidget(okButton)
         hbox.addWidget(cancelButton)
+        hbox.addWidget(disableButton)
         goal_layout.addLayout(hbox)
         goalBox.setLayout(goal_layout)
         self.compass = Qwt.QwtCompass()
@@ -122,26 +125,28 @@ class AUV_gui(QMainWindow):
         orientation_sub = rospy.Subscriber("/euler", bbauv_msgs.msg.compass_data ,self.orientation_callback)
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.position_callback)
     
+    def disableBtnHandler(self):
+        resp = self.set_controller_request(False, False, False, False, False, True)
+        print "resp:" + str(resp)
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
-        resp = self.set_controller_request(True, True, True, True, True, False)
+        resp = self.set_controller_request(True, True, True, True, False, False)
+        print "resp:" + str(resp)
         goal = bbauv_msgs.msg.ControllerGoal
         goal.depth_setpoint = float(self.depth_box.text())
         goal.sidemove_setpoint = float(self.sidemove_box.text())
         goal.heading_setpoint = float(self.heading_box.text())
         goal.forward_setpoint = float(self.forward_box.text())
-        self.client.send_goal(goal, self.done_cb, None, self.feedback_cb)
-        pass
+        self.client.send_goal(goal, self.done_cb)
     
-    def feedback_cb(self,feedback):
-        pass
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
+        #resp = self.set_controller_request(False, False, False, False, False, True)
         
     def endBtnHandler(self):
         self.client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        pass
+        #resp = self.set_controller_request(False, False, False, False, False, True)
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
@@ -164,18 +169,16 @@ class AUV_gui(QMainWindow):
         return (label, qle, layout)
     
     def orientation_callback(self,msg):
-        self.compass.setValue(msg.yaw)
-        self.heading_disp_l.setText("Heading: " + str(msg.yaw))
+        #self.compass.setValue(int(msg.yaw))
+        self.heading_disp_l.setText("Heading: " + str(round(msg.yaw,2)))
         #self.heading_box = self.heading_provider.getValue()
-        pass
     def position_callback(self,pos):
-        self.positionx_disp_l.setText("Forward Position: " + str(pos.pose.pose.position.x))
-        self.positiony_disp_l.setText("Forward Position: " + str(pos.pose.pose.position.y))
+        self.positionx_disp_l.setText("Forward Position: " + str(round(pos.pose.pose.position.x,2)))
+        self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos.pose.pose.position.y,2)))
     def depth_callback(self,depth):
-        print depth.depth
-        self.depth_disp_l.setText("Depth: " + str(depth.depth))
+        self.depth_disp_l.setText("Depth: " + str(round(depth.depth,2)))
         #form.compass.setValue(depth.depth)
-        self.depth_thermo.setValue(depth.depth)
+        #self.depth_thermo.setValue(round(depth.depth,2))
         
 if __name__ == "__main__":
     rospy.init_node('AUV_gui', anonymous=True)
