@@ -123,7 +123,7 @@ class Disengage(smach.State):
         userdata.expectedLanes = self.expectedLanes
         userdata.outDir = self.outDir # 'left' or 'right'
 
-        rospy.loginfo('Looking for %d lanes, going to take %s lane' % (userdata.expectedLanes, userdata.outDir))
+        rospy.loginfo('Looking for %d lanes, going to take %s lane' % (self.expectedLanes, self.outDir))
         return 'start_complete'
 
 
@@ -397,6 +397,10 @@ if __name__ == '__main__':
     sis = smach_ros.IntrospectionServer('lane_server', sm, '/MISSION/LANE_GATE')
     sis.start()
 
-    outcome = sm.execute()
+    try:
+        outcome = sm.execute()
+    except Exception, e:
+        print e
+        rospy.shutdown_reason('Shutting down due to exception.')
 
 # vim: set sw=4 ts=4 expandtab:
