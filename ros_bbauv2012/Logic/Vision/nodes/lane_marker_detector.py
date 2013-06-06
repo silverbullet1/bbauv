@@ -7,11 +7,11 @@ import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
 import bbauv_msgs
-from bbauv_msgs.srv import set_controller, mission_to_vision, mission_to_visionResponse
+from bbauv_msgs.srv import *
 from bbauv_msgs.msg import compass_data, depth
 
 import actionlib
-from bbauv_msgs.msg import ControllerAction
+from bbauv_msgs.msg import ControllerAction, controller
 
 import math
 import numpy as np
@@ -35,6 +35,7 @@ firstRun = True
 firstRunAction = True
 camdebug = None
 laneDetector = None
+depth_setpoint = 0.5
 
 params = {  'hueLow':0, 'hueHigh':0,
             'satLow':0, 'satHigh':0,
@@ -75,11 +76,22 @@ States
 '''
 class Disengage(smach.State):
     def handle_srv(self, req):
+        global depth_setpoint
+
         print 'got a request!'
         if req.start_request:
             self.isStart = True
+            self.inputHeading = req.start_ctrl.heading_setpoint
+            self.expectedLanes = req.num_lanes
+            self.outDir = 'left' if req.use_left else 'right'
+            depth_setpoint = req.start_ctrl.depth_setpoint
 
-        return mission_to_visionResponse(self.isStart, False)
+            rospy.wait_for_service('mission_srv')
+            global mission_srv
+            mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
+            rospy.loginfo('connected to mission_srv!')
+
+        return mission_to_laneResponse(self.isStart, False)
 
     def __init__(self):
         self.isStart = False
@@ -97,24 +109,21 @@ class Disengage(smach.State):
 
         global firstRun
         if firstRun:
-            srvServer = rospy.Service('lane_srv', mission_to_vision, self.handle_srv)
-            rospy.loginfo('lane_srv initialized!')
-
-#            rospy.wait_for_service('mission_srv')
-#            mission_srv = rospy.ServiceProxy('mission_srv', mission_to_vision)
-#            rospy.loginfo('connected to mission_srv!')
-
             firstRun = False
+
+            srvServer = rospy.Service('lane_srv', mission_to_lane, self.handle_srv)
+            rospy.loginfo('lane_srv initialized!')
 
         while not self.isStart:
             if rospy.is_shutdown(): return 'aborted'
             rosRate.sleep()
 
         laneDetector = LaneDetector(params, camdebug)
-        #TODO: get number of expected lanes, in heading, out direction
-        userdata.inputHeading = laneDetector.inputHeading = 0
-        userdata.expectedLanes = expectedLanes
-        userdata.outDir = outDir # 'left' or 'right'
+        userdata.inputHeading = laneDetector.inputHeading = self.inputHeading
+        userdata.expectedLanes = self.expectedLanes
+        userdata.outDir = self.outDir # 'left' or 'right'
+
+        rospy.loginfo('Looking for %d lanes, going to take %s lane' % (userdata.expectedLanes, userdata.outDir))
         return 'start_complete'
 
 
@@ -134,6 +143,7 @@ class Search(smach.State):
             if rospy.is_shutdown(): return 'aborted'
             rosRate.sleep()
 
+        mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
         return 'search_complete'
 
 
@@ -158,7 +168,6 @@ class Stabilize(smach.State):
 
         rospy.loginfo('moving around to find lane')
         heading = laneDetector.heading
-        depth = laneDetector.depth
         while len(laneDetector.foundLines) < userdata.expectedLanes or abs(laneDetector.offset[0])>EPSILON_X or abs(laneDetector.offset[1])>EPSILON_Y:
             if rospy.is_shutdown(): return 'aborted'
 
@@ -171,14 +180,12 @@ class Stabilize(smach.State):
 
                 goal = bbauv_msgs.msg.ControllerGoal(
                     heading_setpoint = heading,
-                    depth_setpoint = depth
+                    depth_setpoint = depth_setpoint
                 )
                 if x_off:
                     goal.sidemove_setpoint = laneDetector.offset[0]#*0.55
                 if y_off:
                     goal.forward_setpoint = -laneDetector.offset[1]#*0.55
-
-                #print 'Setting goal:', goal
 
                 actionClient.send_goal(goal)
                 print 'adjusting'
@@ -190,7 +197,7 @@ class Stabilize(smach.State):
         print 'found a line, steadying heading'
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = laneDetector.heading,
-                depth_setpoint = laneDetector.depth,
+                depth_setpoint = depth_setpoint,
                 forward_setpoint = 0,
                 sidemove_setpoint = 0)
         actionClient.send_goal(goal)
@@ -273,25 +280,31 @@ class Found(smach.State):
             elif userdata.outDir == 'right':
                 finalHeading = rightHeading
 
-        print "Turn to heading"
-        # Turn to heading
-        goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = finalHeading,
-                depth_setpoint = laneDetector.depth,
-                sidemove_setpoint = 0,
-                forward_setpoint = 0)
-        actionClient.send_goal(goal)
-        actionClient.wait_for_result()
+        print "Turn to heading", finalHeading
 
-        print "Move forward"
-        # Move forward
-        goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = finalHeading,
-                depth_setpoint = laneDetector.depth,
-                sidemove_setpoint = 0,
-                forward_setpoint = 2)
-        actionClient.send_goal(goal)
-        actionClient.wait_for_result()
+        ctrl = controller()
+        ctrl.depth_setpoint = depth_setpoint
+        ctrl.heading_setpoint = finalHeading
+        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+
+#        # Turn to heading
+#        goal = bbauv_msgs.msg.ControllerGoal(
+#                heading_setpoint = finalHeading,
+#                depth_setpoint = depth_setpoint,
+#                sidemove_setpoint = 0,
+#                forward_setpoint = 0)
+#        actionClient.send_goal(goal)
+#        actionClient.wait_for_result()
+#
+#        print "Move forward"
+#        # Move forward
+#        goal = bbauv_msgs.msg.ControllerGoal(
+#                heading_setpoint = finalHeading,
+#                depth_setpoint = depth_setpoint,
+#                sidemove_setpoint = 0,
+#                forward_setpoint = 2)
+#        actionClient.send_goal(goal)
+#        actionClient.wait_for_result()
 
         return 'succeeded'
 
@@ -330,7 +343,7 @@ if __name__ == '__main__':
         return config
     srv = Server(LaneMarkerDetectorConfig, configCallback)
 
-    camdebug = CamDebug('lane_marker_detector', debugOn=DEBUG)
+    camdebug = CamDebug('Vision', debugOn=DEBUG)
 
     global inputHeading
     inputHeading = 0 #TODO: take in the input heading for the previous task
@@ -381,7 +394,7 @@ if __name__ == '__main__':
                                      'aborted': 'aborted'}
         )
 
-    sis = smach_ros.IntrospectionServer('lane_server', sm, 'MISSION/LANE')
+    sis = smach_ros.IntrospectionServer('lane_server', sm, '/MISSION/LANE_GATE')
     sis.start()
 
     outcome = sm.execute()
