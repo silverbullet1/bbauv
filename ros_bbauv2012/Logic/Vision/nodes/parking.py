@@ -263,9 +263,11 @@ class Parking_Proc(smach.State):
         #Checking and publishing lock status of vision processing
         #target_contour[1] --> x coordinates
         #target_contour[2] --> y coordinates
+        #targetLockHistory is a 1 if target is detected
         self.targetLockHistory.append(target_contour[3])
         self.targetXHistory.append(target_contour[1])
         self.targetYHistory.append(target_contour[2])
+        
         
         if sum(self.targetLockHistory) >= self.targetLockHistoryThresh and sum(self.targetLockHistory) != 0:
             calcXStDev = np.array(self.targetXHistory)
@@ -331,11 +333,12 @@ class Parking_Proc(smach.State):
         output = []    
         cnt = None
         
+        
         def approxAndDrawContour(input_frame, input_contour):
             #appoximating contour to get better rectangle
             approx = cv2.approxPolyDP(input_contour,0.1*cv2.arcLength(input_contour,True),True)        
             x,y,w,h = cv2.boundingRect(approx)
-            target_x = int(x+(w/2))
+            target_x = int(x+(w/2)) 
             target_y = int(y+(h/2))
             
             #Coordinates used for visual motion
