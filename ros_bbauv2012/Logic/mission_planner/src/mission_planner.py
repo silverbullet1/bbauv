@@ -42,6 +42,7 @@ class Gate(smach.State):
             rospy.loginfo(str(rospy.get_name()) + "Nav PREEMPTED.")
     
     def handle_srv(self,req):
+        global locomotionGoal
         #Search completion request from Vision Node.
         if(req.search_request):
             self.isSearchDone = True
@@ -50,15 +51,23 @@ class Gate(smach.State):
         
         #Task completion request from Vision Node.
         if(req.task_complete_request):
+            rospy.loginfo("Gate task complete")
+            locomotionGoal = req.task_complete_ctrl 
             self.isTaskComplete = True
             #Controller
             return vision_to_missionResponse(False,True)   
         
     def execute(self,userdata):
+        #Service Server for each State
+        mission_server = rospy.Service('mission_srv', vision_to_mission, self.handle_srv)
+        rospy.loginfo('mission_srv for GATE initialized!')
+    
         rospy.wait_for_service('set_controller_srv')
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
-        resp = self.set_controller_request(True, True, True, True, True, False)
-            
+        try:
+            resp = self.set_controller_request(True, True, True, True, True, False)
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
         rospy.loginfo('Waiting for LocomotionServer Action Server')
         self.client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
         self.client.wait_for_server()
@@ -67,10 +76,7 @@ class Gate(smach.State):
         # Sends the goal to the action server.
         self.client.send_goal(self.goal,self.doneCB)
         rospy.loginfo("Goal sent. Vehicle moving forward towards Gate Task")
-        #Service Server
-        srvServer = rospy.Service('mission_srv', vision_to_mission, self.handle_srv)
-        rospy.loginfo('mission_srv initialized!')
-        
+       
         try:
             ctrl = controller()
             ctrl.depth_setpoint = 0.6
@@ -89,12 +95,6 @@ class Gate(smach.State):
             
             rospy.loginfo('connected to gate_srv!')
             
-            #Service Client for Lane
-            rospy.loginfo('Waiting for lane_srv to start up...')
-            #rospy.wait_for_service('lane_srv')
-            #lane_srv = rospy.ServiceProxy('lane_srv', mission_to_vision)
-            rospy.loginfo('connected to lane_srv!')
-            
             # Format for service: start_request, start_ctrl, abort_request
             
             #Start up Gate Node
@@ -109,25 +109,80 @@ class Gate(smach.State):
             if self.isAbort:
                 pass
             if self.isTaskComplete:
+                mission_server.shutdown("Gate State ended")
+                return 'gate_complete'
                 pass
-            
-        return 'gate_complete'
 
 class Lane_Gate(smach.State):
+    isSearchDone = False
+    isTaskComplete = False
     def __init__(self):
         smach.State.__init__(self, outcomes=['lane_complete'])
+    def handle_srv(self,req):
+        global locomotionGoal
+        #Search completion request from Vision Node.
+        if(req.search_request):
+            self.isSearchDone = True
+            rospy.loginfo("lane search complete")
+            return vision_to_missionResponse(True,False)
+        
+        #Task completion request from Vision Node.
+        if(req.task_complete_request):
+            rospy.loginfo("lane task complete")
+            locomotionGoal = req.task_complete_ctrl 
+            self.isTaskComplete = True
+            #Controller
+            return vision_to_missionResponse(False,True)   
+        
     def execute(self,userdata):
-        rospy.loginfo('Executing state LANE_GATE')
-        return 'lane_complete'
+        global locomotionGoal
+        global lane_srv
+        global movement_client
+        #Service Server for each State
+        mission_server = rospy.Service('mission_srv', vision_to_mission, self.handle_srv)
+        rospy.loginfo('mission_srv for LANE_GATE initialized!')
+        try:
+            resp = lane_srv(True,locomotionGoal,True,2,False)
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+        #Start NAV Module
+        while not rospy.is_shutdown():
+            while not rospy.is_shutdown() and not self.isSearchDone:
+                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=3,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=locomotionGoal.sidemove_setpoint)
+                 movement_client.send_goal(goal)
+                 movement_client.wait_for_result()
+            
+            while not rospy.is_shutdown() and self.isTaskComplete: 
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=0)
+                movement_client.send_goal(goal)
+                movement_client.wait_for_result()
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=3,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=0)
+                movement_client.send_goal(goal)
+                movement_client.wait_for_result()
+                return 'lane_complete'
     
 class Mission_planner():
     def __init__(self):
         pass
-    
+
+movement_client = None
+mission_server = None
+lane_srv = None
+locomotionGoal = None
 if __name__ == '__main__':
     rospy.init_node('Mission_planner', anonymous=True)
-    mission_planner = Mission_planner()
+    
+    #Service Client for Lane
+    rospy.loginfo('Waiting for lane_srv to start up...')
+    rospy.wait_for_service('lane_srv')
+    lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
+    rospy.loginfo('connected to lane_srv!')
+    
+    movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+    movement_client.wait_for_server()
+        
     sm_mission = smach.StateMachine(outcomes=['mission_complete'])
+    
     
     with sm_mission:
         smach.StateMachine.add('START',Start(),

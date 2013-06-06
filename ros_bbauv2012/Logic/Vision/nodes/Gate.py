@@ -19,12 +19,19 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from std_msgs.msg import Float32
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import controller_input
 from numpy.numarray.numerictypes import Float
 from com.histogram.histogram import bbHistogram
-from bbauv_msgs.msg._controller import controller
 from numpy.ma.core import fabs
 from actionlib_msgs.msg._GoalStatus import GoalStatus
+
+'''
+###################################################################
+
+                       COMPUTER VISION CLASS 
+        
+###################################################################
+
+'''
 
 class Gate:
     light = 0
@@ -48,10 +55,11 @@ class Gate:
     
     def __init__(self):
         self.bridge = CvBridge()
-        imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_color')
+        #imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_color')
+        imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_rect_color_remote')
         cv2.namedWindow("Gate Settings",cv2.CV_WINDOW_AUTOSIZE)
         image_sub = rospy.Subscriber(imageTopic, Image,self.computeImageCallback)
-        self.image_pub2 = rospy.Publisher("/Vision/Gate/image_thres",Image)
+        self.image_pub2 = rospy.Publisher("/Vision/image_filter",Image)
         self.histClass = bbHistogram()
         self.histClass.setParams(self.params)
         def paramSetter(key):
@@ -126,11 +134,6 @@ class Gate:
                     cv2.circle(contourImg,(int(self.target),int(self.rows/2)), 2, (0,0,255), thickness=-1)
                     
             cv2.waitKey(3)
-            #cv_thres = cv2.split(cv_image)
-            #cv_thres = cv2.adaptiveThreshold(cv_image, 254, cv2.cv.CV_ADAPTIVE_THRESH_MEAN_C, cv2.cv.CV_THRESH_BINARY, 3, 0)
-            #cv2.imshow("Image window", np.array(cv_thres,dtype=np.uint8))   
-            #cv2.waitKey(3)
-            
             try:
                 contourImg = cv2.cv.fromarray(contourImg)
                 if self.target != None:
@@ -140,10 +143,21 @@ class Gate:
                 #cv2.waitKey(1)
             except CvBridgeError, e:
                 print e
+            except ROSException, e:
+                rospy.logwarn("Topic closed during node shutdown" + str(e))
             if(len(centroidx_hack) == 2):
                 self.centroidx = centroidx_hack
                 self.centroidy = centroidy_hack
-            
+                
+'''
+###################################################################
+
+               SMACH STATE MACHINE CLASS DECLARATION
+        
+###################################################################
+
+'''            
+                
 class Search(smach.State):
     global gate
     global mission_srv_request
@@ -159,14 +173,17 @@ class Search(smach.State):
         if rospy.is_shutdown():
             return 'aborted'
         else:
-            resp = mission_srv_request(True,False,None)
+            try:
+                resp = mission_srv_request(True,False,None)
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e
             return 'search_complete'
 
 class MotionControlProcess(smach.State):
     global gate
     global r
     isCorrection = False
-    Kp = 0.002
+    Kp = 0.001
     client = None
     sidemove = 0
     def __init__(self):
@@ -179,7 +196,7 @@ class MotionControlProcess(smach.State):
         rospy.loginfo("action sent from callback")
         if status==actionlib.GoalStatus.SUCCEEDED:
             rospy.loginfo("callback goal sent")
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=2.5,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=self.sidemove)
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=2,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=self.sidemove)
             self.client.send_goal(goal,self.done_cb)
         
     def execute(self,userdata):
@@ -196,16 +213,19 @@ class MotionControlProcess(smach.State):
                target = (gate.centroidx[0] + gate.centroidx[1])/2 - 640*0.5
                if(len(gate.centroidx)==2):
                    centroid_dist = fabs(gate.centroidx[0] - gate.centroidx[1])
-               if(target>0 and fabs(target) >20):
+               if(target>0 and fabs(target) >10):
                    self.sidemove = centroid_dist*self.Kp
-               elif(target<0 and fabs(target) >20):
+               elif(target<0 and fabs(target) >10):
                    self.sidemove = -centroid_dist*self.Kp
                else:
                    self.sidemove = 0
                    self.client.cancel_all_goals()
                    locomotionGoal.sidemove_setpoint = 0
                    userdata.complete_output = True
-                   resp = mission_srv_request(False,True,locomotionGoal)
+                   try:
+                       resp = mission_srv_request(False,True,locomotionGoal)
+                   except rospy.ServiceException, e:
+                       print "Service call failed: %s"%e
                    return 'task_complete'
                rospy.logdebug("target:" + str(target) + "sidemove:" + str(self.sidemove))
                if(not self.isCorrection):
@@ -218,10 +238,7 @@ class MotionControlProcess(smach.State):
         
 
 class Disengage(smach.State):
-    #global isStart
-    #global isEnd
     client = None
-    global movement_client
     def __init__(self):
         smach.State.__init__(self, outcomes=['start_complete','complete_outcome','aborted'],
                             input_keys=['complete_input'])
@@ -229,18 +246,21 @@ class Disengage(smach.State):
         global locomotionGoal
         global isStart
         global isEnd
-        global movement_client
+        global mission_srv_request
         #Service Server
-        print userdata.complete_input
+        self.client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+        self.client.wait_for_server()
+        
         if userdata.complete_input == True:
              isStart = False
-             rospy.loginfo("move forward")
-             while(not rospy.is_shutdown):
-                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=1,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=sidemove)
-                 movement_client.send_goal(goal)
-                 movement_client.wait_for_result()
-        while(not rospy.is_shutdown()):
+             isEnd = True
+             try:
+                 resp = mission_srv_request(False,True,locomotionGoal)
+             except rospy.ServiceException, e:
+                 print "Service call failed: %s"%e
+        while not rospy.is_shutdown():
             if isEnd:
+                rospy.signal_shutdown("Deactivating Gate Node")
                 return 'complete_outcome'
             if isStart:
                 return 'start_complete'
@@ -262,7 +282,11 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart,isAbort)
     
 '''
-    GLOBAL VARIABLES
+###################################################################
+
+                       MAIN PYTHON THREAD
+        
+###################################################################
 
 '''
 x = 100
@@ -285,6 +309,7 @@ if __name__ == '__main__':
     rospy.loginfo('gate_srv initialized!')
     
     #Service Client
+    rospy.loginfo('waiting for mission_srv...')
     rospy.wait_for_service('mission_srv')
     mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
     rospy.loginfo('connected to mission_srv!')
@@ -292,7 +317,6 @@ if __name__ == '__main__':
     
     gate = Gate()
     #Initialize State Machine
-    rospy.loginfo('Executing SM')
     sm_top = smach.StateMachine(outcomes=['gate_complete','aborted'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:

@@ -16,7 +16,8 @@ import rospy
 import cv2 as cv2
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import controller_input
+from bbauv_msgs.msg import *
+from bbauv_msgs.srv import *
 import sys
 import smach
 import smach_ros
@@ -26,29 +27,13 @@ import os
 #External libraries
 import numpy as np
 
-# define state Foo
-class Foo(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['outcome1','outcome2'])
-        self.counter = 0
+'''
+###################################################################
 
-    def execute(self, userdata):
-        print 'Executing state FOO'
-        if self.counter < 3:
-            self.counter += 1
-            rospy.loginfo("executing outcome 1!")
-            return 'outcome1'
-        else:
-            return 'outcome2'
-
-# define state Bar
-class Bar(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['outcome2'])
-
-    def execute(self, userdata):
-        print 'Executing state BAR'
-        return 'outcome2'
+                       COMPUTER VISION CLASS
+        
+###################################################################
+'''
 
 class SpeedTrap:
     params = { 'satLow': 0, 'satHigh': 255, 'hueLow': 0, 'hueHigh':255,'valLow':0,'valHigh':255,'grayLow':0 ,'grayHigh':255}
@@ -57,6 +42,7 @@ class SpeedTrap:
     isAlignState = True
     isLoweringState = True
     shapeClass = ShapeAnalysis()
+    yaw = 0
     ''' 
     Utility Methods
     '''
@@ -99,17 +85,20 @@ class SpeedTrap:
     Node Functions
     '''    
     def __init__(self):
-        imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_raw')
-        compassTopic = rospy.get_param('~compass', '/os5000_data')
-        self.image_pub = rospy.Publisher("/Vision/SpeedTrap/image_filter",Image)
+        imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_rect_color')
+        yawTopic = rospy.get_param('~compass', '/euler')
+        self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
         self.bridge = CvBridge()
         self.histClass.setParams(self.params)
         cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
         cv2.moveWindow("Sub Alignment",512,30)
         cv2.createTrackbar("Canny Threshold:", "Sub Alignment", self.stParams['canny'], 500, self.stParamSetter('canny'));
         self.image_sub = rospy.Subscriber(imageTopic, Image,self.processImage)
+        self.yaw_sub = rospy.Subscriber(yawTopic,bbauv_msgs.compass,self.collectYaw)
         self.bridge = CvBridge()
-               
+    
+    def collectYaw(self,msg):
+        self.yaw = msg.yaw
     def processImage(self,data):
         try:
             cv_image = self.rosimg2cv(data)
@@ -128,7 +117,7 @@ class SpeedTrap:
         retval, cv_single = cv2.threshold(cv_single, self.params['grayLow'], 255, cv2.THRESH_OTSU)
         self.histClass.setTrackBarPosition("Gray Low:", int(retval))
         #cv_single = cv2.adaptiveThreshold(cv_single, 254, cv2.cv.CV_ADAPTIVE_THRESH_MEAN_C, cv2.cv.CV_THRESH_BINARY_INV, 5, 7)
-        #cv_single = cv2.GaussianBlur(cv_single, (3,3),1)
+        #cv_single = cv2.GaussianBlur(cv3),1)
         #cv_single = cv2.Canny(cv_single,self.stParams['canny'], self.stParams['canny']*3,L2gradient=True)
         '''Find contours on binary image and identify target to home in on'''
         '''Perform Morphological Operations on binary image to clean it up'''
@@ -195,26 +184,174 @@ class SpeedTrap:
             #cv2.waitKey(1)
         except CvBridgeError, e:
             print e
+'''
+###################################################################
+
+               SMACH STATE MACHINE CLASS DECLARATION
         
+###################################################################
+
+'''
+class Disengage(smach.State):
+    client = None
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['start_complete','complete_outcome','aborted'],
+                            input_keys=['complete_input'])
+    def execute(self,userdata):
+        global locomotionGoal
+        global isStart
+        global isEnd
+        global mission_srv_request
         
+        if userdata.complete_input == True:
+             isStart = False
+             isEnd = True
+             try:
+                 resp = mission_srv_request(False,True,locomotionGoal)
+             except rospy.ServiceException, e:
+                 print "Service call failed: %s"%e
+        while not rospy.is_shutdown():
+            if isEnd:
+                rospy.signal_shutdown("Deactivating Gate Node")
+                return 'complete_outcome'
+            if isStart:
+                return 'start_complete'
+        return 'aborted'
+    
+class Search(smach.State):
+    global st
+    global mission_srv_request
+   # global r
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['search_complete','aborted'])
+        
+    def execute(self,userdata):
+        while(len(st.centroidx) != 2 and not rospy.is_shutdown()):
+            #print len(gate.centroidx)
+            r.sleep()
+        if rospy.is_shutdown():
+            return 'aborted'
+        else:
+            try:
+                resp = mission_srv_request(True,False,None)
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e
+            return 'search_complete'
+
+class Centering(smach.State):
+    global st
+    global mission_srv_request
+   # global r
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['centering_complete','aborted'])
+        
+    def execute(self,userdata):
+        while(len(st.centroidx) != 2 and not rospy.is_shutdown()):
+            #print len(gate.centroidx)
+            r.sleep()
+        if rospy.is_shutdown():
+            return 'aborted'
+        else:
+            try:
+                resp = mission_srv_request(True,False,None)
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e
+            return 'search_complete'
+       
+class Orientating(smach.State):
+    global st
+   # global r
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['orientating_complete','aborted'])
+        
+    def execute(self,userdata):
+        while(len(st.centroidx) != 2 and not rospy.is_shutdown()):
+            #print len(gate.centroidx)
+            r.sleep()
+        if rospy.is_shutdown():
+            return 'aborted'
+        else:
+            try:
+                resp = mission_srv_request(True,False,None)
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e
+            return 'search_complete' 
+        
+class Aiming(smach.State):
+    global st
+    global mission_srv_request
+   # global r
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['aiming_complete','aborted'])
+        
+    def execute(self,userdata):
+        while(len(st.centroidx) != 2 and not rospy.is_shutdown()):
+            #print len(gate.centroidx)
+            r.sleep()
+        if rospy.is_shutdown():
+            return 'aborted'
+        else:
+            try:
+                resp = mission_srv_request(True,False,None)
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e
+            return 'search_complete'
+'''
+###################################################################
+
+                       MAIN PYTHON THREAD
+        
+###################################################################
+
+'''
+#Global Variables
+
+movement_client = None
+locomotionGoal = None   
+     
 if __name__ == '__main__':
     rospy.init_node('SpeedTrap', anonymous=True)
-    st = SpeedTrap()
-    s = smach.StateMachine(outcomes=['outcome4'])
     
-    # Create a SMACH state machine
-    sm = smach.StateMachine(outcomes=['outcome4', 'outcome5'])
+    movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+    movement_client.wait_for_server()
+    
+    vision_srv = rospy.Service('speedtrap_srv', mission_to_vision, handle_srv)
+    rospy.loginfo('speedtrap_srv initialized!')
+    
+    #Service Client
+    rospy.loginfo('waiting for mission_srv...')
+    rospy.wait_for_service('mission_srv')
+    mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
+    rospy.loginfo('connected to mission_srv!')
+    
+    st = SpeedTrap()
+    
+    sm_top = smach.StateMachine(outcomes=['speedtrap_complete','aborted'])
+    #Add overall States to State Machine for Gate Task 
+    with sm_top:
+        smach.StateMachine.add('DISENGAGED',
+                         Disengage(),
+                         transitions={'start_complete':'SEARCH','complete_outcome':'speedtrap_complete','aborted':'aborted'},
+                         )
+        smach.StateMachine.add('SEARCH',
+                         Search(),
+                         transitions={'search_complete':'CENTERING','aborted':'aborted'})
+        # Create the sub SMACH state machine for Motion Control Phase 
+        #sm_motion = smach.StateMachine(['task_complete'])
+        smach.StateMachine.add('CENTERING',
+                         Centering(),
+                         transitions={'centering_complete': 'ORIENTATING','aborted':'aborted'},
+                         )
+        smach.StateMachine.add('ORIENTATING',
+                         Orientating(),
+                         transitions={'orientating_complete': 'AIMING','aborted':'aborted'},
+                         )
+        smach.StateMachine.add('AIMING',
+                         Aiming(),
+                         transitions={'aiming_complete': 'DISENGAGED','aborted':'aborted'},
+                         )
 
-    # Open the container
-    with sm:
-        # Add states to the container
-        smach.StateMachine.add('FOO', Foo(), 
-                               transitions={'outcome1':'BAR', 
-                                            'outcome2':'outcome4'})
-        smach.StateMachine.add('BAR', Bar(), 
-                               transitions={'outcome2':'FOO'})
-
-    sis = smach_ros.IntrospectionServer('server',sm,'/SM_ROOT')
+    sis = smach_ros.IntrospectionServer('server',sm_top,'/MISSION/SPEEDTRAP')
     sis.start()
     # Execute SMACH plan
     outcome = sm.execute()

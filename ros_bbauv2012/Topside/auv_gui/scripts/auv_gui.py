@@ -18,6 +18,8 @@ class AUV_gui(QMainWindow):
     heading_provider = None
     depth_thermo = None
     client = None
+    yaw = 0
+    
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
@@ -169,14 +171,17 @@ class AUV_gui(QMainWindow):
         return (label, qle, layout)
     
     def orientation_callback(self,msg):
+        pass
         #self.compass.setValue(int(msg.yaw))
-        self.heading_disp_l.setText("Heading: " + str(round(msg.yaw,2)))
+        #self.heading_disp_l.setText("Heading: " + str(round(msg.yaw,2)))
         #self.heading_box = self.heading_provider.getValue()
     def position_callback(self,pos):
-        self.positionx_disp_l.setText("Forward Position: " + str(round(pos.pose.pose.position.x,2)))
-        self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos.pose.pose.position.y,2)))
+        pass
+        #self.positionx_disp_l.setText("Forward Position: " + str(round(pos.pose.pose.position.x,2)))
+        #self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos.pose.pose.position.y,2)))
     def depth_callback(self,depth):
-        self.depth_disp_l.setText("Depth: " + str(round(depth.depth,2)))
+        pass
+       # self.depth_disp_l.setText("Depth: " + str(round(depth.depth,2)))
         #form.compass.setValue(depth.depth)
         #self.depth_thermo.setValue(round(depth.depth,2))
         
