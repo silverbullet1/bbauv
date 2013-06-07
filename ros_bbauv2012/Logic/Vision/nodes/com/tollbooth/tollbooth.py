@@ -93,11 +93,11 @@ class TollboothDetector:
                 x,y,w,h = images[0][2]
                 cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (255, 0, 0), 3)
                 x,y,w,h = images[1][2]
-                cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 255, 0), 3)
-                x,y,w,h = images[2][2]
                 cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 0, 255), 3)
-                x,y,w,h = images[3][2]
+                x,y,w,h = images[2][2]
                 cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (255, 255, 0), 3)
+                x,y,w,h = images[3][2]
+                cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 255, 0), 3)
 
 #            imgDebug = cv2.merge([hole]*3)
 #            for contour in contours:
