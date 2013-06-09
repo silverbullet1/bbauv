@@ -3,7 +3,7 @@
 import roslib; roslib.load_manifest('Openups')
 import rospy
 import pycanberra
-from bbauv_msgs.msg import env_data
+from bbauv_msgs.msg import hull_status
 
 def destroyCanberra():
     canberra.destroy() 
@@ -19,12 +19,12 @@ def main():
         water_status['waterSensorC'] = data.WaterDetC
     
     rospy.init_node('leak_notifier', anonymous=True)
-    rospy.Subscriber("env_data", env_data, callback)
+    rospy.Subscriber("/hull_status", hull_status, callback)
 
     while not rospy.is_shutdown():
         
         for key,value in water_status.iteritems():
-            if value == 1:
+            if value == True:
                 canberra = pycanberra.Canberra()
                 canberra.easy_play_sync("alarm-clock-elapsed") #for more sounds, see here: http://0pointer.de/public/sound-naming-spec.html#guidelines
                 canberra.destroy()

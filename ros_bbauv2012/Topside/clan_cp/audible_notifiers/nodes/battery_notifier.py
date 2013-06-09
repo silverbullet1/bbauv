@@ -26,11 +26,11 @@ def main():
     while not rospy.is_shutdown():
         
         for key,value in charge_status.iteritems():
-            if value == -1:
+            if value <= 10:
                 canberra = pycanberra.Canberra()
                 canberra.easy_play_sync("suspend-error")
                 canberra.destroy()  
-                rospy.loginfo('Hey dude, give me some POWER man.')
+                rospy.loginfo('Low Power')
 
         rospy.sleep(1)
         rospy.on_shutdown(destroyCanberra)
