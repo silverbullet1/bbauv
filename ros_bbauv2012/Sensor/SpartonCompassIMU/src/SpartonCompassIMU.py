@@ -90,7 +90,7 @@ if __name__ == '__main__':
     D_Compassport = rospy.get_param('~port','/dev/ttyAHRS')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
-    D_Compassprintmodulus = rospy.get_param('~printmodulus',11)
+    D_Compassprintmodulus = rospy.get_param('~printmodulus',83)
     #Digital compass heading offset in degree
     D_Compass_offset = rospy.get_param('~offset',0.)
     Imu_data = Imu()

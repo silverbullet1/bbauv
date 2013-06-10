@@ -23,10 +23,10 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 	_heading_input = 0.0;
 	_depth_input = 0.0;
 
-	MIN_FORWARD = 0.2;
-	MIN_SIDEMOVE = 0.2;
-	MIN_HEADING = 2.0;
-	MIN_DEPTH = 0.05;
+	MIN_FORWARD = 0.1;
+	MIN_SIDEMOVE = 0.1;
+	MIN_HEADING = 1.5;
+	MIN_DEPTH = 0.03;
 	as_.start();
 }
 
@@ -45,8 +45,8 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	// push_back the seeds for the fibonacci sequence
 	//feedback_.forward_error = 1000;
 
-	ROS_INFO("Action Server Goal received - f: %f, s: %f,h: %f, d: %f" , goal_.forward_setpoint,
-			goal_.sidemove_setpoint, goal_.heading_setpoint,goal_.depth_setpoint);
+	ROS_INFO("Action Server Goal received - f: %3.2f,f_g: %3.2f , s: %3.2f , s_g: %3.2f , h: %3.2f, d: %3.3f" , goal_.forward_setpoint, goal->forward_setpoint,
+			goal_.sidemove_setpoint,goal->sidemove_setpoint, goal_.heading_setpoint,goal_.depth_setpoint);
 	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
 		// publish info to the console for the user

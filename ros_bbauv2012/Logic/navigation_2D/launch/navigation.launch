@@ -10,21 +10,27 @@
 
   <param name="robot_description" command="cat $(find navigation_2D)/description/bbauv2012.urdf" />
 
+  <!-- Running Earth Odom node -->
+
+  <node name="earth_odom" pkg="earth_odom" type="earth_odom">
+  </node>
+
 <!-- Start robot_state publisher and joint state publisher; Publishes transform base_footprint to base_link-->
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+	<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" ></node>
 
   <!-- Run a static transform between /odom and /map--> 
   <node pkg="tf" type="static_transform_publisher" name="odom_map_tf" args="0 0 0 0 0 0 /map /odom 10" />
   <!-- Run a static transform between /base_link and /stereo_cam--> 
-  <node pkg="tf" type="static_transform_publisher" name="baselink_stereocam_tf" args="0.5 0 0.2 0 0 0 /base_link /stereo_camera 10" />
-  <node pkg="tf" type="static_transform_publisher" name="baselink_WHDVL_tf" args="0 0 -0.2 0 0 0 /base_link /WH_DVL 10" />
+<!--  <node pkg="tf" type="static_transform_publisher" name="baselink_stereocam_tf" args="0.5 0 0.2 0 0 0 /base_link /stereo_camera 10" /> -->
+<!--  <node pkg="tf" type="static_transform_publisher" name="baselink_WHDVL_tf" args="0 0 -0.2 0 0 0 /base_link /WH_DVL 10" /> -->
 
-  <!-- Launch Nodes to Support Move_Base-->
+  <!-- Launchg Nodes to Support Move_Base-->
   <node name="odometry_source" pkg="navigation_2D" type="odometry_source.py">
-  </node>  
+  </node>
   <node name="cmd_position" pkg="navigation_2D" type="cmd_position.py">
-  </node> 
+  </node>
 
   <!-- Launching move_base with Bumblebee config -->
   <include file="$(find navigation_2D)/launch/move_base.launch" />

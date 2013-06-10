@@ -62,11 +62,11 @@ void RDI_DVL::publishOdomData(ros::Publisher *pubData) {
         if (i==0 || i==7 || i==14 || i==21 || i==28 || i==35) {
             if (odomData.pose.covariance[i] == 0){
                 odomData.pose.covariance[i] = 0.1;
-                ROS_INFO("Using fake pose covariance");
+                //ROS_INFO("Using fake pose covariance");
             }
             if (odomData.twist.covariance[i] == 0){
                 odomData.twist.covariance[i] = 0.1;
-                ROS_INFO("Using fake twist covariance");
+                //ROS_INFO("Using fake twist covariance");
             }
         }
 

@@ -131,7 +131,7 @@ class Gate:
                     self.target = (centroidx_hack[0] + centroidx_hack[1])/2
                     cv2.circle(contourImg,(int(self.target),int(self.rows/2)), 2, (0,0,255), thickness=-1)
                     
-            cv2.waitKey(3)
+            #cv2.waitKey(3)
             try:
                 contourImg = cv2.cv.fromarray(contourImg)
                 if self.target != None:

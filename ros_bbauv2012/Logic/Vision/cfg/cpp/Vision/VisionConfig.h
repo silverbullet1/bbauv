@@ -429,9 +429,9 @@ VisionConfig::GroupDescription<VisionConfig::DEFAULT, VisionConfig> Default("Def
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.mode_param = 0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      Default.abstract_parameters.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("mode_param", "int", 0, "Processing mode", "{'enum_description': 'Processing mode', 'enum': [{'srcline': 12, 'description': 'Detect shapes', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'MatchShape'}, {'srcline': 13, 'description': 'Detect circles', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Circle'}, {'srcline': 14, 'description': 'Detect rectangles', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Rectangle'}]}", &VisionConfig::mode_param)));
+      Default.abstract_parameters.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("mode_param", "int", 0, "Processing mode", "{'enum_description': 'Processing mode', 'enum': [{'srcline': 12, 'description': 'Detect shapes', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'MatchShape'}, {'srcline': 13, 'description': 'Detect circles', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Circle'}, {'srcline': 14, 'description': 'Detect rectangles', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Rectangle'}]}", &VisionConfig::mode_param)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __param_descriptions__.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("mode_param", "int", 0, "Processing mode", "{'enum_description': 'Processing mode', 'enum': [{'srcline': 12, 'description': 'Detect shapes', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'MatchShape'}, {'srcline': 13, 'description': 'Detect circles', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Circle'}, {'srcline': 14, 'description': 'Detect rectangles', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Rectangle'}]}", &VisionConfig::mode_param)));
+      __param_descriptions__.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("mode_param", "int", 0, "Processing mode", "{'enum_description': 'Processing mode', 'enum': [{'srcline': 12, 'description': 'Detect shapes', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'MatchShape'}, {'srcline': 13, 'description': 'Detect circles', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Circle'}, {'srcline': 14, 'description': 'Detect rectangles', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Rectangle'}]}", &VisionConfig::mode_param)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.color_param = 0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -439,9 +439,9 @@ VisionConfig::GroupDescription<VisionConfig::DEFAULT, VisionConfig> Default("Def
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __default__.color_param = 0;
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      Default.abstract_parameters.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("color_param", "int", 0, "Color to match", "{'enum_description': 'Color to match', 'enum': [{'srcline': 19, 'description': 'Red', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'Red'}, {'srcline': 20, 'description': 'Green', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Green'}, {'srcline': 21, 'description': 'Orange', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Orange'}]}", &VisionConfig::color_param)));
+      Default.abstract_parameters.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("color_param", "int", 0, "Color to match", "{'enum_description': 'Color to match', 'enum': [{'srcline': 19, 'description': 'Red', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'Red'}, {'srcline': 20, 'description': 'Green', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Green'}, {'srcline': 21, 'description': 'Orange', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Orange'}]}", &VisionConfig::color_param)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
-      __param_descriptions__.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("color_param", "int", 0, "Color to match", "{'enum_description': 'Color to match', 'enum': [{'srcline': 19, 'description': 'Red', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'Red'}, {'srcline': 20, 'description': 'Green', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Green'}, {'srcline': 21, 'description': 'Orange', 'srcfile': '../cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Orange'}]}", &VisionConfig::color_param)));
+      __param_descriptions__.push_back(VisionConfig::AbstractParamDescriptionConstPtr(new VisionConfig::ParamDescription<int>("color_param", "int", 0, "Color to match", "{'enum_description': 'Color to match', 'enum': [{'srcline': 19, 'description': 'Red', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 0, 'ctype': 'int', 'type': 'int', 'name': 'Red'}, {'srcline': 20, 'description': 'Green', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 1, 'ctype': 'int', 'type': 'int', 'name': 'Green'}, {'srcline': 21, 'description': 'Orange', 'srcfile': 'cfg/Vision.cfg', 'cconsttype': 'const int', 'value': 2, 'ctype': 'int', 'type': 'int', 'name': 'Orange'}]}", &VisionConfig::color_param)));
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
       __min__.reference_image = "";
 //#line 259 "/opt/ros/fuerte/stacks/dynamic_reconfigure/src/dynamic_reconfigure/parameter_generator.py"
@@ -531,17 +531,17 @@ VisionConfig::GroupDescription<VisionConfig::DEFAULT, VisionConfig> Default("Def
     return statics;
   }
 
-//#line 12 "../cfg/Vision.cfg"
+//#line 12 "cfg/Vision.cfg"
       const int Vision_MatchShape = 0;
-//#line 13 "../cfg/Vision.cfg"
+//#line 13 "cfg/Vision.cfg"
       const int Vision_Circle = 1;
-//#line 14 "../cfg/Vision.cfg"
+//#line 14 "cfg/Vision.cfg"
       const int Vision_Rectangle = 2;
-//#line 19 "../cfg/Vision.cfg"
+//#line 19 "cfg/Vision.cfg"
       const int Vision_Red = 0;
-//#line 20 "../cfg/Vision.cfg"
+//#line 20 "cfg/Vision.cfg"
       const int Vision_Green = 1;
-//#line 21 "../cfg/Vision.cfg"
+//#line 21 "cfg/Vision.cfg"
       const int Vision_Orange = 2;
 }
 
