@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Bag everything from the compressed cameras
 cd /media/0052-4D54
