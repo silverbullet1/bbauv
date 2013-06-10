@@ -21,41 +21,42 @@ class bbHistogram():
     params = { 'satLow': 0, 'satHigh': 255, 'hueLow': 0, 'hueHigh':255,'valLow':0,'valHigh':255,'grayLow': 0, 'grayHigh': 255}
     thresColor = (100,50,200)
     type = None
-    def __init__(self,type=Hist_constants.TRIPLE_CHANNEL):
+    name = ""
+    def __init__(self,_name,type=Hist_constants.TRIPLE_CHANNEL):
         '''
         Constructor
         '''
         self.type = type
-        
+        self.name = _name
         if(type == Hist_constants.TRIPLE_CHANNEL):
-            cv2.namedWindow("histogram settings",cv2.CV_WINDOW_AUTOSIZE)
-            cv2.createTrackbar("Hue Low:", "histogram settings", self.params['hueLow'], 255, self.paramSetter('hueLow'));
-            cv2.createTrackbar("Hue High:", "histogram settings", self.params['hueHigh'], 255, self.paramSetter('hueHigh'));
-            cv2.createTrackbar("Saturation Low:", "histogram settings", self.params['satLow'], 255, self.paramSetter('satLow'));
-            cv2.createTrackbar("Saturation High:", "histogram settings", self.params['satHigh'], 255, self.paramSetter('satHigh'));
-            cv2.createTrackbar("Value Low:", "histogram settings", self.params['valLow'], 255, self.paramSetter('valLow'));
-            cv2.createTrackbar("Value High:", "histogram settings", self.params['valHigh'], 255, self.paramSetter('valHigh'));
-            cv2.namedWindow("3 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
-            cv2.moveWindow("3 Channel Histogram",0,30)
-            cv2.moveWindow("histogram settings",256,30)
+            cv2.namedWindow(self.name + "_histogram settings",cv2.CV_WINDOW_AUTOSIZE)
+            cv2.createTrackbar(self.name + "_Hue Low:", self.name + "_histogram settings", self.params['hueLow'], 255, self.paramSetter('hueLow'));
+            cv2.createTrackbar(self.name + "_Hue High:", self.name + "_histogram settings", self.params['hueHigh'], 255, self.paramSetter('hueHigh'));
+            cv2.createTrackbar(self.name + "_Saturation Low:", self.name + "_histogram settings", self.params['satLow'], 255, self.paramSetter('satLow'));
+            cv2.createTrackbar(self.name + "_Saturation High:", self.name + "_histogram settings", self.params['satHigh'], 255, self.paramSetter('satHigh'));
+            cv2.createTrackbar(self.name + "_Value Low:", self.name + "_histogram settings", self.params['valLow'], 255, self.paramSetter('valLow'));
+            cv2.createTrackbar(self.name + "_Value High:", self.name + "_histogram settings", self.params['valHigh'], 255, self.paramSetter('valHigh'));
+            cv2.namedWindow(self.name + "_3 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
+            cv2.moveWindow(self.name + "_3 Channel Histogram",0,30)
+            cv2.moveWindow(self.name + "_histogram settings",256,30)
         elif(type == Hist_constants.SINGLE_CHANNEL):
-            cv2.namedWindow("1 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
-            cv2.createTrackbar("Gray Low:", "1 Channel Histogram", self.params['grayLow'], 255, self.paramSetter('grayLow'));
-            cv2.createTrackbar("Gray High:", "1 Channel Histogram", self.params['grayHigh'], 255, self.paramSetter('grayHigh'));
+            cv2.namedWindow(self.name + "_1 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
+            cv2.createTrackbar("Gray Low:", self.name + "_1 Channel Histogram", self.params['grayLow'], 255, self.paramSetter('grayLow'));
+            cv2.createTrackbar("Gray High:",self.name + "_1 Channel Histogram", self.params['grayHigh'], 255, self.paramSetter('grayHigh'));
             cv2.moveWindow("1 Channel Histogram",0,30)
         elif(type == Hist_constants.DUAL_CHANNEL_MODE):
             cv2.namedWindow("1 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
-            cv2.createTrackbar("Hue Low:", "1 Channel Histogram", self.params['hueLow'], 255, self.paramSetter('hueLow'));
-            cv2.createTrackbar("Hue High:", "1 Channel Histogram", self.params['hueHigh'], 255, self.paramSetter('hueHigh'));
-            cv2.createTrackbar("Saturation Low:", "1 Channel Histogram", self.params['satLow'], 255, self.paramSetter('satLow'));
-            cv2.createTrackbar("Saturation High:", "1 Channel Histogram", self.params['satHigh'], 255, self.paramSetter('satHigh'));
-            cv2.createTrackbar("Value Low:", "1 Channel Histogram", self.params['valLow'], 255, self.paramSetter('valLow'));
-            cv2.createTrackbar("Value High:", "1 Channel Histogram", self.params['valHigh'], 255, self.paramSetter('valHigh'));
-            cv2.createTrackbar("Gray Low:", "1 Channel Histogram", self.params['grayLow'], 255, self.paramSetter('grayLow'));
-            cv2.createTrackbar("Gray High:", "1 Channel Histogram", self.params['grayHigh'], 255, self.paramSetter('grayHigh'));
-            cv2.namedWindow("3 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
-            cv2.moveWindow("3 Channel Histogram",0,30)
-            cv2.moveWindow("1 Channel Histogram",256,30)
+            cv2.createTrackbar(self.name + "Hue Low:", self.name + "_histogram settings", self.params['hueLow'], 255, self.paramSetter('hueLow'));
+            cv2.createTrackbar(self.name + "Hue High:", self.name + "_histogram settings", self.params['hueHigh'], 255, self.paramSetter('hueHigh'));
+            cv2.createTrackbar(self.name + "_Saturation Low:", self.name + "_histogram settings", self.params['satLow'], 255, self.paramSetter('satLow'));
+            cv2.createTrackbar(self.name + "_Saturation High:", self.name + "_histogram settings", self.params['satHigh'], 255, self.paramSetter('satHigh'));
+            cv2.createTrackbar(self.name + "_Value Low:", self.name + "_histogram settings", self.params['valLow'], 255, self.paramSetter('valLow'));
+            cv2.createTrackbar(self.name + "_Value High:", self.name + "_histogram settings", self.params['valHigh'], 255, self.paramSetter('valHigh'));
+            cv2.createTrackbar("Gray Low:", self.name + "_1 Channel Histogram", self.params['grayLow'], 255, self.paramSetter('grayLow'));
+            cv2.createTrackbar("Gray High:", self.name + "_1 Channel Histogram", self.params['grayHigh'], 255, self.paramSetter('grayHigh'));
+            cv2.namedWindow(self.name + "_3 Channel Histogram",cv2.CV_WINDOW_AUTOSIZE)
+            cv2.moveWindow(self.name + "_3 Channel Histogram",0,30)
+            cv2.moveWindow(self.name + "_1 Channel Histogram",256,30)
         else:
             print "Please specify a correct type. Specify either TRIPLE_CHANNEL, SINGLE_CHANNEL or DUAL_CHANNEL_MODE"
    
@@ -63,7 +64,6 @@ class bbHistogram():
     Utility Methods
     '''
             
-   
     def ChannelEqualize(self,image, triple):
     # image: Triple or Single channel image
     # triple: Boolean value to indicate 3 channel or 1 channel. True for triple channel
@@ -76,11 +76,11 @@ class bbHistogram():
         else:
             return cv2.equalizeHist(image)
     
-    def setTrackBarPosition(self,name,val):
+    def setTrackBarPosition(self,_name,val):
         if self.type == Hist_constants.TRIPLE_CHANNEL:
-            cv2.setTrackbarPos(str(name), "histogram settings", val)
+            cv2.setTrackbarPos(str(_name), self.name + "_histogram settings", val)
         else:
-            cv2.setTrackbarPos(str(name), "1 Channel Histogram", val)
+            cv2.setTrackbarPos(str(_name), "1 Channel Histogram", val)
         
     def paramSetter(self,key):
         def setter(val):
@@ -88,6 +88,25 @@ class bbHistogram():
         return setter
     def setParams(self,parameters):
         self.params = parameters
+        if self.type == Hist_constants.TRIPLE_CHANNEL:
+            self.setTrackBarPosition(self.name + "_Hue Low:", self.params['hueLow'])
+            self.setTrackBarPosition(self.name + "_Hue High:", self.params['hueHigh'])
+            self.setTrackBarPosition(self.name + "_Saturation Low:", self.params['satLow'])
+            self.setTrackBarPosition(self.name + "_Saturation High:", self.params['satHigh'])
+            self.setTrackBarPosition(self.name + "_Value Low:", self.params['valLow'])
+            self.setTrackBarPosition(self.name + "_Value High:", self.params['valHigh'])
+        elif self.type == Hist_constants.SINGLE_CHANNEL:
+            self.setTrackBarPosition("Gray Low:", self.params['grayLow'])
+            self.setTrackBarPosition("Gray High:", self.params['grayHigh'])
+        else:
+            self.setTrackBarPosition("Gray Low:", self.params['grayLow'])
+            self.setTrackBarPosition("Gray High:", self.params['grayHigh'])
+            self.setTrackBarPosition(self.name + "_Hue Low:", self.params['hueLow'])
+            self.setTrackBarPosition(self.name + "_Hue High:", self.params['hueLow'])
+            self.setTrackBarPosition(self.name + "_Saturation Low:", self.params['satLow'])
+            self.setTrackBarPosition(self.name + "_Saturation High:", self.params['satHigh'])
+            self.setTrackBarPosition(self.name + "_Value Low:", self.params['valLow'])
+            self.setTrackBarPosition(self.name + "_Value High:", self.params['valHigh'])
     def getParams(self):
         return self.params
     #Compute the Histogram for three channels. Takes in a three channel image array.
@@ -113,7 +132,7 @@ class bbHistogram():
                     binVal = int(hist[h])
                     cv2.line(histImg, (h,window_height*(i+1)), (h, window_height*(i+1)-binVal), self.windowColor[i],thickness=1)
                 i = i + 1
-            cv2.imshow("3 Channel Histogram",histImg)
+            cv2.imshow(self.name + "_3 Channel Histogram",histImg)
         else:
             print "Switch mode to TRIPLE_CHANNEL or DUAL_CHANNEL_MODE!"   
            
@@ -130,7 +149,7 @@ class bbHistogram():
                 for h in range(hist_bins):
                         binVal = int(hist[h])
                         cv2.line(histImg, (h,window_height*(1)), (h, window_height*(1)-binVal), (255,255,255),thickness=1)
-                cv2.imshow("1 Channel Histogram",histImg)
+                cv2.imshow(name + "_1 Channel Histogram",histImg)
         else:
             print "Switch mode to SINGLE_CHANNEL or DUAL_CHANNEL_MODE!"       
     

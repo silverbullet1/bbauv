@@ -19,7 +19,9 @@ class AUV_gui(QMainWindow):
     depth_thermo = None
     client = None
     yaw = 0
-    
+    depth = 0
+    pos_x = 0
+    pos_y = 0
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
@@ -39,15 +41,25 @@ class AUV_gui(QMainWindow):
         okButton = QPushButton("Start Goal")
         cancelButton = QPushButton("End Goal")
         disableButton = QPushButton("Disable PIDs")
+        hoverButton = QPushButton("Hover")
+        surfaceButton = QPushButton("Surface")
         okButton.clicked.connect(self.startBtnHandler)
         cancelButton.clicked.connect(self.endBtnHandler) 
         disableButton.clicked.connect(self.disableBtnHandler)
+        surfaceButton.clicked.connect(self.surfaceBtnHandler)
+        hoverButton.clicked.connect(self.hoverBtnHandler)
         hbox = QHBoxLayout()
        # hbox.addStretch(1)
         hbox.addWidget(okButton)
         hbox.addWidget(cancelButton)
         hbox.addWidget(disableButton)
+        hbox2 = QHBoxLayout()
+       # hbox.addStretch(1)
+        hbox2.addWidget(hoverButton)
+        hbox2.addWidget(surfaceButton)
+        
         goal_layout.addLayout(hbox)
+        goal_layout.addLayout(hbox2)
         goalBox.setLayout(goal_layout)
         self.compass = Qwt.QwtCompass()
         self.compass.setGeometry(0,0,200,200)
@@ -127,6 +139,24 @@ class AUV_gui(QMainWindow):
         orientation_sub = rospy.Subscriber("/euler", bbauv_msgs.msg.compass_data ,self.orientation_callback)
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.position_callback)
     
+    def hoverBtnHandler(self):
+        resp = self.set_controller_request(True, True, True, True, False, False)
+        goal = bbauv_msgs.msg.ControllerGoal
+        goal.depth_setpoint = self.depth
+        goal.sidemove_setpoint = 0
+        goal.heading_setpoint = self.yaw
+        goal.forward_setpoint = 0
+        self.client.send_goal(goal, self.done_cb)
+        
+    def surfaceBtnHandler(self):
+        resp = self.set_controller_request(True, True, True, True, False, False)
+        goal = bbauv_msgs.msg.ControllerGoal
+        goal.depth_setpoint = 0
+        goal.sidemove_setpoint = 0
+        goal.heading_setpoint = self.yaw
+        goal.forward_setpoint = 0
+        self.client.send_goal(goal, self.done_cb)
+        
     def disableBtnHandler(self):
         resp = self.set_controller_request(False, False, False, False, False, True)
         print "resp:" + str(resp)
@@ -171,7 +201,7 @@ class AUV_gui(QMainWindow):
         return (label, qle, layout)
     
     def orientation_callback(self,msg):
-        pass
+        self.yaw = msg.yaw
         #self.compass.setValue(int(msg.yaw))
         #self.heading_disp_l.setText("Heading: " + str(round(msg.yaw,2)))
         #self.heading_box = self.heading_provider.getValue()
@@ -180,6 +210,7 @@ class AUV_gui(QMainWindow):
         #self.positionx_disp_l.setText("Forward Position: " + str(round(pos.pose.pose.position.x,2)))
         #self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos.pose.pose.position.y,2)))
     def depth_callback(self,depth):
+        self.depth = depth.depth
         pass
        # self.depth_disp_l.setText("Depth: " + str(round(depth.depth,2)))
         #form.compass.setValue(depth.depth)

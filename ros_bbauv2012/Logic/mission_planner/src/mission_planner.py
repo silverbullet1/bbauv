@@ -142,7 +142,7 @@ class Lane_Gate(smach.State):
         mission_server = rospy.Service('mission_srv', vision_to_mission, self.handle_srv)
         rospy.loginfo('mission_srv for LANE_GATE initialized!')
         try:
-            resp = lane_srv(True,locomotionGoal,True,2,False)
+            resp = lane_srv(True,locomotionGoal,False,2,False)
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
         #Start NAV Module
@@ -170,7 +170,7 @@ mission_server = None
 lane_srv = None
 locomotionGoal = None
 if __name__ == '__main__':
-    rospy.init_node('Mission_planner', anonymous=True)
+    rospy.init_node('Mission_planner', anonymous=False)
     
     #Service Client for Lane
     rospy.loginfo('Waiting for lane_srv to start up...')
