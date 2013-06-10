@@ -16,4 +16,7 @@
 
   <node ns="stereo_camera" pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc" output="screen" >
   </node>
+
+  <param name="stereo_camera/left/image_raw/compressed/format" value="png" />
+  <param name="stereo_camera/right/image_raw/compressed/format" value="png" />
 </launch>

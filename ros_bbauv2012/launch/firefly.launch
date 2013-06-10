@@ -14,4 +14,5 @@
   <node ns="bottomcam/camera" pkg="image_proc" type="image_proc" name="firefly_image_proc_node" output="screen">
   </node>
 
+  <param name="bottomcam/camera/image_raw/compressed/format" value="png" />
 </launch>
