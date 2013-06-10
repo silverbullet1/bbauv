@@ -31,6 +31,7 @@ class TollboothDetector:
 
         # Initial state
         self.heading = 0.0
+        self.regionCount = 0
 
 
     # Callback for subscribing to Image topic
@@ -43,13 +44,34 @@ class TollboothDetector:
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
 
         '''Returns coloured region, its contour, and axis-aligned bounding rect'''
-        def findColouredRegionContours(imghsv, index):
-            i = str(index)
-            img = cv2.inRange(
-                    imghsv,
-                    np.array([self.params['hueLow'+i],self.params['satLow'+i], self.params['valLow'+i]],np.uint8),
-                    np.array([self.params['hueHigh'+i],self.params['satHigh'+i], self.params['valHigh'+i]],np.uint8)
-            )
+        def findColouredRegionContours(imghsv, colour, prevContours=None):
+            minArea = self.params['contourMinArea']/1000.0 * cvimg.shape[0] * cvimg.shape[1]
+            hueLo, hueHi = self.params[colour+'HueLow'], self.params[colour+'HueHigh']
+            satLo, satHi = self.params[colour+'SatLow'], self.params[colour+'SatHigh']
+            valLo, valHi = self.params[colour+'ValLow'], self.params[colour+'ValHigh']
+
+            # Perform a sum if hueHi < hueLo
+            addRegions = False
+            if hueHi < hueLo:
+                addRegions = True
+            if not addRegions:
+                img = cv2.inRange(
+                        imghsv,
+                        np.array([hueLo, satLo, valLo],np.uint8),
+                        np.array([hueHi, satHi, valHi],np.uint8)
+                )
+            else:
+                img = cv2.inRange(
+                        imghsv,
+                        np.array([hueLo, satLo, valLo],np.uint8),
+                        np.array([255, satHi, valHi],np.uint8)
+                )
+                img += cv2.inRange(
+                        imghsv,
+                        np.array([0, satLo, valLo],np.uint8),
+                        np.array([hueHi, satHi, valHi],np.uint8)
+                )
+
             # Close up gaps
             structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
             img = cv2.dilate(img, structuringElt)
@@ -57,20 +79,39 @@ class TollboothDetector:
 
             tmp = img.copy() # findContours modifies the original
             contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            contours = filter(lambda c: cv2.contourArea(c) > minArea, contours)
             maxcontour = max(contours, key=cv2.contourArea) if contours else None
             boundingRect = cv2.boundingRect(maxcontour) if maxcontour is not None else (0,0,1,1)
 
+            if prevContours is not None:
+                prevContours.append(contours or [])
+
             return (img, maxcontour, boundingRect)
 
-        images = []
-        images.append(findColouredRegionContours(imghsv, 1))
-        images.append(findColouredRegionContours(imghsv, 2))
-        images.append(findColouredRegionContours(imghsv, 3))
-        images.append(findColouredRegionContours(imghsv, 4))
+        images, foundContours = [], []
+        for colour in ['red', 'blue', 'yellow', 'green']:
+            images.append(findColouredRegionContours(imghsv, colour, foundContours))
+
+        self.regionCount = sum([contour is not None for _, contour, _ in images])
 
         imgCombinedBW = reduce(lambda x, y: x | y, [region[0] for region in images])
-        tmp = imgCombinedBW.copy()
-        contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+        minXY, maxXY = (99999,99999), (-1,-1)
+        for image in images:
+            x,y,w,h = image[2]
+            if image[1] is not None:
+                minXY = (min(minXY[0],x), min(minXY[1],y))
+                maxXY = (max(maxXY[0],x+w), max(maxXY[1],y+h))
+        self.bigBoundingRect = (minXY[0], minXY[1], maxXY[0]-minXY[0], maxXY[1]-minXY[1])
+
+        mask = np.zeros_like(imgCombinedBW, dtype=np.uint8)
+        #points = cv2.cv.BoxPoints(self.bigBoundingRect)
+        #cv2.fillPoly(mask, [np.int32(points)], 255)
+        #imgMasked = np.bitwise_and(imgCombinedBW, mask)
+
+        #tmp = imgCombinedBW.copy()
+        #contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
 
         regions = [img[y:y+h, x:x+w] for (img, _, (x,y,w,h)) in images]
 
@@ -93,11 +134,14 @@ class TollboothDetector:
                 x,y,w,h = images[0][2]
                 cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (255, 0, 0), 3)
                 x,y,w,h = images[1][2]
-                cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 0, 255), 3)
+                cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 0, 255), 3, 2)
                 x,y,w,h = images[2][2]
                 cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (255, 255, 0), 3)
                 x,y,w,h = images[3][2]
                 cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 255, 0), 3)
+
+                x,y,w,h = self.bigBoundingRect
+                cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 255, 255), 4)
 
 #            imgDebug = cv2.merge([hole]*3)
 #            for contour in contours:
