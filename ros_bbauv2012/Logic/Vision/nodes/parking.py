@@ -6,7 +6,7 @@ import actionlib
 import sys
 import collections
 from dynamic_reconfigure.server import Server
-from dynamic_tutorials.cfg import ParkingCfg
+from Vision.cfg import ParkingConfig
 
 #OpenCV imports
 import cv2
@@ -77,21 +77,12 @@ class Search(smach.State):
             return 'search_complete'
 
 class MotionControlProcess(smach.State):
-    global park
-    isCorrection = False
-    side_Kp = 0.008
-    depth_Kp = 0.001
-    forward = 0
-    sidemove = 0    
-    #Heading and Depth for vision task individual testing
-    depth = 1.7
-    heading = 115
-    #Distance between center of image and center of target
-    side_thresh = 25
-    depth_thresh = 50
-    #Area of contour to gauge how far vehicle is from target
-    area_thresh = 1200
+    global park   
     
+    #params['side_thresh'] & params['depth_thresh']: Allowable distance between center of image and center of target
+    #params['area_thresh']: Area of contour to gauge how far vehicle is from target; after which vehicle goes into final
+    #params['approach_area_thresh']: When vehicle is far allow vehicle to take longer to adjust side & depth
+        
     def __init__(self):
         smach.State.__init__(self, outcomes=['task_complete','aborted'],
                              output_keys=['complete_output'],
@@ -105,62 +96,70 @@ class MotionControlProcess(smach.State):
         actionClient.wait_for_server()
         rospy.logdebug("Action Server Ok")
         
+        rospy.sleep(2)
         #Code below is to initialize vehicle position when individual testing vision task
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=self.heading,depth_setpoint=self.depth,sidemove_setpoint=self.sidemove)
+        goal = bbauv_msgs.msg.ControllerGoal()
+        goal.forward_setpoint = 0
+        goal.sidemove_setpoint = 0
+        goal.heading_setpoint += 0
+        goal.depth_setpoint += 0
         actionClient.send_goal(goal)
         rospy.logdebug("Initalizing") 
-        actionClient.wait_for_result(rospy.Duration(0.5,0))
+        actionClient.wait_for_result(rospy.Duration(0.1,0))
         rospy.logdebug("Done Initalizing") 
        
         while(not rospy.is_shutdown()):
                
 #            rospy.loginfo("Target Still Far") 
-            if park.area < self.area_thresh:
-            
+            if park.area < params['area_thresh']:
+                if park.area < params['approach_area_thresh']:
+                    wait_time = params['approachWaitTime']
+                if park.area > params['approach_area_thresh']:
+                    wait_time = params['finalWaitTime']
                 #Adjust first if error is too large
-                if  abs(park.errorSide) > self.side_thresh or abs(park.errorDepth) > self.depth_thresh:                    
+                if  abs(park.errorSide) > params['side_thresh'] or abs(park.errorDepth) > params['depth_thresh']:                    
                     goal.forward_setpoint = 0
-                    goal.sidemove_setpoint = park.errorSide * self.side_Kp * -1
-                    goal.depth_setpoint += park.errorDepth * self.depth_Kp * -1
-                    goal.heading_setpoint = self.heading
+                    goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
+                    goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
+                    goal.heading_setpoint = goal.heading_setpoint
                     actionClient.send_goal(goal)                    
-                    adjusting = 'Adjusting. errSide= %d side=%d, errDepth=%d depth=%d area=%d' % (park.errorSide, self.sidemove, park.errorDepth, self.depth, park.area)
+                    adjusting = 'Approach: Adjusting. errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area)
                     rospy.loginfo(adjusting)       
 #                    actionClient.wait_for_result(rospy.Duration(5,0))                      
-                    actionClient.wait_for_result()                      
+                    actionClient.wait_for_result(rospy.Duration(wait_time,0))                      
                 #Ok, now move forward
-                if abs(park.errorSide) <= self.side_thresh and abs(park.errorDepth) <= self.depth_thresh:
+                if abs(park.errorSide) <= params['side_thresh'] and abs(park.errorDepth) <= params['depth_thresh']:
                 
-                    goal.forward_setpoint = 1
+                    goal.forward_setpoint = params['approachFwdDist']
                     goal.sidemove_setpoint = 0
-                    goal.heading_setpoint = self.heading
+                    goal.heading_setpoint = goal.heading_setpoint
                     actionClient.send_goal(goal)                 
-                    forward = 'Forward! errSide= %d side=%d, errDepth=%d depth=%d area=%d' % (park.errorSide, self.sidemove, park.errorDepth, self.depth, park.area)
+                    forward = 'Approach: Forward! errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area)
                     rospy.loginfo(forward)
 #                    actionClient.wait_for_result(rospy.Duration(1,0))
-                    actionClient.wait_for_result()                 
+                    actionClient.wait_for_result(rospy.Duration(wait_time,0))                 
                          
-            if park.area>=self.area_thresh: 
+            if park.area>=params['area_thresh']: 
 #                rospy.loginfo("Target Near Enough; Executing Last Maneuver")
                 #Final State to change depth and move forward
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
-                goal.heading_setpoint = self.heading
-                goal.depth_setpoint -= 0.7
+                goal.heading_setpoint = goal.heading_setpoint
+                goal.depth_setpoint -= 0.9
                 actionClient.send_goal(goal)                                                
-                final1 = 'Going for final: change depth area=%d' % (park.area) 
+                final1 = 'Going for final: Depth change! area=%d' % (park.area) 
                 rospy.loginfo(final1)
                 actionClient.wait_for_result()
                                 
-                goal.forward_setpoint = 5
-                goal.sidemove_setpoint = 0
-                goal.heading_setpoint = self.heading
+                goal.forward_setpoint = 0
+                goal.sidemove_setpoint = 3
+                goal.heading_setpoint -= 90
                 actionClient.send_goal(goal)                                                
-                final2 = 'Going for final2: go forward area=%d' % (park.area) 
+                final2 = 'Going for final: Moonwalking! area=%d' % (park.area) 
                 rospy.loginfo(final2)
-                actionClient.wait_for_result()                              
+                actionClient.wait_for_result(rospy.Duration(5,0))
 #                actionClient.cancel_all_goals()    
-                userdata.complete_input = True
+                userdata.complete_output = True
             
 #            if park.targetLockStatus==False:
 #                pass
@@ -190,43 +189,17 @@ class Parking_Proc(smach.State):
         self.image_pub = rospy.Publisher('/Vision/image_filter',Image)
                 
         self.bridge = CvBridge()
-        
-        #CV parameters
-        self.debug_mode = rospy.get_param("~debug_mode", True) 
-        self.hmin = rospy.get_param("~hmin", 0)
-        self.hmax = rospy.get_param("~hmax", 10)
-        self.smin = rospy.get_param("~smin", 70)
-        self.smax = rospy.get_param("~smax", 255)
-        self.vmin = rospy.get_param("~vmin", 0)
-        self.vmax = rospy.get_param("~vmax", 255)
-        self.closeiter = rospy.get_param("~closeiter",5)
-        self.openiter = rospy.get_param("~openiter",5)
-        self.conArea = rospy.get_param("~conArea",120)
-        self.conPeri = rospy.get_param("~conPeri",5)
-        self.aspectRatio = rospy.get_param("~aspectRatio",7)
-        
-        #Detection Criteria parameters
         #http://stackoverflow.com/questions/5944708/python-forcing-a-list-to-a-fixed-size
         self.targetLockHistory = collections.deque(maxlen=100)
         self.targetXHistory = collections.deque(maxlen=20)
         self.targetYHistory = collections.deque(maxlen=20)
-        self.targetLockHistoryThresh = rospy.get_param("~targetLockHistoryThresh", 50)
-        self.XstdDevThresh = rospy.get_param("~XstdDevThresh", 50)
-        self.YstdDevThresh = rospy.get_param("~YstdDevThresh", 50)
         
-
         #Globals used by motion control and vision state machine 
         self.targetLockStatus = False
         self.errorSide = 0
         self.errorDepth = 0
         self.area = 0        
-
-
-        #dictionary used to make use of Jon's helper callback function
-        self.params = {'hmin':self.hmin,'hmax':self.hmax,'smin':self.smin,'smax':self.smax,'vmin':self.vmin,'vmax':self.vmax }
-        
-        print "image processing"
-            
+                    
     def image_callback(self, data):
         frame = self.convert_image(data)
         processed_image = self.process_image(frame)
@@ -238,27 +211,23 @@ class Parking_Proc(smach.State):
             return np.array(cv_image, dtype=np.uint8)
         except CvBridgeError, e:
             print e
-
-    def drcallback(config, level):
-        rospy.logdebug(""" Reconfigure Req: {h_min},{h_max}""".format(**config))
-        return config
-            
+                    
     def process_image(self, frame):
-    
+
         # Basic noise removal
         frame = cv2.GaussianBlur(frame, (3,3),0)   
         # outputs a binary image that falls within range of the HSV
-        horizontal_green = self.hsv_thresholding(frame, hmin=self.params['hmin'], hmax=self.params['hmax'], smin=self.params['smin'], smax=self.params['smax'], vmin=self.params['vmin'], vmax=self.params['vmax']) 
+        horizontal_green = self.hsv_thresholding(frame, hmin=params['hueLow'], hmax=params['hueHigh'], smin=params['satLow'], smax=params['satHigh'], vmin=params['valLow'], vmax=params['valHigh']) 
         
         #perform closing operation to fill in the detected blobs from HSV Thresh
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(6,6),(3,3)) 
-        horizontal_green = cv2.morphologyEx(horizontal_green, cv2.MORPH_OPEN, kernel, iterations=self.openiter)      
-        horizontal_green = cv2.morphologyEx(horizontal_green, cv2.MORPH_CLOSE, kernel,iterations=self.closeiter)
+        horizontal_green = cv2.morphologyEx(horizontal_green, cv2.MORPH_OPEN, kernel, iterations=params['openiter'])      
+        horizontal_green = cv2.morphologyEx(horizontal_green, cv2.MORPH_CLOSE, kernel,iterations=params['closeiter'])
         
         #making a copy because contour analysis alteres the image
         contourFrame = horizontal_green.copy()
         #finding and drawing contours
-        target_contour = self.contour_analysis(contourFrame, frame, conArea=self.conArea, conPeri=self.conPeri, conAspRatio=self.aspectRatio)
+        target_contour = self.contour_analysis(contourFrame, frame, conArea=params['conArea'], conPeri=params['conPeri'], conAspRatio=params['aspectRatio'])
         
         #Checking and publishing lock status of vision processing
         #target_contour[1] --> x coordinates
@@ -268,14 +237,13 @@ class Parking_Proc(smach.State):
         self.targetXHistory.append(target_contour[1])
         self.targetYHistory.append(target_contour[2])
         
-        
-        if sum(self.targetLockHistory) >= self.targetLockHistoryThresh and sum(self.targetLockHistory) != 0:
+        if sum(self.targetLockHistory) >= params['targetLockHistoryThresh'] and sum(self.targetLockHistory) != 0:
             calcXStDev = np.array(self.targetXHistory)
             calcYStDev = np.array(self.targetYHistory)
             XstdDev = calcXStDev.std(axis=0)
             YstdDev = calcYStDev.std(axis=0)
 #            print "Xsd = %d Ysd = %d " % (XstdDev, YstdDev)
-            if XstdDev <= self.XstdDevThresh and YstdDev <= self.YstdDevThresh:
+            if XstdDev <= params['XstdDevThresh'] and YstdDev <= params['YstdDevThresh']:
                 self.targetLockStatus = True
                 self.errorDepth = 240 - target_contour[2]
                 self.errorSide = 320 - target_contour[1]
@@ -287,37 +255,23 @@ class Parking_Proc(smach.State):
             self.targetLockStatus = False
         
         #Draw target circle for visual debuggin
-        cv2.circle(frame, (320,240), 12.5, (255,0,0), 2)
-        self.image_pub.publish(self.bridge.cv_to_imgmsg(frame))
+        debug_frame = cv2.cv.fromarray(frame)        
+        cv2.circle(frame, (320,240), 12, (255,0,0), 2)
+        debug_frame = cv2.cv.fromarray(frame)        
+        self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
 
 ########################################################################
 
         # Trackbars and Windows for debugging purposes               
-        if self.debug_mode:
-            #callback functions for trackbar
-            def paramSetter(key):
-                def setter(val):    
-	                self.params[key] = val
-                return setter            
-            cv2.namedWindow("HSV Settings", cv2.WINDOW_NORMAL
-)
-            cv2.createTrackbar("H min:", "HSV Settings", self.params['hmin'], 180, paramSetter('hmin'));
-            cv2.createTrackbar("H max:", "HSV Settings", self.params['hmax'], 180, paramSetter('hmax'));
-            cv2.createTrackbar("S min:", "HSV Settings", self.params['smin'], 255, paramSetter('smin'));
-            cv2.createTrackbar("S max:", "HSV Settings", self.params['smax'], 255, paramSetter('smax'));
-            cv2.createTrackbar("V min:", "HSV Settings", self.params['vmin'], 255, paramSetter('vmin'));                        
-            cv2.createTrackbar("V max:", "HSV Settings", self.params['vmax'], 255, paramSetter('vmax'));
+        if params['debug_mode'] ==1:
             cv2.imshow("HSV Parking", horizontal_green)
-            cv2.imshow('Contours', frame)
-                          
+#            cv2.imshow('Contours', frame)                          
             #attempting to arrange windows; opCV unable to make it more automatic
             l = 325
             w = 245
-            cv2.moveWindow("HSV Settings",0,0)
             cv2.moveWindow("HSV Parking",l,0)
-            cv2.moveWindow("Contours",l*2,0)            
-
-                       
+#            cv2.moveWindow("Contours",l*2,0)            
+              
         cv.WaitKey(5)
             
         return frame
@@ -435,13 +389,20 @@ locomotionGoal = controller()
 mission_srv_request = None
 vision_srv = None
 movement_client = None
+params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh':0, 'closeiter':0, 'openiter':0, 'conArea':0, 'conPeri':0, 'aspectRatio':0, 'targetLockHistoryThresh':0, 'XstdDevThresh':0, 'YstdDevThresh':0, 'debug_mode':0, 'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0}
+
 
 # To test just the vision code, comment everything, uncomment the last 2 lines
 # To test without mission, uncomment "Service Client" and all mission_srv_request calls
 
 if __name__ == '__main__':
     rospy.init_node('Park', log_level=rospy.INFO, anonymous=False)
-    drserver = Server(ParkingCfg, drcallback)
+
+    def configCallback(config, level):
+        for param in params:
+            params[param] = config[param]
+        return config
+    drserver = Server(ParkingConfig, configCallback)
     
     vision_srv = rospy.Service('park_srv', mission_to_vision, handle_srv)
     rospy.loginfo('park_srv initialized!')

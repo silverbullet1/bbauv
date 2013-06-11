@@ -4,7 +4,7 @@
   <node pkg="Vision" name="Parking" type="parking.py" output="screen">
     <remap from="input_rgb_image" to="/frontcam/camera/image_raw" />
     <param name="start_signal" value="False" />
-    <param name="debug_mode" value="False" />
+    <param name="debug_mode" value="True" />
     
     <param name="hmin" value="0" />
     <param name="hmax" value="50" />
@@ -13,15 +13,15 @@
     <param name="vmin" value="0" />
     <param name="vmax" value="255" />
     
-    <param name="closeiter" value="1" />
-    <param name="openiter" value="0" />
-    <param name="conArea" value="120" />
-    <param name="conPeri" value="50" />
-    <param name="aspectRatio" value="7" />
+    <param name="closeiter" value="2" />
+    <param name="openiter" value="1" />
+    <param name="conArea" value="200" />
+    <param name="conPeri" value="100" />
+    <param name="aspectRatio" value="5" />
 
-    <param name="targetLockHistoryThresh" value="10" />
-    <param name="XstdDevThresh" value="20" />
-    <param name="YstdDevThresh" value="20" />    
+    <param name="targetLockHistoryThresh" value="50" />
+    <param name="XstdDevThresh" value="50" />
+    <param name="YstdDevThresh" value="50" />    
                           
   </node>
 </launch>
