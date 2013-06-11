@@ -44,6 +44,11 @@ class TollboothDetector:
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
+
+        # Equalize on S
+        imgh, imgs, imgv = cv2.split(imghsv)
+        imghsv = cv2.merge([imgh, cv2.equalizeHist(imgs), imgv])
+
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (-1,-1))
 
         self.shape = imghsv.shape
@@ -132,6 +137,11 @@ class TollboothDetector:
                 min(convexHull, key=lambda p: (qx-p[0][0])**2 + (qy-p[0][1])**2)[0]
                 for qx,qy in minRectPts
             ]
+            # Reorder the points such that the top-left is always the first
+            # point (assuming that the points are already in clockwise order)
+            ysorted = sorted(self.bigQuad, key=lambda p: p[1])
+            xsorted = (sorted(ysorted[0:2], key=lambda p: p[0]), sorted(ysorted[2:], key=lambda p: p[0]))
+            self.bigQuad = [xsorted[0][0], xsorted[0][1], xsorted[1][1], xsorted[1][0]]
 
 
         regions = [img[y:y+h, x:x+w] for (img, _, (x,y,w,h)) in images]
@@ -152,32 +162,19 @@ class TollboothDetector:
             self.frameCallback()
 
         if self.DEBUG:
+            colours = [(255,0,0), (0,255,0), (0,0,255), (0,255,255)]
             imgDebug = cv2.merge([imgMasked]*3)
             if roicontours is not None:
                 for i in range(-1,len(self.bigQuad)-1):
                     pt1 = (self.bigQuad[i][0], self.bigQuad[i][1])
                     pt2 = (self.bigQuad[i+1][0], self.bigQuad[i+1][1])
-                    cv2.line(imgDebug, pt1, pt2, (255,0,0), 2)
-#                cv2.drawContours(imgDebug, [bigContour], 0, (0,0,255), 2)
-            #if images:
-            #    x,y,w,h = images[0][2]
-            #    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (255, 0, 0), 3)
-            #    x,y,w,h = images[1][2]
-            #    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 0, 255), 3, 2)
-            #    x,y,w,h = images[2][2]
-            #    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (255, 255, 0), 3)
-            #    x,y,w,h = images[3][2]
-            #    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 255, 0), 3)
-
-            #    x,y,w,h = self.bigBoundingRect
-            #    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0, 255, 255), 4)
-
-#            imgDebug = cv2.merge([hole]*3)
-#            for contour in contours:
-#                cv2.drawContours(imgDebug, [contour], 0, (random.randint(0,255), random.randint(0,255), random.randint(0,255)), 1)
+                    cv2.line(imgDebug, pt1, pt2, colours[i+1], 2)
 
             self.camdebug.publishImage('bw', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
+
+            for i, image in enumerate(images):
+                self.camdebug.publishImage('bw'+str(i), image[0])
 
 
     # Callback for subscribing to compass data

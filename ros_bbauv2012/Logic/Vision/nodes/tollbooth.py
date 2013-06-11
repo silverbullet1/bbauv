@@ -136,8 +136,9 @@ class Stabilize(smach.State):
                              output_keys=['targetColours'])
 
     def execute(self, userdata):
-        EPSILON_X, EPSILON_Y = 0.1, 0.1
+        EPSILON_X, EPSILON_Y = 0.08, 0.08
         EPSILON_SIZE = 0.08
+        EPSILON_ANGLE = 4
 
         hoverDepth = depth_setpoint
         hoverHeading = tollbooth.heading
@@ -150,11 +151,18 @@ class Stabilize(smach.State):
             H,W = tollbooth.shape[0:2]
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
-            offsets['size'] = min(max(w/float(W) - 0.9, h/float(H) - 0.9), 1)
+            offsets['size'] = min(max(w/float(W) - 0.95, h/float(H) - 0.95), 1)
 
-            #TODO: side offsets
+            pts = tollbooth.bigQuad
+            angles = [
+                math.degrees(math.atan2(pts[1][1]-pts[0][1], pts[1][0]-pts[0][0])),
+                math.degrees(math.atan2(pts[2][1]-pts[3][1], pts[2][0]-pts[3][0]))
+            ]
+            offsets['angle'] = clamp(angles[0] - angles[1], -180, 180)
 
             if abs(offsets['x']) > EPSILON_X or abs(offsets['y']) > EPSILON_Y:
+                return True
+            if abs(offsets['size']) > EPSILON_SIZE or abs(offsets['angle']) > EPSILON_ANGLE:
                 return True
 
             return True #TODO: set to False
@@ -162,54 +170,54 @@ class Stabilize(smach.State):
         while tollboothOutOfPlace():
             if rospy.is_shutdown(): return 'aborted'
 
+            print offsets
             if abs(offsets['y']) > EPSILON_Y:
                 print("Correcting vertical")
                 hoverDepth = depth_setpoint + 2.0*offsets['y']
-                print('offset y: ' + str(offsets['y']) + "; d: " + str(hoverDepth))
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
                 print("send goal")
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result()
+                actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
             elif abs(offsets['x']) > EPSILON_X:
                 print("Correcting horizontal")
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
-                        sidemove_setpoint = 1.0 * offsets['x']
+                        sidemove_setpoint = 2.0 * offsets['x']
                 )
                 print("send goal")
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result()
+                actionClient.wait_for_result(rospy.Duration(4,0))
+                print("got result")
+            elif abs(offsets['angle']) > EPSILON_ANGLE:
+                print ("Correcting heading")
+                hoverHeading = tollbooth.heading + 0.1*offsets['angle']
+
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth
+                )
+                print("send goal")
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
             elif abs(offsets['size']) > EPSILON_SIZE:
                 print ("Correcting nearness")
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
-                        forward_setpoint = 1.0 * offsets['size']
+                        forward_setpoint = -1.0 * offsets['size']
                 )
                 print("send goal")
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result()
+                actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
             else:
                 print("nothing to do")
-
-            # Get edges
-
-#            #TODO: correct rotation
-#
-#            # Correct horizontal/vertical
-#            goal = bbauv_msgs.msg.ControllerGoal(
-#                    heading_setpoint = tollbooth.heading,
-#                    depth_setpoint = depth_setpoint
-#            )
-#            actionClient.send_goal(goal)
-#            actionClient.wait_for_result(rospy.Duration(5,0))
 
             rosRate.sleep()
 
