@@ -82,6 +82,7 @@ void dvl_callback(const nav_msgs::Odometry::ConstPtr& dvl_msg){
     lastSec = curSec;
     curSec = (dvl_msg->header).stamp.toSec();
     if (startSec == 0) startSec = curSec;
+    if (lastSec == 0) lastSec = curSec;
     
     lastNvel = Nvel;
     lastEvel = Evel;
