@@ -6,7 +6,12 @@ Code to identify RoboSub tollbooth and carry out task
 import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data
+import bbauv_msgs
+from bbauv_msgs.msg import compass_data, depth
+from bbauv_msgs.srv import *
+
+import actionlib
+from bbauv_msgs.msg import ControllerAction, controller
 
 import math
 import numpy as np
@@ -27,6 +32,7 @@ DEBUG = True
 camdebug = None
 tollbooth = None
 firstRunAction = True
+depth_setpoint = 0.5
 
 # dynamic_reconfigure params; see Tollbooth.cfg
 params = { 'contourMinArea': 0,
@@ -35,6 +41,10 @@ params = { 'contourMinArea': 0,
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
            'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0
 }
+
+
+def clamp(val, minimum, maximum):
+    return max(minimum, min(val, maximum))
 
 
 def initAction():
@@ -126,18 +136,68 @@ class Stabilize(smach.State):
                              output_keys=['targetColours'])
 
     def execute(self, userdata):
-#        def 
-#        laneDetector.frameCallback = 
+        EPSILON_X, EPSILON_Y = 0.1, 0.1
+        EPSILON_SIZE = 0.08
 
+        hoverDepth = depth_setpoint
+        hoverHeading = tollbooth.heading
         offsets = {}
+
+        initAction()
+
         def tollboothOutOfPlace():
-            #TODO: detection code
             x,y,w,h = tollbooth.bigBoundingRect
-            offsets['x'] = (x + 0.5*w) 
-            return True
+            H,W = tollbooth.shape[0:2]
+            offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
+            offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
+            offsets['size'] = min(max(w/float(W) - 0.9, h/float(H) - 0.9), 1)
+
+            #TODO: side offsets
+
+            if abs(offsets['x']) > EPSILON_X or abs(offsets['y']) > EPSILON_Y:
+                return True
+
+            return True #TODO: set to False
 
         while tollboothOutOfPlace():
             if rospy.is_shutdown(): return 'aborted'
+
+            if abs(offsets['y']) > EPSILON_Y:
+                print("Correcting vertical")
+                hoverDepth = depth_setpoint + 2.0*offsets['y']
+                print('offset y: ' + str(offsets['y']) + "; d: " + str(hoverDepth))
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth
+                )
+                print("send goal")
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result()
+                print("got result")
+            elif abs(offsets['x']) > EPSILON_X:
+                print("Correcting horizontal")
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        sidemove_setpoint = 1.0 * offsets['x']
+                )
+                print("send goal")
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result()
+                print("got result")
+            elif abs(offsets['size']) > EPSILON_SIZE:
+                print ("Correcting nearness")
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        forward_setpoint = 1.0 * offsets['size']
+                )
+                print("send goal")
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result()
+                print("got result")
+            else:
+                print("nothing to do")
 
             # Get edges
 
@@ -168,7 +228,7 @@ class MoveToTarget(smach.State):
     def execute(self, userdata):
         #TODO: lock on to target and fire torpedo
         #TODO: if no targets left, continue
-        return 'done'
+        return 'fired'
 
 '''
 Carry on to next task
@@ -210,11 +270,12 @@ if __name__ == '__main__':
         if tollbooth: tollbooth.gotRosFrame(rosImage)
     def gotHeading(msg):
         if tollbooth: tollbooth.gotHeading(msg)
-#    def gotDepth(msg):
-#        if tollbooth: tollbooth.gotDepth(msg)
+    def gotDepth(msg):
+        global depth_setpoint
+        depth_setpoint = msg.depth
     rospy.Subscriber(imageTopic, Image, gotRosFrame)
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
-#    rospy.Subscriber(depthTopic, depth, gotDepth)
+    rospy.Subscriber(depthTopic, depth, gotDepth)
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted'])
     with sm:
@@ -262,6 +323,8 @@ if __name__ == '__main__':
         outcome = sm.execute()
     except Exception, e:
         print e
-        rospy.shutdown_reason('Shutting down due to exception.')
+        rospy.signal_shutdown('Shutting down due to exception.')
+
+    rospy.signal_shutdown('Completed')
 
 # vim: set sw=4 ts=4 expandtab:
