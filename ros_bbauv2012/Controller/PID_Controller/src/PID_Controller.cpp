@@ -98,6 +98,7 @@ bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
   inSidemovePID = req.sidemove;
   inPitchPID = req.pitch;
   inTopside = req.topside;
+  inNavigation = req.navigation;
   res.complete = true;
   return true;
 }

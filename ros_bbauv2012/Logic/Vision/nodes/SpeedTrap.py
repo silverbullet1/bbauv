@@ -109,7 +109,7 @@ class SpeedTrap:
         #cv2.moveWindow("Sub Alignment",512,30)
         cv2.createTrackbar("Canny Threshold:", "Sub Alignment", self.stParams['canny'], 500, self.stParamSetter('canny'));
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color_remote', Image,self.processImage)
+        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_color', Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.pos_sub = rospy.Subscriber('/WH_DVL_data',Odometry)
         self.bridge = CvBridge()
@@ -201,17 +201,33 @@ class SpeedTrap:
                     #cv2.rectangle(contourImg, (rect[0],rect[1]), (rect[0] + rect[2],rect[1] + rect[3]), (255,0,0))
                     # Obtain the actual corners of the box
                     points = cv2.cv.BoxPoints(contourRect)
+                    longest_pt1 = None
+                    longest_pt2 = None
+                    longest_norm = 0
                     # Draw the lines
                     for i in range(4):
                         # The line function doesn't accept floating point values
                         pt1 = (int(points[i][0]), int(points[i][1]))
                         pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
+                        norm = math.sqrt(pow((pt1[0] - pt2[0]),2) + pow((pt1[1] - pt2[1]),2))
+                        if (norm > longest_norm):
+                            longest = i
+                            longest_norm = norm
+                            longest_pt1 = pt1
+                            longest_pt2 = pt2
                         cv2.line(contourImg, pt1, pt2, 255, 1)
                     if(abs(humoments[0] - 0.202) < 0.005):
-                        angle_hor = np.arctan((points[0][1] - points[1][1])/(points[0][0]-points[1][0])) 
+                        if(longest_pt2[1] < longest_pt1[1]):
+                            temp = longest_pt2
+                            longest_pt2 = longest_pt1
+                            longest_pt1 = temp 
+                        rect_y = longest_pt2[1] - longest_pt1[1]
+                        rect_x = longest_pt2[0] - longest_pt1[0]
+                        angle_hor = math.degrees(math.atan2(rect_y,(rect_x))) 
+                        #print angle_hor
                         binList.append(contourRect)
-                        angleList.append(angle_hor*180/np.pi)
-                        cv2.putText(contourImg,str(np.round(angleList,1)), pt1, cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+                        angleList.append(angle_hor)
+                        cv2.putText(contourImg,str(np.round(angle_hor,1)), (int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                     if True:
                         colorTxt = (0,0,255)
                         #cv2.drawContours(contourImg, contours, i, (255,0,0),thickness= -1)
@@ -224,14 +240,14 @@ class SpeedTrap:
                             for j in range(0,len(centroidx) -1):
                                 cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)
                                 #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1])/(centroidx[j] -centroidx[j+1])))
-                                targetAngle = math.degrees(math.atan2((centroidy[j] -centroidy[j+1]),(centroidx[j] -centroidx[j+1])))
+                                #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1]),(centroidx[j] -centroidx[j+1])))
                                 #cv2.putText(contourImg,str(np.round(targetAngle,1)), (int(centroidx[j]),int(centroidy[j])), cv2.FONT_HERSHEY_PLAIN, 1, colorTxt)
                                 #self.computeCorrection(targetAngle)
                                 #target = (centroidx[0] + centroidx[1])/2
                                 #cv2.circle(contourImg,(int(target),int(rows/2)), 2, (0,0,255), thickness=-1)
                     else:
                         colorTxt = (0,255,255)
-                    cv2.putText(contourImg,"u0:" + str(np.round(humoments[0][0],3)),(int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, colorTxt)
+                    #cv2.putText(contourImg,"u0:" + str(np.round(humoments[0][0],3)),(int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, colorTxt)
         else:
             self.centroidx = 0
             self.centroidy = 0
@@ -240,7 +256,7 @@ class SpeedTrap:
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
         if len(binList) >1:
             self.orientation = np.average(angleList, None, None)
-            print angleList
+            print self.orientation
             cv2.putText(contourImg,str(np.round(self.orientation,1)), (int(self.centroidx),int(self.centroidy)), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
         return contourImg
     

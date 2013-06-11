@@ -11,6 +11,7 @@ import actionlib
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
+import Queue
 
 class AUV_gui(QMainWindow):
     main_frame = None
@@ -22,6 +23,11 @@ class AUV_gui(QMainWindow):
     depth = 0
     pos_x = 0
     pos_y = 0
+    update_freq = 5
+    q_yaw = Queue.Queue()
+    q_depth = Queue.Queue() 
+    q_pos_x = Queue.Queue()
+    q_pos_y = Queue.Queue()
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
@@ -83,12 +89,10 @@ class AUV_gui(QMainWindow):
                 Qwt.QwtCompassMagnetNeedle.ThinStyle))
         compass_l = QLabel("Heading")
         
-        
         compass_layout = QVBoxLayout()
         compass_layout.addWidget(compass_l)
         compass_layout.addWidget(self.compass)
         compass_layout.addWidget(self.heading_provider)
-        
         
         #Depth Scale
         self.depth_thermo = Qwt.QwtThermo()
@@ -113,7 +117,6 @@ class AUV_gui(QMainWindow):
         display_layout.addWidget(self.positionx_disp_l)
         display_layout.addWidget(self.positiony_disp_l)
         
-        
         main_layout = QHBoxLayout()
         main_layout.addWidget(goalBox)
         main_layout.addLayout(display_layout)
@@ -127,12 +130,26 @@ class AUV_gui(QMainWindow):
         self.initAction()
         self.initSub()
         self.initService()
+        self.timer = QTimer()
+        self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
+        self.timer.start(1000.0 / self.update_freq)
+        
+    def on_timer(self):
+        yaw = self.q_yaw.get(1)
+        depth = self.q_depth.get(1)
+        pos_x = self.q_pos_x.get(1)
+        pos_y = self.q_pos_y.get(1)
+        self.compass.setValue(int(yaw))
+        self.heading_disp_l.setText("Heading: " + str(round(yaw,2)))
+        self.positionx_disp_l.setText("Forward Position: " + str(round(pos_x,2)))
+        self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos_y,2)))
+        self.depth_disp_l.setText("Depth: " + str(round(depth,2)))
+        self.depth_thermo.setValue(round(depth,2))
     
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
         self.status_text.setText("Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
-        
   
     def initSub(self):
         depth_sub = rospy.Subscriber("/depth", bbauv_msgs.msg.depth ,self.depth_callback)
@@ -140,7 +157,7 @@ class AUV_gui(QMainWindow):
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.position_callback)
     
     def hoverBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, False, False)
+        resp = self.set_controller_request(True, True, True, True, False, False,False)
         goal = bbauv_msgs.msg.ControllerGoal
         goal.depth_setpoint = self.depth
         goal.sidemove_setpoint = 0
@@ -149,7 +166,7 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, False, False)
+        resp = self.set_controller_request(True, True, True, True, False, False,False)
         goal = bbauv_msgs.msg.ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -162,7 +179,7 @@ class AUV_gui(QMainWindow):
         print "resp:" + str(resp)
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
-        resp = self.set_controller_request(True, True, True, True, False, False)
+        resp = self.set_controller_request(True, True, True, True, False, False,False)
         print "resp:" + str(resp)
         goal = bbauv_msgs.msg.ControllerGoal
         goal.depth_setpoint = float(self.depth_box.text())
@@ -201,18 +218,18 @@ class AUV_gui(QMainWindow):
         return (label, qle, layout)
     
     def orientation_callback(self,msg):
-        self.yaw = msg.yaw
+        self.q_yaw.put(msg.yaw)
         #self.compass.setValue(int(msg.yaw))
         #self.heading_disp_l.setText("Heading: " + str(round(msg.yaw,2)))
         #self.heading_box = self.heading_provider.getValue()
     def position_callback(self,pos):
-        pass
+        self.q_pos_x.put(pos.pose.pose.position.x)
+        self.q_pos_y.put(pos.pose.pose.position.y)
         #self.positionx_disp_l.setText("Forward Position: " + str(round(pos.pose.pose.position.x,2)))
         #self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos.pose.pose.position.y,2)))
     def depth_callback(self,depth):
-        self.depth = depth.depth
-        pass
-       # self.depth_disp_l.setText("Depth: " + str(round(depth.depth,2)))
+        self.q_depth.put(depth.depth)
+        #self.depth_disp_l.setText("Depth: " + str(round(depth.depth,2)))
         #form.compass.setValue(depth.depth)
         #self.depth_thermo.setValue(round(depth.depth,2))
         

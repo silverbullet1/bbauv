@@ -4,5 +4,6 @@ bool heading
 bool depth
 bool pitch
 bool topside
+bool navigation
 ---
 bool complete
