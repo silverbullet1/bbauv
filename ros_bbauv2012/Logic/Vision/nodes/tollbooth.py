@@ -92,7 +92,7 @@ class Disengage(smach.State):
         smach.State.__init__(
                         self,
                         outcomes=['start_complete', 'aborted'],
-                        output_keys=['targetColours']
+                        output_keys=['targetIDs']
         )
 
     def execute(self, userdata):
@@ -104,6 +104,9 @@ class Disengage(smach.State):
             rosRate.sleep()
 
         tollbooth = TollboothDetector(params, camdebug)
+
+        #TODO: use actual competition IDs
+        userdata.targetIDs = ['red', 'yellow']
         return 'start_complete'
 
 
@@ -114,8 +117,8 @@ class Search(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['search_complete', 'aborted'],
-                             input_keys=['targetColours'],
-                             output_keys=['targetColours'])
+                             input_keys=['targetIDs'],
+                             output_keys=['targetIDs'])
 
     def execute(self, userdata):
         #TODO: find the tollbooth
@@ -132,13 +135,15 @@ class Stabilize(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['found', 'aborted'],
-                             input_keys=['targetColours'],
-                             output_keys=['targetColours'])
+                             input_keys=['targetIDs'],
+                             output_keys=['targetIDs'])
 
     def execute(self, userdata):
         EPSILON_X, EPSILON_Y = 0.08, 0.08
-        EPSILON_SIZE = 0.08
-        EPSILON_ANGLE = 4
+        EPSILON_SIZE = 0.3
+        EPSILON_ANGLE = 5
+
+        FORWARD_K, SIDE_K, DEPTH_K, ANGLE_K = -1.0, 4.0, 4.0, 0.1
 
         hoverDepth = depth_setpoint
         hoverHeading = tollbooth.heading
@@ -151,7 +156,7 @@ class Stabilize(smach.State):
             H,W = tollbooth.shape[0:2]
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
-            offsets['size'] = min(max(w/float(W) - 0.95, h/float(H) - 0.95), 1)
+            offsets['size'] = min(w*h/float(H*W) - 0.7, 1)
 
             pts = tollbooth.bigQuad
             angles = [
@@ -165,43 +170,45 @@ class Stabilize(smach.State):
             if abs(offsets['size']) > EPSILON_SIZE or abs(offsets['angle']) > EPSILON_ANGLE:
                 return True
 
-            return True #TODO: set to False
+            return False
 
         while tollboothOutOfPlace():
             if rospy.is_shutdown(): return 'aborted'
 
+            x,y,w,h = tollbooth.bigBoundingRect
+            H,W = tollbooth.shape[0:2]
+
             print offsets
             if abs(offsets['y']) > EPSILON_Y:
                 print("Correcting vertical")
-                hoverDepth = depth_setpoint + 2.0*offsets['y']
+                factor = 1 - h/float(H) # attenuation factor
+                hoverDepth = depth_setpoint + factor * DEPTH_K * offsets['y']
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
-                print("send goal")
                 actionClient.send_goal(goal)
                 actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
             elif abs(offsets['x']) > EPSILON_X:
                 print("Correcting horizontal")
+                factor = 1 - w/float(W)
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
-                        sidemove_setpoint = 2.0 * offsets['x']
+                        sidemove_setpoint = factor * SIDE_K * offsets['x']
                 )
-                print("send goal")
                 actionClient.send_goal(goal)
                 actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
             elif abs(offsets['angle']) > EPSILON_ANGLE:
                 print ("Correcting heading")
-                hoverHeading = tollbooth.heading + 0.1*offsets['angle']
+                hoverHeading = tollbooth.heading + ANGLE_K * offsets['angle']
 
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
-                print("send goal")
                 actionClient.send_goal(goal)
                 actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
@@ -210,14 +217,11 @@ class Stabilize(smach.State):
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
-                        forward_setpoint = -1.0 * offsets['size']
+                        forward_setpoint = FORWARD_K * offsets['size']
                 )
-                print("send goal")
                 actionClient.send_goal(goal)
                 actionClient.wait_for_result(rospy.Duration(4,0))
                 print("got result")
-            else:
-                print("nothing to do")
 
             rosRate.sleep()
 
@@ -229,11 +233,14 @@ Manoeuvre to target
 class MoveToTarget(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['fired', 'aborted'],
-                             input_keys=['targetColours'],
-                             output_keys=['targetColours'])
+                             outcomes=['fired', 'fired_all', 'aborted'],
+                             input_keys=['targetIDs'],
+                             output_keys=['targetIDs'])
 
     def execute(self, userdata):
+        if len(userdata.targetIDs) == 0:
+            return 'fired_all'
+
         #TODO: lock on to target and fire torpedo
         #TODO: if no targets left, continue
         return 'fired'
@@ -302,19 +309,14 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'STABILIZE',
                         Stabilize(),
-                        transitions={'found': 'GET_TARGET1',
+                        transitions={'found': 'GET_TARGET',
                                      'aborted': 'aborted'}
         )
         smach.StateMachine.add(
-                        'GET_TARGET1',
+                        'GET_TARGET',
                         MoveToTarget(),
-                        transitions={'fired': 'GET_TARGET2',
-                                     'aborted': 'aborted'}
-        )
-        smach.StateMachine.add(
-                        'GET_TARGET2',
-                        MoveToTarget(),
-                        transitions={'fired': 'DONE',
+                        transitions={'fired': 'GET_TARGET',
+                                     'fired_all': 'DONE',
                                      'aborted': 'aborted'}
         )
         smach.StateMachine.add(

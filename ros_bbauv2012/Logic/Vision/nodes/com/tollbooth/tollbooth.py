@@ -13,6 +13,8 @@ import random
 import numpy as np
 import cv2
 
+COLOURS = ['red', 'blue', 'yellow', 'green']
+
 # Tollbooth detector class
 class TollboothDetector:
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
@@ -99,7 +101,7 @@ class TollboothDetector:
             return (img, maxcontour, boundingRect)
 
         images, foundContours = [], []
-        for colour in ['red', 'blue', 'yellow', 'green']:
+        for colour in COLOURS:
             images.append(findColouredRegionContours(imghsv, colour, foundContours))
 
         self.regionCount = sum([contour is not None for _, contour, _ in images])
@@ -148,14 +150,18 @@ class TollboothDetector:
 
         # Code to look for the holes
         holes = []
-        for region in regions:
+        for i, region in enumerate(regions):
             hole = cv2.morphologyEx(region, cv2.MORPH_CLOSE, kernel)
-            holes.append(cv2.morphologyEx(hole, cv2.MORPH_GRADIENT, kernel))
+#            hole = cv2.morphologyEx(hole, cv2.MORPH_GRADIENT, kernel)
 
-        if holes:
-            hole = holes[0]
             tmp = hole.copy()
-            contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            contours, hierarchy = cv2.findContours(tmp, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+            holes.append(hole)
+
+            imgHole = cv2.merge([hole]*3)
+            cv2.drawContours(imgHole, contours, -1, (255,0,0))
+            self.camdebug.publishImage('hole'+str(i), imgHole)
+
             #TODO: filter out the small ones
 
         if self.frameCallback:
