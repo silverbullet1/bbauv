@@ -323,6 +323,8 @@ void DVL::assignData() {
         start_time = totalSec;
         ROS_INFO("start time: %lf", start_time);
     }
+    if (lastTotalSec == 0)
+        lastTotalSec = totalSec;
 
     lastAngX = angX;
     lastAngY = angY;
