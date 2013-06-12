@@ -37,6 +37,7 @@ class Disengage(smach.State):
         global locomotionGoal
         global isStart
         global isEnd
+        global isCvProcessing
         global mission_srv_request
         
         if userdata.complete_input == True:
@@ -381,13 +382,22 @@ def handle_srv(req):
 
 '''
          
+#Globals
+#vision processing object
 parking = None
+isCvProcessing = None
+#whether to abort
 isAbort = False
+#whether to start search
 isStart = True
+#whether to end 
 isEnd = False
 locomotionGoal = controller()
+#vision uses this to comms with mission
 mission_srv_request = None
+#vision server object; this is how mission comms with vision
 vision_srv = None
+#Action Client instantiation
 movement_client = None
 params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh':0, 'closeiter':0, 'openiter':0, 'conArea':0, 'conPeri':0, 'aspectRatio':0, 'targetLockHistoryThresh':0, 'XstdDevThresh':0, 'YstdDevThresh':0, 'debug_mode':0, 'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0}
 
@@ -414,7 +424,7 @@ if __name__ == '__main__':
 #    rospy.loginfo('Park connected to mission_srv!')
     
     #Computer vision processing instantiation
-    park = Parking_Proc()
+    #park = Parking_Proc()
     
     sm_top = smach.StateMachine(outcomes=['park_complete','aborted'])
     #Add overall States to State Machine for Gate Task 

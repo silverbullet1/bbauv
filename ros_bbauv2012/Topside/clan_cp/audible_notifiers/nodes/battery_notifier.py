@@ -3,7 +3,7 @@
 import roslib; roslib.load_manifest('Openups')
 import rospy
 import pycanberra
-from bbauv_msgs.msg import battery_info
+#from bbauv_msgs.msg import battery_info
 from bbauv_msgs.msg import openups
 
 def destroyCanberra():
