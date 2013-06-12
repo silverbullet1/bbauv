@@ -175,7 +175,7 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def disableBtnHandler(self):
-        resp = self.set_controller_request(False, False, False, False, False, True)
+        resp = self.set_controller_request(False, False, False, False, False, True, False)
         print "resp:" + str(resp)
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
@@ -190,12 +190,12 @@ class AUV_gui(QMainWindow):
     
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
-        #resp = self.set_controller_request(False, False, False, False, False, True)
+        #resp = self.set_controller_request(False, False, False, False, False, True, False)
         
     def endBtnHandler(self):
         self.client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        #resp = self.set_controller_request(False, False, False, False, False, True)
+        #resp = self.set_controller_request(False, False, False, False, False, True, False)
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
