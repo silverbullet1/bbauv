@@ -20,6 +20,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from com.camdebug.camdebug import CamDebug
 from com.tollbooth.tollbooth import TollboothDetector
+from com.utils.utils import *
 
 from dynamic_reconfigure.server import Server
 from Vision.cfg import TollboothConfig
@@ -33,6 +34,7 @@ camdebug = None
 tollbooth = None
 firstRunAction = True
 depth_setpoint = 0.5
+cur_heading = 0
 
 # dynamic_reconfigure params; see Tollbooth.cfg
 params = { 'contourMinArea': 0,
@@ -54,7 +56,7 @@ def initAction():
         rospy.wait_for_service('set_controller_srv')
         set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         rospy.wait_for_service('set_controller_srv')
-        set_controller_request(True, True, True, True, False, False)
+        set_controller_request(True, True, True, True, False, False, False)
         print "set controller request"
 
         firstRunAction = False
@@ -104,9 +106,10 @@ class Disengage(smach.State):
             rosRate.sleep()
 
         tollbooth = TollboothDetector(params, camdebug)
+        tollbooth.heading = cur_heading
 
         #TODO: use actual competition IDs
-        userdata.targetIDs = ['red', 'yellow']
+        userdata.targetIDs = ['yellow', 'green']
         return 'start_complete'
 
 
@@ -121,12 +124,12 @@ class Search(smach.State):
                              output_keys=['targetIDs'])
 
     def execute(self, userdata):
-        #TODO: find the tollbooth
-        while tollbooth.regionCount < 3:
-            if rospy.is_shutdown(): return 'aborted'
+        while not rospy.is_shutdown():
+            tollbooth.computeRegion()
+            if tollbooth.regionCount >= 3:
+                return 'search_complete'
             rosRate.sleep()
-
-        return 'search_complete'
+        return 'aborted'
 
 '''
 Shift the tollbooth into the centre of the image
@@ -140,10 +143,10 @@ class Stabilize(smach.State):
 
     def execute(self, userdata):
         EPSILON_X, EPSILON_Y = 0.08, 0.08
-        EPSILON_SIZE = 0.3
+        EPSILON_SIZE = 0.2
         EPSILON_ANGLE = 5
 
-        FORWARD_K, SIDE_K, DEPTH_K, ANGLE_K = -1.0, 4.0, 4.0, 0.1
+        FORWARD_K, SIDE_K, DEPTH_K, ANGLE_K = -1.0, 4.0, 4.0, -0.2
 
         hoverDepth = depth_setpoint
         hoverHeading = tollbooth.heading
@@ -152,6 +155,13 @@ class Stabilize(smach.State):
         initAction()
 
         def tollboothOutOfPlace():
+            tollbooth.computeRegion()
+
+            if tollbooth.regionCount == 0:
+                offsets['x'] = offsets['y'] = 0
+                offsets['size'] = offsets['angle'] = 0
+                return True
+
             x,y,w,h = tollbooth.bigBoundingRect
             H,W = tollbooth.shape[0:2]
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
@@ -178,7 +188,6 @@ class Stabilize(smach.State):
             x,y,w,h = tollbooth.bigBoundingRect
             H,W = tollbooth.shape[0:2]
 
-            print offsets
             if abs(offsets['y']) > EPSILON_Y:
                 print("Correcting vertical")
                 factor = 1 - h/float(H) # attenuation factor
@@ -203,7 +212,7 @@ class Stabilize(smach.State):
                 print("got result")
             elif abs(offsets['angle']) > EPSILON_ANGLE:
                 print ("Correcting heading")
-                hoverHeading = tollbooth.heading + ANGLE_K * offsets['angle']
+                hoverHeading = norm_heading(tollbooth.heading + ANGLE_K * offsets['angle'])
 
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
@@ -238,11 +247,105 @@ class MoveToTarget(smach.State):
                              output_keys=['targetIDs'])
 
     def execute(self, userdata):
-        if len(userdata.targetIDs) == 0:
-            return 'fired_all'
+        targetID = userdata.targetIDs[0]
+        remainingIDs = userdata.targetIDs[1:]
 
         #TODO: lock on to target and fire torpedo
         #TODO: if no targets left, continue
+        EPSILON_X, EPSILON_Y = 0.08, 0.08
+        EPSILON_SIZE = 0.2
+        EPSILON_ANGLE = 5
+
+        FORWARD_K, SIDE_K, DEPTH_K, ANGLE_K = -1.0, 4.0, 4.0, -0.2
+
+        hoverDepth = depth_setpoint
+        hoverHeading = tollbooth.heading
+        offsets = {}
+
+        def tollboothOutOfPlace():
+            tollbooth.computeRegion(targetID)
+
+            if tollbooth.regionCount == 0:
+                offsets['x'] = offsets['y'] = 0
+                offsets['size'] = offsets['angle'] = 0
+                return True
+
+            x,y,w,h = tollbooth.bigBoundingRect
+            H,W = tollbooth.shape[0:2]
+            offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
+            offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
+            offsets['size'] = min(w*h/float(H*W) - 0.7, 1)
+
+            pts = tollbooth.bigQuad
+            angles = [
+                math.degrees(math.atan2(pts[1][1]-pts[0][1], pts[1][0]-pts[0][0])),
+                math.degrees(math.atan2(pts[2][1]-pts[3][1], pts[2][0]-pts[3][0]))
+            ]
+            offsets['angle'] = clamp(angles[0] - angles[1], -180, 180)
+
+            if abs(offsets['x']) > EPSILON_X or abs(offsets['y']) > EPSILON_Y:
+                return True
+            if abs(offsets['size']) > EPSILON_SIZE or abs(offsets['angle']) > EPSILON_ANGLE:
+                return True
+
+            return False
+
+        while tollboothOutOfPlace():
+            if rospy.is_shutdown(): return 'aborted'
+
+            x,y,w,h = tollbooth.bigBoundingRect
+            H,W = tollbooth.shape[0:2]
+
+            if abs(offsets['y']) > EPSILON_Y:
+                print("Correcting vertical")
+                factor = 1 - h/float(H) # attenuation factor
+                hoverDepth = depth_setpoint + factor * DEPTH_K * offsets['y']
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth
+                )
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration(4,0))
+                print("got result")
+            elif abs(offsets['x']) > EPSILON_X:
+                print("Correcting horizontal")
+                factor = 1 - w/float(W)
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        sidemove_setpoint = factor * SIDE_K * offsets['x']
+                )
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration(4,0))
+                print("got result")
+            elif abs(offsets['angle']) > EPSILON_ANGLE:
+                print ("Correcting heading")
+                hoverHeading = norm_heading(tollbooth.heading + ANGLE_K * offsets['angle'])
+
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth
+                )
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration(4,0))
+                print("got result")
+            elif abs(offsets['size']) > EPSILON_SIZE:
+                print ("Correcting nearness")
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        forward_setpoint = FORWARD_K * offsets['size']
+                )
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration(4,0))
+                print("got result")
+
+            rosRate.sleep()
+
+        userdata.targetIDs = remainingIDs
+        if not remainingIDs:
+            return 'fired_all'
+
         return 'fired'
 
 '''
@@ -284,6 +387,7 @@ if __name__ == '__main__':
     def gotRosFrame(rosImage):
         if tollbooth: tollbooth.gotRosFrame(rosImage)
     def gotHeading(msg):
+        cur_heading = msg.yaw
         if tollbooth: tollbooth.gotHeading(msg)
     def gotDepth(msg):
         global depth_setpoint
