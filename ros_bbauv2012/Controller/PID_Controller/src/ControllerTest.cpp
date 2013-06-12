@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <PID_Controller/ControllerAction.h>
+#include <bbauv_msgs/ControllerAction.h>
 #include <boost/thread.hpp>
 
 void spinThread()
@@ -17,7 +17,7 @@ void spinThread()
 
 // Called once when the goal completes
 void doneCb(const actionlib::SimpleClientGoalState& state,
-            const PID_Controller::ControllerResultConstPtr& result)
+            const bbauv_msgs::ControllerResultConstPtr& result)
 {
   ROS_INFO("Finished in state [%s]", state.toString().c_str());
   //ROS_INFO("Answer: %i", result->sequence.back());
@@ -25,7 +25,7 @@ void doneCb(const actionlib::SimpleClientGoalState& state,
 
 // Called once when the goal completes
 void done2Cb(const actionlib::SimpleClientGoalState& state,
-            const PID_Controller::ControllerResultConstPtr& result)
+            const bbauv_msgs::ControllerResultConstPtr& result)
 {
   ROS_INFO("Finished in state [%s]", state.toString().c_str());
   //ROS_INFO("Answer: %i", result->sequence.back());
@@ -39,7 +39,7 @@ void activeCb()
 }
 
 // Called every time feedback is received for the goal
-void feedbackCb(const PID_Controller::ControllerFeedbackConstPtr& feedback)
+void feedbackCb(const bbauv_msgs::ControllerFeedbackConstPtr& feedback)
 {
   //ROS_INFO("Got Feedback of length %i", feedback->thruster);
 }
@@ -50,8 +50,8 @@ int main (int argc, char **argv)
   ros::init(argc, argv, "test_averaging");
 
   // create the action client
-  actionlib::SimpleActionClient<PID_Controller::ControllerAction> ac("SwayAction",true);
-  actionlib::SimpleActionClient<PID_Controller::ControllerAction> ac2("ForwardAction",true);
+  actionlib::SimpleActionClient<bbauv_msgs::ControllerAction> ac("SwayAction",true);
+  actionlib::SimpleActionClient<bbauv_msgs::ControllerAction> ac2("ForwardAction",true);
 
   //boost::thread spin_thread(&spinThread);
   ROS_INFO("Waiting for action server to start.");
@@ -63,7 +63,7 @@ int main (int argc, char **argv)
   {
 
 	  // send a goal to the action
-	 PID_Controller::ControllerGoal goal;
+	 bbauv_msgs::ControllerGoal goal;
 	 //goal.setpoint = 10;
 	 ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
 	   //wait for the action to return
