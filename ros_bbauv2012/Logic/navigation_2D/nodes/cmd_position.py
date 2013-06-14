@@ -45,9 +45,13 @@ def main():
         lead_distance = 0
         if abs(mb_fwd_vel) == 0:
             lead_distance = 0
-        if abs(mb_fwd_vel) <=0.1: 
+        if abs(mb_fwd_vel) <=0.05: #0.25
+	    lead_distance = 0.25
+        if abs(mb_fwd_vel) <=0.1: #0.5 
             lead_distance = 0.5
-        if abs(mb_fwd_vel) <=0.2:
+        if abs(mb_fwd_vel) <=0.2: #0.75
+            lead_distance = 0.75
+        if abs(mb_fwd_vel) <= 0.25: #1
             lead_distance = 1
         if abs(mb_fwd_vel) <=0.3:
             lead_distance = 2
@@ -177,8 +181,8 @@ def main():
                 p = 0.05 - (t2-t1).to_sec()
                 if p < 0.0 : p = 0.0
                 rospy.sleep(p)
-            output.forward_setpoint = position['x'] + 0.45
-            cmd_position.publish(output)
+            #output.forward_setpoint = position['x'] + 0.45
+            #cmd_position.publish(output)
 
 
         if linear_vel['x']==0 and angular_vel['z']!=0:
@@ -235,8 +239,8 @@ def main():
                 if p < 0.0 : p = 0.0
                 rospy.sleep(p)
             
-            output.forward_setpoint = position['x'] + 0.45
-            cmd_position.publish(output)   
+            #output.forward_setpoint = position['x'] + 0.45
+            #cmd_position.publish(output)   
 
 #        t2 = rospy.Time.now()
 #        #print (t2-t1).to_sec()

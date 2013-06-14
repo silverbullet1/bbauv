@@ -8,7 +8,7 @@ TrajectoryPlannerROS:
 
   acc_lim_x: 0.5
   acc_lim_y: 0.1
-  acc_lim_theta: 0.9
+  acc_lim_theta: 0.5
 
   max_vel_x: 0.3
   min_vel_x: 0
@@ -24,7 +24,7 @@ TrajectoryPlannerROS:
 #Goal Tolerance Params
 
   yaw_goal_tolerance: 0.1 #tolerance in radians
-  xy_goal_tolerance: 0.2 # In meters. Will literally stop within a 0.5m dia circle centered at the goal point
+  xy_goal_tolerance: 0.15 # In meters. Will literally stop within a 0.5m dia circle centered at the goal point
   latch_xy_goal_tolerance: true
 
 #Forward simulation Params
