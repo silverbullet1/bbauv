@@ -316,7 +316,7 @@ def initService():
         rospy.wait_for_service('set_controller_srv')
         set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         rospy.wait_for_service('set_controller_srv')
-        set_controller_request(True, True, True, True, False, False)
+        set_controller_request(True, True, True, True, False, False, False)
         print "set controller request"
 
         firstRunAction = False
