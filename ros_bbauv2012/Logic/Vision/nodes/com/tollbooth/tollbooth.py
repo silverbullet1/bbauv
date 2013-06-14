@@ -15,6 +15,10 @@ import cv2
 
 COLOURS = ['red', 'blue', 'yellow', 'green']
 
+def calcCentroid(contour):
+    m = cv2.moments(contour)
+    return (m['m10']/m['m00'], m['m01']/m['m00'])
+
 # Tollbooth detector class
 class TollboothDetector:
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
@@ -31,6 +35,9 @@ class TollboothDetector:
         self.camdebug = camdebug
         self.DEBUG = camdebug is not None and camdebug.debugOn
 
+        self.target = 'all'
+        self.history = []
+
         # Initial state
         self.heading = 0.0
         self.regionCount = 0
@@ -45,16 +52,6 @@ class TollboothDetector:
 
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
-        self.cvimg = cvimg
-
-
-    def computeRegion(self, target='all'):
-        cvimg = self.cvimg
-
-        if cvimg is None:
-            self.regionCount = 0
-            return
-
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
         # Equalize on S
         imgh, imgs, imgv = cv2.split(imghsv)
@@ -107,7 +104,7 @@ class TollboothDetector:
             return (img, maxcontour, boundingRect)
 
         images = []
-        choices = COLOURS if target == 'all' else [target]
+        choices = COLOURS if self.target == 'all' else [self.target]
         for colour in choices:
             images.append(findColouredRegionContours(imghsv, colour))
 
@@ -166,18 +163,29 @@ class TollboothDetector:
             # Contours of holes are those which have a parent
             holecontours = [contours[k] for k in filter(lambda k: hierarchy[0][k][3] > -1, range(len(contours)))]
             # Retrieve the centre of the 2nd-largest hole (if any)
-#            targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:]
-#            targetContour = None if len(targetHoles)==0 else targetHoles[0]
-#            targetCentre = None
-#            if targetContour is not None:
-#                m = cv2.moments(targetContour)
-#                targetCentre = (m['m10']/m['m00'], m['m01']/m['m00'])
-#            holes.append(targetCentre)
-            targetHoles = sorted(holecontours, key=cv2.contourArea)
-            for tgt in targetHoles:
-                m = cv2.moments(tgt)
-                targetCentre = (m['m10']/m['m00'], m['m01']/m['m00'])
-                holes.append(targetCentre)
+            if len(self.history) <= i or self.history[i] is None:
+                targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:]
+                targetContour = None if len(targetHoles)==0 else targetHoles[0]
+                targetCentre = None
+                targetArea = 0
+                if targetContour is not None:
+                    targetCentre = calcCentroid(targetContour)
+                    #targetArea = cv2.contourArea(targetContour)
+                if len(self.history) <= i:
+                    self.history.append(targetCentre)
+                else:
+                    self.history[i] = targetCentre
+            else:
+                # Minimize distance
+                prevPt = self.history[i]
+                if not holecontours:
+                    targetCentre = None
+                else:
+                    targetCentres = [calcCentroid(c) for c in holecontours]
+                    targetCentre = min(targetCentres, key=lambda c: (prevPt[0]-c[0])**2 + (prevPt[1]-c[1])**2)
+                    self.history[i] = targetCentre
+
+            holes.append(targetCentre)
 
         if self.DEBUG:
             colours = [(255,0,0), (0,255,0), (0,0,255), (0,255,255)]
@@ -195,6 +203,12 @@ class TollboothDetector:
 
             self.camdebug.publishImage('bw', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
+
+
+    def changeTarget(self, target):
+        self.target = target
+        self.history = []
+        self.regionCount = 0
 
 
     # Callback for subscribing to compass data
