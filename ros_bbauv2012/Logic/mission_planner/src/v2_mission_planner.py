@@ -14,20 +14,18 @@ import bbauv_msgs
 import bbauv_msgs.msg
 
 class Countdown(smach.State):
-    def __init__(self, sleep=1.0):
-        smach.State.__init__(self, outcomes=['succeeded','preempted'])
+    def __init__(self, sleep=2.0):
+        smach.State.__init__(self, outcomes=['succeeded'])
         self.sleep_time = sleep
     
     def execute(self, userdata):
-    
+        
+        #This is to allow enough time for ethernet cable to be 
         rospy.loginfo("Going for COUNTDOWN")        
         r = rospy.Rate(30)
         start_time = rospy.get_time()
         while (rospy.get_time() - start_time) < self.sleep_time:
             r.sleep()
-            if self.preempt_requested():
-                self.services_preempt()
-                return 'preempted'
         return 'succeeded'        
 
 class Start(smach.State):
@@ -40,22 +38,24 @@ class Start(smach.State):
         
         rospy.loginfo('Executing state START')
         
-        #Reset DVL and Earth Odom
+        #Reset DVL and Earth Odom here
         
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         rospy.wait_for_service('set_controller_srv')
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         try:
-            resp = self.set_controller_request(True, True, True, True, True, False)
+            resp = self.set_controller_request(True, True, True, True, True, False, False)
             rospy.loginfo("PID and Mode is set")
         except rospy.ServiceException, e:
             rospy.loginfo("PID and Mode NOT set: %s" % e)
         
-        locomotionGoal.forward_setpoint = 0
-        locomotionGoal.sidemove_setpoint = 0
-        locomotionGoal.depth_setpoint = 0.5
-        locomotionGoal.heading_setpoint = 55
-        locomotion_client.send_goal(locomotionGoal)
+        #Key in starting position here
+        goal = bbauv_msgs.msg.ControllerGoal()
+        goal.forward_setpoint = 0
+        goal.sidemove_setpoint = 0
+        goal.depth_setpoint = locomotionGoal.depth_setpoint = 1.5
+        goal.heading_setpoint = locomotionGoal.heading_setpoint = 65
+        locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(30,0))
         rospy.loginfo("Dive Dive Dive!")
         
@@ -88,7 +88,7 @@ class Gate(smach.State):
         rospy.wait_for_service('set_controller_srv')
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         try:
-            resp = self.set_controller_request(True, True, True, True, True, False)
+            resp = self.set_controller_request(True, True, True, True, True, False, False)
             rospy.loginfo("PID and Mode is set")
         except rospy.ServiceException, e:
             rospy.loginfo("PID and Mode NOT set: %s" % e)
@@ -97,26 +97,27 @@ class Gate(smach.State):
         try:
             #gate_srv(start_request, start_ctrl, abort)
             resp = gate_srv(True, locomotionGoal, False)
-            rospy.login("Searching for %s" % self.name)
+            rospy.loginfo("Searching for %s" % self.name)
         except rospy.ServiceException, e:
             rospy.loginfo("Failed to start Search" % e)
 
         
         timeout = 120
         elapsed = 0
-        while(not rospy.is_shutdown()) and elapsed <= timeout:
+        search_status = False
+        while(not rospy.is_shutdown()):
             t1 = rospy.Time.now()
             if elapsed <= timeout:
                 if not isSearchDone:
-                    #Navigating to Task
+                    #Moving around to search for Task
                     self.goal = bbauv_msgs.msg.ControllerGoal()
                     goal.forward_setpoint = 1
                     goal.sidemove_setpoint = 0
                     goal.heading_setpoint = locomotionGoal.heading_setpoint
                     goal.depth_setpoint = locomotionGoal.depth_setpoint
-                    locomotion_client.send_goal(self.goal)
+                    #locomotion_client.send_goal(self.goal)
                     rospy.loginfo("%s: Moving Fwd" % self.name)
-                    locomotion_client.wait_for_result()                      
+                    #locomotion_client.wait_for_result()                      
 
                 if isSearchDone:
                     #Turn off navigation mode if need be
@@ -180,10 +181,186 @@ class Lane_Gate(smach.State):
                 movement_client.send_goal(goal)
                 movement_client.wait_for_result()
                 return 'lane_complete'
-    
-class Mission_planner():
+
+class Park(smach.State):    
     def __init__(self):
-        pass
+        smach.State.__init__(self, outcomes=['park_complete','park_failed'])
+        self.name = self.__class__.__name__
+    def execute(self,userdata):
+    
+        global locomotionGoal
+        global locomotion_client
+        global movebase_client
+        global isSearchDone
+        global isTaskComplete
+        isSearchDone = False
+        isTaskComplete = False
+        goal = bbauv_msgs.msg.ControllerGoal()
+        rospy.loginfo("Entering %s state" % self.name)
+        
+        #Connecting to task server
+        rospy.wait_for_service('park_srv')
+        park_srv = rospy.ServiceProxy('park_srv', mission_to_vision)        
+        rospy.loginfo('Mission Connected to %s Server' % self.name)
+        
+        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+        rospy.wait_for_service('set_controller_srv')
+        self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
+        try:
+            resp = self.set_controller_request(True, True, True, True, True, False, False)
+            rospy.loginfo("PID and Mode is set")
+        except rospy.ServiceException, e:
+            rospy.loginfo("PID and Mode NOT set: %s" % e)
+        
+        #Begin Searching For Task
+        try:
+            #gate_srv(start_request, start_ctrl, abort)
+            resp = park_srv(True, locomotionGoal, False)
+            rospy.loginfo("Searching for %s" % self.name)
+        except rospy.ServiceException, e:
+            rospy.loginfo("Failed to start Search" % e)
+        
+        task_timeout = 180
+        search_timeout = 60
+        elapsed = 0
+        counter = True 
+        while(not rospy.is_shutdown()):
+            t1 = rospy.Time.now()
+            if elapsed <= task_timeout:
+                if not isSearchDone:
+                    #Moving around to search for Task
+                    goal.forward_setpoint = 1
+                    goal.sidemove_setpoint = 0
+                    goal.heading_setpoint = locomotionGoal.heading_setpoint
+                    goal.depth_setpoint = locomotionGoal.depth_setpoint
+                    locomotion_client.send_goal(goal)
+                    rospy.loginfo("%s: Moving Fwd. %d of %d secs elapsed" % (self.name, elapsed, task_timeout))
+                    locomotion_client.wait_for_result()                      
+
+                if isSearchDone and counter:
+                    #Turn off navigation mode if need be
+                    #Seed goal                     
+                    locomotionGoal.depth_setpoint = goal.depth_setpoint
+                    locomotionGoal.heading_setpoint = goal.heading_setpoint
+                    try:
+                        resp = park_srv(True, locomotionGoal, False)              
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Failed to seed goal" % e)
+                       
+                    rospy.loginfo("^%s: Found. Task Controlling Vehicle. %d of %d secs elapsed" % (self.name, elapsed, task_timeout))
+                    counter = False
+                        
+                if isTaskComplete:
+                    rospy.loginfo("%s: State Ended. %d of %d secs elapsed" % (self.name, elapsed, task_timeout))
+                    return 'park_complete'
+            if elapsed > task_timeout:
+                #What to do when timeout?: For gate task, surface and re-run
+                rospy.loginfo("%s: Fail to find task" % self.name)
+                locomotionGoal.depth_setpoint = 0
+                resp = park_srv(False, locomotionGoal, True)
+                rospy.loginfo("%s: Unable to complete. %d of %d secs elapsed" % (self.name, elapsed, task_timeout))
+                return 'park_failed'
+                
+            t2 = rospy.Time.now()
+            elapsed += (t2-t1).to_sec()
+    
+class CreepSearch(smach.state):
+    def __init__(self, task_name, timeout, start_heading=locomotionGoal.heading_setpoint, start_depth=locomotionGoal.heading_setpoint):
+        smach.State.__init__(self, outcomes=['creep_complete','failed'])
+        self.name = self.__class__.__name__  
+        self.task_srv_name = task_name + 'srv'
+        self.task_srv = None
+                   
+    def execute(self, userdata):
+    
+        global locomotionGoal
+        global locomotion_client
+        global isSearchDone
+        isSearchDone = False
+        
+        goal = bbauv_msgs.msg.ControllerGoal()
+        rospy.loginfo("Entering %s %s state" % (task_name, self.name))  
+        
+        #connecting to task server
+        rospy.wait_for_service(self.task_srv_name)   
+        self.task_srv = rospy.ServiceProxy(self.task_srv_name, mission_to_vision)
+        rospy.loginfo('Mission Connected to %s Server' % task_name)
+        
+        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+        rospy.wait_for_service('set_controller_srv')
+        self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
+        try:
+            resp = self.set_controller_request(True, True, True, True, True, False, False)
+            rospy.loginfo("PID and Mode is set")
+        except rospy.ServiceException, e:
+            rospy.loginfo("PID and Mode NOT set: %s" % e)
+        
+        #Begin Searching For Task
+        goal.heading_setpoint = locomotionGoal.heading_setpoint = start_heading
+        goal.depth_setpoint = locomotionGoal.depth_setpoint = start_depth
+        try:
+            resp = self.task_srv(True, locomotionGoal, False)
+            rospy.loginfo("Searching for %s" % task_name)
+        except rospy.ServiceException, e:
+            rospy.loginfo("Failed to start Search" % e)  
+        
+        #Performing Creep Search
+        r = rospy.Rate(30)
+        start_time = rospy.get_time()
+        while (not rospy.is_shutdown) and ((rospy.get_time()-start_time) <= timeout):
+            if not isSearchDone:
+                goal.forward_setpoint = 1
+                goal.sidemove_setpoint = 0
+                locomotion_client.send_goal(goal)
+                rospy.loginfo("Moving Fwd to %s. %d of %d secs elapsed" % (task_name, rospy.get_time()-start_time, timeout))                
+                locomotion_client.wait_for_result()                      
+            if isSearchDone:                
+                return 'creep_complete'
+            r.sleep()
+            
+        try:
+            rospy.loginfo('Failed to find %s' % task_name)
+            resp = self.task_srv(False, None, True)            
+            return 'failed'              
+        except rospy.ServiceException, e:
+            rospy.loginfo("Failed to seed goal" % e)
+        return 'failed'
+        
+class WaitOut(smach.state):
+    def __init__(self, task_name, timeout):
+        smach.State.__init__(self, outcomes=['task_complete','failed'])
+        self.name = self.__class__.__name__ 
+        self.task_srv_name = task_name + 'srv'
+        self.task_srv = None         
+        
+    def execute(self, userdata):    
+        global isTaskComplete
+        isTaskComplete = False        
+        rospy.loginfo("Entering %s %s state" % (task_name, self.name))  
+        
+        #connecting to task server
+        rospy.wait_for_service(self.task_srv_name)   
+        self.task_srv = rospy.ServiceProxy(self.task_srv_name, mission_to_vision)
+        rospy.loginfo('Mission Connected to %s Server' % task_name)        
+        
+        #Waiting Out
+        r = rospy.Rate(30)
+        start_time = rospy.get_time()
+        while (not rospy.is_shutdown) and ((rospy.get_time()-start_time) <= timeout):
+                
+            if isTaskComplete:
+                rospy.loginfo("Completed %s. %d of %d secs elapsed" % (task_name, rospy.get_time()-start_time, timeout)) 
+                return 'task_complete'
+            r.sleep()
+            
+        try:
+            rospy.loginfo('Failed to complete %s' % task_name)
+            resp = self.task_srv(False, None, True)            
+            return 'failed'              
+        except rospy.ServiceException, e:
+            rospy.loginfo("Failed to seed goal" % e)
+        return 'failed'                    
+     
 
 
 def handle_srv(req):
@@ -206,7 +383,7 @@ def handle_srv(req):
         return vision_to_missionResponse(False,True)   
 
 locomotion_client = None
-locomotionGoal = None
+locomotionGoal = controller()
 movebase_client = None
 movebaseGoal = None
 
@@ -222,31 +399,31 @@ if __name__ == '__main__':
     rospy.loginfo('MissionServer Initialized!')
     
     #Service Client for Lane; Lane task is the only task that will not be shutdown
-    rospy.loginfo('Waiting for LaneServer to start up...')
-    rospy.wait_for_service('lane_srv')
-    lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
-    rospy.loginfo('Mission Connected to LaneServer')
+#    rospy.loginfo('Waiting for LaneServer to start up...')
+#    rospy.wait_for_service('lane_srv')
+#    lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
+#    rospy.loginfo('Mission Connected to LaneServer')
     
     # Action Client for PIDs
     locomotion_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     locomotion_client.wait_for_server()
     rospy.loginfo("Mission connected to LocomotionServer")
-    locomotionGoal = bbauv_msgs.msg.ControllerGoal()
     
     # Action Client for Move Base
-    movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-    movebase_client.wait_for_server()
+#    movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+#    movebase_client.wait_for_server()
     rospy.loginfo("Mission connected to MovebaseServer")
     movebaseGoal = MoveBaseGoal()
     
-    sm_mission = smach.StateMachine(outcomes=['mission_complete'])
+    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
     
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(), transitions={'succeeded':'START'})
         smach.StateMachine.add('START',Start(),
                                 transitions={'start_complete':'GATE'})
-        smach.StateMachine.add('GATE',Gate(),transitions={'gate_complete':'mission_complete'})
+        smach.StateMachine.add('GATE',Gate(),transitions={'gate_complete':'PARK','gate_failed':'mission_failed'})
         #smach.StateMachine.add('LANE_GATE',Lane_Gate(),transitions={'lane_complete':'mission_complete'})
+        smach.StateMachine.add('PARK',Park(),transitions={'park_complete':'mission_complete','park_failed':'mission_failed'})
         
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('gate_server', sm_mission, '/MISSION')

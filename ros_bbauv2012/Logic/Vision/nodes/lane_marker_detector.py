@@ -137,8 +137,9 @@ class Search(smach.State):
         )
 
     def execute(self, userdata):
+        global mission_srv
         rospy.loginfo('Searching for lanes')
-
+        
         while len(laneDetector.foundLines) == 0:
             if rospy.is_shutdown(): return 'aborted'
             rosRate.sleep()
@@ -259,6 +260,8 @@ class Found(smach.State):
         )
 
     def execute(self, userdata):
+        
+        global mission_srv
         laneDetector.frameCallback = None
 
         # Lock on to confirmed heading and go towards it
@@ -316,7 +319,7 @@ def initService():
         rospy.wait_for_service('set_controller_srv')
         set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         rospy.wait_for_service('set_controller_srv')
-        set_controller_request(True, True, True, True, False, False, False)
+        set_controller_request(True, True, True, True, True, False, False )
         print "set controller request"
 
         firstRunAction = False

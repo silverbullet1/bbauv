@@ -29,150 +29,6 @@ from smach_ros import IntrospectionServer
 from smach import StateMachine
 from smach_ros import SimpleActionState
 
-class Disengage(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['start_complete','complete_outcome','aborted'],
-                            input_keys=['complete_input'])
-    def execute(self,userdata):
-        global locomotionGoal
-        global isStart
-        global isEnd
-        global isCvProcessing
-        global mission_srv_request
-        
-        if userdata.complete_input == True:
-             isStart = False
-             isEnd = True
-#             try:
-#                 # Vision task querying mission server
-#                 resp = mission_srv_request(False,True,locomotionGoal)
-#             except rospy.ServiceException, e:
-#                 print "Service call failed: %s"%e
-        while not rospy.is_shutdown():
-            if isEnd:
-                rospy.signal_shutdown("Deactivating Park Node")
-                return 'complete_outcome'
-            if isStart:
-                return 'start_complete'
-        return 'aborted'
-
-class Search(smach.State):
-    global park
-    global mission_srv_request
-#    global r
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['search_complete','aborted'])
-        
-    def execute(self,userdata):
-        rospy.loginfo('Executing state SEARCH')
-        while (not park.targetLockStatus) and not rospy.is_shutdown():
-            #print len(gate.centroidx)
-            rospy.sleep(0.05)
-        if rospy.is_shutdown():
-            return 'aborted'
-        else:
-#            try:
-#                resp = mission_srv_request(True,False,None)
-#            except rospy.ServiceException, e:
-#                print "Service call failed: %s"%e
-            return 'search_complete'
-
-class MotionControlProcess(smach.State):
-    global park   
-    
-    #params['side_thresh'] & params['depth_thresh']: Allowable distance between center of image and center of target
-    #params['area_thresh']: Area of contour to gauge how far vehicle is from target; after which vehicle goes into final
-    #params['approach_area_thresh']: When vehicle is far allow vehicle to take longer to adjust side & depth
-        
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['task_complete','aborted'],
-                             output_keys=['complete_output'],
-                             )
-                    
-    def execute(self,userdata):
-    
-        rospy.loginfo("Executing state MOTION CONTROL")
-        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
-        rospy.logdebug("Waiting For Action Server")
-        actionClient.wait_for_server()
-        rospy.logdebug("Action Server Ok")
-        
-        rospy.sleep(2)
-        #Code below is to initialize vehicle position when individual testing vision task
-        goal = bbauv_msgs.msg.ControllerGoal()
-        goal.forward_setpoint = 0
-        goal.sidemove_setpoint = 0
-        goal.heading_setpoint += 0
-        goal.depth_setpoint += 0
-        actionClient.send_goal(goal)
-        rospy.logdebug("Initalizing") 
-        actionClient.wait_for_result(rospy.Duration(0.1,0))
-        rospy.logdebug("Done Initalizing") 
-       
-        while(not rospy.is_shutdown()):
-               
-#            rospy.loginfo("Target Still Far") 
-            if park.area < params['area_thresh']:
-                if park.area < params['approach_area_thresh']:
-                    wait_time = params['approachWaitTime']
-                if park.area > params['approach_area_thresh']:
-                    wait_time = params['finalWaitTime']
-                #Adjust first if error is too large
-                if  abs(park.errorSide) > params['side_thresh'] or abs(park.errorDepth) > params['depth_thresh']:                    
-                    goal.forward_setpoint = 0
-                    goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
-                    goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
-                    goal.heading_setpoint = goal.heading_setpoint
-                    actionClient.send_goal(goal)                    
-                    adjusting = 'Approach: Adjusting. errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area)
-                    rospy.loginfo(adjusting)       
-#                    actionClient.wait_for_result(rospy.Duration(5,0))                      
-                    actionClient.wait_for_result(rospy.Duration(wait_time,0))                      
-                #Ok, now move forward
-                if abs(park.errorSide) <= params['side_thresh'] and abs(park.errorDepth) <= params['depth_thresh']:
-                
-                    goal.forward_setpoint = params['approachFwdDist']
-                    goal.sidemove_setpoint = 0
-                    goal.heading_setpoint = goal.heading_setpoint
-                    actionClient.send_goal(goal)                 
-                    forward = 'Approach: Forward! errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area)
-                    rospy.loginfo(forward)
-#                    actionClient.wait_for_result(rospy.Duration(1,0))
-                    actionClient.wait_for_result(rospy.Duration(wait_time,0))                 
-                         
-            if park.area>=params['area_thresh']: 
-#                rospy.loginfo("Target Near Enough; Executing Last Maneuver")
-                #Final State to change depth and move forward
-                goal.forward_setpoint = 0
-                goal.sidemove_setpoint = 0
-                goal.heading_setpoint = goal.heading_setpoint
-                goal.depth_setpoint -= 0.9
-                actionClient.send_goal(goal)                                                
-                final1 = 'Going for final: Depth change! area=%d' % (park.area) 
-                rospy.loginfo(final1)
-                actionClient.wait_for_result()
-                                
-                goal.forward_setpoint = 0
-                goal.sidemove_setpoint = 3
-                goal.heading_setpoint -= 90
-                actionClient.send_goal(goal)                                                
-                final2 = 'Going for final: Moonwalking! area=%d' % (park.area) 
-                rospy.loginfo(final2)
-                actionClient.wait_for_result(rospy.Duration(5,0))
-#                actionClient.cancel_all_goals()    
-                userdata.complete_output = True
-            
-#            if park.targetLockStatus==False:
-#                pass
-            
-#                try:
-#                   resp = mission_srv_request(False,True,locomotionGoal)
-#                except rospy.ServiceException, e:
-#                   print "Service call failed: %s"%e
-                return 'task_complete'                
-
-        return 'aborted'
-
 '''
 ###################################################################
 
@@ -182,12 +38,11 @@ class MotionControlProcess(smach.State):
 
 '''
 
-class Parking_Proc(smach.State):
+class Parking_Proc():
     def __init__(self): 
     
-        self.image_sub = rospy.Subscriber('stereo_camera/left/image_rect_color'
-, Image, self.image_callback)
-        self.image_pub = rospy.Publisher('/Vision/image_filter',Image)
+        self.image_sub = None
+        self.image_pub = None
                 
         self.bridge = CvBridge()
         #http://stackoverflow.com/questions/5944708/python-forcing-a-list-to-a-fixed-size
@@ -200,7 +55,17 @@ class Parking_Proc(smach.State):
         self.errorSide = 0
         self.errorDepth = 0
         self.area = 0        
-                    
+
+    def register(self):
+        self.image_sub = rospy.Subscriber('stereo_camera/left/image_rect_color', Image, self.image_callback)
+        self.image_pub = rospy.Publisher('/Vision/image_filter_2', Image)
+        #rospy.logdebug('Registered')
+        
+    def unregister(self):
+        self.image_sub.unregister()
+        self.image_pub.unregister()
+        #rospy.logdebug('Unregistered')
+    
     def image_callback(self, data):
         frame = self.convert_image(data)
         processed_image = self.process_image(frame)
@@ -359,17 +224,167 @@ class Parking_Proc(smach.State):
         
         return hsv_threshed
 
+'''
+###################################################################
+
+               SMACH STATE MACHINE CLASS DECLARATION
+        
+###################################################################
+
+'''     
+
+class Disengage(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['start_complete'],
+                            input_keys=['complete_input'])
+    def execute(self,userdata):
+        global locomotionGoal
+        global isStart
+        global isEnd
+        global park
+        
+        isStart = False
+        isEnd = True
+        park.unregister()
+        
+        while (not rospy.is_shutdown()):
+            if isStart:
+                park.register()
+                rospy.sleep(1)
+                return 'start_complete'
+
+class Search(smach.State):
+    
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['search_complete','aborted'])
+        
+    def execute(self,userdata):
+        global park
+        global isAbort
+        global mission_srv
+        
+        rospy.loginfo('Executing state SEARCH')
+        while not rospy.is_shutdown():
+            #search conditions here
+            if park.targetLockStatus:
+                try:
+                    resp = mission_srv(True,False,None)
+                except rospy.ServiceException, e:
+                    print "Service call failed: %s"%e
+                return 'search_complete' 
+            if isAbort:
+                return 'aborted'               
+            rospy.sleep(0.05)
+
+class MotionControlProcess(smach.State):
+    
+    #params['side_thresh'] & params['depth_thresh']: Allowable distance between center of image and center of target
+    #params['area_thresh']: Area of contour to gauge how far vehicle is from target; after which vehicle goes into final
+    #params['approach_area_thresh']: When vehicle is far allow vehicle to take longer to adjust side & depth
+        
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['task_complete','aborted'],
+                             output_keys=['complete_output'],
+                             )
+                    
+    def execute(self,userdata):
+    
+        global park
+        global locomotionGoal
+        
+        rospy.loginfo("Executing state MOTION CONTROL")
+        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+        rospy.logdebug("Waiting For Action Server")
+        actionClient.wait_for_server()
+        rospy.logdebug("Action Server Ok")
+        
+        #Code below is to initialize vehicle position when individual testing vision task
+        goal = bbauv_msgs.msg.ControllerGoal()
+        goal.forward_setpoint = 0
+        goal.sidemove_setpoint = 0
+        goal.heading_setpoint = locomotionGoal.heading_setpoint 
+        goal.depth_setpoint = locomotionGoal.depth_setpoint 
+        actionClient.send_goal(goal)
+        rospy.logdebug("Initalizing") 
+        actionClient.wait_for_result(rospy.Duration(0.1,0))
+        rospy.logdebug("Done Initalizing") 
+       
+        while(not rospy.is_shutdown()):
+            
+
+            if park.area < params['area_thresh']:
+                if park.area < params['approach_area_thresh']:
+                    wait_time = params['approachWaitTime']
+                if park.area > params['approach_area_thresh']:
+                    wait_time = params['finalWaitTime']
+                    
+                #Adjust first if error is too large
+                if  abs(park.errorSide) > params['side_thresh']+20 or abs(park.errorDepth) > params['depth_thresh']+20:                    
+                    goal.forward_setpoint = 0
+                    goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
+                    goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
+                    actionClient.send_goal(goal)                    
+                    rospy.loginfo('Approach: Adjusting. errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))       
+                    #actionClient.wait_for_result(rospy.Duration(5,0))                      
+                    actionClient.wait_for_result(rospy.Duration(wait_time,0))                      
+                #Ok, now move forward
+                if abs(park.errorSide) <= params['side_thresh']+20 and abs(park.errorDepth) <= params['depth_thresh']+20:
+                
+                    goal.forward_setpoint = params['approachFwdDist']
+                    goal.sidemove_setpoint = 0
+                    actionClient.send_goal(goal)                 
+                    rospy.loginfo('Approach: Forward! errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))
+#                    actionClient.wait_for_result(rospy.Duration(1,0))
+                    actionClient.wait_for_result(rospy.Duration(wait_time,0))                 
+                         
+            if park.area>=params['area_thresh']: 
+#                rospy.loginfo("Target Near Enough; Executing Last Maneuver")
+                #Final State to change depth and move forward
+                goal.forward_setpoint = 0
+                goal.sidemove_setpoint = 0
+                goal.depth_setpoint -= 0.9
+                actionClient.send_goal(goal)                                                
+                rospy.loginfo('Going for final: Depth change! area=%d' % (park.area))
+                actionClient.wait_for_result(rospy.Duration(10,0))
+                                
+                goal.forward_setpoint = 0
+                goal.sidemove_setpoint = 2.5
+                goal.heading_setpoint -= 90
+                actionClient.send_goal(goal)                                                
+                rospy.loginfo('Going for final: Moonwalking!')
+                actionClient.wait_for_result(rospy.Duration(10,0))
+
+                goal.forward_setpoint = 0
+                goal.sidemove_setpoint = 0
+                goal.heading_setpoint += 90
+                actionClient.send_goal(goal)                                                
+                rospy.loginfo('Going for final: Turning Back')
+                actionClient.wait_for_result(rospy.Duration(10,0))
+                actionClient.cancel_all_goals()  
+                
+                try:
+                   locomotionGoal.heading_setpoint = goal.heading_setpoint
+                   locomotionGoal.depth_setpoint = goal.depth_setpoint
+                   resp = mission_srv(False,True,locomotionGoal)
+                except rospy.ServiceException, e:
+                   print "Service call failed: %s"%e
+                return 'task_complete'                
+
+            if isAbort:
+                return 'aborted'
+
 def handle_srv(req):
     global isStart
     global isAbort
     global locomotionGoal
-    rospy.loginfo("Parking service handled.")
+    rospy.logdebug("service handled.")
     if req.start_request:
-        rospy.loginfo("isStart true.")
+        rospy.logdebug("isStart true.")
         isStart = True
         # Format for service: start_response, abort_response
         locomotionGoal = req.start_ctrl
     if req.abort_request:
+        rospy.logdebug("isAbort true.")        
         isAbort = True
     return mission_to_visionResponse(isStart,isAbort)
 
@@ -385,7 +400,6 @@ def handle_srv(req):
 #Globals
 #vision processing object
 parking = None
-isCvProcessing = None
 #whether to abort
 isAbort = False
 #whether to start search
@@ -394,16 +408,15 @@ isStart = True
 isEnd = False
 locomotionGoal = controller()
 #vision uses this to comms with mission
-mission_srv_request = None
+mission_srv = None
 #vision server object; this is how mission comms with vision
 vision_srv = None
-#Action Client instantiation
-movement_client = None
+
 params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh':0, 'closeiter':0, 'openiter':0, 'conArea':0, 'conPeri':0, 'aspectRatio':0, 'targetLockHistoryThresh':0, 'XstdDevThresh':0, 'YstdDevThresh':0, 'debug_mode':0, 'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0}
 
 
 # To test just the vision code, comment everything, uncomment the last 2 lines
-# To test without mission, uncomment "Service Client" and all mission_srv_request calls
+# To test without mission, uncomment "Service Client" and all mission_srv calls
 
 if __name__ == '__main__':
     rospy.init_node('Park', log_level=rospy.INFO, anonymous=False)
@@ -418,25 +431,25 @@ if __name__ == '__main__':
     rospy.loginfo('park_srv initialized!')
     
     #Service Client. This part is commented if testing Vision task state machine without mission planner
-#    rospy.loginfo('Park waiting for mission_srv...')
-#    rospy.wait_for_service('mission_srv')
-#    mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
-#    rospy.loginfo('Park connected to mission_srv!')
+    rospy.loginfo('Park waiting for mission_srv...')
+    rospy.wait_for_service('mission_srv')
+    mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
+    rospy.loginfo('Park connected to mission_srv!')
     
     #Computer vision processing instantiation
-    #park = Parking_Proc()
+    park = Parking_Proc()
+    park.register()
     
     sm_top = smach.StateMachine(outcomes=['park_complete','aborted'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:
-        smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH','complete_outcome':'park_complete','aborted':'aborted'}, remapping={'complete_input':'goal'})
-        smach.StateMachine.add('SEARCH', Search(), transitions={'search_complete':'MOTION_CONTROL','aborted':'aborted'})    
-        smach.StateMachine.add('MOTION_CONTROL', MotionControlProcess(), transitions={'task_complete': 'DISENGAGED','aborted':'aborted'}, remapping={'complete_output':'goal'})
+        smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH'})
+        smach.StateMachine.add('SEARCH', Search(), transitions={'search_complete':'MOTION_CONTROL','aborted':'DISENGAGED'})    
+        smach.StateMachine.add('MOTION_CONTROL', MotionControlProcess(), transitions={'task_complete': 'DISENGAGED','aborted':'DISENGAGED'})
 
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('park_server', sm_top, '/MISSION/PARK')
     sis.start()
-    sm_top.userdata.goal = False
 
     try:
         outcome = sm_top.execute()
@@ -444,7 +457,10 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         sis.stop()
         print "Shutting down"
-#    Parking_Proc()
-#    rospy.spin()
+
+    park = Parking_Proc()
+    park.register()
+    rospy.loginfo("Test for ROSOUT!")
+    rospy.spin()
     
 
