@@ -135,16 +135,26 @@ class AUV_gui(QMainWindow):
         self.timer.start(1000.0 / self.update_freq)
         
     def on_timer(self):
-        yaw = self.q_yaw.get(1)
-        depth = self.q_depth.get(1)
-        pos_x = self.q_pos_x.get(1)
-        pos_y = self.q_pos_y.get(1)
-        self.compass.setValue(int(yaw))
-        self.heading_disp_l.setText("Heading: " + str(round(yaw,2)))
-        self.positionx_disp_l.setText("Forward Position: " + str(round(pos_x,2)))
-        self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos_y,2)))
-        self.depth_disp_l.setText("Depth: " + str(round(depth,2)))
-        self.depth_thermo.setValue(round(depth,2))
+        yaw = None
+        depth = None
+        pos_x = None
+        pos_y = None
+        try:
+            yaw = self.q_yaw.get(False,0)
+            depth = self.q_depth.get(False,0)
+            pos_x = self.q_pos_x.get(False,0)
+            pos_y = self.q_pos_y.get(False,0)
+        except Exception,e:
+            pass
+        if yaw != None:
+            self.compass.setValue(int(yaw))
+            self.heading_disp_l.setText("Heading: " + str(round(yaw,2)))
+        if pos_x != None:
+            self.positionx_disp_l.setText("Forward Position: " + str(round(pos_x,2)))
+            self.positiony_disp_l.setText("Sidemove Position: " + str(round(pos_y,2)))
+        if depth != None:
+            self.depth_disp_l.setText("Depth: " + str(round(depth,2)))
+            self.depth_thermo.setValue(round(depth,2))
     
     def initService(self):
         rospy.wait_for_service('set_controller_srv')

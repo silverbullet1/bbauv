@@ -53,6 +53,7 @@ class SpeedTrap:
     red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
     isAlignState = True
     isLoweringState = True
+    isCentering = False
     #shapeClass = ShapeAnalysis()
     yaw = 0
     centroidx = 0
@@ -109,7 +110,7 @@ class SpeedTrap:
         #cv2.moveWindow("Sub Alignment",512,30)
         cv2.createTrackbar("Canny Threshold:", "Sub Alignment", self.stParams['canny'], 500, self.stParamSetter('canny'));
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_color', Image,self.processImage)
+        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color_remote', Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.pos_sub = rospy.Subscriber('/WH_DVL_data',Odometry)
         self.bridge = CvBridge()
@@ -236,7 +237,7 @@ class SpeedTrap:
                             centroidx.append(moments['m10']/moments['m00'])
                             cv2.circle(contourImg,(int(centroidx[len(centroidx) -1]),int(centroidy[len(centroidy) - 1])), 2, (0,0,255), thickness=-1)
                             #calculate central plane for AUV to aim towards
-                        if(len(centroidx) > 1):
+                        if(len(centroidx) > 3):
                             for j in range(0,len(centroidx) -1):
                                 cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)
                                 #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1])/(centroidx[j] -centroidx[j+1])))
@@ -254,10 +255,14 @@ class SpeedTrap:
         if len(centroidx) > 0:
             self.centroidx, self.centroidy = self.computeCenter(centroidx, centroidy) 
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
-        if len(binList) >1:
+        if len(binList) >3:
+            self.isCentering = True
             self.orientation = np.average(angleList, None, None)
-            print self.orientation
-            cv2.putText(contourImg,str(np.round(self.orientation,1)), (int(self.centroidx),int(self.centroidy)), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            #print self.orientation
+        else:
+            self.isCentering = False
+        if self.orientation != None:
+            cv2.putText(contourImg,str(np.round(self.orientation,1)) + " " + str(np.round(self.yaw,1)), (int(self.centroidx),int(self.centroidy)), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
         return contourImg
     
     def computeCenter(self,centroid_x,centroid_y):
@@ -355,7 +360,7 @@ class Search(smach.State):
 class Centering(smach.State):
     global mission_srv_request
    # global r
-    K = 0.005
+    K = 0.010
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete','aborted'],output_keys=['center_pos'])
         
@@ -363,24 +368,29 @@ class Centering(smach.State):
         global r
         global st
         global movement_client
+        isOrientationDone = False
         center_complete = False
         while(not center_complete and not rospy.is_shutdown()):
             if(st.centroidx != 0):
                 side_error = self.K*(st.centroidx - st.cols/2)
                 fwd_error = -self.K*(st.centroidy - st.rows/2)
                 if(st.orientation != None):
-                    orientation_error = 90 - np.fabs(st.orientation)
-                    orientation_error = (orientation_error + st.yaw) % 360
+                    if st.isCentering:
+                        if(st.orientation > 90):
+                            orientation_error = (st.yaw - (180 - st.orientation)) % 360
+                        else:
+                            orientation_error = (st.yaw + st.orientation) % 360
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
                 if(np.fabs(st.centroidx - st.cols/2) <20 and np.fabs(st.centroidy - st.rows/2) <20 and np.fabs(orientation_error) <5):
                     userdata.center_pos = st.position
                     movement_client.cancel_all_goals()
                     return "centering_complete"
-                #goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,heading_setpoint=orientation_error,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=side_error)
-                #movement_client.send_goal(goal)
-                #movement_client.wait_for_result(rospy.Duration(1))
-                #rospy.loginfo("Centering...")
+                print "orientation error:" + str(orientation_error) + "isCentering:" + str(st.isCentering)
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,heading_setpoint=orientation_error,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=side_error)
+                movement_client.send_goal(goal)
+                movement_client.wait_for_result(rospy.Duration(1))
+                rospy.loginfo("Centering...")
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -404,7 +414,6 @@ class Orientating(smach.State):
         global locomotionGoal
         orientation_complete = False
         #while(not center_complete and not rospy.is_shutdown()):
-        correction = 90 - st.orientation + st.yaw
         rospy.loginfo("correction for orientation State:" + str(correction))
         #userdata.center_pos[0]
         print correction
@@ -474,7 +483,7 @@ if __name__ == '__main__':
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
     locomotionGoal = bbauv_msgs.msg.ControllerGoal()
-    locomotionGoal.heading_setpoint = 130
+    locomotionGoal.heading_setpoint = 50
     locomotionGoal.depth_setpoint = 0.6
     vision_srv = rospy.Service('speedtrap_srv', mission_to_vision, handle_srv)
     rospy.loginfo('speedtrap_srv initialized!')
