@@ -319,21 +319,21 @@ class MotionControlProcess(smach.State):
                     wait_time = params['finalWaitTime']
                     
                 #Adjust first if error is too large
-                if  abs(park.errorSide) > params['side_thresh']+20 or abs(park.errorDepth) > params['depth_thresh']+20:                    
+                if  abs(park.errorSide) > params['side_thresh']+50 or abs(park.errorDepth) > params['depth_thresh']+50:                    
                     goal.forward_setpoint = 0
                     goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
                     goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
                     actionClient.send_goal(goal)                    
-                    rospy.loginfo('Approach: Adjusting. errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))       
+                    rospy.loginfo('Approach: ADJUST. errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))       
                     #actionClient.wait_for_result(rospy.Duration(5,0))                      
                     actionClient.wait_for_result(rospy.Duration(wait_time,0))                      
                 #Ok, now move forward
-                if abs(park.errorSide) <= params['side_thresh']+20 and abs(park.errorDepth) <= params['depth_thresh']+20:
+                if abs(park.errorSide) <= params['side_thresh']+50 and abs(park.errorDepth) <= params['depth_thresh']+50:
                 
                     goal.forward_setpoint = params['approachFwdDist']
                     goal.sidemove_setpoint = 0
                     actionClient.send_goal(goal)                 
-                    rospy.loginfo('Approach: Forward! errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))
+                    rospy.loginfo('Approach: FOWARD! errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))
 #                    actionClient.wait_for_result(rospy.Duration(1,0))
                     actionClient.wait_for_result(rospy.Duration(wait_time,0))                 
                          
@@ -345,18 +345,18 @@ class MotionControlProcess(smach.State):
                 goal.depth_setpoint -= 0.9
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Depth change! area=%d' % (park.area))
-                actionClient.wait_for_result(rospy.Duration(10,0))
+                actionClient.wait_for_result(rospy.Duration(5,0))
                                 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 2.5
-                goal.heading_setpoint -= 90
+                goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Moonwalking!')
                 actionClient.wait_for_result(rospy.Duration(10,0))
 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
-                goal.heading_setpoint += 90
+                goal.heading_setpoint = ((goal.heading_setpoint+90)%360+360)%360
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Turning Back')
                 actionClient.wait_for_result(rospy.Duration(10,0))
@@ -403,7 +403,7 @@ parking = None
 #whether to abort
 isAbort = False
 #whether to start search
-isStart = True
+isStart = True  
 #whether to end 
 isEnd = False
 locomotionGoal = controller()
@@ -458,9 +458,9 @@ if __name__ == '__main__':
         sis.stop()
         print "Shutting down"
 
-    park = Parking_Proc()
-    park.register()
-    rospy.loginfo("Test for ROSOUT!")
-    rospy.spin()
+#    park = Parking_Proc()
+#    park.register()
+#    rospy.loginfo("Test for ROSOUT!")
+#    rospy.spin()
     
 
