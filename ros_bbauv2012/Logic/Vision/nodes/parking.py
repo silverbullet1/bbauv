@@ -58,7 +58,7 @@ class Parking_Proc():
 
     def register(self):
         self.image_sub = rospy.Subscriber('stereo_camera/left/image_rect_color', Image, self.image_callback)
-        self.image_pub = rospy.Publisher('/Vision/image_filter_2', Image)
+        self.image_pub = rospy.Publisher('/Vision/image_filter', Image)
         #rospy.logdebug('Registered')
         
     def unregister(self):
@@ -460,7 +460,6 @@ if __name__ == '__main__':
 
 #    park = Parking_Proc()
 #    park.register()
-#    rospy.loginfo("Test for ROSOUT!")
 #    rospy.spin()
     
 

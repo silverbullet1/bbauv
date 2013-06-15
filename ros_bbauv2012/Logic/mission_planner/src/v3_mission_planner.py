@@ -469,7 +469,7 @@ if __name__ == '__main__':
 #     NavMoveBase: def __init__ (self, prep_timeout, nav_timeout, x=0, y=0, depth = 0.5, start_heading=0, place= None): #heading here's 'BBAUV's convention'
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(0.5), transitions={'succeeded':'START'})
+        smach.StateMachine.add('COUNTDOWN', Countdown(720), transitions={'succeeded':'START'})
         smach.StateMachine.add('START',Start(1,0.5,55),
                                 transitions={'start_complete':'NAV_TO_GATE'})
                                
