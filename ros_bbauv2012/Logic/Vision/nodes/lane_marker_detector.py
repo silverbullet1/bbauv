@@ -397,7 +397,7 @@ if __name__ == '__main__':
                                      'aborted': 'aborted'}
         )
 
-    sis = smach_ros.IntrospectionServer('lane_server', sm, '/MISSION/LANE_GATE')
+    sis = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/LANE_GATE')
     sis.start()
 
     try:

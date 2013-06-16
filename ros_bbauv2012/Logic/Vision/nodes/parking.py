@@ -243,14 +243,16 @@ class Disengage(smach.State):
         global isEnd
         global park
         
+        if isEnd == True:
+            park.unregister()
+
         isStart = False
         isEnd = True
-        park.unregister()
         
         while (not rospy.is_shutdown()):
             if isStart:
                 park.register()
-                rospy.sleep(1)
+                rospy.sleep(3)
                 return 'start_complete'
 
 class Search(smach.State):
@@ -438,9 +440,8 @@ if __name__ == '__main__':
     
     #Computer vision processing instantiation
     park = Parking_Proc()
-    park.register()
     
-    sm_top = smach.StateMachine(outcomes=['park_complete','aborted'])
+    sm_top = smach.StateMachine(outcomes=['park_complete','park_failed'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:
         smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH'})

@@ -78,7 +78,7 @@ class Start(smach.State):
         return 'start_complete'
 
 class GoToDepth(smach.State):
-    def __init__(self, timeout=3, depth==None, surface=False):
+    def __init__(self, timeout=3, depth=None, surface=False):
         smach.State.__init__(self, outcomes=['depth_complete'])
         self.depth = depth
         self.timeout = timeout
@@ -153,7 +153,7 @@ class StoreGlobalCoord(smach.State):
         self.x =  msg.pose.pose.position.x
         self.y = msg.pose.pose.position.y
                 
-    def depthCallback(self, msg);
+    def depthCallback(self, msg):
         self.depth = msg.depth
         
     def AHRSCallback(self,msg):
@@ -165,6 +165,8 @@ class StoreGlobalCoord(smach.State):
         depth_sub = rospy.Subscriber('/depth', depth, self.depthCallback)
         AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, self.AHRSCallback)
         
+        rospy.sleep(2)
+        rospy.loginfo('x=%2.5f y=%2.5f depth=%2.5f heading=%2.5f' % (self.x, self.y, self.depth, self.heading))
         rospy.set_param(self.task_name+'/x', self.x)
         rospy.set_param(self.task_name+'/y', self.y)
         rospy.set_param(self.task_name+'/depth', self.depth)
@@ -177,8 +179,8 @@ class StoreGlobalCoord(smach.State):
         return 'store_complete'
         
 class LinearSearch(smach.State):
-    def __init__(self, task_name, timeout, distance=1, direction, use_left=False, num_lanes=0, start_depth=None, start_heading=None):
-        smach.State.__init__(self, outcomes=['linear_complete','failed'])
+    def __init__(self, task_name, timeout, distance, direction, attempts, use_left=False, num_lanes=0, start_depth=None, start_heading=None):
+        smach.State.__init__(self, outcomes=['linear_complete','failed'], input_keys=['attempt_counter'], output_keys=['attempt_counter'])
         self.name = self.__class__.__name__
         self.task_name = task_name
         self.timeout = timeout        
@@ -186,6 +188,7 @@ class LinearSearch(smach.State):
         self.task_srv = None
         self.distance = distance
         self.direction = direction
+        self.attempts = attempts
         self.use_left = use_left
         self.num_lanes = num_lanes
         self.start_depth = start_depth
@@ -201,6 +204,11 @@ class LinearSearch(smach.State):
         isSearchDone = False
         
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
+        
+        if userdata.attempt_counter >= self.attempts:
+            return 'failed'
+        if userdata.attempt_counter < self.attempts:
+            userdata.attempt_counter += 1
 
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
@@ -221,8 +229,6 @@ class LinearSearch(smach.State):
         if self.start_heading != None: goal.heading_setpoint = locomotionGoal.heading_setpoint = self.start_heading
         if self.start_depth == None: goal.depth_setpoint = locomotionGoal.depth_setpoint
         if self.start_depth != None: goal.depth_setpoint = locomotionGoal.depth_setpoint = self.start_depth
-        goal.forward_setpoint = self.distance
-        goal.sidemove_setpoint = 0
         rospy.logdebug("start_heading = %2.5f, start_depth = %2.5f" % (goal.heading_setpoint, goal.depth_setpoint))
                 
         #Begin Searching For Task
@@ -464,13 +470,15 @@ if __name__ == '__main__':
     
     sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
-#     LinearSearch: def __init__(self, task_name, timeout, distance=1, direction, use_left=False, num_lanes=0, start_depth=None, start_heading=None):
+#     LinearSearch: def __init__(self, task_name, timeout, distance, direction, attempts, use_left=False, num_lanes=0, start_depth=None, start_heading=None):
 #     Waitout: def __init__(self, task_name, timeout):    
 #     NavMoveBase: def __init__ (self, prep_timeout, nav_timeout, x=0, y=0, depth = 0.5, start_heading=0, place= None): #heading here's 'BBAUV's convention'
+#     GoToDepth:     def __init__(self, timeout=3, depth=None, surface=False):
+#     GoToHeading:     def __init__(self, timeout=3, heading=None):
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(720), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(1,0.5,55),
+        smach.StateMachine.add('COUNTDOWN', Countdown(0.5), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(2,0.5,55),
                                 transitions={'start_complete':'NAV_TO_GATE'})
                                
 #        gate = smach.StateMachine(outcomes=['gate_complete', 'gate_failed'])
@@ -478,32 +486,37 @@ if __name__ == '__main__':
 #            smach.StateMachine.add('GATE_LinearSearch', LinearSearch('gate', 120), transitions={'linear_complete':'GATE_WAITOUT', 'failed':'gate_failed'})
 #            smach.StateMachine.add('GATE_WAITOUT', WaitOut('gate', 60), transitions={'task_complete':'gate_complete', 'failed':'gate_failed'})
 #        smach.StateMachine.add('GATE', gate, transitions={'gate_complete':'mission_complete', 'gate_failed':'mission_failed'})
-        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(5,30,6.3,9,0.5,55), transitions={'nav_complete':'LANE_GATE', 'failed':'HOME'})
+
+        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(3,30,6.3,9,0.5,55), transitions={'nav_complete':'LANE_GATE_TASK', 'failed':'HOME'})
         
         lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
-            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 60, 1, 'fwd', False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed'})
-            smach.StateMachine.add('LANE_STORE', StoreGlobalCoord('lane1'), transitions={'store_complete':'LANE_WAITOUT'})
-            smach.StateMachine.add('LANE_WAITOUT', WaitOut('lane', 60), transitions={'task_complete':'LANE_HEADINGCHANGE', 'failed':'lane_failed'})
-            smach.StateMachine.add('LANE_HEADINGCHANGE', GoToHeading(2), transitions={'heading_complete':'lane_complete'})
-        smach.StateMachine.add('LANE_GATE', lane_gate, transitions={'lane_complete':'PARK', 'lane_failed':'HOME'})        
+            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 60, 1, 'fwd', 1, False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
+            smach.StateMachine.add('LANE_STORE', StoreGlobalCoord('lane1'), transitions={'store_complete':'LANE_GATE'})
+            smach.StateMachine.add('LANE_GATE', WaitOut('lane', 60), transitions={'task_complete':'LANE_HEADINGCHANGE', 'failed':'lane_failed'})
+            smach.StateMachine.add('LANE_HEADINGCHANGE', GoToHeading(3), transitions={'heading_complete':'lane_complete'})
+        smach.StateMachine.add('LANE_GATE_TASK', lane_gate, transitions={'lane_complete':'PARK_TASK', 'lane_failed':'HOME'})        
 
         park = smach.StateMachine(outcomes=['park_complete', 'park_failed'])
         with park:
             smach.StateMachine.add('PARK_DEPTHCHANGE', GoToDepth(3,2), transitions={'depth_complete':'PARK_SEARCH'})
-            smach.StateMachine.add('PARK_SEARCH', LinearSearch('park', 30, 1, 'fwd'), transitions={'linear_complete':'PARK_STORE', 'failed':'PARK_TO_LANE1'})
-            smach.StateMachine.add('PARK_TO_LANE1', NavMoveBase(1,30,place='lane1'), transitions={'nav_complete':'PARK_SEARCH', 'failed':'park_failed'})
-            smach.StateMachine.add('PARK_STORE', StoreGlobalCoord('park1'), transitions={'store_complete':'PARK_WAITOUT'})            
-            smach.StateMachine.add('PARK_WAITOUT', WaitOut('park', 60), transitions={'task_complete':'park_complete', 'failed':'park_failed'})
-        smach.StateMachine.add('PARK', park, transitions={'park_complete':'BACK_TO_LANE1', 'park_failed':'BACK_TO_LANE1'})
+            smach.StateMachine.add('PARK_SEARCH', LinearSearch('park', 30, 1, 'fwd', 2), transitions={'linear_complete':'PARK_STORE', 'failed':'PARK_TO_LANE1'}, remapping={'attempt_counter':'park1_searchAttempts'})
+            smach.StateMachine.add('PARK_TO_LANE1', NavMoveBase(1,30,place='lane1'), transitions={'nav_complete':'PARK_DEPTHCHANGE', 'failed':'park_failed'})
+            smach.StateMachine.add('PARK_STORE', StoreGlobalCoord('park1'), transitions={'store_complete':'PARK'})            
+            smach.StateMachine.add('PARK', WaitOut('park', 60), transitions={'task_complete':'park_complete', 'failed':'park_failed'})
+        smach.StateMachine.add('PARK_TASK', park, transitions={'park_complete':'BACK_TO_LANE1', 'park_failed':'BACK_TO_LANE1'})
         
         smach.StateMachine.add('BACK_TO_LANE1', NavMoveBase(1,30,place='lane1'), transitions={'nav_complete':'HOME', 'failed':'mission_failed'})
         smach.StateMachine.add('HOME', NavMoveBase(1,50,0,0,0.5,55), transitions={'nav_complete':'SURFACE', 'failed':'mission_failed'})
         smach.StateMachine.add('SURFACE', GoToDepth(3,0), transitions={'depth_complete':'mission_complete'})
-        
+
     # Create and start the introspection server
-    sis = smach_ros.IntrospectionServer('gate_server', sm_mission, '/MISSION')
+    sis = smach_ros.IntrospectionServer('mission_server', sm_mission, '/MISSION')
     sis.start()
+    
+    park.userdata.park1_searchAttempts = 0
+    lane_gate.userdata.lane1_searchAttempts = 0
+
     try:
         outcome = sm_mission.execute()
         rospy.spin()
