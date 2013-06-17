@@ -19,12 +19,12 @@
 #define DEBUG_BB 1
 
 /*------------Servo Definitions-------------------*/
-#define SERVO_1 14
-#define SERVO_2 15
-#define SERVO_3 16
-#define SERVO_4 17
-#define SERVO_5 18
-#define SERVO_6 19
-#define EMAGNET 8
+#define SERVO_1 51
+#define SERVO_2 52
+#define SERVO_3 53
+#define SERVO_4 37
+#define SERVO_5 38
+#define SERVO_6 39
+#define SERVO_7 40
 
 #endif // _DEFINES_H

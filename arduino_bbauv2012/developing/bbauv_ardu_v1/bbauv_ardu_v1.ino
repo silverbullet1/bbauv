@@ -104,9 +104,13 @@ void setup()
         //mDriver.setThrusterRatio(ratio);
 
 //Initialize Manipulators
-    pinMode(EMAGNET,OUTPUT);
-    //myservo.attach(9);
-    //myservo.write(0);
+
+    pinMode(SERVO_1,OUTPUT);
+    pinMode(SERVO_2,OUTPUT);
+    pinMode(SERVO_3,OUTPUT);
+    pinMode(SERVO_4,OUTPUT);
+    pinMode(SERVO_5,OUTPUT);
+    pinMode(SERVO_6,OUTPUT);
 //Initialize battery readings
     ops.battery1 = 0;
     ops.battery2 = 0;
@@ -328,13 +332,13 @@ void getLCDCommand(const std_msgs::Int8 &msg)
 
 void getManipulator(const bbauv_msgs::manipulator &msg)
 {
-	if(msg.servo1)
-	{
-		digitalWrite(EMAGNET,HIGH);
-	} else
-	{
-		digitalWrite(EMAGNET,LOW);
-	}
+	(msg.servo1) ?	digitalWrite(SERVO_1,HIGH) :digitalWrite(SERVO_1,LOW);
+	(msg.servo2) ?	digitalWrite(SERVO_2,HIGH) :digitalWrite(SERVO_2,LOW);
+	(msg.servo3) ?	digitalWrite(SERVO_3,HIGH) :digitalWrite(SERVO_3,LOW);
+	(msg.servo4) ?	digitalWrite(SERVO_4,HIGH) :digitalWrite(SERVO_4,LOW);
+	(msg.servo5) ?	digitalWrite(SERVO_5,HIGH) :digitalWrite(SERVO_5,LOW);
+	(msg.servo6) ?	digitalWrite(SERVO_6,HIGH) :digitalWrite(SERVO_6,LOW);
+	(msg.servo7) ?	digitalWrite(SERVO_7,HIGH) :digitalWrite(SERVO_7,LOW);
 }
 void getThrusterSpeed(const bbauv_msgs::thruster &msg)
 {

@@ -46,6 +46,7 @@ import numpy as np
 '''
 
 class SpeedTrap:
+    debug = True
     red_params = {'hueLow': 0, 'hueHigh':10,'satLow': 100, 'satHigh': 255,'valLow':0,'valHigh':255}
     yellow_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
     stParams = {'canny': 135 }    
@@ -53,6 +54,7 @@ class SpeedTrap:
     red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
     isAlignState = True
     isLoweringState = True
+    isAim = False
     isCentering = False
     #shapeClass = ShapeAnalysis()
     yaw = 0
@@ -65,6 +67,9 @@ class SpeedTrap:
     #params = { 'satLow': 50, 'satHigh': 255, 'hueLow': 36, 'hueHigh':48,'valLow':0,'valHigh':255,'Kp':10,'Vmax':40 }
     bridge = None
     position = None
+    centroidx_list = None
+    centroidy_list = None
+    max_area = 0
     ''' 
     Utility Methods
     '''
@@ -108,7 +113,6 @@ class SpeedTrap:
         self.red_hist.setParams(self.red_params)
         #cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
         #cv2.moveWindow("Sub Alignment",512,30)
-        cv2.createTrackbar("Canny Threshold:", "Sub Alignment", self.stParams['canny'], 500, self.stParamSetter('canny'));
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
         self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color_remote', Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
@@ -121,30 +125,37 @@ class SpeedTrap:
         self.yaw = msg.yaw
     
     def aiming(self,image):
-        self.red_params = self.red_hist.getParams()
-        COLOR_MIN = np.array([self.red_param['hueLow'],self.red_param['satLow'],self.red_param['valLow']],np.uint8)
-        COLOR_MAX = np.array([self.red_param['hueHigh'],self.red_param['satHigh'],self.red_param['valHigh']],np.uint8)
-        self.red_hist.getTripleHist(image)
+        if self.debug:
+            self.red_hist.setParams(self.red_params)
+        COLOR_MIN = np.array([self.red_params['hueLow'],self.red_params['satLow'],self.red_params['valLow']],np.uint8)
+        COLOR_MAX = np.array([self.red_params['hueHigh'],self.red_params['satHigh'],self.red_params['valHigh']],np.uint8)
+        red_image = cv2.inRange(image,COLOR_MIN, COLOR_MAX)
+        if self.debug:
+            self.red_hist.getTripleHist(image)
         '''Find contours on binary image and identify target to home in on'''
         '''Perform Morphological Operations on binary image to clean it up'''
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        #kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
         #cv_single = cv2.morphologyEx(cv_single, cv2.MORPH_OPEN,kernel)
-        cv_single = cv2.morphologyEx(cv_single, cv2.MORPH_CLOSE,kernel_close,iterations=5)
-        
-        contours,hierarchy = cv2.findContours(cv_single, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-        contourImg = np.zeros((self.rows,self.cols,3),dtype=np.uint8)
-        
+        #cv_single = cv2.morphologyEx(cv_single, cv2.MORPH_CLOSE,kernel_close,iterations=5)
         if(self.isLoweringState):
-            shape_array = cv2.split(cv_image)
+            shape_array = cv2.split(image)
             #retval, shape_image = cv2.threshold(shape_array[2], self.params['valLow'], 255, cv2.THRESH_OTSU)
-            self.histClass.setTrackBarPosition("Value Low:", int(retval))
-            retval, white_image = cv2.threshold(shape_array[0], self.params['valLow'], 255, cv2.THRESH_OTSU)
-            self.histClass.setTrackBarPosition("Hue Low:", int(retval))
-            shape_image = shape_array[2] - white_image
-            shape_image1 = np.copy(shape_image)
-            self.shapeClass.predictSurf(shape_array[2])
-        pass
+            #self.histClass.setTrackBarPosition("Value Low:", int(retval))
+            #retval, red_image = cv2.threshold(shape_array[0], self.red_params['hueLow'], 255, cv2.THRESH_OTSU)
+            #self.red_hist.setTrackBarPosition("red_Hue Low:", int(retval))
+            contours,hierarchy = cv2.findContours(red_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+            contourImg = np.zeros((self.rows,self.cols,3),dtype=np.uint8)
+            if(contours != None):
+                for i in range(0,len(contours)):
+                    moments =cv2.moments(contours[i],binaryImage=False)
+                    if moments['m00'] > 50:
+                        humoments = cv2.HuMoments(moments)
+                        cv2.drawContours(contourImg, contours, i, (0,0,255), lineType=8, thickness= 1,maxLevel=0)
+            #shape_image = shape_array[2] - white_image
+            #shape_image1 = np.copy(shape_image)
+            #self.shapeClass.predictSurf(shape_array[2])
+        return contourImg
     
     def centroidIdentification(self,image):
         
@@ -154,7 +165,8 @@ class SpeedTrap:
         
         '''
         #self.yellow_param = self.yellow_hist.getParams()
-        self.yellow_hist.setParams(self.yellow_params)
+        if self.debug:
+            self.yellow_hist.setParams(self.yellow_params)
         #COLOR_MIN = np.array([self.yellow_params['hueLow'],self.yellow_params['satLow'],self.yellow_params['valLow']],np.uint8)
         #COLOR_MAX = np.array([self.yellow_params['hueHigh'],self.yellow_params['satHigh'],self.yellow_params['valHigh']],np.uint8)
         imgArray = cv2.split(image)
@@ -173,7 +185,8 @@ class SpeedTrap:
         COLOR_MAX = np.array([hue_high,self.yellow_params['satHigh'],self.yellow_params['valHigh']],np.uint8)
         cv_single = cv2.inRange(image,COLOR_MIN, COLOR_MAX)
         
-        self.yellow_hist.getTripleHist(image)
+        if self.debug:
+            self.yellow_hist.getTripleHist(image)
         if retval < 90:
             cv_single = cv_single + cv_thres
             
@@ -199,6 +212,7 @@ class SpeedTrap:
                     cv2.drawContours(contourImg, contours, i, (100,255,100), lineType=8, thickness= 1,maxLevel=0)
                     contourRect= cv2.minAreaRect(contours[i])
                     pos,size,theta = contourRect
+                    binList.append(contourRect)
                     #cv2.rectangle(contourImg, (rect[0],rect[1]), (rect[0] + rect[2],rect[1] + rect[3]), (255,0,0))
                     # Obtain the actual corners of the box
                     points = cv2.cv.BoxPoints(contourRect)
@@ -217,7 +231,7 @@ class SpeedTrap:
                             longest_pt1 = pt1
                             longest_pt2 = pt2
                         cv2.line(contourImg, pt1, pt2, 255, 1)
-                    if(abs(humoments[0] - 0.202) < 0.005):
+                    if(abs(humoments[0] - 0.202) < 0.01):
                         if(longest_pt2[1] < longest_pt1[1]):
                             temp = longest_pt2
                             longest_pt2 = longest_pt1
@@ -226,7 +240,6 @@ class SpeedTrap:
                         rect_x = longest_pt2[0] - longest_pt1[0]
                         angle_hor = math.degrees(math.atan2(rect_y,(rect_x))) 
                         #print angle_hor
-                        binList.append(contourRect)
                         angleList.append(angle_hor)
                         cv2.putText(contourImg,str(np.round(angle_hor,1)), (int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                     if True:
@@ -239,7 +252,8 @@ class SpeedTrap:
                             #calculate central plane for AUV to aim towards
                         if(len(centroidx) > 3):
                             for j in range(0,len(centroidx) -1):
-                                cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)
+                                pass
+                                #'''cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)
                                 #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1])/(centroidx[j] -centroidx[j+1])))
                                 #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1]),(centroidx[j] -centroidx[j+1])))
                                 #cv2.putText(contourImg,str(np.round(targetAngle,1)), (int(centroidx[j]),int(centroidy[j])), cv2.FONT_HERSHEY_PLAIN, 1, colorTxt)
@@ -252,15 +266,30 @@ class SpeedTrap:
         else:
             self.centroidx = 0
             self.centroidy = 0
+        # Compute Central centroid for vehicle centering
         if len(centroidx) > 0:
+            self.centroidx_list = centroidx
+            self.centroidy_list = centroidy
             self.centroidx, self.centroidy = self.computeCenter(centroidx, centroidy) 
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
-        if len(binList) >3:
+        
+        #Compute orientation angle correction for vehicle orientation
+        if len(angleList) >3:
             self.isCentering = True
             self.orientation = np.average(angleList, None, None)
-            #print self.orientation
         else:
             self.isCentering = False
+        
+        #Compute Max area of all bounding rectangles
+        #pos,size,theta
+        max_area = 0
+        if len(binList) > 0:
+            for rect in binList:
+                temp_area = int(rect[1][0])*int(rect[1][1])
+                if temp_area > max_area:
+                    max_area = temp_area
+            self.max_area = max_area
+        #Display orientation angles
         if self.orientation != None:
             cv2.putText(contourImg,str(np.round(self.orientation,1)) + " " + str(np.round(self.yaw,1)), (int(self.centroidx),int(self.centroidy)), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
         return contourImg
@@ -277,21 +306,21 @@ class SpeedTrap:
             print e
         #cv_single = cv2.cvtColor(cv_image,cv2.COLOR_BGR2GRAY)
         #cv_single = np.array(cv_single,dtype=np.uint8)
-        shape_image = None
         hsv_image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
         hsv_image = np.array(hsv_image,dtype=np.uint8)
-        shape_image = self.centroidIdentification(hsv_image)
-        #retval, cv_single = cv2.threshold(cv_single, self.params['grayLow'], 255, cv2.THRESH_OTSU)
-        #self.histClass.setTrackBarPosition("Gray Low:", int(retval))
-        #cv_single = cv2.adaptiveThreshold(cv_single, 254, cv2.cv.CV_ADAPTIVE_THRESH_MEAN_C, cv2.cv.CV_THRESH_BINARY_INV, 5, 7)
-        #cv_single = cv2.GaussianBlur(cv3),1)
-        #cv_single = cv2.Canny(cv_single,self.stParams['canny'], self.stParams['canny']*3,L2gradient=True)
+        centroid_image = self.centroidIdentification(hsv_image)
+        #Draw aiming window on image to center
         
-        #cv2.imshow("Sub Alignment", contourImg)
+        cv2.rectangle(centroid_image,(300,220),(340,260), (255,0,0))
+        if self.isAim:
+            shape_image = self.aiming(hsv_image)
+        else:
+            shape_image = np.zeros((self.rows,self.cols,3),dtype=np.uint8)
+        final_image = shape_image + centroid_image
         cv2.waitKey(1)
         try:
-            if(shape_image != None):
-                final_image= cv2.cv.fromarray(shape_image)
+            if(final_image != None):
+                final_image= cv2.cv.fromarray(final_image)
                 #cv_single = cv2.cv.fromarray(cv_single)
                 #contourImg = cv2.cv.fromarray(contourImg)
                 if(self.image_pub != None):
@@ -368,6 +397,7 @@ class Centering(smach.State):
         global r
         global st
         global movement_client
+        global locomotionGoal
         isOrientationDone = False
         center_complete = False
         while(not center_complete and not rospy.is_shutdown()):
@@ -375,15 +405,18 @@ class Centering(smach.State):
                 side_error = self.K*(st.centroidx - st.cols/2)
                 fwd_error = -self.K*(st.centroidy - st.rows/2)
                 if(st.orientation != None):
-                    if st.isCentering:
+                    if st.isCentering and isOrientationDone == False:
                         if(st.orientation > 90):
                             orientation_error = (st.yaw - (180 - st.orientation)) % 360
                         else:
-                            orientation_error = (st.yaw + st.orientation) % 360
+                            orientation_error = (st.yaw - st.orientation) % 360
+                        rospy.loginfo("box_orient:" + str(st.orientation) + "yaw:" + str(st.yaw) +  "final yaw:" + str(orientation_error))
+                        isOrientationDone = True
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
-                if(np.fabs(st.centroidx - st.cols/2) <20 and np.fabs(st.centroidy - st.rows/2) <20 and np.fabs(orientation_error) <5):
-                    userdata.center_pos = st.position
+                if(np.fabs(st.centroidx - st.cols/2) <20 and np.fabs(st.centroidy - st.rows/2) <20 and np.fabs(orientation_error - st.yaw) <5):
+                    #userdata.center_pos = st.position
+                    locomotionGoal.heading_setpoint = orientation_error
                     movement_client.cancel_all_goals()
                     return "centering_complete"
                 print "orientation error:" + str(orientation_error) + "isCentering:" + str(st.isCentering)
@@ -414,9 +447,7 @@ class Orientating(smach.State):
         global locomotionGoal
         orientation_complete = False
         #while(not center_complete and not rospy.is_shutdown()):
-        rospy.loginfo("correction for orientation State:" + str(correction))
         #userdata.center_pos[0]
-        print correction
         #goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=correction,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=0)
         #movement_client.send_goal(goal)
         #movement_client.wait_for_result()
@@ -430,13 +461,39 @@ class Orientating(smach.State):
 class Aiming(smach.State):
     global st
     global mission_srv_request
+    K = 0.005
    # global r
     def __init__(self):
-        smach.State.__init__(self, outcomes=['aiming_complete','aborted'])
+        smach.State.__init__(self, outcomes=['aiming_complete','aborted'],input_keys=['center_pos'])
         
     def execute(self,userdata):
-        while(len(st.centroidx) != 2 and not rospy.is_shutdown()):
-            #print len(gate.centroidx)
+        global r
+        global st
+        global movement_client
+        global locomotionGoal
+        isLowering = True
+        depth_offset = 0
+        while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
+            aim_x = np.min(st.centroidx_list, None, None)
+            aim_y = np.min(st.centroidy_list, None, None)
+            print st.max_area
+            side_error = self.K*(aim_x - st.cols/2)
+            fwd_error = -self.K*(aim_y - st.rows/2)
+            if ((np.fabs(aim_x - st.cols/2) <20 and np.fabs(aim_y - st.rows/2) <20) and st.max_area > 1500 ) or (depth_offset + locomotionGoal.depth_setpoint) > 3 :
+                st.isAim = True
+                isLowering = False
+                rospy.loginfo("Identifying target...")
+                #movement_client.cancel_all_goals()
+                #return "aiming_complete"
+            if isLowering:
+                depth_offset = depth_offset + 0.2
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
+                                                     sidemove_setpoint=side_error)
+            movement_client.send_goal(goal)
+            movement_client.wait_for_result(rospy.Duration(1))
+            rospy.loginfo("Centering and Lowering...")
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -483,7 +540,7 @@ if __name__ == '__main__':
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
     locomotionGoal = bbauv_msgs.msg.ControllerGoal()
-    locomotionGoal.heading_setpoint = 50
+    locomotionGoal.heading_setpoint = 130
     locomotionGoal.depth_setpoint = 0.6
     vision_srv = rospy.Service('speedtrap_srv', mission_to_vision, handle_srv)
     rospy.loginfo('speedtrap_srv initialized!')
@@ -514,15 +571,9 @@ if __name__ == '__main__':
         smach.StateMachine.add('SEARCH',
                          Search(),
                          transitions={'search_complete':'CENTERING','aborted':'aborted'})
-        # Create the sub SMACH state machine for Motion Control Phase 
-        #sm_motion = smach.StateMachine(['task_complete'])
         smach.StateMachine.add('CENTERING',
                          Centering(),
-                         transitions={'centering_complete': 'ORIENTATING','aborted':'aborted'}
-                         )
-        smach.StateMachine.add('ORIENTATING',
-                         Orientating(),
-                         transitions={'orientating_complete': 'AIMING','aborted':'aborted'}
+                         transitions={'centering_complete': 'AIMING','aborted':'aborted'}
                          )
         smach.StateMachine.add('AIMING',
                          Aiming(),
