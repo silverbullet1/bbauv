@@ -47,7 +47,7 @@ import numpy as np
 
 class SpeedTrap:
     debug = True
-    red_params = {'hueLow': 0, 'hueHigh':10,'satLow': 100, 'satHigh': 255,'valLow':0,'valHigh':255}
+    red_params = {'hueLow': 0, 'hueHigh':10,'satLow': 100, 'satHigh': 255,'valLow':0,'valHigh':255,'topHueLow':170,'topHueHigh':180}
     yellow_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
     stParams = {'canny': 135 }    
     yellow_hist = bbHistogram("yellow",Hist_constants.TRIPLE_CHANNEL)
@@ -70,6 +70,8 @@ class SpeedTrap:
     centroidx_list = None
     centroidy_list = None
     max_area = 0
+    outer_center = 40
+    inner_center = 20
     ''' 
     Utility Methods
     '''
@@ -129,7 +131,16 @@ class SpeedTrap:
             self.red_hist.setParams(self.red_params)
         COLOR_MIN = np.array([self.red_params['hueLow'],self.red_params['satLow'],self.red_params['valLow']],np.uint8)
         COLOR_MAX = np.array([self.red_params['hueHigh'],self.red_params['satHigh'],self.red_params['valHigh']],np.uint8)
-        red_image = cv2.inRange(image,COLOR_MIN, COLOR_MAX)
+        
+        bot_red_image = cv2.inRange(image,COLOR_MIN, COLOR_MAX)
+        
+        COLOR_MIN = np.array([self.red_params['topHueLow'],self.red_params['satLow'],self.red_params['valLow']],np.uint8)
+        COLOR_MAX = np.array([self.red_params['topHueHigh'],self.red_params['satHigh'],self.red_params['valHigh']],np.uint8)
+        
+        top_red_image = cv2.inRange(image,COLOR_MIN, COLOR_MAX)
+        
+        red_image = top_red_image + bot_red_image
+        
         if self.debug:
             self.red_hist.getTripleHist(image)
         '''Find contours on binary image and identify target to home in on'''
@@ -389,7 +400,7 @@ class Search(smach.State):
 class Centering(smach.State):
     global mission_srv_request
    # global r
-    K = 0.010
+    K = 0.005
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete','aborted'],output_keys=['center_pos'])
         
@@ -414,7 +425,7 @@ class Centering(smach.State):
                         isOrientationDone = True
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
-                if(np.fabs(st.centroidx - st.cols/2) <20 and np.fabs(st.centroidy - st.rows/2) <20 and np.fabs(orientation_error - st.yaw) <5):
+                if(np.fabs(st.centroidx - st.cols/2) < st.outer_center and np.fabs(st.centroidy - st.rows/2) <st.outer_center and np.fabs(orientation_error - st.yaw) <5):
                     #userdata.center_pos = st.position
                     locomotionGoal.heading_setpoint = orientation_error
                     movement_client.cancel_all_goals()
@@ -479,7 +490,7 @@ class Aiming(smach.State):
             print st.max_area
             side_error = self.K*(aim_x - st.cols/2)
             fwd_error = -self.K*(aim_y - st.rows/2)
-            if ((np.fabs(aim_x - st.cols/2) <20 and np.fabs(aim_y - st.rows/2) <20) and st.max_area > 1500 ) or (depth_offset + locomotionGoal.depth_setpoint) > 3 :
+            if ((np.fabs(aim_x - st.cols/2) <st.inner_center and np.fabs(aim_y - st.rows/2) <st.inner_center) and st.max_area > 1500 ) or (depth_offset + locomotionGoal.depth_setpoint) > 3 :
                 st.isAim = True
                 isLowering = False
                 rospy.loginfo("Identifying target...")
