@@ -106,7 +106,7 @@ class Disengage(smach.State):
         tollbooth.heading = cur_heading
 
         #TODO: use actual competition IDs
-        userdata.targetIDs = ['yellow', 'green']
+        userdata.targetIDs = ['red', 'blue']
         return 'start_complete'
 
 
@@ -128,13 +128,21 @@ class Search(smach.State):
         return 'aborted'
 
 class Correction:
+    # target can be 'board' or 'hole'
+    def __init__(self, target='board', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=4.0, ANGLE_K=-0.2,
+                 EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_SIZE=0.2, EPSILON_ANGLE=5):
+        self.FORWARD_K = FORWARD_K
+        self.SIDE_K = SIDE_K
+        self.DEPTH_K = DEPTH_K
+        self.ANGLE_K = ANGLE_K
+        self.target = target
+
+        self.EPSILON_X = EPSILON_X
+        self.EPSILON_Y = EPSILON_Y
+        self.EPSILON_SIZE = EPSILON_SIZE
+        self.EPSILON_ANGLE = EPSILON_ANGLE
+
     def correct(self):
-        EPSILON_X, EPSILON_Y = 0.08, 0.08
-        EPSILON_SIZE = 0.2
-        EPSILON_ANGLE = 5
-
-        FORWARD_K, SIDE_K, DEPTH_K, ANGLE_K = -1.0, 4.0, 4.0, -0.2
-
         hoverDepth = depth_setpoint
         hoverHeading = tollbooth.heading
         offsets = {}
@@ -145,22 +153,25 @@ class Correction:
                 offsets['size'] = offsets['angle'] = 0
                 return True
 
-            x,y,w,h = tollbooth.bigBoundingRect
+            if self.target == 'board' and (not tollbooth.holes or not tollbooth.holes[0]):
+                return True
+
+            x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
             H,W = tollbooth.shape[0:2]
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
             offsets['size'] = min(w*h/float(H*W) - 0.7, 1)
 
-            pts = tollbooth.bigQuad
+            pts = tollbooth.bigQuad if self.target == 'board' else tollbooth.holes[0][2]
             angles = [
                 math.degrees(math.atan2(pts[1][1]-pts[0][1], pts[1][0]-pts[0][0])),
                 math.degrees(math.atan2(pts[2][1]-pts[3][1], pts[2][0]-pts[3][0]))
             ]
             offsets['angle'] = clamp(angles[0] - angles[1], -180, 180)
 
-            if abs(offsets['x']) > EPSILON_X or abs(offsets['y']) > EPSILON_Y:
+            if abs(offsets['x']) > self.EPSILON_X or abs(offsets['y']) > self.EPSILON_Y:
                 return True
-            if abs(offsets['size']) > EPSILON_SIZE or abs(offsets['angle']) > EPSILON_ANGLE:
+            if abs(offsets['size']) > self.EPSILON_SIZE or abs(offsets['angle']) > self.EPSILON_ANGLE:
                 return True
 
             return False
@@ -171,48 +182,48 @@ class Correction:
             x,y,w,h = tollbooth.bigBoundingRect
             H,W = tollbooth.shape[0:2]
 
-            if abs(offsets['y']) > EPSILON_Y:
+            if abs(offsets['y']) > self.EPSILON_Y:
                 print("Correcting vertical")
                 factor = 1 - h/float(H) # attenuation factor
-                hoverDepth = depth_setpoint + factor * DEPTH_K * offsets['y']
+                hoverDepth = depth_setpoint + factor * self.DEPTH_K * offsets['y']
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(4,0))
+                actionClient.wait_for_result(rospy.Duration(1,0))
                 print("got result")
-            elif abs(offsets['x']) > EPSILON_X:
+            elif abs(offsets['x']) > self.EPSILON_X:
                 print("Correcting horizontal")
                 factor = 1 - w/float(W)
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
-                        sidemove_setpoint = factor * SIDE_K * offsets['x']
+                        sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(4,0))
+                actionClient.wait_for_result(rospy.Duration(2,0))
                 print("got result")
-            elif abs(offsets['angle']) > EPSILON_ANGLE:
+            elif abs(offsets['angle']) > self.EPSILON_ANGLE:
                 print ("Correcting heading")
-                hoverHeading = norm_heading(tollbooth.heading + ANGLE_K * offsets['angle'])
+                hoverHeading = norm_heading(tollbooth.heading + self.ANGLE_K * offsets['angle'])
 
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(4,0))
+                actionClient.wait_for_result(rospy.Duration(2,0))
                 print("got result")
-            elif abs(offsets['size']) > EPSILON_SIZE:
+            elif abs(offsets['size']) > self.EPSILON_SIZE:
                 print ("Correcting nearness")
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
-                        forward_setpoint = FORWARD_K * offsets['size']
+                        forward_setpoint = self.FORWARD_K * offsets['size']
                 )
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(4,0))
+                actionClient.wait_for_result(rospy.Duration(2,0))
                 print("got result")
 
             rosRate.sleep()
@@ -252,7 +263,12 @@ class MoveToTarget(smach.State):
 
         tollbooth.changeTarget(targetID)
 
-        correction = Correction()
+        # Adjust to board first
+        correction = Correction(target='board', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=2.0, ANGLE_K=-0.2)
+        correction.correct()
+
+        # Then adjust to hole
+        correction = Correction(target='hole', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=2.0, ANGLE_K=-0.2)
         correction.correct()
 
         #TODO: lock on to target and fire torpedo
@@ -263,6 +279,36 @@ class MoveToTarget(smach.State):
 
         return 'fired'
 
+'''
+Backoff until the whole thing is visible again
+'''
+class Backoff(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['found', 'aborted'],
+                             input_keys=['targetIDs'],
+                             output_keys=['targetIDs'])
+
+    def execute(self, userdata):
+        hoverHeading = tollbooth.heading
+        hoverDepth = depth_setpoint
+
+        tollbooth.changeTarget('all')
+
+        while not rospy.is_shutdown():
+            if tollbooth.regionCount >= 3:
+                return 'found'
+
+            goal = bbauv_msgs.msg.ControllerGoal(
+                    heading_setpoint = hoverHeading,
+                    depth_setpoint = hoverDepth,
+                    forward_setpoint = -2
+            )
+            actionClient.send_goal(goal)
+            actionClient.wait_for_result(rospy.Duration(1,0))
+
+            rosRate.sleep()
+        return 'aborted'
 
 '''
 Carry on to next task
@@ -336,8 +382,14 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'GET_TARGET',
                         MoveToTarget(),
-                        transitions={'fired': 'GET_TARGET',
+                        transitions={'fired': 'BACKOFF',
                                      'fired_all': 'DONE',
+                                     'aborted': 'aborted'}
+        )
+        smach.StateMachine.add(
+                        'BACKOFF',
+                        Backoff(),
+                        transitions={'found': 'GET_TARGET',
                                      'aborted': 'aborted'}
         )
         smach.StateMachine.add(

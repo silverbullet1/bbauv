@@ -37,6 +37,7 @@ class TollboothDetector:
 
         self.target = 'all'
         self.history = []
+        self.holes = []
 
         # Initial state
         self.heading = 0.0
@@ -153,7 +154,7 @@ class TollboothDetector:
         regions = [img[y:y+h, x:x+w] for (img, _, (x,y,w,h)) in images]
 
         # Code to look for the holes
-        holes = []
+        self.holes = []
         for i, region in enumerate(regions):
             hole = cv2.morphologyEx(region, cv2.MORPH_CLOSE, kernel)
 
@@ -166,26 +167,31 @@ class TollboothDetector:
             if len(self.history) <= i or self.history[i] is None:
                 targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:]
                 targetContour = None if len(targetHoles)==0 else targetHoles[0]
+                targetInfo = None
                 targetCentre = None
                 targetArea = 0
                 if targetContour is not None:
                     targetCentre = calcCentroid(targetContour)
-                    #targetArea = cv2.contourArea(targetContour)
+                    targetArea = cv2.contourArea(targetContour)
+                    targetRect = cv2.boundingRect(targetContour)
+                    targetInfo = (targetCentre, targetArea, targetRect)
                 if len(self.history) <= i:
-                    self.history.append(targetCentre)
+                    self.history.append(targetInfo)
                 else:
-                    self.history[i] = targetCentre
+                    self.history[i] = targetInfo
             else:
-                # Minimize distance
+                # Minimize distance and area difference
                 prevPt = self.history[i]
                 if not holecontours:
+                    targetInfo = None
                     targetCentre = None
                 else:
-                    targetCentres = [calcCentroid(c) for c in holecontours]
-                    targetCentre = min(targetCentres, key=lambda c: (prevPt[0]-c[0])**2 + (prevPt[1]-c[1])**2)
-                    self.history[i] = targetCentre
+                    targetCentres = [(calcCentroid(c),cv2.contourArea(c),c) for c in holecontours]
+                    targetTmp = min(targetCentres, key=lambda c: (prevPt[0][0]-c[0][0])**2 + (prevPt[0][1]-c[0][1])**2 + (prevPt[1]-c[1])**2)
+                    targetInfo = (targetTmp[0], targetTmp[1], cv2.boundingRect(targetTmp[2]))
+                    self.history[i] = targetInfo
 
-            holes.append(targetCentre)
+            self.holes.append(targetInfo)
 
         if self.DEBUG:
             colours = [(255,0,0), (0,255,0), (0,0,255), (0,255,255)]
@@ -196,10 +202,12 @@ class TollboothDetector:
                     pt2 = (self.bigQuad[i+1][0], self.bigQuad[i+1][1])
                     cv2.line(imgDebug, pt1, pt2, colours[i+1], 2)
 
-            for target in holes:
+            for target in self.holes:
                 if target is not None:
-                    pt = (int(target[0]), int(target[1]))
+                    pt = (int(target[0][0]), int(target[0][1]))
                     cv2.circle(imgDebug, pt, 2, (255,0,0), 2)
+                    x,y,w,h = target[2]
+                    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0,0,255), 1)
 
             self.camdebug.publishImage('bw', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
@@ -209,6 +217,7 @@ class TollboothDetector:
         self.target = target
         self.history = []
         self.regionCount = 0
+        self.holes = []
 
 
     # Callback for subscribing to compass data
