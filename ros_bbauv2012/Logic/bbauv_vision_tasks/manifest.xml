@@ -1,0 +1,25 @@
+<package>
+  <description brief="bbauv_vision_tasks">
+
+     bbauv_vision_tasks
+
+  </description>
+  <author>Qin Baoxing</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/vision_lane_detection</url>
+  <rosdep name="opencv2.3"/>
+  <depend package="image_geometry"/>
+  <depend package="image_transport"/>
+  <depend package="cv_bridge"/>
+  <depend package="tf"/>
+  <depend package="image_view"/>
+  <depend package="message_filters"/>
+  <depend package="nav_msgs"/>
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+  <depend package="laser_geometry"/>
+  <depend package="fmutil"/>
+</package>
+
+
