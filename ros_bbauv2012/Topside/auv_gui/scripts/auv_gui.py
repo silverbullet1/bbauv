@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 import roslib; roslib.load_manifest('auv_gui')
 import rospy
+import os
 
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
@@ -42,6 +43,7 @@ class AUV_gui(QMainWindow):
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
+        
         self.main_frame = QWidget()
         
         goalBox =  QGroupBox("Goal Setter")
@@ -229,7 +231,9 @@ class AUV_gui(QMainWindow):
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
         self.setGeometry(300, 300, 800, 670)
-        self.setWindowTitle('Bumblebee AUV Control Panel')  
+        self.setWindowTitle('Bumblebee AUV Control Panel')
+        self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
+        print os.getcwd() + '/icons/field.png'
         self.setCentralWidget(self.main_frame)
         self.heading_provider.valueChanged.connect(self.valueChanged)
         self.initAction()
