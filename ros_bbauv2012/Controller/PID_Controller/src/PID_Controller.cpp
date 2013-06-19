@@ -269,7 +269,7 @@ void collectPressure(const std_msgs::Int16& msg)
 	double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;
-	depthReading.pressure = pressure;
+	depthReading.pressure = pressure + ATM;
 	depthPub.publish(depthReading);
 }
 void collectPosition(const nav_msgs::Odometry::ConstPtr& msg)

@@ -15,7 +15,7 @@ from com.histogram.histogram import Hist_constants
 from com.histogram.histogram import bbHistogram
 from com.shape.ShapeAnalysis import ShapeAnalysis
 from bbauv_msgs.msg import *
-from bbauv_msgs.srv import *
+from bbauv_msgs.srv import * 
 
 from nav_msgs.msg import Odometry
 
@@ -54,7 +54,7 @@ class SpeedTrap:
     red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
     isAlignState = True
     isLoweringState = True
-    isAim = False
+    isAim = True
     isCentering = False
     #shapeClass = ShapeAnalysis()
     yaw = 0
@@ -116,7 +116,7 @@ class SpeedTrap:
         #cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
         #cv2.moveWindow("Sub Alignment",512,30)
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color_remote', Image,self.processImage)
+        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color', Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.pos_sub = rospy.Subscriber('/WH_DVL_data',Odometry)
         self.bridge = CvBridge()
@@ -287,7 +287,7 @@ class SpeedTrap:
         #Compute orientation angle correction for vehicle orientation
         if len(angleList) >3:
             self.isCentering = True
-            self.orientation = np.average(angleList, None, None)
+            self.orientation = np.median(angleList, None, None)
         else:
             self.isCentering = False
         
