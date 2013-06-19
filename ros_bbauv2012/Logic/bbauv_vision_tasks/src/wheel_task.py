@@ -3,9 +3,10 @@
 Identify wheel (driving task)
 '''
 
-import roslib; roslib.load_manifest('Vision')
+import roslib; roslib.load_manifest('bbauv_vision_tasks')
 import rospy
 from sensor_msgs.msg import Image, CameraInfo
+from geometry_msgs.msg import Point32
 from bbauv_vision_tasks.msg import wheel_task_pose
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -17,6 +18,7 @@ class wheel_task:
         self.cvbridge = CvBridge()
 
         self.cam_sub_ = rospy.Subscriber('/stereo_camera/left/image_rect_color', Image, self.ImageCB)
+        self.cam_info_sub_ = rospy.Subscriber('/stereo_camera/left/camera_info', CameraInfo, self.CameraInfoCB)
 
         self.find_times_ = 0
         self.find_times_limit_ = 30
@@ -28,11 +30,14 @@ class wheel_task:
 
         self.pipePose_pub_ = rospy.Publisher('/wheel_task_pose', wheel_task_pose)
 
-
-    def ImageCB(self, image_msg, info_msg):
+    def CameraInfoCB(self, info_msg):
         if not self.cameraInfo_initialized_:
             self.camera_info_ = info_msg
             self.cameraInfo_initialized_ = True
+
+    def ImageCB(self, image_msg):
+        if not self.cameraInfo_initialized_:
+            return
 
         try:
             iplimg = self.cvbridge.imgmsg_to_cv(image_msg, image_msg.encoding)
@@ -97,7 +102,7 @@ class wheel_task:
 
     def yellow_board_detection(self, yellow_image, wheelTaskPose):
         image_copy = yellow_image.copy()
-        contours = cv2.findContours(image_copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(image_copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         contours_poly = []
         boundRotateRect = []
@@ -119,7 +124,7 @@ class wheel_task:
 
     def red_wheel_detection(self, red_image, wheelTaskPose):
         image_copy = red_image.copy()
-        contours = cv2.findContours(image_copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(image_copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         contours_poly = []
         center = []
@@ -154,7 +159,7 @@ class wheel_task:
 
     def green_bar_detection(self, green_image, wheelTaskPose):
         image_copy = green_image.copy()
-        contours = cv2.findContours(image_copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(image_copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         contours_poly = []
         boundRotateRect = []
@@ -170,7 +175,7 @@ class wheel_task:
             max_area = max(max_area, rect_area)
             maxArea_serial = maxArea_serial if max_area > rect_area else i
 
-        if max_area > 10.0
+        if max_area > 10.0:
             wheelTaskPose.detect_green_bar = True
             if wheelTaskPose.detect_red_wheel:
                 bar_center = self.imagePt_to_realPt(boundRotateRect[maxArea_serial][0], self.meter_pixel_ratio_, self.estimated_depth_)

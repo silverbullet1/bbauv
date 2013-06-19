@@ -28,9 +28,11 @@ find_package(OpenCV REQUIRED)
 
 rosbuild_add_executable(pipe_task src/pipe_task)
 target_link_libraries(pipe_task ${OpenCV_LIBRARIES})
+rosbuild_link_boost(pipe_task system)
 
 rosbuild_add_executable(wheel_task src/wheel_task)
 target_link_libraries(wheel_task ${OpenCV_LIBRARIES})
+rosbuild_link_boost(wheel_task system)
 
 #target_link_libraries(wrap_example ${OpenCV_LIBRARIES})
 #common commands for building c++ executables and libraries

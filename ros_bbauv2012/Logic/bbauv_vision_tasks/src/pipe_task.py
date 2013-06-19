@@ -3,7 +3,7 @@
 Identify pipe (pizza delivery task)
 '''
 
-import roslib; roslib.load_manifest('Vision')
+import roslib; roslib.load_manifest('bbauv_vision_tasks')
 import rospy
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point32
@@ -12,12 +12,14 @@ from cv_bridge import CvBridge, CvBridgeError
 
 import numpy as np
 import cv2
+import math
 
 class pipe_task:
     def __init__(self):
         self.cvbridge = CvBridge()
 
         self.cam_sub_ = rospy.Subscriber('camera/image_rect_color', Image, self.ImageCB)
+        self.cam_info_sub_ = rospy.Subscriber('camera/camera_info', CameraInfo, self.CameraInfoCB)
 
         self.cameraInfo_initialized_ = False
         self.pipe_length_total_ = 0.305
@@ -27,11 +29,14 @@ class pipe_task:
 
         self.pipePose_pub_ = rospy.Publisher('/pipe_pose', pipe_pose)
 
-
-    def ImageCB(self, image_msg, info_msg):
+    def CameraInfoCB(self, info_msg):
         if not self.cameraInfo_initialized_:
             self.camera_info_ = info_msg
             self.cameraInfo_initialized_ = True
+
+    def ImageCB(self, image_msg):
+        if not self.cameraInfo_initialized_:
+            return
 
         try:
             iplimg = self.cvbridge.imgmsg_to_cv(image_msg, image_msg.encoding)
@@ -60,14 +65,14 @@ class pipe_task:
 
         copy_for_contour = pipe_orange_threshold.copy()
 
-        contours = cv2.findContours(copy_for_contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(copy_for_contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for i in range(1, len(contours)):
-            cv2.line(pipe_orange_threshold, contours[i-1][0], contours[i][0], 255, 2)
+            cv2.line(pipe_orange_threshold, tuple(contours[i-1][0][0]), tuple(contours[i][0][0]), 255, 2)
 
         cv2.imshow('pipe_outer', pipe_orange_threshold)
 
         copy_for_contour2 = pipe_orange_threshold.copy()
-        single_contour = cv2.findContours(copy_for_contour2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        single_contour, _ = cv2.findContours(copy_for_contour2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         pipe_skeleton_pose = pipe_pose()
         #pipe_skeleton_pose.header = iplimg.header
@@ -78,10 +83,14 @@ class pipe_task:
 
             rect_points = cv2.cv.BoxPoints(minArea_rectangle)
             for j in range(4):
-                cv2.line(color_rect, rect_points[j], rect_points[(j+1)%4], (255,0,0), 3, 8)
+                pt1 = tuple(np.int32(rect_points[j]))
+                pt2 = tuple(np.int32(rect_points[(j+1)%4]))
+                cv2.line(color_rect, pt1, pt2, (255,0,0), 3, 8)
 
             pipe_skeleton_pose.detect_pipe, lowest_pt, second_lowest_pt = self.Calc_pose(rect_points, pipe_skeleton_pose)
-            line(color_rect, lowest_pt, second_lowest_pt, (0,0,255), 3, 8)
+            pt1 = tuple(np.int32(lowest_pt))
+            pt2 = tuple(np.int32(second_lowest_pt))
+            cv2.line(color_rect, pt1, pt2, (0,0,255), 3, 8)
 
             cv2.imshow('color_rect', color_rect)
 
