@@ -176,7 +176,6 @@ class Stabilize(smach.State):
             y_off = abs(laneDetector.offset[1])>EPSILON_Y
 
             if x_off or y_off:
-                #TODO: remove this in actual run
                 initService()
 
                 goal = bbauv_msgs.msg.ControllerGoal(

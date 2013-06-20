@@ -13,6 +13,8 @@ import random
 import numpy as np
 import cv2
 
+from com.histogram.histogram import bbHistogram
+
 COLOURS = ['red', 'blue', 'yellow', 'green']
 
 def calcCentroid(contour):
@@ -45,6 +47,8 @@ class TollboothDetector:
 
         self.cvimg = None
 
+        cv2.namedWindow("Settings", cv2.CV_WINDOW_AUTOSIZE)
+        self.histClass = bbHistogram('tollbooth')
 
     # Callback for subscribing to Image topic
     def gotRosFrame(self, rosImage):
@@ -54,9 +58,9 @@ class TollboothDetector:
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
-        # Equalize on S
-        imgh, imgs, imgv = cv2.split(imghsv)
-        imghsv = cv2.merge([imgh, cv2.equalizeHist(imgs), imgv])
+#        # Equalize on S
+#        imgh, imgs, imgv = cv2.split(imghsv)
+#        imghsv = cv2.merge([imgh, cv2.equalizeHist(imgs), imgv])
 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (-1,-1))
 
@@ -92,9 +96,13 @@ class TollboothDetector:
                 )
 
             # Close up gaps
-            structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
-            img = cv2.dilate(img, structuringElt)
-            img = cv2.erode(img, structuringElt)
+#            structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
+#            img = cv2.dilate(img, structuringElt)
+#            img = cv2.erode(img, structuringElt)
+            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
+            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+            img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openingElt)
+            img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closingElt)
 
             tmp = img.copy() # findContours modifies the original
             contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -165,7 +173,8 @@ class TollboothDetector:
             holecontours = [contours[k] for k in filter(lambda k: hierarchy[0][k][3] > -1, range(len(contours)))]
             # Retrieve the centre of the 2nd-largest hole (if any)
             if len(self.history) <= i or self.history[i] is None:
-                targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:]
+                #TODO: switch to -2 during competition
+                targetHoles = sorted(holecontours, key=cv2.contourArea)[-1:]
                 targetContour = None if len(targetHoles)==0 else targetHoles[0]
                 targetInfo = None
                 targetCentre = None
@@ -211,6 +220,9 @@ class TollboothDetector:
 
             self.camdebug.publishImage('bw', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
+
+            self.histClass.getTripleHist(imghsv)
+            cv2.waitKey(3)
 
 
     def changeTarget(self, target):

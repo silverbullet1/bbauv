@@ -29,12 +29,15 @@ import smach
 import smach_ros
 
 
+# GLOBALS
 DEBUG = True
 camdebug = None
 tollbooth = None
 firstRunAction = True
 depth_setpoint = 0.5
 cur_heading = 0
+imageSub = None
+currentEye = 'left'
 
 # dynamic_reconfigure params; see Tollbooth.cfg
 params = { 'contourMinArea': 0,
@@ -129,8 +132,9 @@ class Search(smach.State):
 
 class Correction:
     # target can be 'board' or 'hole'
-    def __init__(self, target='board', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=4.0, ANGLE_K=-0.2,
-                 EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_SIZE=0.2, EPSILON_ANGLE=5):
+    def __init__(self, target='board', FORWARD_K=-1.5, SIDE_K=5.0, DEPTH_K=3.0, ANGLE_K=-0.2,
+                 EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_SIZE=0.2, EPSILON_ANGLE=5,
+                 SIZE_PT=0.5):
         self.FORWARD_K = FORWARD_K
         self.SIDE_K = SIDE_K
         self.DEPTH_K = DEPTH_K
@@ -141,6 +145,9 @@ class Correction:
         self.EPSILON_Y = EPSILON_Y
         self.EPSILON_SIZE = EPSILON_SIZE
         self.EPSILON_ANGLE = EPSILON_ANGLE
+        self.SIZE_PT = SIZE_PT
+
+        self.hole_offset = (0, -50)
 
     def correct(self):
         hoverDepth = depth_setpoint
@@ -148,21 +155,30 @@ class Correction:
         offsets = {}
 
         def tollboothOutOfPlace():
+            offsets['x'] = offsets['y'] = 0
+            offsets['size'] = offsets['angle'] = 0
             if tollbooth.regionCount == 0:
-                offsets['x'] = offsets['y'] = 0
-                offsets['size'] = offsets['angle'] = 0
                 return True
 
-            if self.target == 'board' and (not tollbooth.holes or not tollbooth.holes[0]):
+            if self.target == 'hole' and (not tollbooth.holes or not tollbooth.holes[0]):
                 return True
 
             x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
             H,W = tollbooth.shape[0:2]
+
+            if self.target == 'hole':
+                x -= self.hole_offset[0]
+                y -= self.hole_offset[1]
+
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
-            offsets['size'] = min(w*h/float(H*W) - 0.7, 1)
+            offsets['size'] = min(w*h/float(H*W) - self.SIZE_PT, 1)
 
-            pts = tollbooth.bigQuad if self.target == 'board' else tollbooth.holes[0][2]
+            if self.target == 'board':
+                pts = tollbooth.bigQuad
+            else:
+                tx,ty,tw,th = tollbooth.holes[0][2]
+                pts = [(tx, ty), (tx+tw, ty), (tx+tw, ty+th), (tx, ty+th)]
             angles = [
                 math.degrees(math.atan2(pts[1][1]-pts[0][1], pts[1][0]-pts[0][0])),
                 math.degrees(math.atan2(pts[2][1]-pts[3][1], pts[2][0]-pts[3][0]))
@@ -179,11 +195,12 @@ class Correction:
         while tollboothOutOfPlace():
             if rospy.is_shutdown(): return 'aborted'
 
-            x,y,w,h = tollbooth.bigBoundingRect
             H,W = tollbooth.shape[0:2]
 
             if abs(offsets['y']) > self.EPSILON_Y:
                 print("Correcting vertical")
+                x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
+
                 factor = 1 - h/float(H) # attenuation factor
                 hoverDepth = depth_setpoint + factor * self.DEPTH_K * offsets['y']
                 goal = bbauv_msgs.msg.ControllerGoal(
@@ -195,6 +212,8 @@ class Correction:
                 print("got result")
             elif abs(offsets['x']) > self.EPSILON_X:
                 print("Correcting horizontal")
+                x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
+
                 factor = 1 - w/float(W)
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
@@ -242,7 +261,9 @@ class Stabilize(smach.State):
         initAction()
 
         correction = Correction()
-        correction.correct()
+        result = correction.correct()
+        if result == 'aborted':
+            return 'aborted'
 
         return 'found'
 
@@ -263,15 +284,21 @@ class MoveToTarget(smach.State):
 
         tollbooth.changeTarget(targetID)
 
-        # Adjust to board first
-        correction = Correction(target='board', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=2.0, ANGLE_K=-0.2)
-        correction.correct()
+#        # Adjust to board first
+#        correction = Correction(target='board', FORWARD_K=-1.0, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, EPSILON_SIZE=0.2, SIZE_PT=0.7)
+#        correction.correct()
 
         # Then adjust to hole
-        correction = Correction(target='hole', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=2.0, ANGLE_K=-0.2)
-        correction.correct()
+        correction = Correction(target='hole', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=0.5, EPSILON_SIZE=0.05, SIZE_PT=0.1)
+        result = correction.correct()
+
+        if result == 'aborted':
+            return 'aborted'
 
         #TODO: lock on to target and fire torpedo
+        rospy.loginfo("pew pew")
+        rospy.sleep(10)
+
         #TODO: if no targets left, continue
         userdata.targetIDs = remainingIDs
         if not remainingIDs:
@@ -293,6 +320,13 @@ class Backoff(smach.State):
         hoverHeading = tollbooth.heading
         hoverDepth = depth_setpoint
 
+#        # Switch eye
+#        global currentEye, imageSub
+#        if currentEye == 'left':
+#            imageSub.unregister()
+#            imageSub = rospy.Subscriber(imageRightTopic, Image, gotRosFrame)
+#            currentEye = 'right'
+
         tollbooth.changeTarget('all')
 
         while not rospy.is_shutdown():
@@ -305,7 +339,7 @@ class Backoff(smach.State):
                     forward_setpoint = -2
             )
             actionClient.send_goal(goal)
-            actionClient.wait_for_result(rospy.Duration(1,0))
+            actionClient.wait_for_result(rospy.Duration(2,0))
 
             rosRate.sleep()
         return 'aborted'
@@ -330,7 +364,8 @@ Main
 if __name__ == '__main__':
     rospy.init_node('tollbooth', anonymous=False)
     loopRateHz = rospy.get_param('~loopHz', 20)
-    imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_rect_color')
+    imageLeftTopic = rospy.get_param('~imageLeft', '/stereo_camera/left/image_rect_color')
+    imageRightTopic = rospy.get_param('~imageRight', '/stereo_camera/right/image_rect_color')
     depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
 
@@ -355,7 +390,8 @@ if __name__ == '__main__':
     def gotDepth(msg):
         global depth_setpoint
         depth_setpoint = msg.depth
-    rospy.Subscriber(imageTopic, Image, gotRosFrame)
+    currentEye = 'left'
+    imageSub = rospy.Subscriber(imageLeftTopic, Image, gotRosFrame)
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
     rospy.Subscriber(depthTopic, depth, gotDepth)
 
