@@ -240,19 +240,17 @@ class Disengage(smach.State):
     def execute(self,userdata):
         global locomotionGoal
         global isStart
-        global isEnd
+        global isEnd        
         global park
         
-        if isEnd == True:
-            park.unregister()
-
         isStart = False
-        isEnd = True
         
         while (not rospy.is_shutdown()):
+            if isEnd:
+                rospy.signal_shutdown("Deactivating Park Node")            
             if isStart:
                 park.register()
-                rospy.sleep(3)
+#                 rospy.sleep(1)
                 return 'start_complete'
 
 class Search(smach.State):
@@ -274,6 +272,7 @@ class Search(smach.State):
                 except rospy.ServiceException, e:
                     print "Service call failed: %s"%e
                 return 'search_complete' 
+            
             if isAbort:
                 return 'aborted'               
             rospy.sleep(0.05)
@@ -293,6 +292,7 @@ class MotionControlProcess(smach.State):
     
         global park
         global locomotionGoal
+        global isEnd
         
         rospy.loginfo("Executing state MOTION CONTROL")
         actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
@@ -340,21 +340,21 @@ class MotionControlProcess(smach.State):
                     actionClient.wait_for_result(rospy.Duration(wait_time,0))                 
                          
             if park.area>=params['area_thresh']: 
-#                rospy.loginfo("Target Near Enough; Executing Last Maneuver")
+#                 rospy.loginfo("Target Near Enough; Executing Last Maneuver")
                 #Final State to change depth and move forward
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
                 goal.depth_setpoint -= 0.9
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Depth change! area=%d' % (park.area))
-                actionClient.wait_for_result(rospy.Duration(5,0))
+                actionClient.wait_for_result(rospy.Duration(7,0))
                                 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 2.5
                 goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Moonwalking!')
-                actionClient.wait_for_result(rospy.Duration(10,0))
+                actionClient.wait_for_result(rospy.Duration(20,0))
 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
@@ -370,6 +370,8 @@ class MotionControlProcess(smach.State):
                    resp = mission_srv(False,True,locomotionGoal)
                 except rospy.ServiceException, e:
                    print "Service call failed: %s"%e
+                
+                isEnd = True   
                 return 'task_complete'                
 
             if isAbort:
@@ -406,8 +408,8 @@ parking = None
 isAbort = False
 #whether to start search
 isStart = True  
-#whether to end 
 isEnd = False
+#used to obtain seed goal and return to mission the final goal; depth and heading are absolute
 locomotionGoal = controller()
 #vision uses this to comms with mission
 mission_srv = None
