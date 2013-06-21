@@ -48,7 +48,7 @@ class TollboothDetector:
         self.cvimg = None
 
         cv2.namedWindow("Settings", cv2.CV_WINDOW_AUTOSIZE)
-        self.histClass = bbHistogram('tollbooth')
+#        self.histClass = bbHistogram('tollbooth')
 
     # Callback for subscribing to Image topic
     def gotRosFrame(self, rosImage):
@@ -96,9 +96,6 @@ class TollboothDetector:
                 )
 
             # Close up gaps
-#            structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (1,1))
-#            img = cv2.dilate(img, structuringElt)
-#            img = cv2.erode(img, structuringElt)
             openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
             closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
             img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openingElt)
@@ -137,7 +134,10 @@ class TollboothDetector:
             cv2.fillPoly(imgMasked, [points], 255)
             imgMasked = np.bitwise_and(imgCombinedBW, imgMasked)
 
-            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_CLOSE, kernel, None, (-1,-1), 2)
+            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
+            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_OPEN, openingElt)
+            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_CLOSE, closingElt)
             tmp = imgMasked.copy()
             roicontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             bigContour = max(roicontours, key=cv2.contourArea)
@@ -164,17 +164,27 @@ class TollboothDetector:
         # Code to look for the holes
         self.holes = []
         for i, region in enumerate(regions):
-            hole = cv2.morphologyEx(region, cv2.MORPH_CLOSE, kernel)
+            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
+            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+            hole = cv2.morphologyEx(region, cv2.MORPH_OPEN, openingElt)
+            hole = cv2.morphologyEx(hole, cv2.MORPH_CLOSE, closingElt)
 
-            tmp = hole.copy()
-            contours, hierarchy = cv2.findContours(tmp, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
+            if False: #HACK: the code in this branch looks for holes using hierarchy
+                tmp = hole.copy()
+                contours, hierarchy = cv2.findContours(tmp, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
 
-            # Contours of holes are those which have a parent
-            holecontours = [contours[k] for k in filter(lambda k: hierarchy[0][k][3] > -1, range(len(contours)))]
+                # Contours of holes are those which have a parent
+                holecontours = [contours[k] for k in filter(lambda k: hierarchy[0][k][3] > -1, range(len(contours)))]
+
+            else: #HACK: the code in this branch looks for holes by inversion
+                hole = np.invert(hole)
+                tmp = hole.copy()
+                holecontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
+                holecontours = filter(lambda c: cv2.contourArea(c) > 10, holecontours)
+
             # Retrieve the centre of the 2nd-largest hole (if any)
             if len(self.history) <= i or self.history[i] is None:
-                #TODO: switch to -2 during competition
-                targetHoles = sorted(holecontours, key=cv2.contourArea)[-1:]
+                targetHoles = sorted(holecontours, key=cv2.contourArea)[-1:] #TODO: switch to -2 during competition
                 targetContour = None if len(targetHoles)==0 else targetHoles[0]
                 targetInfo = None
                 targetCentre = None
@@ -221,8 +231,8 @@ class TollboothDetector:
             self.camdebug.publishImage('bw', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
 
-            self.histClass.getTripleHist(imghsv)
-            cv2.waitKey(3)
+#            self.histClass.getTripleHist(imghsv)
+#            cv2.waitKey(3)
 
 
     def changeTarget(self, target):

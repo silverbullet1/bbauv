@@ -29,6 +29,9 @@ import smach
 import smach_ros
 
 
+#TODO: use actual competition IDs
+COMPETITION_TARGETS = ['red', 'yellow']
+
 # GLOBALS
 DEBUG = True
 camdebug = None
@@ -108,8 +111,7 @@ class Disengage(smach.State):
         tollbooth = TollboothDetector(params, camdebug)
         tollbooth.heading = cur_heading
 
-        #TODO: use actual competition IDs
-        userdata.targetIDs = ['red', 'blue']
+        userdata.targetIDs = COMPETITION_TARGETS
         return 'start_complete'
 
 
@@ -126,15 +128,22 @@ class Search(smach.State):
     def execute(self, userdata):
         while not rospy.is_shutdown():
             if tollbooth.regionCount >= 3:
+#                mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
                 return 'search_complete'
             rosRate.sleep()
+
         return 'aborted'
 
+
+'''
+Performs correction to keep target in centre
+'''
 class Correction:
     # target can be 'board' or 'hole'
-    def __init__(self, target='board', FORWARD_K=-1.5, SIDE_K=5.0, DEPTH_K=3.0, ANGLE_K=-0.2,
-                 EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_SIZE=0.2, EPSILON_ANGLE=5,
-                 SIZE_PT=0.5):
+    def __init__(self, target='board', FORWARD_K=-10, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
+                 EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_ANGLE=4,
+                 MIN_SIZE=0.033, MAX_SIZE=0.3):
+
         self.FORWARD_K = FORWARD_K
         self.SIDE_K = SIDE_K
         self.DEPTH_K = DEPTH_K
@@ -143,11 +152,11 @@ class Correction:
 
         self.EPSILON_X = EPSILON_X
         self.EPSILON_Y = EPSILON_Y
-        self.EPSILON_SIZE = EPSILON_SIZE
         self.EPSILON_ANGLE = EPSILON_ANGLE
-        self.SIZE_PT = SIZE_PT
+        self.MIN_SIZE = MIN_SIZE
+        self.MAX_SIZE = MAX_SIZE
 
-        self.hole_offset = (0, -50)
+        self.hole_offset = (0, -100)
 
     def correct(self):
         hoverDepth = depth_setpoint
@@ -170,9 +179,15 @@ class Correction:
                 x -= self.hole_offset[0]
                 y -= self.hole_offset[1]
 
+            sizeRatio = w*h/float(W*H)
+            sizeMidPt = (self.MIN_SIZE + self.MAX_SIZE) * 0.5
+            if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
+                offsets['size'] = sizeRatio - sizeMidPt
+
+            print 'vals:', { 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }
+
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
-            offsets['size'] = min(w*h/float(H*W) - self.SIZE_PT, 1)
 
             if self.target == 'board':
                 pts = tollbooth.bigQuad
@@ -183,17 +198,19 @@ class Correction:
                 math.degrees(math.atan2(pts[1][1]-pts[0][1], pts[1][0]-pts[0][0])),
                 math.degrees(math.atan2(pts[2][1]-pts[3][1], pts[2][0]-pts[3][0]))
             ]
-            offsets['angle'] = clamp(angles[0] - angles[1], -180, 180)
+            offsets['angle'] = clamp(angles[0] - angles[1], -20, 20)
 
             if abs(offsets['x']) > self.EPSILON_X or abs(offsets['y']) > self.EPSILON_Y:
                 return True
-            if abs(offsets['size']) > self.EPSILON_SIZE or abs(offsets['angle']) > self.EPSILON_ANGLE:
+            if offsets['size'] or abs(offsets['angle']) > self.EPSILON_ANGLE:
                 return True
 
             return False
 
         while tollboothOutOfPlace():
             if rospy.is_shutdown(): return 'aborted'
+
+            print 'offsets:', offsets
 
             H,W = tollbooth.shape[0:2]
 
@@ -229,12 +246,13 @@ class Correction:
 
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
-                        depth_setpoint = hoverDepth
+                        depth_setpoint = hoverDepth,
+                        sidemove_setpoint = math.copysign(3.0, offsets['angle'])
                 )
                 actionClient.send_goal(goal)
                 actionClient.wait_for_result(rospy.Duration(2,0))
                 print("got result")
-            elif abs(offsets['size']) > self.EPSILON_SIZE:
+            elif offsets['size']:
                 print ("Correcting nearness")
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
@@ -246,6 +264,7 @@ class Correction:
                 print("got result")
 
             rosRate.sleep()
+
 
 '''
 Shift the tollbooth into the centre of the image
@@ -284,18 +303,21 @@ class MoveToTarget(smach.State):
 
         tollbooth.changeTarget(targetID)
 
-#        # Adjust to board first
-#        correction = Correction(target='board', FORWARD_K=-1.0, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, EPSILON_SIZE=0.2, SIZE_PT=0.7)
-#        correction.correct()
+        # Adjust to board first
+        rospy.loginfo('moving to single colour board')
+        correction = Correction(target='board', FORWARD_K=-1.0, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, MIN_SIZE=0.4, MAX_SIZE=0.8)
+        correction.correct()
 
         # Then adjust to hole
-        correction = Correction(target='hole', FORWARD_K=-1.0, SIDE_K=4.0, DEPTH_K=0.5, EPSILON_SIZE=0.05, SIZE_PT=0.1)
+        rospy.loginfo('moving to single hole')
+        correction = Correction(target='hole', FORWARD_K=-3.0, SIDE_K=4.0, DEPTH_K=0.5, MIN_SIZE=0.08, MAX_SIZE=0.4)
         result = correction.correct()
 
         if result == 'aborted':
             return 'aborted'
 
         #TODO: lock on to target and fire torpedo
+        actionClient.cancel_all_goals()
         rospy.loginfo("pew pew")
         rospy.sleep(10)
 
@@ -329,6 +351,15 @@ class Backoff(smach.State):
 
         tollbooth.changeTarget('all')
 
+        goal = bbauv_msgs.msg.ControllerGoal(
+                heading_setpoint = hoverHeading,
+                depth_setpoint = hoverDepth,
+                forward_setpoint = -4
+        )
+        actionClient.send_goal(goal)
+        actionClient.wait_for_result(rospy.Duration(2,0))
+
+
         while not rospy.is_shutdown():
             if tollbooth.regionCount >= 3:
                 return 'found'
@@ -354,6 +385,10 @@ class Done(smach.State):
 
     def execute(self, userdata):
         #TODO: move to a spot to find lane marker
+        ctrl = controller()
+        ctrl.depth_setpoint = depth_setpoint
+        ctrl.heading_setpoint = cur_heading
+#        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
         return 'succeeded'
 
 
