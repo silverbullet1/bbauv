@@ -7,7 +7,7 @@ import roslib; roslib.load_manifest('Vision')
 import rospy
 from sensor_msgs.msg import Image
 import bbauv_msgs
-from bbauv_msgs.msg import compass_data, depth
+from bbauv_msgs.msg import compass_data, depth, manipulator
 from bbauv_msgs.srv import *
 
 import actionlib
@@ -41,6 +41,7 @@ firstRunAction = True
 depth_setpoint = 0.5
 cur_heading = 0
 imageSub = None
+gunSide = 'left'
 
 SWAP_EYE   = True
 currentEye = 'left'
@@ -190,7 +191,7 @@ class Correction:
             if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
                 offsets['size'] = sizeRatio - sizeMidPt
 
-            print 'vals:', { 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }
+            print '(' + self.target + ') vals:', { 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }
 
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
@@ -330,14 +331,16 @@ class MoveToTarget(smach.State):
         if result == 'aborted':
             return 'aborted'
 
-        #TODO: lock on to target and fire torpedo
+        # Lock on to target and fire torpedo
         actionClient.cancel_all_goals()
 
+        chargeTorpedo(gunSide)
         rospy.sleep(1)
 
         rospy.loginfo("pew pew")
+        fireTorpedo(gunSide)
 
-        rospy.sleep(10)
+        rospy.sleep(3)
 
         #TODO: if no targets left, continue
         userdata.targetIDs = remainingIDs
@@ -363,9 +366,14 @@ class Backoff(smach.State):
         # Switch eye
         global currentEye, imageSub
         if currentEye == 'left' and SWAP_EYE:
+            rospy.loginfo('switching to right eye!')
             imageSub.unregister()
             imageSub = rospy.Subscriber(imageRightTopic, Image, gotRosFrame)
             currentEye = 'right'
+
+        global gunSide
+        if gunSide == 'left':
+            gunSide = 'right'
 
         tollbooth.changeTarget('all')
 
@@ -412,7 +420,30 @@ class Done(smach.State):
 
 '''
 Torpedo functions
+- side: 'left' or 'right'
 '''
+manipulator_pub = None # Publisher
+def chargeTorpedo(side):
+    manip = manipulator()
+    manip.servo1 = 1
+    manip.servo2 = 1
+    manip.servo3 = int(side != 'left')
+    manip.servo4 = int(side != 'right')
+    manip.servo5 = 0
+    manip.servo6 = 0
+    manip.servo7 = 0
+    manipulator_pub.publish(manip)
+    
+def fireTorpedo(side):
+    manip = manipulator()
+    manip.servo1 = 1
+    manip.servo2 = 1
+    manip.servo3 = 1
+    manip.servo4 = 1
+    manip.servo5 = 0
+    manip.servo6 = 0
+    manip.servo7 = 0
+    manipulator_pub.publish(manip)
 
 
 
@@ -426,6 +457,8 @@ if __name__ == '__main__':
     imageRightTopic = rospy.get_param('~imageRight', '/stereo_camera/right/image_rect_color')
     depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
+
+    manipulator_pub = rospy.Publisher('/manipulators', manipulator)
 
     # Set up param configuration window
     def configCallback(config, level):
