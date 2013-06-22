@@ -17,6 +17,7 @@ import math
 import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+import threading
 
 from com.camdebug.camdebug import CamDebug
 from com.tollbooth.tollbooth import TollboothDetector
@@ -40,7 +41,12 @@ firstRunAction = True
 depth_setpoint = 0.5
 cur_heading = 0
 imageSub = None
+
+SWAP_EYE   = True
 currentEye = 'left'
+
+#HACK: use a lock to prevent race conditions
+lock = threading.Lock()
 
 # dynamic_reconfigure params; see Tollbooth.cfg
 params = { 'contourMinArea': 0,
@@ -108,7 +114,7 @@ class Disengage(smach.State):
             if rospy.is_shutdown(): return 'aborted'
             rosRate.sleep()
 
-        tollbooth = TollboothDetector(params, camdebug)
+        tollbooth = TollboothDetector(params, lock, camdebug)
         tollbooth.heading = cur_heading
 
         userdata.targetIDs = COMPETITION_TARGETS
@@ -142,7 +148,7 @@ class Correction:
     # target can be 'board' or 'hole'
     def __init__(self, target='board', FORWARD_K=-12, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
                  EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_ANGLE=4,
-                 MIN_SIZE=0.033, MAX_SIZE=0.3):
+                 MIN_SIZE=0.033, MAX_SIZE=0.6):
 
         self.FORWARD_K = FORWARD_K
         self.SIDE_K = SIDE_K
@@ -207,12 +213,21 @@ class Correction:
 
             return False
 
-        while tollboothOutOfPlace():
+        while True:
             if rospy.is_shutdown(): return 'aborted'
+
+            lock.acquire() #HACK
+
+            if not tollboothOutOfPlace():
+                lock.release() #HACK
+                break
 
             print 'offsets:', offsets
 
             H,W = tollbooth.shape[0:2]
+
+            goal = None
+            waitTime = None
 
             if abs(offsets['y']) > self.EPSILON_Y:
                 print("Correcting vertical")
@@ -224,9 +239,7 @@ class Correction:
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
-                actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(1,0))
-                print("got result")
+                waitTime = rospy.Duration(2,0)
             elif abs(offsets['x']) > self.EPSILON_X:
                 print("Correcting horizontal")
                 x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
@@ -237,9 +250,7 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
-                actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(2,0))
-                print("got result")
+                waitTime = rospy.Duration(3,0)
             elif abs(offsets['angle']) > self.EPSILON_ANGLE:
                 print ("Correcting heading")
                 hoverHeading = norm_heading(tollbooth.heading + self.ANGLE_K * offsets['angle'])
@@ -249,9 +260,7 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = math.copysign(3.0, offsets['angle'])
                 )
-                actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(2,0))
-                print("got result")
+                waitTime = rospy.Duration(3,0)
             elif offsets['size']:
                 print ("Correcting nearness")
                 goal = bbauv_msgs.msg.ControllerGoal(
@@ -259,8 +268,13 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         forward_setpoint = self.FORWARD_K * offsets['size']
                 )
+                waitTime = rospy.Duration(3,0)
+
+            lock.release() #HACK
+
+            if goal is not None:
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(2,0))
+                actionClient.wait_for_result(waitTime)
                 print("got result")
 
             rosRate.sleep()
@@ -310,7 +324,7 @@ class MoveToTarget(smach.State):
 
         # Then adjust to hole
         rospy.loginfo('moving to single hole')
-        correction = Correction(target='hole', EPSILON_X=0.04, FORWARD_K=-1.4, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.065, MAX_SIZE=0.4)
+        correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.055, MAX_SIZE=0.4)
         result = correction.correct()
 
         if result == 'aborted':
@@ -346,12 +360,12 @@ class Backoff(smach.State):
         hoverHeading = tollbooth.heading
         hoverDepth = depth_setpoint
 
-#        # Switch eye
-#        global currentEye, imageSub
-#        if currentEye == 'left':
-#            imageSub.unregister()
-#            imageSub = rospy.Subscriber(imageRightTopic, Image, gotRosFrame)
-#            currentEye = 'right'
+        # Switch eye
+        global currentEye, imageSub
+        if currentEye == 'left' and SWAP_EYE:
+            imageSub.unregister()
+            imageSub = rospy.Subscriber(imageRightTopic, Image, gotRosFrame)
+            currentEye = 'right'
 
         tollbooth.changeTarget('all')
 
@@ -394,6 +408,11 @@ class Done(smach.State):
         ctrl.heading_setpoint = cur_heading
 #        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
         return 'succeeded'
+
+
+'''
+Torpedo functions
+'''
 
 
 

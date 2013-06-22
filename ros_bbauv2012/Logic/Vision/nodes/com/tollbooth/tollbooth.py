@@ -31,9 +31,10 @@ class TollboothDetector:
         return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
 
 
-    def __init__(self, params, camdebug=None):
+    def __init__(self, params, lock, camdebug=None):
         self.cvbridge = CvBridge()
         self.params = params
+        self.lock = lock
         self.camdebug = camdebug
         self.DEBUG = camdebug is not None and camdebug.debugOn
 
@@ -57,6 +58,8 @@ class TollboothDetector:
 
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
+        self.lock.acquire()
+
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
 #        # Equalize on S
 #        imgh, imgs, imgv = cv2.split(imghsv)
@@ -233,6 +236,8 @@ class TollboothDetector:
 
 #            self.histClass.getTripleHist(imghsv)
 #            cv2.waitKey(3)
+
+        self.lock.release() #HACK
 
 
     def changeTarget(self, target):
