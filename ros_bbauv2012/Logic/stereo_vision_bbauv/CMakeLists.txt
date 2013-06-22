@@ -32,7 +32,7 @@ rosbuild_add_executable(addCamInfo_left src/addCamInfo_left.cpp)
 target_link_libraries(addCamInfo_left ${OpenCV_LIBRARIES})
 
 rosbuild_add_boost_directories()
-rosbuild_add_executable(pcl_process src/pcl_process)
+rosbuild_add_executable(pcl_process src/pcl_process.cpp)
 rosbuild_link_boost(pcl_process signals system)
 
 rosbuild_add_executable(simple_client src/simple_client.cpp)

@@ -63,7 +63,7 @@ class Parking_Proc():
         
     def unregister(self):
         self.image_sub.unregister()
-        self.image_pub.unregister()
+#        self.image_pub.unregister()
         #rospy.logdebug('Unregistered')
     
     def image_callback(self, data):
@@ -242,9 +242,11 @@ class Disengage(smach.State):
         global isStart
         global isEnd        
         global park
-        
+
         isStart = False
         
+        park.unregister()
+
         while (not rospy.is_shutdown()):
             if isEnd:
                 rospy.signal_shutdown("Deactivating Park Node")            
@@ -442,7 +444,8 @@ if __name__ == '__main__':
     
     #Computer vision processing instantiation
     park = Parking_Proc()
-    
+    park.register()
+
     sm_top = smach.StateMachine(outcomes=['park_complete','park_failed'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:

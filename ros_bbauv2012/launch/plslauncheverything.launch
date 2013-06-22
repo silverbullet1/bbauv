@@ -18,5 +18,6 @@
     <!-- Launching cameras and image reducer -->
     <include file="$(find launch)/cameras.launch" />
     <include file="$(find launch)/image_reducer.launch" />
+	<include file="$(find launch)/navigation.launch" />
 
 </launch> 
