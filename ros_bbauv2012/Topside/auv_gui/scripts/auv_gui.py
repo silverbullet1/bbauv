@@ -33,7 +33,7 @@ class AUV_gui(QMainWindow):
     q_rel_pos = Queue.Queue()
     q_controller = Queue.Queue()
     q_hull_status = Queue.Queue()
-    q_manipulators = Queue.Queue()
+    q_mani = Queue.Queue()
     q_controller_feedback = Queue.Queue()
     q_thruster = Queue.Queue()
     q_openups = Queue.Queue()
@@ -284,7 +284,7 @@ class AUV_gui(QMainWindow):
         except Exception,e:
             pass
         try:
-            manipulators = self.q_manipulators.get(False,0)
+            manipulators = self.q_mani.get(False,0)
         except Exception,e:
             pass
         try:
@@ -400,6 +400,7 @@ class AUV_gui(QMainWindow):
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
         self.mani_pub = rospy.Publisher("/manipulators",manipulator)
+        self.mani_sub = rospy.Subscriber("/manipulators",manipulator,self.manipulators_callback)
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
@@ -494,7 +495,6 @@ class AUV_gui(QMainWindow):
                 _manipulator.servo7 = 1
             else:
                 _manipulator.servo7 = 0
-            self.data['manipulators'] = _manipulator
             self.mani_pub.publish(_manipulator)
         
     def armBtnHandler(self):
@@ -559,6 +559,12 @@ class AUV_gui(QMainWindow):
         
     def openups_callback(self,openups):
         self.q_openups.put(openups)
+        
+        
+    def manipulators_callback(self,mani):
+        self.q_mani.put(mani)
+        print "m"
+        
 if __name__ == "__main__":
     rospy.init_node('AUV_gui', anonymous=True)
     app = QApplication(sys.argv)

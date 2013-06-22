@@ -487,7 +487,7 @@ class Aiming(smach.State):
                                                      depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
                                                      sidemove_setpoint=side_error)
             movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(1))
+            movement_client.wait_for_result(rospy.Duration(4))
             rospy.loginfo("Centering and Lowering...")
             r.sleep()
         if rospy.is_shutdown():
