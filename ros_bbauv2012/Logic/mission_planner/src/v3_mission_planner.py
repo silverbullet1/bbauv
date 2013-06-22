@@ -32,7 +32,7 @@ class Countdown(smach.State):
         while (rospy.get_time() - start_time) < self.sleep_time:
             r.sleep()
             rospy.loginfo("%d Elapsed" % (rospy.get_time() - start_time))
-        subproces.call(['./bbauv_workspace/bbauv/ros_bbauv2012/Scripts/bag-it-autonomously'])
+        subprocess.call(['./bbauv_workspace/bbauv/ros_bbauv2012/Scripts/bag-it-autonomously'])
         rospy.loginfo('Beginning to log')
         return 'succeeded'        
 
