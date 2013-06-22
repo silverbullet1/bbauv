@@ -9,7 +9,7 @@ unsigned long threshold = 400000;
 int freeze_time = 2000;
 //unsigned long stable_acc = 0;
 int cyc_mode = 1; // start with cycle mode
-int curLED = 0; // 0 for red, 1 for green, 2 for blue
+int curLED = 0; // 0 for red, 1 for yellow, 2 for green
 
 unsigned long accX = 0;
 unsigned long accY = 0;
@@ -53,15 +53,15 @@ void cycLED(){
     curLED = 0;
   }
   else if (curLED == 0){
-    digitalWrite(red_led, LOW);
+    digitalWrite(red_led, HIGH);
     digitalWrite(green_led, HIGH);
     digitalWrite(blue_led, LOW);
     curLED = 1;
   }
   else{
     digitalWrite(red_led, LOW);
-    digitalWrite(green_led, LOW);
-    digitalWrite(blue_led, HIGH);
+    digitalWrite(green_led, HIGH);
+    digitalWrite(blue_led, LOW);
     curLED = 2;
   }
 }
