@@ -54,7 +54,7 @@ class SpeedTrap:
     red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
     isAlignState = True
     isLoweringState = True
-    isAim = True
+    isAim = False
     isCentering = False
     #shapeClass = ShapeAnalysis()
     yaw = 0
@@ -69,6 +69,7 @@ class SpeedTrap:
     position = None
     centroidx_list = None
     centroidy_list = None
+    angleList = None
     max_area = 0
     outer_center = 40
     inner_center = 20
@@ -116,7 +117,7 @@ class SpeedTrap:
         #cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
         #cv2.moveWindow("Sub Alignment",512,30)
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color', Image,self.processImage)
+        self.image_sub = rospy.Subscriber('/bottomcam/camera/image_rect_color_remote', Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.pos_sub = rospy.Subscriber('/WH_DVL_data',Odometry)
         self.bridge = CvBridge()
@@ -214,7 +215,7 @@ class SpeedTrap:
         centroidx = list()
         centroidy = list()
         binList = list()
-        angleList = list()
+        self.angleList = list()
         if(contours != None):
             for i in range(0,len(contours)):
                 moments =cv2.moments(contours[i],binaryImage=False)
@@ -251,7 +252,7 @@ class SpeedTrap:
                         rect_x = longest_pt2[0] - longest_pt1[0]
                         angle_hor = math.degrees(math.atan2(rect_y,(rect_x))) 
                         #print angle_hor
-                        angleList.append(angle_hor)
+                        self.angleList.append(angle_hor)
                         cv2.putText(contourImg,str(np.round(angle_hor,1)), (int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                     if True:
                         colorTxt = (0,0,255)
@@ -285,9 +286,10 @@ class SpeedTrap:
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
         
         #Compute orientation angle correction for vehicle orientation
-        if len(angleList) >3:
+        if len(self.angleList) >3:
             self.isCentering = True
-            self.orientation = np.median(angleList, None, None)
+            final_list = sorted(self.angleList)
+            self.orientation = self.angleList[2]
         else:
             self.isCentering = False
         
@@ -395,12 +397,12 @@ class Search(smach.State):
             print "Service call failed: %s"%e
         '''
         return 'search_complete'
-       
 
 class Centering(smach.State):
     global mission_srv_request
    # global r
-    K = 0.005
+    Kx = 0.004
+    Ky = 0.006
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete','aborted'],output_keys=['center_pos'])
         
@@ -409,18 +411,20 @@ class Centering(smach.State):
         global st
         global movement_client
         global locomotionGoal
+        orientation_error = 0
         isOrientationDone = False
         center_complete = False
         while(not center_complete and not rospy.is_shutdown()):
             if(st.centroidx != 0):
-                side_error = self.K*(st.centroidx - st.cols/2)
-                fwd_error = -self.K*(st.centroidy - st.rows/2)
+                side_error = self.Ky*(st.centroidx - st.cols/2)
+                fwd_error = -self.Kx*(st.centroidy - st.rows/2)
                 if(st.orientation != None):
                     if st.isCentering and isOrientationDone == False:
                         if(st.orientation > 90):
                             orientation_error = (st.yaw - (180 - st.orientation)) % 360
                         else:
-                            orientation_error = (st.yaw - st.orientation) % 360
+                            orientation_error = (st.yaw + st.orientation) % 360
+                        print st.angleList
                         rospy.loginfo("box_orient:" + str(st.orientation) + "yaw:" + str(st.yaw) +  "final yaw:" + str(orientation_error))
                         isOrientationDone = True
                 else:
@@ -430,11 +434,11 @@ class Centering(smach.State):
                     locomotionGoal.heading_setpoint = orientation_error
                     movement_client.cancel_all_goals()
                     return "centering_complete"
-                print "orientation error:" + str(orientation_error) + "isCentering:" + str(st.isCentering)
+                #print "orientation error:" + str(orientation_error) + "isCentering:" + str(st.isCentering)
                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,heading_setpoint=orientation_error,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=side_error)
                 movement_client.send_goal(goal)
-                movement_client.wait_for_result(rospy.Duration(1))
-                rospy.loginfo("Centering...")
+                movement_client.wait_for_result(rospy.Duration(2))
+                #rospy.loginfo("Centering...")
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -447,32 +451,11 @@ class Centering(smach.State):
             '''
             return 'search_complete'
        
-class Orientating(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['orientating_complete','aborted'],input_keys=['center_pos'])
-        
-    def execute(self,userdata):
-        global r
-        global st
-        global movement_client
-        global locomotionGoal
-        orientation_complete = False
-        #while(not center_complete and not rospy.is_shutdown()):
-        #userdata.center_pos[0]
-        #goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=correction,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=0)
-        #movement_client.send_goal(goal)
-        #movement_client.wait_for_result()
-        rospy.loginfo("turn achieved!")
-        #r.sleep()
-        if rospy.is_shutdown():
-            return 'aborted'
-        else:
-            return 'orientating_complete' 
-        
 class Aiming(smach.State):
     global st
     global mission_srv_request
-    K = 0.005
+    Kx = 0.001
+    Ky = 0.002
    # global r
     def __init__(self):
         smach.State.__init__(self, outcomes=['aiming_complete','aborted'],input_keys=['center_pos'])
@@ -488,16 +471,17 @@ class Aiming(smach.State):
             aim_x = np.min(st.centroidx_list, None, None)
             aim_y = np.min(st.centroidy_list, None, None)
             print st.max_area
-            side_error = self.K*(aim_x - st.cols/2)
-            fwd_error = -self.K*(aim_y - st.rows/2)
-            if ((np.fabs(aim_x - st.cols/2) <st.inner_center and np.fabs(aim_y - st.rows/2) <st.inner_center) and st.max_area > 1500 ) or (depth_offset + locomotionGoal.depth_setpoint) > 3 :
+            side_error = self.Ky*(aim_x - (st.cols/2))
+            fwd_error = -self.Kx*(aim_y - st.rows/2)
+            if st.max_area > 25000:
+                 isLowering = False
+            if ((np.fabs(aim_x - st.cols/2) <st.inner_center and np.fabs(aim_y - st.rows/2) <st.inner_center) and st.max_area > 25000 ) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
+                locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint  + depth_offset
                 st.isAim = True
-                isLowering = False
                 rospy.loginfo("Identifying target...")
-                #movement_client.cancel_all_goals()
-                #return "aiming_complete"
+                return "aiming_complete"
             if isLowering:
-                depth_offset = depth_offset + 0.2
+                depth_offset = depth_offset + 0.1
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
@@ -513,7 +497,111 @@ class Aiming(smach.State):
                 resp = mission_srv_request(True,False,None)
             except rospy.ServiceException, e:
                 print "Service call failed: %s"%e
-            return 'search_complete'
+            return 'aiming_complete'
+
+class Firing(smach.State):
+    Kx = 0.0015
+    Ky = 0.0030
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['firing_complete','aborted'])
+    def fire_dropper(self,left):
+        _manipulator = manipulator()
+        if(left):
+            _manipulator.servo1 = 1
+            _manipulator.servo2 = 0
+        else:
+            _manipulator.servo1 = 0
+            _manipulator.servo2 = 1
+        _manipulator.servo3 = 1
+        _manipulator.servo4 = 1
+        _manipulator.servo5 = 0
+        _manipulator.servo6 = 0
+        _manipulator.servo7 = 0
+        self.mani_pub.publish(_manipulator)
+    def execute(self,userdata):
+        global r
+        global st
+        global movement_client
+        global locomotionGoal
+        global count
+        self.mani_pub = rospy.Publisher("/manipulators",manipulator)
+        while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
+            aim_x = np.min(st.centroidx_list, None, None)
+            aim_y = np.min(st.centroidy_list, None, None)
+            side_error = self.Ky*(aim_x - (st.cols/2-200))
+            fwd_error = -self.Kx*(aim_y - st.rows/2)
+            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) ) :
+                st.isAim = False
+                if count == 0:
+                    self.fire_dropper(False)
+                    print "fire left"
+                    #count = 1
+                if count == 1:
+                    self.fire_dropper(False)
+                    print "fire right"
+                    #count == 2
+                #rospy.loginfo("Identifying targ...")
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=locomotionGoal.depth_setpoint,
+                                                     sidemove_setpoint=side_error)
+            movement_client.send_goal(goal)
+            movement_client.wait_for_result(rospy.Duration(3))
+            r.sleep()
+        if rospy.is_shutdown():
+            return 'aborted'
+        else:
+            return 'firing_complete'
+
+class Manuoevre(smach.State):
+    Kx = 0.0015
+    Ky = 0.0030
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['manuoevre_complete','aborted'])
+    def execute(self,userdata):
+        global r
+        global st
+        global movement_client
+        global locomotionGoal
+        global count
+        
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=locomotionGoal.depth_setpoint,
+                                                     sidemove_setpoint=side_error)
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(rospy.Duration(3))
+        
+        
+        while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
+            aim_x = np.min(st.centroidx_list, None, None)
+            aim_y = np.min(st.centroidy_list, None, None)
+            side_error = self.Ky*(aim_x - (st.cols/2-250))
+            fwd_error = -self.Kx*(aim_y - st.rows/2)
+            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) ) :
+                st.isAim = False
+                if count == 0:
+                    self.fire_dropper(False)
+                    print "fire left"
+                    #count = 1
+                if count == 1:
+                    self.fire_dropper(False)
+                    print "fire right"
+                    #count == 2
+                #rospy.loginfo("Identifying targ...")
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=locomotionGoal.depth_setpoint,
+                                                     sidemove_setpoint=side_error)
+            movement_client.send_goal(goal)
+            movement_client.wait_for_result(rospy.Duration(3))
+            r.sleep()
+        if rospy.is_shutdown():
+            return 'aborted'
+        else:
+            return 'firing_complete'
+
+
 '''
 ###################################################################
 
@@ -521,7 +609,7 @@ class Aiming(smach.State):
         
 ###################################################################
 '''
-        
+
 def handle_srv(req):
     global isStart
     global isAbort
@@ -543,6 +631,7 @@ locomotionGoal = None
 isStart = True
 isAbort = False  
 isEnd = False
+count = 0
 st = None     
 r = None
 if __name__ == '__main__':
@@ -588,7 +677,15 @@ if __name__ == '__main__':
                          )
         smach.StateMachine.add('AIMING',
                          Aiming(),
-                         transitions={'aiming_complete': 'DISENGAGED','aborted':'aborted'}
+                         transitions={'aiming_complete': 'FIRING','aborted':'aborted'}
+                         )
+        smach.StateMachine.add('FIRING',
+                         Firing(),
+                         transitions={'firing_complete': 'DISENGAGED','aborted':'aborted'}
+                         )
+        smach.StateMachine.add('MANUOEVRE',
+                         Manuoevre(),
+                         transitions={'manuoevre_complete': 'DISENGAGED','aborted':'aborted'}
                          )
 
     sis = smach_ros.IntrospectionServer('server',sm_top,'/MISSION/SPEEDTRAP')

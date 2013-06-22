@@ -13,6 +13,7 @@ from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
 import Queue
 from bbauv_msgs.msg._thruster import thruster
+from bbauv_msgs.msg._openups import openups
 
 class AUV_gui(QMainWindow):
     main_frame = None
@@ -35,9 +36,10 @@ class AUV_gui(QMainWindow):
     q_manipulators = Queue.Queue()
     q_controller_feedback = Queue.Queue()
     q_thruster = Queue.Queue()
+    q_openups = Queue.Queue()
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
-            'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,
+            'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(),
             'forward_error':0,'sidemove_error':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
             'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
     
@@ -200,12 +202,14 @@ class AUV_gui(QMainWindow):
         self.saPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.saPanel3 = QTextBrowser()
         self.saPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
-        
+        self.saPanel4 = QTextBrowser()
+        self.saPanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         
         sa_layout = QHBoxLayout()
         sa_layout.addWidget(self.saPanel1)
         sa_layout.addWidget(self.saPanel2)
         sa_layout.addWidget(self.saPanel3)
+        sa_layout.addWidget(self.saPanel4)
         saBox.setLayout(sa_layout)
         
         display_layout = QVBoxLayout()
@@ -230,10 +234,9 @@ class AUV_gui(QMainWindow):
         main_layout.addWidget(self.depth_thermo)
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
-        self.setGeometry(300, 300, 800, 670)
+        self.setGeometry(300, 300, 850, 670)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
-        print os.getcwd() + '/icons/field.png'
         self.setCentralWidget(self.main_frame)
         self.heading_provider.valueChanged.connect(self.valueChanged)
         self.initAction()
@@ -254,9 +257,14 @@ class AUV_gui(QMainWindow):
         hull_statuses = None
         rel_pos = None
         earth_pos = None
+        openups = None
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
+        except Exception,e:
+            pass
+        try:
+            openups = self.q_openups.get(False,0)
         except Exception,e:
             pass
         try:
@@ -310,6 +318,8 @@ class AUV_gui(QMainWindow):
             self.data['pressure'] = depth.pressure
         if thrusters != None:
             self.data['thrusters'] = thrusters
+        if openups != None:
+            self.data['openups'] = openups
         if controller_setpoints != None:
             self.data['heading_setpoint'] = controller_setpoints.heading_setpoint
             self.data['depth_setpoint'] = controller_setpoints.depth_setpoint
@@ -363,6 +373,10 @@ class AUV_gui(QMainWindow):
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
+        self.saPanel4.setText("<b>OUPS1: " + str(self.data['openups'].battery1) + 
+                              "<br> OUPS2: " + str(self.data['openups'].battery2) +
+                              "<br> OUPS3: " + str(self.data['openups'].battery3) + 
+                              "<br> OUPS4: " + str(self.data['openups'].battery4) + "</b>")
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
@@ -386,9 +400,10 @@ class AUV_gui(QMainWindow):
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
         self.mani_pub = rospy.Publisher("/manipulators",manipulator)
-        self.earth_sub = rospy.Subscriber("/earth_odometry",Odometry,self.earth_pos_callback)
+        self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
+        openups_sub = rospy.Subscriber("/openups",openups,self.openups_callback)
     
     def get_status(self,val):
         if val == -1:
@@ -419,9 +434,9 @@ class AUV_gui(QMainWindow):
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, False, False,False)
         goal = bbauv_msgs.msg.ControllerGoal
-        goal.depth_setpoint = self.depth
+        goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
-        goal.heading_setpoint = self.yaw
+        goal.heading_setpoint = self.data['yaw']
         goal.forward_setpoint = 0
         self.client.send_goal(goal, self.done_cb)
         
@@ -430,7 +445,7 @@ class AUV_gui(QMainWindow):
         goal = bbauv_msgs.msg.ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
-        goal.heading_setpoint = self.yaw
+        goal.heading_setpoint = self.data['yaw']
         goal.forward_setpoint = 0
         self.client.send_goal(goal, self.done_cb)
         
@@ -542,6 +557,8 @@ class AUV_gui(QMainWindow):
     def controller_feedback_callback(self,feedback):
         self.q_controller_feedback.put(feedback)
         
+    def openups_callback(self,openups):
+        self.q_openups.put(openups)
 if __name__ == "__main__":
     rospy.init_node('AUV_gui', anonymous=True)
     app = QApplication(sys.argv)
