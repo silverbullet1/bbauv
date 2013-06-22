@@ -31,7 +31,7 @@ import smach_ros
 
 
 #TODO: use actual competition IDs
-COMPETITION_TARGETS = ['red', 'yellow']
+COMPETITION_TARGETS = ['blue', 'green']
 
 # GLOBALS
 DEBUG = True
@@ -320,12 +320,12 @@ class MoveToTarget(smach.State):
 
         # Adjust to board first
         rospy.loginfo('moving to single colour board')
-        correction = Correction(target='board', FORWARD_K=-2.0, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, MIN_SIZE=0.3, MAX_SIZE=0.8)
+        correction = Correction(target='board', FORWARD_K=-2.0, EPSILON_X=0.1, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, MIN_SIZE=0.2, MAX_SIZE=0.6)
         correction.correct()
 
         # Then adjust to hole
         rospy.loginfo('moving to single hole')
-        correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.055, MAX_SIZE=0.4)
+        correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.050, MAX_SIZE=0.4)
         result = correction.correct()
 
         if result == 'aborted':
@@ -410,7 +410,15 @@ class Done(smach.State):
                                    input_keys=['headings'])
 
     def execute(self, userdata):
-        #TODO: move to a spot to find lane marker
+        # Backoff a little
+        goal = bbauv_msgs.msg.ControllerGoal(
+                heading_setpoint = hoverHeading,
+                depth_setpoint = hoverDepth,
+                forward_setpoint = -1
+        )
+        actionClient.send_goal(goal)
+        actionClient.wait_for_result()
+
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
         ctrl.heading_setpoint = cur_heading
