@@ -140,7 +140,7 @@ Performs correction to keep target in centre
 '''
 class Correction:
     # target can be 'board' or 'hole'
-    def __init__(self, target='board', FORWARD_K=-10, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
+    def __init__(self, target='board', FORWARD_K=-12, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
                  EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_ANGLE=4,
                  MIN_SIZE=0.033, MAX_SIZE=0.3):
 
@@ -305,12 +305,12 @@ class MoveToTarget(smach.State):
 
         # Adjust to board first
         rospy.loginfo('moving to single colour board')
-        correction = Correction(target='board', FORWARD_K=-1.0, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, MIN_SIZE=0.4, MAX_SIZE=0.8)
+        correction = Correction(target='board', FORWARD_K=-2.0, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, MIN_SIZE=0.3, MAX_SIZE=0.8)
         correction.correct()
 
         # Then adjust to hole
         rospy.loginfo('moving to single hole')
-        correction = Correction(target='hole', FORWARD_K=-3.0, SIDE_K=4.0, DEPTH_K=0.5, MIN_SIZE=0.08, MAX_SIZE=0.4)
+        correction = Correction(target='hole', EPSILON_X=0.04, FORWARD_K=-1.4, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.065, MAX_SIZE=0.4)
         result = correction.correct()
 
         if result == 'aborted':
@@ -318,7 +318,11 @@ class MoveToTarget(smach.State):
 
         #TODO: lock on to target and fire torpedo
         actionClient.cancel_all_goals()
+
+        rospy.sleep(1)
+
         rospy.loginfo("pew pew")
+
         rospy.sleep(10)
 
         #TODO: if no targets left, continue
