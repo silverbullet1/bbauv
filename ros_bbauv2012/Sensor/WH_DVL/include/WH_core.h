@@ -203,6 +203,8 @@ protected:
     double xvel,yvel,zvel;
     double angXvel,angYvel,angZvel;
     double velCov[36];
+    
+    double altitude;
 
     //data needed for integrating and diffentiating
     double lastAngX, lastAngY, lastAngZ;

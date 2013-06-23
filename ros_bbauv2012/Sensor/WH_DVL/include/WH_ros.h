@@ -9,6 +9,7 @@
 #include <ros/ros.h>
 #include <ros/time.h>
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Float32.h>
 #include <tf/transform_datatypes.h>
 
 // Local includes.
@@ -44,8 +45,9 @@ public:
     //! Destructor.
     ~RDI_DVL();
 
-    // publish data in Odometry message
-    void publishOdomData(ros::Publisher *pubData);
+    // publish datas
+    void publishOdomData(ros::Publisher *pubOdomData);
+    void publishAltitudeData(ros::Publisher *pubAltitudeData);
 
     //! Callback function for dynamic reconfigure server.
     void configCallback(WH_DVL::WH_DVLConfig &config, uint32_t level);

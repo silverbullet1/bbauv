@@ -348,6 +348,8 @@ void DVL::assignData() {
     zvel =  botTrack.Velocity[2] / 1000.0;//vertical
 
     botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
+    
+    altitude = botTrack.Range[0];
 
     return;
 }

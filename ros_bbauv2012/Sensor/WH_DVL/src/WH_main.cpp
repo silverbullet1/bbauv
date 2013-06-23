@@ -43,13 +43,15 @@ int main(int argc, char **argv)
     int baud;
     int init_time;
     string port_name;
-    string pub_topic_name;
+    string odom_topic_name;
+    string alt_topic_name;
 
     // Initialize node parameters.
     private_node_handle_.param("baud", baud, int(57600));
     private_node_handle_.param("init_time", init_time, int(5));
     private_node_handle_.param("port", port_name, string("/dev/ttyDVL"));
-    private_node_handle_.param("pub_topic_name", pub_topic_name, string("WH_DVL_data"));
+    private_node_handle_.param("odom_topic_name", odom_topic_name, string("WH_DVL_data"));
+    private_node_handle_.param("alt_topic_name", alt_topic_name, string("altitude"));
 
     // Create a new WH_DVL object.
     RDI_DVL *rdi_dvl = new RDI_DVL(port_name, baud, init_time);
@@ -61,7 +63,8 @@ int main(int argc, char **argv)
     gain_srv.setCallback(f);
 
     // Set up publishers.
-    ros::Publisher pubData = n.advertise<nav_msgs::Odometry>(pub_topic_name.c_str(), 1000);
+    ros::Publisher pubOdomData = n.advertise<nav_msgs::Odometry>(odom_topic_name.c_str(), 100);
+    ros::Publisher pubAltitudeData = n.advertise<std_msgs::Float32>(alt_topic_name.c_str(), 100);
 
     // Tell ROS to run this node at the rate that the DVL is sending messages to us.
     ros::Rate r(rdi_dvl->ros_rate);
@@ -98,7 +101,8 @@ int main(int argc, char **argv)
                 */
 
                 //Publish the message.
-                rdi_dvl->publishOdomData(&pubData);
+                rdi_dvl->publishOdomData(&pubOdomData);
+                rdi_dvl->publishAltitudeData(&pubAltitudeData);
             }
         }
 

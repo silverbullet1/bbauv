@@ -21,7 +21,7 @@ RDI_DVL::~RDI_DVL() {
 }
 
 /*----------------publish odometry message----------------------------*/
-void RDI_DVL::publishOdomData(ros::Publisher *pubData) {
+void RDI_DVL::publishOdomData(ros::Publisher *pubOdomData) {
     nav_msgs::Odometry odomData;
 
     //time stamp
@@ -78,8 +78,16 @@ void RDI_DVL::publishOdomData(ros::Publisher *pubData) {
     odomData.twist.twist.linear.y  = yvel;
     odomData.twist.twist.linear.z  = zvel;
 
-    pubData->publish(odomData);
+    pubOdomData->publish(odomData);
 } // end publishOdomData()
+
+/*---------Publish altitude data----------------------------------------------*/
+void RDI_DVL::publishAltitudeData(ros::Publisher *pubAltitudeData) {
+    std_msgs::Float32 altData;
+    altData.data = altitude;
+    pubAltitudeData->publish(altData);
+}
+
 
 /*------------------------------------------------------------------------------
  * configCallback()
