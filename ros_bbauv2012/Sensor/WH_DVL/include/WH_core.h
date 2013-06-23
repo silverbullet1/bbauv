@@ -80,7 +80,7 @@ using namespace std;
 #endif // WH_SERIAL_DELAY
 
 #ifndef WH_ERROR_CONDITION
-#define WH_LOST_BOTTOM -32.768
+#define WH_LOST_BOTTOM 32.768
 #endif // WH_ERRROR_CONDITION
 
 #ifndef WH_ERROR_HEADER

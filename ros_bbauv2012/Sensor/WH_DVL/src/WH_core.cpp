@@ -232,13 +232,13 @@ void DVL::findData() {
     end_location = 0;
     start_location = rcvStr.find(WH_HEADER_ID);
     if (start_location == (int)string::npos) {
-        cout << "WH_core cannot find header ID" << endl;
+        ROS_INFO("WH_core cannot find header ID");
         return;
     }
 
     end_location = rcvStr.find(CMD_END, start_location);
     if (end_location == (int)string::npos) {
-        cout << "WH_core cannot find newline character" << endl;
+        ROS_INFO("WH_core cannot find newline character");
         return;
     }
 
@@ -313,15 +313,17 @@ void DVL::assignData() {
 
     lastTotalSec = totalSec;
     totalSec     = toSec(year,month,day,hour,min,sec,sec100);
+   
+    if (lastTotalSec == 0) lastTotalSec = totalSec;
     
     if (totalSec - lastTotalSec >= WH_DIST_TIMEOUT){
-        ROS_INFO("WH_DVL::timeout: reset start time");
-        start_time = 0;
-    }
-
-    if (start_time == 0){
+        lastTotalSec = totalSec;
         start_time = totalSec;
-        ROS_INFO("start time: %lf", start_time);
+        ROS_INFO("WH_DVL time out: reset start time: %lf", start_time);
+    }
+    if (start_time == 0) {
+        start_time = totalSec;
+        ROS_INFO("WH_DVL: start time: %lf", start_time);
     }
     if (lastTotalSec == 0)
         lastTotalSec = totalSec;
@@ -351,9 +353,9 @@ void DVL::assignData() {
 }
 
 void DVL::computeDistance() {
-    if (xvel == WH_LOST_BOTTOM || lastXvel == WH_LOST_BOTTOM
-        || yvel == WH_LOST_BOTTOM || lastYvel == WH_LOST_BOTTOM
-        || zvel == WH_LOST_BOTTOM || lastZvel == WH_LOST_BOTTOM) {
+    if (abs(xvel) == WH_LOST_BOTTOM || abs(lastXvel) == WH_LOST_BOTTOM
+        || abs(yvel) == WH_LOST_BOTTOM || abs(lastYvel) == WH_LOST_BOTTOM
+        || abs(zvel) == WH_LOST_BOTTOM || abs(lastZvel) == WH_LOST_BOTTOM) {
         ROS_INFO("DVL::Bottom lock is lost");
         return;
     }
@@ -412,13 +414,15 @@ void DVL::computeAngVel() {
     ang_x_var = varLeader.RollStddev * varLeader.RollStddev;
     ang_y_var = varLeader.PitchStddev * varLeader.PitchStddev;
     ang_z_var = varLeader.HeadingStddev * varLeader.HeadingStddev;
-
+    
+    /*
     if ( ang_x_var == 0) 
         ROS_INFO("Zero roll variance");
     if ( ang_y_var == 0)
         ROS_INFO("Zero pitch variance");
     if ( ang_z_var == 0)
         ROS_INFO("Zero heading variance");
+    */
 
     ang_x_vel_var = (ang_x_var + last_ang_x_var) * 1.0 / delta;
     ang_y_vel_var = (ang_y_var + last_ang_y_var) * 1.0 / delta;

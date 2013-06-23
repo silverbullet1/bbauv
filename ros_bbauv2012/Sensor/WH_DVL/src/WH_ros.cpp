@@ -9,7 +9,7 @@
 
 /*----------------DVL() - Constructor---------------------------------*/
 RDI_DVL::RDI_DVL(string _portname, int _baud, int _init_time) : DVL::DVL(_portname, _baud, _init_time) {
-    ros_rate    = 4;
+    ros_rate    = 3;
     cmdMode     = true;
     verifying   = false;
     //calibrating = false;

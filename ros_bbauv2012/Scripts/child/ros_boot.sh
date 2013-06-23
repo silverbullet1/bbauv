@@ -3,6 +3,7 @@
 echo "Connected to Remote AUV System."
 sleep 1
 echo "Launching Bumblebee AUV Systems..."
+sleep 5
 tmux start-server
 tmux new-session -d -s bbauv
 tmux rename-window 'Scripts'
@@ -15,7 +16,7 @@ sleep 3
 tmux new-window -tbbauv:3
 tmux rename-window 'launch'
 tmux send-keys 'pls' C-m
-sleep 2
+sleep 4
 tmux new-window -tbbauv:4
 tmux rename-window 'boot'
 tmux send-keys 'rostopic pub -1 /lcd_commands std_msgs/Int8 -- 1' C-m

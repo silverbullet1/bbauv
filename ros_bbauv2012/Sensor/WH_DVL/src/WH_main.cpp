@@ -28,6 +28,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+    bool connection_lost = false;
     string printString;
 
     ofstream myfile;
@@ -75,10 +76,16 @@ int main(int argc, char **argv)
     while (n.ok()) {
         // Get DVL data.
         if (rdi_dvl->fd > 0) {
+            if (connection_lost){
+                connection_lost = false; 
+                rdi_dvl->zeroDistance();
+            }
+
             if (rdi_dvl->cmdMode) {
                 rdi_dvl->getRawData();
                 printString = rdi_dvl->getPrintString();
                 if (printString != "") {
+                    cout << "WH::DVL is recording data" << endl;
                     myfile << printString;
                     cout << printString;
                 }
@@ -96,7 +103,8 @@ int main(int argc, char **argv)
         }
 
         else {
-            cout << "Connection is lost. fd = " << rdi_dvl->fd << endl;
+            connection_lost = true;
+            ROS_ERROR("WH::DVL Connection is lost. fd = %d", rdi_dvl->fd);
         }
 
         ros::spinOnce();
