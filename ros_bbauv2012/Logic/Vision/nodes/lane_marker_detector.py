@@ -40,7 +40,9 @@ depth_setpoint = 0.5
 params = {  'hueLow':0, 'hueHigh':0,
             'satLow':0, 'satHigh':0,
             'valLow':0, 'valHigh':0,
-            'contourMinArea':0
+            'contourMinArea':0,
+            'forwardK': 0,
+            'sidemoveK': 0
 } # Dynamic reconfigure params; see LaneMarkerDetector.cfg
 
 
@@ -183,9 +185,9 @@ class Stabilize(smach.State):
                     depth_setpoint = depth_setpoint
                 )
                 if x_off:
-                    goal.sidemove_setpoint = laneDetector.offset[0]#*0.55
+                    goal.sidemove_setpoint = laneDetector.offset[0] * params['sidemoveK']
                 if y_off:
-                    goal.forward_setpoint = -laneDetector.offset[1]#*0.55
+                    goal.forward_setpoint = -laneDetector.offset[1] * params['forwardK']
 
                 actionClient.send_goal(goal)
                 print 'adjusting'
