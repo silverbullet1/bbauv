@@ -100,7 +100,7 @@ class Disengage(smach.State):
         return mission_to_visionResponse(self.isStart, False)
 
     def __init__(self):
-        self.isStart = True #TODO: set to False
+        self.isStart = False
         smach.State.__init__(
                         self,
                         outcomes=['start_complete', 'aborted'],
@@ -135,7 +135,7 @@ class Search(smach.State):
     def execute(self, userdata):
         while not rospy.is_shutdown():
             if tollbooth.regionCount >= 3:
-#                mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+                mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
                 return 'search_complete'
             rosRate.sleep()
 
@@ -350,7 +350,7 @@ class MoveToTarget(smach.State):
 
         rospy.sleep(3)
 
-        #TODO: if no targets left, continue
+        # If no targets left, continue
         userdata.targetIDs = remainingIDs
         if not remainingIDs:
             return 'fired_all'
@@ -430,7 +430,7 @@ class Done(smach.State):
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
         ctrl.heading_setpoint = cur_heading
-#        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
         return 'succeeded'
 
 
