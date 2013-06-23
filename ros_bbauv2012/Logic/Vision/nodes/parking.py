@@ -12,6 +12,8 @@ from Vision.cfg import ParkingConfig
 import cv2
 from cv2 import cv as cv
 from cv_bridge import CvBridge, CvBridgeError
+from com.histogram.histogram import bbHistogram
+from com.histogram.histogram import Hist_constants
 
 #ROS Messages and Services
 import PID_Controller.msg
@@ -39,11 +41,15 @@ from smach_ros import SimpleActionState
 '''
 
 class Parking_Proc():
+    
+    green_hist = bbHistogram("green",Hist_constants.TRIPLE_CHANNEL)
+
     def __init__(self): 
     
         self.image_sub = None
         self.image_pub = None
-                
+        
+        
         self.bridge = CvBridge()
         #http://stackoverflow.com/questions/5944708/python-forcing-a-list-to-a-fixed-size
         self.targetLockHistory = collections.deque(maxlen=100)
@@ -56,6 +62,8 @@ class Parking_Proc():
         self.errorDepth = 0
         self.area = 0        
 
+        self.green_hist.setParams(params)
+        
     def register(self):
         self.image_sub = rospy.Subscriber('stereo_camera/left/image_rect_color', Image, self.image_callback)
         self.image_pub = rospy.Publisher('/Vision/image_filter', Image)
@@ -80,6 +88,7 @@ class Parking_Proc():
                     
     def process_image(self, frame):
 
+        hist_frame = frame    
         # Basic noise removal
         frame = cv2.GaussianBlur(frame, (3,3),0)   
         # outputs a binary image that falls within range of the HSV
@@ -124,13 +133,14 @@ class Parking_Proc():
         debug_frame = cv2.cv.fromarray(frame)        
         cv2.circle(frame, (320,240), 12, (255,0,0), 2)
         debug_frame = cv2.cv.fromarray(frame)        
-        self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
+#         self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
 
 ########################################################################
 
         # Trackbars and Windows for debugging purposes               
         if params['debug_mode'] ==1:
             cv2.imshow("HSV Parking", horizontal_green)
+            self.green_hist.getTripleHist(hist_frame)
 #            cv2.imshow('Contours', frame)                          
             #attempting to arrange windows; opCV unable to make it more automatic
             l = 325
@@ -138,8 +148,8 @@ class Parking_Proc():
             cv2.moveWindow("HSV Parking",l,0)
 #            cv2.moveWindow("Contours",l*2,0)            
               
-        cv.WaitKey(5)
-            
+        cv.WaitKey(1)
+
         return frame
 
 ########################################################################
@@ -208,9 +218,9 @@ class Parking_Proc():
         hsv_img = cv2.cvtColor(input_frame,cv2.COLOR_BGR2HSV)
         hsv_channels = cv2.split(hsv_img)
 
-        hue = cv2.equalizeHist(hsv_channels[0])
-        sat = cv2.equalizeHist(hsv_channels[1])
-        val = cv2.equalizeHist(hsv_channels[2])
+        hue = hsv_channels[0] #cv2.equalizeHist(hsv_channels[0])
+        sat = hsv_channels[1] #cv2.equalizeHist(hsv_channels[1])
+        val = hsv_channels[2] #cv2.equalizeHist(hsv_channels[2])
 
         hsv_equalized = cv2.merge([hue, sat, val])
 #        cv2.imshow('hsv_equalized', hsv_equalized)
@@ -220,7 +230,7 @@ class Parking_Proc():
         COLOR_MAX = np.array([hmax, smax, vmax],np.uint8)
         
         #Execute Thresholding
-        hsv_threshed = cv2.inRange(hsv_equalized, COLOR_MIN, COLOR_MAX)
+        hsv_threshed = cv2.inRange(hsv_equalized, COLOR_MIN, COLOR_MAX) #equalization removed
         
         return hsv_threshed
 
@@ -435,28 +445,27 @@ if __name__ == '__main__':
     
     vision_srv = rospy.Service('park_srv', mission_to_vision, handle_srv)
     rospy.loginfo('park_srv initialized!')
-    
+      
     #Service Client. This part is commented if testing Vision task state machine without mission planner
     rospy.loginfo('Park waiting for mission_srv...')
     rospy.wait_for_service('mission_srv')
     mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
     rospy.loginfo('Park connected to mission_srv!')
-    
+      
     #Computer vision processing instantiation
     park = Parking_Proc()
-    park.register()
-
+      
     sm_top = smach.StateMachine(outcomes=['park_complete','park_failed'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:
         smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH'})
         smach.StateMachine.add('SEARCH', Search(), transitions={'search_complete':'MOTION_CONTROL','aborted':'DISENGAGED'})    
         smach.StateMachine.add('MOTION_CONTROL', MotionControlProcess(), transitions={'task_complete': 'DISENGAGED','aborted':'DISENGAGED'})
-
+  
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('park_server', sm_top, '/MISSION/PARK')
     sis.start()
-
+  
     try:
         outcome = sm_top.execute()
         rospy.spin()
@@ -464,8 +473,8 @@ if __name__ == '__main__':
         sis.stop()
         print "Shutting down"
 
-#    park = Parking_Proc()
-#    park.register()
-#    rospy.spin()
+#     park = Parking_Proc()
+#     park.register()
+#     rospy.spin()
     
 
