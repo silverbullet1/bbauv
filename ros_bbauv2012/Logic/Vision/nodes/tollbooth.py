@@ -31,7 +31,7 @@ import smach_ros
 
 
 #TODO: use actual competition IDs
-COMPETITION_TARGETS = ['blue', 'green']
+COMPETITION_TARGETS = ['red', 'yellow']
 
 # GLOBALS
 DEBUG = True
@@ -149,7 +149,7 @@ class Correction:
     # target can be 'board' or 'hole'
     def __init__(self, target='board', FORWARD_K=-12, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
                  EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_ANGLE=4,
-                 MIN_SIZE=0.033, MAX_SIZE=0.6):
+                 MIN_SIZE=0.033, MAX_SIZE=0.6, timeout=None):
 
         self.FORWARD_K = FORWARD_K
         self.SIDE_K = SIDE_K
@@ -162,6 +162,8 @@ class Correction:
         self.EPSILON_ANGLE = EPSILON_ANGLE
         self.MIN_SIZE = MIN_SIZE
         self.MAX_SIZE = MAX_SIZE
+
+        self.timeout = timeout
 
         self.hole_offset = (0, -100)
 
@@ -214,8 +216,14 @@ class Correction:
 
             return False
 
+        startTime = rospy.Time.now()
+
         while True:
             if rospy.is_shutdown(): return 'aborted'
+
+            if self.timeout is not None and rospy.Time.now() - startTime > self.timeout:
+                rospy.loginfo('correction timeout!')
+                break
 
             lock.acquire() #HACK
 
@@ -294,7 +302,7 @@ class Stabilize(smach.State):
     def execute(self, userdata):
         initAction()
 
-        correction = Correction()
+        correction = Correction(timeout=rospy.Duration(90,0))
         result = correction.correct()
         if result == 'aborted':
             return 'aborted'
@@ -320,12 +328,12 @@ class MoveToTarget(smach.State):
 
         # Adjust to board first
         rospy.loginfo('moving to single colour board')
-        correction = Correction(target='board', FORWARD_K=-2.0, EPSILON_X=0.1, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=20, MIN_SIZE=0.2, MAX_SIZE=0.6)
+        correction = Correction(target='board', FORWARD_K=-2.0, EPSILON_X=0.1, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=6, MIN_SIZE=0.2, MAX_SIZE=0.6,timeout=rospy.Duration(75,0))
         correction.correct()
 
         # Then adjust to hole
         rospy.loginfo('moving to single hole')
-        correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.050, MAX_SIZE=0.4)
+        correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.050, MAX_SIZE=0.4, timeout=rospy.Duration(60,0))
         result = correction.correct()
 
         if result == 'aborted':
@@ -412,8 +420,8 @@ class Done(smach.State):
     def execute(self, userdata):
         # Backoff a little
         goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = hoverHeading,
-                depth_setpoint = hoverDepth,
+                heading_setpoint = cur_heading,
+                depth_setpoint = depth_setpoint,
                 forward_setpoint = -1
         )
         actionClient.send_goal(goal)

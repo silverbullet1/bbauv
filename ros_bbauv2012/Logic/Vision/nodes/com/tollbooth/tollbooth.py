@@ -169,8 +169,9 @@ class TollboothDetector:
         for i, region in enumerate(regions):
             openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
             closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-            hole = cv2.morphologyEx(region, cv2.MORPH_OPEN, openingElt)
-            hole = cv2.morphologyEx(hole, cv2.MORPH_CLOSE, closingElt)
+#            hole = cv2.morphologyEx(region, cv2.MORPH_OPEN, openingElt)
+#            hole = cv2.morphologyEx(hole, cv2.MORPH_CLOSE, closingElt)
+            hole = cv2.morphologyEx(region, cv2.MORPH_CLOSE, closingElt)
 
             if False: #HACK: the code in this branch looks for holes using hierarchy
                 tmp = hole.copy()
