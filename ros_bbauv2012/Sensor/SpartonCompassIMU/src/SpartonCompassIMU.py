@@ -46,6 +46,7 @@
 import roslib; roslib.load_manifest('SpartonCompassIMU')
 import rospy
 from std_msgs.msg import String
+from std_msgs.msg import Float32
 #from geometry_msgs.msg import Pose2D
 from bbauv_msgs.msg import imu_data
 
@@ -83,6 +84,7 @@ if __name__ == '__main__':
     #Pos_pub = rospy.Publisher('AHRS8_HeadingTrue', Pose2D)
     Imu_pub_q = rospy.Publisher('AHRS8_data_q', Imu)
     Imu_pub_e = rospy.Publisher('AHRS8_data_e', imu_data)
+    Imu_pub_temp = rospy.Publisher('AHRS8_Temp', Float32)    
     #SpartonPose2D=Pose2D()
     #SpartonPose2D.x=float(0.0)
     #SpartonPose2D.y=float(0.0)
@@ -95,6 +97,8 @@ if __name__ == '__main__':
     D_Compass_offset = rospy.get_param('~offset',0.)
     Imu_data = Imu()
     imu_data = imu_data()
+    temp = Float32()
+    
     Imu_data = Imu(header=rospy.Header(frame_id="AHRS8"))
     
     #TODO find a right way to convert imu acceleration/angularvel./orientation accuracy to covariance
@@ -110,7 +114,7 @@ if __name__ == '__main__':
                                                0, 1e-3, 0, 
                                                0, 0, 1e-3]
     myStr1='\r\n\r\nprinttrigger 0 set drop\r\n'
-    myStr2='printmask gyrop_trigger accelp_trigger or quat_trigger or yawt_trigger or time_trigger or set drop\r\n'
+    myStr2='printmask gyrop_trigger accelp_trigger or quat_trigger or yawt_trigger or time_trigger or temp_trigger or set drop\r\n'
         # set the number high to get lower update rate , the IMU data is 100Hz rate , the string is 130 byte with 10 bit/byte , the max sampling rate is 88Hz
         # printmodulus=2 might give us 50Hz update rate ( I have no idea ) ,set printmodulus=1 should give you the max speed. ( with auto skiping )
     myStr_printmodulus=('printmodulus %i set drop\r\n' % D_Compassprintmodulus  )
@@ -184,7 +188,7 @@ if __name__ == '__main__':
 
             try:
                 if len(fields)>16:
-                        if 'P:apgpytq' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]):
+                        if 'P:apgpytqT' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]):
 
                                 #      0  1 mSec 2  3Ax  4Ay     5Az     5  7Gx  8Gy  9G    10 11YawT 1213w  14x   15y  16z
                                 #data='P:,878979,ap,-6.34,-22.46,1011.71,gp,0.00,0.00,-0.00,yt,342.53,q,0.98,-0.01,0.01,-0.15'
@@ -200,7 +204,7 @@ if __name__ == '__main__':
                                 x =float(fields[14])
                                 y =float(fields[15])
                                 z =float(fields[16])
-                                
+                                T =float(fields[18])
                                 # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 #imu_data.header.stamp = rospy.Time.now() # Should add an offset here
                                 Imu_data.header.stamp = rospy.Time.from_sec(DataTimeSec-len(data)/11520.) # this is timestamp with a bit time offset 10bit per byte @115200bps
@@ -236,10 +240,14 @@ if __name__ == '__main__':
                                 imu_data.linear_acceleration.x = Ax
                                 imu_data.linear_acceleration.y = Ay
                                 imu_data.linear_acceleration.z = Az
+
+				# temperature
+				temp.data = T;
                                 
                                 # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 Imu_pub_q.publish(Imu_data)
                                 Imu_pub_e.publish(imu_data)
+				Imu_pub_temp.publish(temp)
 
                                 #SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
                                 #SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed

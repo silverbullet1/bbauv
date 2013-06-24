@@ -21,11 +21,11 @@ double x_3, y_3, z_3;
 double speedOfSound;
 
 // input from outside
-double phase1 = 0;
-double phase2 = 0;
-double phase3 = 0;
-int freq = 20000;
-bool nearField = true;
+double time_diff1 = 0;
+double time_diff2 = 0;
+double time_diff3 = 0;
+int freq = 30000;
+bool nearField = false;
 
 // output data
 double x, y, z;
@@ -35,16 +35,16 @@ void acoustic_callback(const geometry_msgs::Twist::ConstPtr& msg);
 
 int main(int argc, char **argv){
     //topic names
-    string acoustic_topic = "/hydrophone/phase_diff"; // input topic from the sonar system
+    string acoustic_topic = "/hydrophone/time_diff"; // input topic from the sonar system
     string control_topic = "control_TDOA";            // input topic from the top side control (z and mode)
     string TDOA_topic = "acoustic_TDOA";              // output topic
 
     // initialize node constants
     int ros_rate = 10;
     speedOfSound = 1484;
-    x_1 = 0.04; y_1 = 0;    z_1 = 0;
-    x_2 = 0;    y_2 = 0.04; z_2 = 0;
-    x_3 = 0;    y_3 = 0;    z_3 = 0.04;
+    x_1 = 0.07;    y_1 = 0.07;    z_1 = 0;
+    x_2 = 0.07;    y_2 = -0.07;   z_2 = 0;
+    x_3 = 0;  y_3 = 0;          z_3 = -0.1;
     z = 10000;
     
     ros::init(argc, argv, "acoustic_TDOA");
@@ -55,10 +55,9 @@ int main(int argc, char **argv){
 
     ros::Rate loop_rate(ros_rate);
     while (ros::ok()){
-        lamda = speedOfSound * 1.0 / freq;
-        d10 = phase1 * lamda * 1.0 / (2 * M_PI);
-        d20 = phase2 * lamda * 1.0 / (2 * M_PI);
-        d30 = phase3 * lamda * 1.0 / (2 * M_PI);
+        d10 = time_diff1 * speedOfSound;
+        d20 = time_diff2 * speedOfSound;
+        d30 = time_diff3 * speedOfSound;
         /*cout << "debug: d10 _ d20 _ d30: " 
             << d10 << " _ "
             << d20 << " _ "
@@ -72,6 +71,7 @@ int main(int argc, char **argv){
         point_msg.y = y;
         point_msg.z = z;
         pub.publish(point_msg);
+	cout << "YAW:" << atan2(y,x) * 180.0 / M_PI << endl;;
 
         ros::spinOnce();
         loop_rate.sleep();
@@ -146,8 +146,8 @@ void far_field(){
 }
 
 void acoustic_callback(const geometry_msgs::Twist::ConstPtr& msg){
-    phase1 = (msg->linear).x; 
-    phase2 = (msg->linear).y;
-    phase3 = (msg->linear).z;
+    time_diff1 = (msg->linear).x * 1.0 / 1000000; 
+    time_diff2 = (msg->linear).y * 1.0 / 1000000;
+    time_diff3 = (msg->linear).z * 1.0 / 1000000;
     freq = (msg->angular).x;
 }
