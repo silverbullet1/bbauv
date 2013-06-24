@@ -7,13 +7,18 @@ from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
 import actionlib
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
+from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
 import Queue
 from bbauv_msgs.msg._thruster import thruster
 from bbauv_msgs.msg._openups import openups
+from std_msgs import msg
+from std_msgs.msg._Float32 import Float32
 
 class AUV_gui(QMainWindow):
     main_frame = None
@@ -21,6 +26,7 @@ class AUV_gui(QMainWindow):
     heading_provider = None
     depth_thermo = None
     client = None
+    movebase_client = None
     yaw = 0
     depth = 0
     pos_x = 0
@@ -37,10 +43,11 @@ class AUV_gui(QMainWindow):
     q_controller_feedback = Queue.Queue()
     q_thruster = Queue.Queue()
     q_openups = Queue.Queue()
+    q_temp = Queue.Queue()
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(),
-            'forward_error':0,'sidemove_error':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
+            'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
             'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
     
     def __init__(self, parent=None):
@@ -53,6 +60,7 @@ class AUV_gui(QMainWindow):
         sidemove_l, self.sidemove_box,layout2 = self.make_data_box("Sidemove:")
         forward_l, self.forward_box,layout1 = self.make_data_box("Forward:   ")
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
+        
         
         goal_layout = QVBoxLayout()
         goal_layout.addLayout(layout1)
@@ -108,13 +116,19 @@ class AUV_gui(QMainWindow):
         vbox2.addWidget(hoverButton)
         vbox2.addWidget(surfaceButton)
         vbox2.addWidget(homeButton)
+        
+        goal_gui_layout = QHBoxLayout()
+        goal_gui_layout.addLayout(goal_layout)
+        
         goalBox_layout = QVBoxLayout()
-        goalBox_layout.addLayout(goal_layout)
+        goalBox_layout.addLayout(goal_gui_layout)
+        
         goalBtn_layout = QHBoxLayout()
         goalBtn_layout.addLayout(vbox)
         goalBtn_layout.addLayout(vbox2)
         goalBox_layout.addStretch(1)
         goalBox_layout.addLayout(goalBtn_layout)
+        
         vbox.addStretch(1)
         vbox2.addStretch(1)
         goalBox.setLayout(goalBox_layout)
@@ -157,6 +171,8 @@ class AUV_gui(QMainWindow):
         
         compass_box = QGroupBox("AUV Heading")
         compass_box.setLayout(compass_layout)
+        goal_gui_layout.addWidget(compass_box)
+        
         #Depth Scale
         self.depth_thermo = Qwt.QwtThermo()
         self.depth_thermo.setPipeWidth(6)
@@ -224,7 +240,7 @@ class AUV_gui(QMainWindow):
         main_Vlayout = QVBoxLayout()
         main_Hlayout.addWidget(goalBox)
         main_Hlayout.addWidget(maniBox)
-        main_Hlayout.addWidget(compass_box)
+        #main_Hlayout.addWidget(compass_box)
         
         #main_Vlayout.addWidget(goalBox)
         #main_Vlayout.addWidget(compass_box)
@@ -258,11 +274,17 @@ class AUV_gui(QMainWindow):
         rel_pos = None
         earth_pos = None
         openups = None
+        temp = None
+        
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
         except Exception,e:
             pass
+        try:
+            temp = self.q_temp.get(False,0)
+        except Exception,e:
+            pass   
         try:
             openups = self.q_openups.get(False,0)
         except Exception,e:
@@ -301,6 +323,8 @@ class AUV_gui(QMainWindow):
             pass
         
         '''If data in queue is available store it into data'''
+        if temp!= None:
+            self.data['temp'] = temp
         if manipulators != None:
             self.data['manipulators'] = manipulators
         if orientation != None:
@@ -367,12 +391,11 @@ class AUV_gui(QMainWindow):
                               "<br> RACT: " + str(self.data['manipulators'].servo7) + "</b>")
       
         
-        self.saPanel3.setText("<b>TMP0: " + str(self.data['hull_status'].Temp0) + 
-                              "<br> TMP1: " + str(self.data['hull_status'].Temp1) +
-                              "<br> TMP2: " + str(self.data['hull_status'].Temp2) + 
+        self.saPanel3.setText("<b>TMP0: " + str(round(self.data['temp'].data,2)) + 
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
+        
         self.saPanel4.setText("<b>OUPS1: " + str(self.data['openups'].battery1) + 
                               "<br> OUPS2: " + str(self.data['openups'].battery2) +
                               "<br> OUPS3: " + str(self.data['openups'].battery3) + 
@@ -405,6 +428,7 @@ class AUV_gui(QMainWindow):
         feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
         openups_sub = rospy.Subscriber("/openups",openups,self.openups_callback)
+        temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
     
     def get_status(self,val):
         if val == -1:
@@ -429,9 +453,22 @@ class AUV_gui(QMainWindow):
             return "RECALLED"
         if val == 9:
             return "LOST"
-        
+
     def homeBtnHandler(self):
-        pass
+        movebaseGoal = MoveBaseGoal()
+        x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
+        resp = self.set_controller_request(True, True, True, True, False, False,False)
+        #Execute Nav
+        movebaseGoal.target_pose.header.frame_id = 'map'
+        movebaseGoal.target_pose.header.stamp = rospy.Time.now()
+        movebaseGoal.target_pose.pose.position.x = 0
+        movebaseGoal.target_pose.pose.position.y = 0 
+        movebaseGoal.target_pose.pose.orientation.x = 0
+        movebaseGoal.target_pose.pose.orientation.y = 0
+        movebaseGoal.target_pose.pose.orientation.z = z
+        movebaseGoal.target_pose.pose.orientation.w = w
+        self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
+        #movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, False, False,False)
         goal = bbauv_msgs.msg.ControllerGoal
@@ -463,39 +500,41 @@ class AUV_gui(QMainWindow):
         goal.heading_setpoint = float(self.heading_box.text())
         goal.forward_setpoint = float(self.forward_box.text())
         self.client.send_goal(goal, self.done_cb)
-    
+        
     def fireBtnHandler(self):
         if(self.isArmed):
-            _manipulator = manipulator()
+            #_manipulator = manipulator()
+            
             if(self.check1.checkState()):
-                _manipulator.servo1 = 1
+                servo1 = 1
             else:
-                _manipulator.servo1 = 0
+                servo1 = 0
             if(self.check2.checkState()):
-                _manipulator.servo2 = 1
+                servo2 = 1
             else:
-                _manipulator.servo2 = 0
+                servo2 = 0
             if(self.check3.checkState()):
-                _manipulator.servo3 = 1
+                servo3 = 1
             else:
-                _manipulator.servo3 = 0
+                servo3 = 0
             if(self.check4.checkState()):
-                _manipulator.servo4 = 1
+                servo4 = 1
             else:
-                _manipulator.servo4 = 0
+                servo4 = 0
             if(self.check5.checkState()):
-                _manipulator.servo5 = 1
+                servo5 = 1
             else:
-                _manipulator.servo5 = 0
+                servo5 = 0
             if(self.check6.checkState()):
-                _manipulator.servo6 = 1
+                servo6 = 1
             else:
-                _manipulator.servo6 = 0
+                servo6 = 0
             if(self.check7.checkState()):
-                _manipulator.servo7 = 1
+                servo7 = 1
             else:
-                _manipulator.servo7 = 0
-            self.mani_pub.publish(_manipulator)
+                servo7 = 0
+            
+            self.mani_pub.publish(servo1,servo2,servo3,servo4,servo5,servo6,servo7)
         
     def armBtnHandler(self):
         if(self.isArmed):
@@ -507,10 +546,13 @@ class AUV_gui(QMainWindow):
             
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
-        #resp = self.set_controller_request(False, False, False, False, False, True, False)
-        
+        #resp = self.set_controller_request(False, False, False, False, False, True)
+    
+    def movebase_done_cb(self,status,result):
+        self.status_text.setText("Move Base Client completed goal!")
     def endBtnHandler(self):
         self.client.cancel_all_goals()
+        self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
         #resp = self.set_controller_request(False, False, False, False, False, True, False)
     def initAction(self):
@@ -519,7 +561,9 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Waiting for Action Server to connect.")
         self.client.wait_for_server()
         self.status_text.setText("Action Server connected.")
-    
+        self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        self.movebase_client.wait_for_server()
+        rospy.loginfo("Mission connected to MovebaseServer")
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
     def make_data_box(self, name):
@@ -560,13 +604,14 @@ class AUV_gui(QMainWindow):
     def openups_callback(self,openups):
         self.q_openups.put(openups)
         
+    def temp_callback(self,temp):
+        self.q_temp.put(temp)
         
     def manipulators_callback(self,mani):
         self.q_mani.put(mani)
-        print "m"
         
 if __name__ == "__main__":
-    rospy.init_node('AUV_gui', anonymous=True)
+    rospy.init_node('AUV_gui', anonymous=False)
     app = QApplication(sys.argv)
     form = AUV_gui()
     form.show()

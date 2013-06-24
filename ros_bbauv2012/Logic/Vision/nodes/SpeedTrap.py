@@ -36,6 +36,7 @@ from Vision.cfg import SpeedTrapConfig
 
 #External libraries
 import numpy as np
+from rospy.timer import sleep
 
 '''
 ###################################################################
@@ -69,10 +70,11 @@ class SpeedTrap:
     position = None
     centroidx_list = None
     centroidy_list = None
-    angleList = None
+    angleList = list()
     max_area = 0
     outer_center = 40
     inner_center = 20
+    counter = 0
     ''' 
     Utility Methods
     '''
@@ -254,17 +256,16 @@ class SpeedTrap:
                         #print angle_hor
                         self.angleList.append(angle_hor)
                         cv2.putText(contourImg,str(np.round(angle_hor,1)), (int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-                    if True:
-                        colorTxt = (0,0,255)
-                        #cv2.drawContours(contourImg, contours, i, (255,0,0),thickness= -1)
-                        if(self.isAlignState):
-                            centroidy.append(moments['m01']/moments['m00'])
-                            centroidx.append(moments['m10']/moments['m00'])
-                            cv2.circle(contourImg,(int(centroidx[len(centroidx) -1]),int(centroidy[len(centroidy) - 1])), 2, (0,0,255), thickness=-1)
-                            #calculate central plane for AUV to aim towards
-                        if(len(centroidx) > 3):
-                            for j in range(0,len(centroidx) -1):
-                                pass
+                    colorTxt = (0,0,255)
+                    #cv2.drawContours(contourImg, contours, i, (255,0,0),thickness= -1)
+                    if(self.isAlignState):
+                        centroidy.append(moments['m01']/moments['m00'])
+                        centroidx.append(moments['m10']/moments['m00'])
+                        cv2.circle(contourImg,(int(centroidx[len(centroidx) -1]),int(centroidy[len(centroidy) - 1])), 2, (0,0,255), thickness=-1)
+                        #calculate central plane for AUV to aim towards
+                    if(len(centroidx) > 3):
+                        for j in range(0,len(centroidx) -1):
+                            pass
                                 #'''cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)
                                 #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1])/(centroidx[j] -centroidx[j+1])))
                                 #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1]),(centroidx[j] -centroidx[j+1])))
@@ -284,12 +285,11 @@ class SpeedTrap:
             self.centroidy_list = centroidy
             self.centroidx, self.centroidy = self.computeCenter(centroidx, centroidy) 
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
-        
         #Compute orientation angle correction for vehicle orientation
         if len(self.angleList) >3:
             self.isCentering = True
             final_list = sorted(self.angleList)
-            self.orientation = self.angleList[2]
+            self.orientation = self.angleList[1]
         else:
             self.isCentering = False
         
@@ -312,6 +312,9 @@ class SpeedTrap:
        y_ave = np.average(centroid_y,None,None)
        return x_ave,y_ave
    
+    def draw_aiming_box(self,image,center,space,color):
+        cv2.rectangle(image,(center[0] - space,center[1] - space),(center[0] + space,center[1] + space), color)
+        return image
     def processImage(self,data): 
         try:
             cv_image = self.rosimg2cv(data)
@@ -323,14 +326,18 @@ class SpeedTrap:
         hsv_image = np.array(hsv_image,dtype=np.uint8)
         centroid_image = self.centroidIdentification(hsv_image)
         #Draw aiming window on image to center
-        
-        cv2.rectangle(centroid_image,(300,220),(340,260), (255,0,0))
+        color = (255,100,255)
+        if(self.cols != None):
+            centroid_image = self.draw_aiming_box(centroid_image, (st.cols/2, st.rows/2), st.inner_center, color)
+            if self.counter == 0:
+                centroid_image = self.draw_aiming_box(centroid_image, (st.cols/2 - 200, st.rows/2), st.outer_center, color)
+            elif self.counter == 1:
+                centroid_image = self.draw_aiming_box(centroid_image, (st.cols/2 + 200, st.rows/2), st.outer_center, color)        
         if self.isAim:
             shape_image = self.aiming(hsv_image)
         else:
             shape_image = np.zeros((self.rows,self.cols,3),dtype=np.uint8)
         final_image = shape_image + centroid_image
-        cv2.waitKey(1)
         try:
             if(final_image != None):
                 final_image= cv2.cv.fromarray(final_image)
@@ -385,7 +392,7 @@ class Search(smach.State):
     def execute(self,userdata):
        global r
        global st
-       while(st.centroidx == 0 and not rospy.is_shutdown()):
+       while len(st.angleList) == 0 and not rospy.is_shutdown():
            r.sleep()
        if rospy.is_shutdown():
            return 'aborted'
@@ -401,8 +408,8 @@ class Search(smach.State):
 class Centering(smach.State):
     global mission_srv_request
    # global r
-    Kx = 0.004
-    Ky = 0.006
+    Kx = 0.005
+    Ky = 0.007
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete','aborted'],output_keys=['center_pos'])
         
@@ -452,11 +459,10 @@ class Centering(smach.State):
             return 'search_complete'
        
 class Aiming(smach.State):
-    global st
     global mission_srv_request
-    Kx = 0.001
-    Ky = 0.002
-   # global r
+    Kx = 0.004
+    Ky = 0.006
+    isLowering = True
     def __init__(self):
         smach.State.__init__(self, outcomes=['aiming_complete','aborted'],input_keys=['center_pos'])
         
@@ -465,7 +471,6 @@ class Aiming(smach.State):
         global st
         global movement_client
         global locomotionGoal
-        isLowering = True
         depth_offset = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
             aim_x = np.min(st.centroidx_list, None, None)
@@ -473,22 +478,24 @@ class Aiming(smach.State):
             print st.max_area
             side_error = self.Ky*(aim_x - (st.cols/2))
             fwd_error = -self.Kx*(aim_y - st.rows/2)
-            if st.max_area > 25000:
-                 isLowering = False
-            if ((np.fabs(aim_x - st.cols/2) <st.inner_center and np.fabs(aim_y - st.rows/2) <st.inner_center) and st.max_area > 25000 ) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
+            if st.max_area > 40000:
+                 self.isLowering = False
+            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) and st.max_area > 38000 ) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
                 locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint  + depth_offset
                 st.isAim = True
                 rospy.loginfo("Identifying target...")
+                rospy.sleep(rospy.Duration(5))
+                rospy.loginfo("Target identified") 
                 return "aiming_complete"
-            if isLowering:
-                depth_offset = depth_offset + 0.1
+            if self.isLowering:
+                depth_offset = depth_offset + 0.15
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
                                                      sidemove_setpoint=side_error)
             movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(4))
-            rospy.loginfo("Centering and Lowering...")
+            movement_client.wait_for_result(rospy.Duration(2))
+            rospy.loginfo("isLowering:" + str(self.isLowering))
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -503,8 +510,9 @@ class Firing(smach.State):
     Kx = 0.0015
     Ky = 0.0030
     def __init__(self):
-        smach.State.__init__(self, outcomes=['firing_complete','aborted'])
+        smach.State.__init__(self, outcomes=['firing_complete',"firing_all_complete",'aborted'])
     def fire_dropper(self,left):
+        global mani_pub
         _manipulator = manipulator()
         if(left):
             _manipulator.servo1 = 1
@@ -517,36 +525,58 @@ class Firing(smach.State):
         _manipulator.servo5 = 0
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
-        self.mani_pub.publish(_manipulator)
+        mani_pub.publish(_manipulator)
     def execute(self,userdata):
         global r
         global st
         global movement_client
         global locomotionGoal
         global count
-        self.mani_pub = rospy.Publisher("/manipulators",manipulator)
+        x_error = 0
+        y_error = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
-            aim_x = np.min(st.centroidx_list, None, None)
+            aim_x = np.max(st.centroidx_list, None, None)
             aim_y = np.min(st.centroidy_list, None, None)
-            side_error = self.Ky*(aim_x - (st.cols/2-200))
-            fwd_error = -self.Kx*(aim_y - st.rows/2)
-            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) ) :
+            if count == 0:
+                x_error = aim_x - (st.cols/2-150)
+                y_error = aim_y - st.rows/2
+                side_error = self.Ky*x_error
+                fwd_error = -self.Kx*y_error
+                print "left correct"
+            else:
+                x_error = aim_x - (st.cols/2+150)
+                y_error = aim_y - st.rows/2
+                side_error = self.Ky*(x_error)
+                fwd_error = -self.Kx*(y_error)
+                print "right correct"
+            if ((np.fabs(x_error) <st.outer_center and np.fabs(y_error) <st.outer_center) ) :
+                print "Fire aim success"
                 st.isAim = False
                 if count == 0:
+                    movement_client.cancel_all_goals()
                     self.fire_dropper(False)
-                    print "fire left"
-                    #count = 1
+                    rospy.loginfo("Fire left Dropper!")
+                    rospy.loginfo("Going to sleep. Waiting for Dropper")
+                    rospy.sleep(rospy.Duration(5))
+                    count = 1
+                    st.counter = 1
+                    return "firing_complete"
                 if count == 1:
-                    self.fire_dropper(False)
-                    print "fire right"
-                    #count == 2
+                    movement_client.cancel_all_goals()
+                    self.fire_dropper(True)
+                    rospy.loginfo("Fire right Dropper!")
+                    rospy.loginfo("Going to sleep. Waiting for Dropper")
+                    rospy.sleep(rospy.Duration(5))
+                    count = 2
+                    st.counter = 2
+                    return "firing_all_complete"
                 #rospy.loginfo("Identifying targ...")
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
                                                      sidemove_setpoint=side_error)
             movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(3))
+            movement_client.wait_for_result(rospy.Duration(1))
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -564,38 +594,28 @@ class Manuoevre(smach.State):
         global movement_client
         global locomotionGoal
         global count
-        
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=side_error)
+                                                     sidemove_setpoint=1.5)
         movement_client.send_goal(goal)
-        movement_client.wait_for_result(rospy.Duration(3))
-        
-        
+        movement_client.wait_for_result(rospy.Duration(10))
+        '''
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
             aim_x = np.min(st.centroidx_list, None, None)
             aim_y = np.min(st.centroidy_list, None, None)
             side_error = self.Ky*(aim_x - (st.cols/2-250))
             fwd_error = -self.Kx*(aim_y - st.rows/2)
             if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) ) :
-                st.isAim = False
-                if count == 0:
-                    self.fire_dropper(False)
-                    print "fire left"
-                    #count = 1
-                if count == 1:
-                    self.fire_dropper(False)
-                    print "fire right"
-                    #count == 2
-                #rospy.loginfo("Identifying targ...")
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
-                                                     heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=side_error)
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                         heading_setpoint=locomotionGoal.heading_setpoint,
+                                                         depth_setpoint=locomotionGoal.depth_setpoint,
+                                                         sidemove_setpoint=side_error)
             movement_client.send_goal(goal)
             movement_client.wait_for_result(rospy.Duration(3))
             r.sleep()
+        '''
+        return "manuoevre_complete"
         if rospy.is_shutdown():
             return 'aborted'
         else:
@@ -614,7 +634,7 @@ def handle_srv(req):
     global isStart
     global isAbort
     global locomotionGoal
-    rospy.loginfo("Gate service handled.")
+    rospy.loginfo("Speed Trap service handled.")
     if req.start_request:
         rospy.loginfo("isStart true.")
         isStart = True
@@ -634,11 +654,13 @@ isEnd = False
 count = 0
 st = None     
 r = None
+mani_pub = None
 if __name__ == '__main__':
     rospy.init_node('SpeedTrap', anonymous=False)
     r = rospy.Rate(20)
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
+    mani_pub = rospy.Publisher("/manipulators",manipulator)
     locomotionGoal = bbauv_msgs.msg.ControllerGoal()
     locomotionGoal.heading_setpoint = 130
     locomotionGoal.depth_setpoint = 0.6
@@ -651,7 +673,7 @@ if __name__ == '__main__':
     #mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
     rospy.loginfo('connected to mission_srv!')
     st = SpeedTrap()
-    
+    rospy.loginfo("SpeedTrap loaded!")
     # Set up param configuration window
     def configCallback(config, level):
         for param in st.yellow_params:
@@ -681,11 +703,11 @@ if __name__ == '__main__':
                          )
         smach.StateMachine.add('FIRING',
                          Firing(),
-                         transitions={'firing_complete': 'DISENGAGED','aborted':'aborted'}
+                         transitions={'firing_complete': 'MANUOEVRE',"firing_all_complete":'aborted','aborted':'aborted'}
                          )
         smach.StateMachine.add('MANUOEVRE',
                          Manuoevre(),
-                         transitions={'manuoevre_complete': 'DISENGAGED','aborted':'aborted'}
+                         transitions={'manuoevre_complete': 'FIRING','aborted':'aborted'}
                          )
 
     sis = smach_ros.IntrospectionServer('server',sm_top,'/MISSION/SPEEDTRAP')

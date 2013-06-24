@@ -50,21 +50,21 @@ tmux split-window -h
 tmux select-pane -D
 tmux split-window -h
 tmux select-pane -t0
-tmux send-keys 'rostopic echo /AHRS8_data_e' C-m
+#tmux send-keys 'rostopic echo /AHRS8_data_e' C-m
 tmux select-pane -t1
-tmux send-keys 'rostopic echo /depth' C-m
+#tmux send-keys 'rostopic echo /depth' C-m
 tmux select-pane -t2
-tmux send-keys 'rostopic echo /WH_DVL_data/twist/twist/linear' C-m
+#tmux send-keys 'rostopic echo /WH_DVL_data/twist/twist/linear' C-m
 tmux select-pane -t3
-tmux send-keys 'rostopic echo /WH_DVL_data/pose/pose/position' C-m
+#tmux send-keys 'rostopic echo /WH_DVL_data/pose/pose/position' C-m
 tmux select-pane -t4
-tmux send-keys 'rostopic echo /controller_points' C-m
+#tmux send-keys 'rostopic echo /controller_points' C-m
 tmux select-pane -t6
-tmux send-keys 'rostopic echo /LocomotionServer/feedback' C-m
+#tmux send-keys 'rostopic echo /LocomotionServer/feedback' C-m
 tmux select-pane -t5
-tmux send-keys 'rostopic echo /thruster_speed' C-m
+#tmux send-keys 'rostopic echo /thruster_speed' C-m
 tmux select-pane -t7
-tmux send-keys 'rostopic echo /teleop_controller' C-m
+#tmux send-keys 'rostopic echo /teleop_controller' C-m
 
 tmux select-window -tPool:1
 tmux split-window -h
@@ -82,11 +82,11 @@ tmux select-pane -R
 tmux split-window -v
 
 tmux select-pane -t0
-tmux send-keys 'rostopic echo /hull_status' C-m
+#tmux send-keys 'rostopic echo /hull_status' C-m
 tmux select-pane -t1
-tmux send-keys 'rostopic echo /openups' C-m
+#tmux send-keys 'rostopic echo /openups' C-m
 tmux select-pane -t2
-tmux send-keys 'rostopic echo /manipulators' C-m
+#tmux send-keys 'rostopic echo /manipulators' C-m
 tmux select-window -tPool:0
 
 tmux set-option -s mouse-resize-pane on
