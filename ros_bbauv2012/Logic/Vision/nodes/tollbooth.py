@@ -43,6 +43,8 @@ cur_heading = 0
 imageSub = None
 gunSide = 'left'
 
+isAbort = False
+
 SWAP_EYE   = True
 currentEye = 'left'
 
@@ -56,10 +58,6 @@ params = { 'contourMinArea': 0,
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
            'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0
 }
-
-
-def clamp(val, minimum, maximum):
-    return max(minimum, min(val, maximum))
 
 
 def initAction():
@@ -84,7 +82,7 @@ def initAction():
 # States
 class Disengage(smach.State):
     def handle_srv(self, req):
-        global depth_setpoint
+        global depth_setpoint, isAbort
 
         print 'got a request!'
         if req.start_request:
@@ -97,13 +95,18 @@ class Disengage(smach.State):
             mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
             rospy.loginfo('connected to mission_srv!')
 
-        return mission_to_visionResponse(self.isStart, False)
+            isAbort = False
+
+        if req.abort_request:
+            isAbort = True
+
+        return mission_to_visionResponse(self.isStart, isAbort)
 
     def __init__(self):
         self.isStart = False
         smach.State.__init__(
                         self,
-                        outcomes=['start_complete', 'aborted'],
+                        outcomes=['start_complete', 'killed'],
                         output_keys=['targetIDs']
         )
 
@@ -112,7 +115,7 @@ class Disengage(smach.State):
         tollbooth = None
 
         while not self.isStart:
-            if rospy.is_shutdown(): return 'aborted'
+            if rospy.is_shutdown(): return 'killed'
             rosRate.sleep()
 
         tollbooth = TollboothDetector(params, lock, camdebug)
@@ -128,7 +131,7 @@ Detect the tollbooth
 class Search(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['search_complete', 'aborted'],
+                             outcomes=['search_complete', 'aborted', 'killed'],
                              input_keys=['targetIDs'],
                              output_keys=['targetIDs'])
 
@@ -137,9 +140,13 @@ class Search(smach.State):
             if tollbooth.regionCount >= 3:
                 mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
                 return 'search_complete'
+
+            if isAborted:
+                return 'aborted'
+
             rosRate.sleep()
 
-        return 'aborted'
+        return 'killed'
 
 
 '''
@@ -219,7 +226,8 @@ class Correction:
         startTime = rospy.Time.now()
 
         while True:
-            if rospy.is_shutdown(): return 'aborted'
+            if rospy.is_shutdown(): return 'killed'
+            if isAborted: return 'aborted'
 
             if self.timeout is not None and rospy.Time.now() - startTime > self.timeout:
                 rospy.loginfo('correction timeout!')
@@ -271,7 +279,7 @@ class Correction:
                 )
                 waitTime = rospy.Duration(3,0)
             elif offsets['size']:
-                print ("Correcting nearness")
+                print ("Correcting distance")
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
@@ -295,7 +303,7 @@ Shift the tollbooth into the centre of the image
 class Stabilize(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['found', 'aborted'],
+                             outcomes=['found', 'aborted', 'killed'],
                              input_keys=['targetIDs'],
                              output_keys=['targetIDs'])
 
@@ -306,6 +314,8 @@ class Stabilize(smach.State):
         result = correction.correct()
         if result == 'aborted':
             return 'aborted'
+        if result == 'killed':
+            return 'killed'
 
         return 'found'
 
@@ -316,7 +326,7 @@ Manoeuvre to target
 class MoveToTarget(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['fired', 'fired_all', 'aborted'],
+                             outcomes=['fired', 'fired_all', 'aborted', 'killed'],
                              input_keys=['targetIDs'],
                              output_keys=['targetIDs'])
 
@@ -338,6 +348,8 @@ class MoveToTarget(smach.State):
 
         if result == 'aborted':
             return 'aborted'
+        if result == 'killed':
+            return 'killed'
 
         # Lock on to target and fire torpedo
         actionClient.cancel_all_goals()
@@ -363,7 +375,7 @@ Backoff until the whole thing is visible again
 class Backoff(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['found', 'aborted'],
+                             outcomes=['found', 'aborted', 'killed'],
                              input_keys=['targetIDs'],
                              output_keys=['targetIDs'])
 
@@ -395,6 +407,8 @@ class Backoff(smach.State):
 
 
         while not rospy.is_shutdown():
+            if isAborted: return 'aborted'
+
             if tollbooth.regionCount >= 3:
                 return 'found'
 
@@ -407,7 +421,7 @@ class Backoff(smach.State):
             actionClient.wait_for_result(rospy.Duration(2,0))
 
             rosRate.sleep()
-        return 'aborted'
+        return 'killed'
 
 '''
 Carry on to next task
@@ -418,6 +432,8 @@ class Done(smach.State):
                                    input_keys=['headings'])
 
     def execute(self, userdata):
+        if isAborted: return 'aborted'
+
         # Backoff a little
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = cur_heading,
@@ -502,44 +518,48 @@ if __name__ == '__main__':
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
     rospy.Subscriber(depthTopic, depth, gotDepth)
 
-    sm = smach.StateMachine(outcomes=['succeeded', 'aborted'])
+    sm = smach.StateMachine(outcomes=['succeeded', 'killed'])
     with sm:
         smach.StateMachine.add(
                         'DISENGAGED',
                         Disengage(),
                         transitions={'start_complete':'SEARCH',
-                                     'aborted': 'aborted'}
+                                     'killed': 'killed'}
         )
         smach.StateMachine.add(
                         'SEARCH',
                         Search(),
                         transitions={'search_complete':'STABILIZE',
-                                     'aborted': 'aborted'}
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
         )
         smach.StateMachine.add(
                         'STABILIZE',
                         Stabilize(),
                         transitions={'found': 'GET_TARGET',
-                                     'aborted': 'aborted'}
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
         )
         smach.StateMachine.add(
                         'GET_TARGET',
                         MoveToTarget(),
                         transitions={'fired': 'BACKOFF',
                                      'fired_all': 'DONE',
-                                     'aborted': 'aborted'}
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
         )
         smach.StateMachine.add(
                         'BACKOFF',
                         Backoff(),
                         transitions={'found': 'GET_TARGET',
-                                     'aborted': 'aborted'}
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
         )
         smach.StateMachine.add(
                         'DONE',
                         Done(),
                         transitions={'succeeded': 'succeeded',
-                                     'aborted': 'aborted'}
+                                     'aborted': 'DISENGAGED'}
         )
 
     sis = smach_ros.IntrospectionServer('tollbooth_server', sm, '/MISSION/TOLLBOOTH')

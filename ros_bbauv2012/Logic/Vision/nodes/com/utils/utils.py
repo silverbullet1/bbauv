@@ -3,7 +3,9 @@
 Utilities common to the vision tasks
 '''
 
-# Helper function to normalize heading
+'''
+Normalizes heading of the machine.
+'''
 def norm_heading(heading):
     if heading >= 360:
         return heading - 360
@@ -11,7 +13,15 @@ def norm_heading(heading):
         return heading + 360
     return heading
 
-# Helper function to convert angles from calculated image space to heading space
+'''
+Converts angles from calculated image space to heading space.
+'''
 def to_heading_space(angle):
     return angle + 90
+
+'''
+Clamps values to between minimum and maximum.
+'''
+def clamp(val, minimum, maximum):
+    return max(minimum, min(val, maximum))
 
