@@ -45,6 +45,7 @@ imageSub = None
 gunSide = 'left'
 
 isAborted = False
+mission_srv = None
 
 SWAP_EYE   = True
 currentEye = 'left'
@@ -87,7 +88,6 @@ class Disengage(smach.State):
 
         print 'got a request!'
         if req.start_request:
-            self.isStart = True
             self.inputHeading = req.start_ctrl.heading_setpoint
             depth_setpoint = req.start_ctrl.depth_setpoint
 
@@ -96,6 +96,7 @@ class Disengage(smach.State):
             mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
             rospy.loginfo('connected to mission_srv!')
 
+            self.isStart = True
             isAbort = False
 
         if req.abort_request:
