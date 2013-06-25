@@ -507,7 +507,7 @@ if __name__ == '__main__':
         return config
     srv = Server(TollboothConfig, configCallback)
 
-    camdebug = CamDebug('tollbooth', debugOn=DEBUG)
+    camdebug = CamDebug('Vision', debugOn=DEBUG)
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)

@@ -232,7 +232,7 @@ class TollboothDetector:
                     x,y,w,h = target[2]
                     cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0,0,255), 1)
 
-            self.camdebug.publishImage('bw', imgDebug)
+            self.camdebug.publishImage('image_filter', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
 
 #            self.histClass.getTripleHist(imghsv)
