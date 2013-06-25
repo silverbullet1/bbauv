@@ -48,7 +48,7 @@ class TollboothDetector:
 
         self.cvimg = None
 
-        cv2.namedWindow("Settings", cv2.CV_WINDOW_AUTOSIZE)
+#        cv2.namedWindow("Settings", cv2.CV_WINDOW_AUTOSIZE)
 #        self.histClass = bbHistogram('tollbooth')
 
     # Callback for subscribing to Image topic
