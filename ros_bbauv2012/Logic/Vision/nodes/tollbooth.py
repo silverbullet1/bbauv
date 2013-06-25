@@ -37,6 +37,7 @@ COMPETITION_TARGETS = ['red', 'yellow']
 DEBUG = True
 camdebug = None
 tollbooth = None
+firstRun = True
 firstRunAction = True
 depth_setpoint = 0.5
 cur_heading = 0
@@ -113,6 +114,13 @@ class Disengage(smach.State):
     def execute(self, userdata):
         global tollbooth
         tollbooth = None
+
+        global firstRun
+        if firstRun:
+            firstRun = False
+
+            srvServer = rospy.Service('tollbooth_srv', mission_to_vision, self.handle_srv)
+            rospy.loginfo('tollbooth_srv initialized!')
 
         while not self.isStart:
             if rospy.is_shutdown(): return 'killed'
