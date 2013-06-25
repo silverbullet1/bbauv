@@ -37,7 +37,7 @@ camdebug = None
 laneDetector = None
 depth_setpoint = 0.5
 
-isAbort = False
+isAborted = False
 
 params = {  'hueLow':0, 'hueHigh':0,
             'satLow':0, 'satHigh':0,
