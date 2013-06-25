@@ -44,7 +44,7 @@ cur_heading = 0
 imageSub = None
 gunSide = 'left'
 
-isAbort = False
+isAborted = False
 
 SWAP_EYE   = True
 currentEye = 'left'
