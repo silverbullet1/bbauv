@@ -133,7 +133,7 @@ class Parking_Proc():
         debug_frame = cv2.cv.fromarray(frame)        
         cv2.circle(frame, (320,240), 12, (255,0,0), 2)
         debug_frame = cv2.cv.fromarray(frame)        
-#         self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
+        self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
 
 ########################################################################
 
@@ -245,7 +245,7 @@ class Parking_Proc():
 
 class Disengage(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['start_complete'],
+        smach.State.__init__(self, outcomes=['start_complete', 'completed'],
                             input_keys=['complete_input'])
     def execute(self,userdata):
         global locomotionGoal
@@ -259,10 +259,10 @@ class Disengage(smach.State):
 
         while (not rospy.is_shutdown()):
             if isEnd:
-                rospy.signal_shutdown("Deactivating Park Node")            
+                return 'completed'
             if isStart:
                 park.register()
-#                 rospy.sleep(1)
+                rospy.sleep(3)
                 return 'start_complete'
 
 class Search(smach.State):
@@ -333,7 +333,7 @@ class MotionControlProcess(smach.State):
                     wait_time = params['finalWaitTime']
                     
                 #Adjust first if error is too large
-                if  abs(park.errorSide) > params['side_thresh']+50 or abs(park.errorDepth) > params['depth_thresh']+50:                    
+                if  abs(park.errorSide) > params['side_thresh'] or abs(park.errorDepth) > params['depth_thresh']:                    
                     goal.forward_setpoint = 0
                     goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
                     goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
@@ -342,7 +342,7 @@ class MotionControlProcess(smach.State):
                     #actionClient.wait_for_result(rospy.Duration(5,0))                      
                     actionClient.wait_for_result(rospy.Duration(wait_time,0))                      
                 #Ok, now move forward
-                if abs(park.errorSide) <= params['side_thresh']+50 and abs(park.errorDepth) <= params['depth_thresh']+50:
+                if abs(park.errorSide) <= params['side_thresh'] and abs(park.errorDepth) <= params['depth_thresh']:
                 
                     goal.forward_setpoint = params['approachFwdDist']
                     goal.sidemove_setpoint = 0
@@ -356,17 +356,17 @@ class MotionControlProcess(smach.State):
                 #Final State to change depth and move forward
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
-                goal.depth_setpoint -= 0.9
+                goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
+                goal.depth_setpoint -= 0.7
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Depth change! area=%d' % (park.area))
                 actionClient.wait_for_result(rospy.Duration(7,0))
                                 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 2.5
-                goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Going for final: Moonwalking!')
-                actionClient.wait_for_result(rospy.Duration(20,0))
+                actionClient.wait_for_result(rospy.Duration(40,0))
 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
@@ -458,7 +458,7 @@ if __name__ == '__main__':
     sm_top = smach.StateMachine(outcomes=['park_complete','park_failed'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:
-        smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH'})
+        smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH', 'completed':'park_complete'})
         smach.StateMachine.add('SEARCH', Search(), transitions={'search_complete':'MOTION_CONTROL','aborted':'DISENGAGED'})    
         smach.StateMachine.add('MOTION_CONTROL', MotionControlProcess(), transitions={'task_complete': 'DISENGAGED','aborted':'DISENGAGED'})
   
@@ -468,13 +468,14 @@ if __name__ == '__main__':
   
     try:
         outcome = sm_top.execute()
-        rospy.spin()
+#        rospy.spin()
     except KeyboardInterrupt:
         sis.stop()
         print "Shutting down"
 
-#     park = Parking_Proc()
-#     park.register()
-#     rospy.spin()
+    rospy.signal_shutdown("Deactivating Park Node")
+#    park = Parking_Proc()
+#    park.register()
+#    rospy.spin()
     
 
