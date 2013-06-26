@@ -4,11 +4,17 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Twist.h>
+#include <bbauv_msgs/acoustic_control.h>
 using namespace std;
 
 // function headers
 void near_field();
 void far_field();
+
+// position of the mount in relative to the base_footprint
+double x_offset;
+double y_offset;
+double z_offset;
 
 // variables
 double d10, d20, d30;
@@ -25,33 +31,35 @@ double time_diff1 = 0;
 double time_diff2 = 0;
 double time_diff3 = 0;
 int freq = 30000;
-bool nearField = false;
+bool nearField = true;
 
 // output data
 double x, y, z;
 
-void acoustic_callback(const geometry_msgs::Twist::ConstPtr& msg);
-//void control_callback(const );
+void hydrophone_callback(const geometry_msgs::Twist::ConstPtr& msg);
+void control_callback(const bbauv_msgs::acoustic_control::ConstPtr& msg);
 
 int main(int argc, char **argv){
     //topic names
-    string acoustic_topic = "/hydrophone/time_diff"; // input topic from the sonar system
-    string control_topic = "control_TDOA";            // input topic from the top side control (z and mode)
-    string TDOA_topic = "acoustic_TDOA";              // output topic
+    string hydrophone_topic = "/hydrophone/time_diff"; // input topic from the sonar system
+    string control_topic = "control_TDOA";           // input topic from the top side control (z and mode)
+    string TDOA_topic = "acoustic_TDOA";             // output topic
 
     // initialize node constants
     int ros_rate = 10;
     speedOfSound = 1484;
     x_1 = 0.07;    y_1 = 0.07;    z_1 = 0;
     x_2 = 0.07;    y_2 = -0.07;   z_2 = 0;
-    x_3 = 0;  y_3 = 0;          z_3 = -0.1;
-    z = 10000;
+    x_3 = 0;  	   y_3 = 0;       z_3 = -0.1;
+    z = 3;
     
     ros::init(argc, argv, "acoustic_TDOA");
     ros::NodeHandle nh;
     geometry_msgs::Point point_msg;
-    ros::Publisher pub = nh.advertise<geometry_msgs::Point>(TDOA_topic, 1000);
-    ros::Subscriber sub = nh.subscribe(acoustic_topic, 1000, acoustic_callback);
+    bbauv_msgs::acoustic_control control_msg;
+    ros::Publisher pub = nh.advertise<geometry_msgs::Point>(TDOA_topic, 100);
+    ros::Subscriber hydrophone_sub = nh.subscribe(hydrophone_topic, 100, hydrophone_callback);
+    ros::Subscriber control_sub = nh.subscribe(control_topic, 100, control_callback);
 
     ros::Rate loop_rate(ros_rate);
     while (ros::ok()){
@@ -81,6 +89,9 @@ int main(int argc, char **argv){
 }
 
 void near_field(){
+    if (d10 == 0 || d20 == 0 || d30 == 0) 
+        return;
+
     double A2 = 2 * (x_2 / d20 - x_1 / d10);
     double B2 = 2 * (y_2 / d20 - y_1 / d10);
     double A3 = 2 * (x_3 / d30 - x_1 / d10);
@@ -94,17 +105,6 @@ void near_field(){
     C3 += d30 - d10 ;
     C3 += -(x_3 * x_3 + y_3 * y_3 + z_3 * z_3)/d30 + (x_1 * x_1 + y_1 * y_1 + z_1 * z_1)/d10;
     C3 = -C3;
-
-    
-    cout << "debug: A2 _ B2 _ C2: "
-         << A2 << " _ "
-         << B2 << " _ "
-         << C2 << endl;
-    cout << "debug: A3 _ B3 _ C3: "
-         << A3 << " _ "
-         << B3 << " _ "
-         << C3 << endl;
-    
 
     if (A2*B3 == A3*B2) {
         x = 0;
@@ -145,9 +145,14 @@ void far_field(){
     z = z / nor;
 }
 
-void acoustic_callback(const geometry_msgs::Twist::ConstPtr& msg){
+void hydrophone_callback(const geometry_msgs::Twist::ConstPtr& msg){
     time_diff1 = (msg->linear).x * 1.0 / 1000000; 
     time_diff2 = (msg->linear).y * 1.0 / 1000000;
     time_diff3 = (msg->linear).z * 1.0 / 1000000;
     freq = (msg->angular).x;
+}
+
+void control_callback(const bbauv_msgs::acoustic_control::ConstPtr& msg) {
+    z = msg->z;
+    nearField = msg->nearField;
 }
