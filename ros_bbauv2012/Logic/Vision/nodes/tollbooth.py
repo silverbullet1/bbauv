@@ -105,7 +105,6 @@ class Disengage(smach.State):
         return mission_to_visionResponse(self.isStart, isAbort)
 
     def __init__(self):
-        self.isStart = False
         smach.State.__init__(
                         self,
                         outcomes=['start_complete', 'killed'],
@@ -123,9 +122,18 @@ class Disengage(smach.State):
             srvServer = rospy.Service('tollbooth_srv', mission_to_vision, self.handle_srv)
             rospy.loginfo('tollbooth_srv initialized!')
 
+        self.isStart = False
+
         while not self.isStart:
             if rospy.is_shutdown(): return 'killed'
             rosRate.sleep()
+
+        global imageSub, gunSide, currentEye
+        imageSub.unregister()
+        gunSide = 'left'
+        currentEye = 'left'
+        imageSub = rospy.Subscriber(imageLeftTopic, Image, gotRosFrame)
+
 
         tollbooth = TollboothDetector(params, lock, camdebug)
         tollbooth.heading = cur_heading
@@ -321,10 +329,8 @@ class Stabilize(smach.State):
 
         correction = Correction(timeout=rospy.Duration(90,0))
         result = correction.correct()
-        if result == 'aborted':
-            return 'aborted'
-        if result == 'killed':
-            return 'killed'
+        if result in ['aborted', 'killed']
+            return result
 
         return 'found'
 
@@ -355,10 +361,8 @@ class MoveToTarget(smach.State):
         correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.050, MAX_SIZE=0.4, timeout=rospy.Duration(60,0))
         result = correction.correct()
 
-        if result == 'aborted':
-            return 'aborted'
-        if result == 'killed':
-            return 'killed'
+        if result in ['aborted', 'killed']:
+            return result
 
         # Lock on to target and fire torpedo
         actionClient.cancel_all_goals()
