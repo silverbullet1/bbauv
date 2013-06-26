@@ -35,6 +35,7 @@ firstRun = True
 firstRunAction = True
 isAborted = False
 camdebug = None
+actionClient = None
 lightDetector = None
 depth_setpoint = 0.5
 cur_heading = 0
@@ -62,12 +63,18 @@ def initService():
 
         firstRunAction = False
 
+        global actionClient
+        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+        print 'waiting for action server...'
+        actionClient.wait_for_server()
+        print 'done'
+
 
 '''
 Performs correction to keep target in centre
 '''
 class Correction:
-    def __init__(self, FORWARD_K=-12, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
+    def __init__(self, FORWARD_K=-5, SIDE_K=8.0, DEPTH_K=0.4, ANGLE_K=-0.4,
                  EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_ANGLE=4,
                  MIN_SIZE=0.033, MAX_SIZE=0.6, timeout=None):
 
@@ -84,9 +91,10 @@ class Correction:
 
         self.timeout = timeout
 
+        self.hoverHeading = cur_heading
+
     def correct(self):
         hoverDepth = depth_setpoint
-        hoverHeading = cur_heading
         offsets = {}
 
         def isOutOfPlace():
@@ -100,19 +108,17 @@ class Correction:
             w = h = 2*rad
             H,W = lightDetector.shape[0:2]
 
-            if self.target == 'hole':
-                x -= self.hole_offset[0]
-                y -= self.hole_offset[1]
-
-            sizeRatio = w*h/float(W*H)
-            sizeMidPt = (self.MIN_SIZE + self.MAX_SIZE) * 0.5
-            if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
-                offsets['size'] = sizeRatio - sizeMidPt
+            sizeRatio = 2*math.pi*rad*rad/float(W*H)
+#            sizeMidPt = (self.MIN_SIZE + self.MAX_SIZE) * 0.5
+#            if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
+#                offsets['size'] = sizeRatio - sizeMidPt
+            if sizeRatio < self.MIN_SIZE:
+                offsets['size'] = sizeRatio - self.MIN_SIZE
 
             print 'vals:', { 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }
 
-            offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
-            offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
+            offsets['x'] = clamp(x/float(W) - 0.5, -1, 1)
+            offsets['y'] = clamp(y/float(H) - 0.5, -1, 1)
 
 #            pts = lightDetector.bigQuad
 #            angles = [
@@ -156,10 +162,10 @@ class Correction:
                 x,y = lightDetector.redCentre
                 w = h = 2*lightDetector.redRadius
 
-                factor = 1 - h/float(H) # attenuation factor
+                factor = 1 # max(1 - h/float(H), 0) # attenuation factor
                 hoverDepth = depth_setpoint + factor * self.DEPTH_K * offsets['y']
                 goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
+                        heading_setpoint = self.hoverHeading,
                         depth_setpoint = hoverDepth
                 )
                 waitTime = rospy.Duration(2,0)
@@ -168,27 +174,27 @@ class Correction:
                 x,y = lightDetector.redCentre
                 w = h = 2*lightDetector.redRadius
 
-                factor = 1 - w/float(W)
+                factor = 1 # max(1 - w/float(W), 0)
                 goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
+                        heading_setpoint = self.hoverHeading,
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
                 waitTime = rospy.Duration(3,0)
-            elif abs(offsets['angle']) > self.EPSILON_ANGLE:
-                print ("Correcting heading")
-                hoverHeading = norm_heading(lightDetector.heading + self.ANGLE_K * offsets['angle'])
-
-                goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
-                        depth_setpoint = hoverDepth,
-                        sidemove_setpoint = math.copysign(3.0, offsets['angle'])
-                )
-                waitTime = rospy.Duration(3,0)
+#            elif abs(offsets['angle']) > self.EPSILON_ANGLE:
+#                print ("Correcting heading")
+#                self.hoverHeading = norm_heading(lightDetector.heading + self.ANGLE_K * offsets['angle'])
+#
+#                goal = bbauv_msgs.msg.ControllerGoal(
+#                        heading_setpoint = self.hoverHeading,
+#                        depth_setpoint = hoverDepth,
+#                        sidemove_setpoint = math.copysign(3.0, offsets['angle'])
+#                )
+#                waitTime = rospy.Duration(3,0)
             elif offsets['size']:
                 print ("Correcting distance")
                 goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
+                        heading_setpoint = self.hoverHeading,
                         depth_setpoint = hoverDepth,
                         forward_setpoint = self.FORWARD_K * offsets['size']
                 )
@@ -214,7 +220,6 @@ class Disengage(smach.State):
 
         print 'got a request!'
         if req.start_request:
-            self.inputHeading = req.start_ctrl.heading_setpoint
             depth_setpoint = req.start_ctrl.depth_setpoint
 
             rospy.wait_for_service('mission_srv')
@@ -231,7 +236,7 @@ class Disengage(smach.State):
         return mission_to_visionResponse(self.isStart, isAborted)
 
     def __init__(self):
-        self.isStart = True #TODO: return false in actual mission
+        self.isStart = False
         smach.State.__init__(
                         self,
                         outcomes=['start_complete', 'killed'],
@@ -242,6 +247,13 @@ class Disengage(smach.State):
         global lightDetector
         lightDetector = None
 
+        global firstRun
+        if firstRun:
+            firstRun = False
+
+            rospy.Service('traffic_srv', mission_to_vision, self.handle_srv)
+            rospy.loginfo('traffic_srv initialized!')
+
         self.isStart = False
 
         while not self.isStart:
@@ -249,7 +261,6 @@ class Disengage(smach.State):
             rosRate.sleep()
 
         lightDetector = TrafficLight(params, lock, camdebug)
-        lightDetector.inputHeading = self.inputHeading
 
         return 'start_complete'
 
@@ -267,15 +278,13 @@ class Search(smach.State):
         )
 
     def execute(self, userdata):
-        global mission_srv
-
         #TODO: detect all the lights
         while not lightDetector.buoyDetected:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
             rosRate.sleep()
 
-#        mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+        mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
         return 'search_complete'
 
 
@@ -285,19 +294,20 @@ Keep all three in nice position
 class Stabilize(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['found', 'aborted', 'killed'],
+                             outcomes=['succeeded', 'aborted', 'killed'],
                              input_keys=['targetColors'],
-                             output_keys=['targetColors'])
+                             output_keys=['targetColors','heading'])
 
     def execute(self, userdata):
-        initAction()
+        initService()
 
-        correction = Correction(timeout=rospy.Duration(90,0))
+        correction = Correction(FORWARD_K=-10, MIN_SIZE=0.111, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
         result = correction.correct()
         if result in ['aborted', 'killed']:
             return result
 
-        return 'found'
+        userdata.heading = correction.hoverHeading
+        return 'succeeded'
 
 
 '''
@@ -307,16 +317,17 @@ class MoveToBuoy(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['succeeded', 'aborted', 'killed'],
-                             input_keys=['targetColors'],
-                             output_keys=['targetColors'])
+                             input_keys=['heading','targetColors'],
+                             output_keys=['heading', 'targetColors'])
 
     def execute(self, userdata):
-        correction = Correction(timeout=rospy.Duration(90,0))
+        correction = Correction(MIN_SIZE=0.19, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
+        correction.hoverHeading = userdata.heading
         result = correction.correct()
         if result in ['aborted', 'killed']:
             return result
 
-        return 'found'
+        return 'succeeded'
 
 
 '''
@@ -326,12 +337,12 @@ class BumpIt(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['bumped', 'aborted', 'killed'],
-                             input_keys=['targetColors'],
+                             input_keys=['heading', 'targetColors'],
                              output_keys=['targetColors'])
 
     def execute(self, userdata):
         hoverDepth = depth_setpoint
-        hoverHeading = cur_heading
+        hoverHeading = userdata.heading
 
         BUMP_FORWARD = 10
 
@@ -345,7 +356,9 @@ class BumpIt(smach.State):
                     forward_setpoint = setpoint
             )
             actionClient.send_goal(goal)
-            actionClient.wait_for_result(rospy.Duration(2,0))
+            actionClient.wait_for_result(rospy.Duration(4,0))
+
+        actionClient.cancel_all_goals()
 
         return 'bumped'
 
@@ -368,6 +381,11 @@ class Done(smach.State):
 
     def execute(self, userdata):
         if isAborted: return 'aborted'
+
+        ctrl = controller()
+        ctrl.depth_setpoint = depth_setpoint
+        ctrl.heading_setpoint = cur_heading
+        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
         return 'succeeded'
 
 
@@ -377,7 +395,7 @@ Main
 if __name__ == '__main__':
     rospy.init_node('traffic_light_task', anonymous=False)
     loopRateHz = rospy.get_param('~loopHz', 20)
-    imageTopic = rospy.get_param('~image', '/stereo_camera/right/image_rect_color')
+    imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_rect_color')
     depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
 
@@ -400,7 +418,6 @@ if __name__ == '__main__':
     def gotHeading(msg):
         global cur_heading
         cur_heading = msg.yaw
-        if lightDetector: lightDetector.gotHeading(msg)
     def gotDepth(msg):
         global depth_setpoint
         depth_setpoint = msg.depth
@@ -426,7 +443,7 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'STABILIZE',
                         Stabilize(),
-                        transitions={'found': 'MOVE_TO_BUOY',
+                        transitions={'succeeded': 'MOVE_TO_BUOY',
                                      'aborted': 'DISENGAGED',
                                      'killed': 'killed'}
         )
@@ -458,6 +475,8 @@ if __name__ == '__main__':
         outcome = sm.execute()
     except Exception, e:
         print e
-        rospy.shutdown_reason('Shutting down due to exception.')
+        rospy.signal_shutdown('Shutting down due to exception.')
+
+    rospy.signal_shutdown('Task completed')
 
 # vim: set sw=4 ts=4 expandtab:

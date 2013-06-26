@@ -101,12 +101,14 @@ class TrafficLight:
 
         # Display debug stream
         if self.DEBUG:
-            imgDebug = cv2.merge([imgCombined]*3)
+            imgDebug = cv2.merge([redImg]*3)
             if self.buoyDetected:
                 ctr = (int(self.redCentre[0]), int(self.redCentre[1]))
                 cv2.circle(imgDebug, ctr, 1, (0,0,255), 1)
                 cv2.circle(imgDebug, ctr, int(self.redRadius), (0,0,255), 1)
-            self.camdebug.publishImage('bw', imgDebug)
+            self.camdebug.publishImage('image_filter', imgDebug)
+
+        self.lock.release()
 
 
 
