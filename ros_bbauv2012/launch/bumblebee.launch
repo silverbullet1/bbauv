@@ -15,7 +15,6 @@
   </node>
 
   <node ns="stereo_camera" pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc" output="screen" >
-    <remap from="points2" to="/cloud" />
     <param name="approximate_sync" value="true"/>
     <param name="prefilter_size" value="9"/>
     <param name="prefilter_cap" value="31"/>
@@ -30,6 +29,7 @@
 
   <!-- this node to provide stereo-vision service of object distance culculation -->
   <node pkg="stereo_vision_bbauv" type="pcl_process" name="pcl_process" output="screen">
+    <remap from="/cloud" to="/stereo_camera/points2" />
     <param name="z_limit" value="5.0"/>
   </node>
 
