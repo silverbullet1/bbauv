@@ -554,6 +554,7 @@ if __name__ == '__main__':
     sis = smach_ros.IntrospectionServer('mission_server', sm_mission, '/MISSION')
     sis.start()
     
+    #Update Keys
     lane_gate.userdata.lane1_searchAttempts = 0
     traffic.traffic_searchAttempts = 0
     lane_traffic.userdata.lane2_searchAttempts = 0
