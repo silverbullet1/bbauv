@@ -42,13 +42,11 @@ from smach_ros import SimpleActionState
 
 class Parking_Proc():
     
-    green_hist = bbHistogram("green",Hist_constants.TRIPLE_CHANNEL)
-
     def __init__(self): 
     
         self.image_sub = None
         self.image_pub = None
-        
+        self.green_hist = None
         
         self.bridge = CvBridge()
         #http://stackoverflow.com/questions/5944708/python-forcing-a-list-to-a-fixed-size
@@ -61,8 +59,6 @@ class Parking_Proc():
         self.errorSide = 0
         self.errorDepth = 0
         self.area = 0        
-
-        self.green_hist.setParams(params)
         
     def register(self):
         self.image_sub = rospy.Subscriber('stereo_camera/left/image_rect_color', Image, self.image_callback)
@@ -130,23 +126,28 @@ class Parking_Proc():
             self.targetLockStatus = False
         
         #Draw target circle for visual debuggin
-        debug_frame = cv2.cv.fromarray(frame)        
-        cv2.circle(frame, (320,240), 12, (255,0,0), 2)
-        debug_frame = cv2.cv.fromarray(frame)        
+        cv2.circle(horizontal_green, (320,240), 12, (255,0,0), 2)     
+        debug_frame = cv2.cv.fromarray(horizontal_green)   
+
         self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
 
 ########################################################################
 
         # Trackbars and Windows for debugging purposes               
         if params['debug_mode'] ==1:
-            cv2.imshow("HSV Parking", horizontal_green)
+#            cv2.imshow("HSV Parking", horizontal_green)
+            self.green_hist = bbHistogram("green",Hist_constants.TRIPLE_CHANNEL)
+            self.green_hist.setParams(params)
             self.green_hist.getTripleHist(hist_frame)
 #            cv2.imshow('Contours', frame)                          
             #attempting to arrange windows; opCV unable to make it more automatic
-            l = 325
-            w = 245
-            cv2.moveWindow("HSV Parking",l,0)
-#            cv2.moveWindow("Contours",l*2,0)            
+#            l = 325
+#            w = 245
+#            cv2.moveWindow("HSV Parking",l,0)
+#            cv2.moveWindow("Contours",l*2,0)     
+
+        if params['debug_mode'] ==0:
+            self.green_hist = None
               
         cv.WaitKey(1)
 
@@ -254,9 +255,7 @@ class Disengage(smach.State):
         global park
 
         isStart = False
-        
-        park.unregister()
-
+        park.register()
         while (not rospy.is_shutdown()):
             if isEnd:
                 return 'completed'
@@ -357,15 +356,15 @@ class MotionControlProcess(smach.State):
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
                 goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
-                goal.depth_setpoint -= 0.7
+                goal.depth_setpoint -= 0.8
                 actionClient.send_goal(goal)                                                
-                rospy.loginfo('Going for final: Depth change! area=%d' % (park.area))
-                actionClient.wait_for_result(rospy.Duration(7,0))
+                rospy.loginfo('Final: Depth change! area=%d' % (park.area))
+                actionClient.wait_for_result(rospy.Duration(10,0))
                                 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 2.5
                 actionClient.send_goal(goal)                                                
-                rospy.loginfo('Going for final: Moonwalking!')
+                rospy.loginfo('Final: Moonwalking!')
                 actionClient.wait_for_result(rospy.Duration(40,0))
 
                 goal.forward_setpoint = 0

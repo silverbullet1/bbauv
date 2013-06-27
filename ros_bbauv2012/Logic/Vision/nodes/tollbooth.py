@@ -329,7 +329,7 @@ class Stabilize(smach.State):
 
         correction = Correction(timeout=rospy.Duration(90,0))
         result = correction.correct()
-        if result in ['aborted', 'killed']
+        if result in ['aborted', 'killed']:
             return result
 
         return 'found'
