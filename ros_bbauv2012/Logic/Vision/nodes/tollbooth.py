@@ -195,15 +195,20 @@ class Correction:
         hoverDepth = depth_setpoint
         hoverHeading = tollbooth.heading
         offsets = {}
+        offsets['targetLostCount'] = 0
 
         def tollboothOutOfPlace():
             offsets['x'] = offsets['y'] = 0
             offsets['size'] = offsets['angle'] = 0
             if tollbooth.regionCount == 0:
+                offsets['targetLostCount'] += 1
                 return True
 
             if self.target == 'hole' and (not tollbooth.holes or not tollbooth.holes[0]):
+                offsets['targetLostCount'] += 1
                 return True
+
+            offsets['targetLostCount'] = 0
 
             x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
             H,W = tollbooth.shape[0:2]
@@ -303,6 +308,10 @@ class Correction:
                         forward_setpoint = self.FORWARD_K * offsets['size']
                 )
                 waitTime = rospy.Duration(3,0)
+            elif offsets['targetLostCount'] > 30:
+                #TODO: abort task
+                print ("Lost target; hovering")
+                actionClient.cancel_all_goals()
 
             lock.release() #HACK
 
