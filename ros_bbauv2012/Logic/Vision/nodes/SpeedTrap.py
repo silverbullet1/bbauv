@@ -165,7 +165,7 @@ class Aiming(smach.State):
             fwd_error = -speedtrap_params['aiming_x']*(aim_y - st.rows/2)
             if st.max_area > speedtrap_params['bin_area']:
                  self.isLowering = False
-            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) and st.max_area > speedtrap_params['bin_area']) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
+            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) and st.max_area > speedtrap_params['bin_area'] - 2000) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
                 locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint  + depth_offset
                 st.isAim = True
                 rospy.loginfo("Identifying target...")
@@ -223,21 +223,23 @@ class Firing(smach.State):
         y_error = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
             #aim_x = np.max(st.centroidx_list, None, None)
-            coord_min_y = np.argmin(st.centroidy_list, None)
-            aim_x = st.centroidx_list[coord_min_y]
-            aim_y = st.centroidy_list[coord_min_y]
+            
             if count == 0:
+                coord_min_y = np.argmin(st.centroidy_list, None)
+                aim_x = st.centroidx_list[coord_min_y]
+                aim_y = st.centroidy_list[coord_min_y]
                 x_error = aim_x - (st.cols/2-100)
                 y_error = aim_y - st.rows/2
                 side_error = speedtrap_params['firing_y']*x_error
                 fwd_error = -speedtrap_params['firing_x']*y_error
-                print "left correct"
             else:
+                coord_max_x = np.argmax(st.centroidy_list, None)
+                aim_x = st.centroidx_list[coord_max_x]
+                aim_y = st.centroidy_list[coord_max_x]
                 x_error = aim_x - (st.cols/2+100)
                 y_error = aim_y - st.rows/2
                 side_error = speedtrap_params['firing_y']*(x_error)
                 fwd_error = -speedtrap_params['firing_x']*(y_error)
-                print "right correct"
             if ((np.fabs(x_error) <st.outer_center and np.fabs(y_error) <st.outer_center) ) :
                 print "Fire aim success"
                 st.isAim = False
@@ -285,7 +287,7 @@ class Manuoevre(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=1.2)
+                                                     sidemove_setpoint=0.3)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(10))
         return "manuoevre_complete"
@@ -358,16 +360,11 @@ if __name__ == '__main__':
             st.yellow_params[param] = config['yellow_' + param]
         for param in st.red_params:
             st.red_params[param] = config['red_'+param]
-        return config
-    srv = Server(SpeedTrapConfig, speedtrapCallback)
-   
-       # Set up param configuration window
-    def speedtrap_configCallback(config, level):
         for param in speedtrap_params:
             speedtrap_params[param] = config[param]
         return config
-    
-    srv = Server(SpeedTrapSettingsConfig, speedtrap_configCallback)
+    srv = Server(SpeedTrapConfig, speedtrapCallback)
+   
     sm_top = smach.StateMachine(outcomes=['speedtrap_complete','aborted'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:
