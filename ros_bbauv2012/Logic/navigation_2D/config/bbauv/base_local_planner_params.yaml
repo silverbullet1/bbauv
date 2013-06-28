@@ -23,8 +23,8 @@ TrajectoryPlannerROS:
 
 #Goal Tolerance Params
 
-  yaw_goal_tolerance: 0.1 #tolerance in radians
-  xy_goal_tolerance: 0.2 # In meters. Will literally stop within a 0.5m dia circle centered at the goal point
+  yaw_goal_tolerance: 0.2 #tolerance in radians
+  xy_goal_tolerance: 0.3 # In meters. Will literally stop within a 0.5m dia circle centered at the goal point
   latch_xy_goal_tolerance: true
 
 #Forward simulation Params

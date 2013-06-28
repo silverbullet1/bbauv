@@ -255,7 +255,7 @@ class Disengage(smach.State):
         global park
 
         isStart = False
-        park.register()
+
         while (not rospy.is_shutdown()):
             if isEnd:
                 return 'completed'
