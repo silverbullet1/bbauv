@@ -1,4 +1,8 @@
 <launch>
     <include file="$(find launch)/firefly.launch" />
     <include file="$(find launch)/bumblebee.launch" />
+
+    <node ns="Vision" pkg="image_transport" type="republish" name="debug_republish"
+          args="raw in:=image_filter compressed out:=image_filter" output="screen" >
+    </node>
 </launch>
