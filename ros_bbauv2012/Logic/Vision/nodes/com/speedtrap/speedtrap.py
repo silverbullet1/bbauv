@@ -96,7 +96,7 @@ class SpeedTrap:
         #cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
         #cv2.moveWindow("Sub Alignment",512,30)
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber(rospy.get_param('image','/bottomcam/camera/image_rect_color'), Image,self.processImage)
+        self.image_sub = rospy.Subscriber(rospy.get_param('image','/bottomcam/camera/image_rect_color_remote'), Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.pos_sub = rospy.Subscriber('/WH_DVL_data',Odometry)
         self.bridge = CvBridge()

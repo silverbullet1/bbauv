@@ -457,7 +457,7 @@ class AUV_gui(QMainWindow):
     def homeBtnHandler(self):
         movebaseGoal = MoveBaseGoal()
         x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
-        resp = self.set_controller_request(True, True, True, True, False, False,False)
+        resp = self.set_controller_request(True, True, True, True, False, False,True)
         #Execute Nav
         movebaseGoal.target_pose.header.frame_id = 'map'
         movebaseGoal.target_pose.header.stamp = rospy.Time.now()
@@ -611,7 +611,7 @@ class AUV_gui(QMainWindow):
         self.q_mani.put(mani)
         
 if __name__ == "__main__":
-    rospy.init_node('AUV_gui', anonymous=False)
+    rospy.init_node('AUV_gui', anonymous=True)
     app = QApplication(sys.argv)
     form = AUV_gui()
     form.show()

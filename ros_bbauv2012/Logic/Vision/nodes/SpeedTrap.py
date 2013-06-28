@@ -24,6 +24,7 @@ from bbauv_msgs.srv import *
 
 from dynamic_reconfigure.server import Server
 from Vision.cfg import SpeedTrapConfig
+from Vision.cfg import SpeedTrapSettingsConfig
 
 #External libraries
 import numpy as np
@@ -53,7 +54,7 @@ class Disengage(smach.State):
              isEnd = True
              try:
                  locomotionGoal.depth_setpoint = 0.6
-                 resp = mission_srv_request(False,True,locomotionGoal)
+                 #resp = mission_srv_request(False,True,locomotionGoal)
              except rospy.ServiceException, e:
                  print "Service call failed: %s"%e
         while not rospy.is_shutdown():
@@ -61,6 +62,7 @@ class Disengage(smach.State):
                 rospy.signal_shutdown("Deactivating Gate Node")
                 return 'complete_outcome'
             if isStart:
+                print "starting..."
                 return 'start_complete'
         return 'aborted'
     
@@ -79,18 +81,19 @@ class Search(smach.State):
        if rospy.is_shutdown():
            return 'aborted'
        else:
-    
+           '''
         try:
             resp = mission_srv_request(True,False,None)
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
-        return 'search_complete'
+            '''
+           return 'search_complete'
 
 class Centering(smach.State):
     global mission_srv_request
    # global r
-    Kx = 0.005
-    Ky = 0.007
+    Kx = 0.003
+    Ky = 0.006
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete','aborted'],output_keys=['center_pos'])
         
@@ -104,8 +107,8 @@ class Centering(smach.State):
         center_complete = False
         while(not center_complete and not rospy.is_shutdown()):
             if(st.centroidx != 0):
-                side_error = self.Ky*(st.centroidx - st.cols/2)
-                fwd_error = -self.Kx*(st.centroidy - st.rows/2)
+                side_error = speedtrap_params['centering_y']*(st.centroidx - st.cols/2)
+                fwd_error = -speedtrap_params['centering_x']*(st.centroidy - st.rows/2)
                 if(st.orientation != None):
                     if st.isCentering and isOrientationDone == False:
                         if(st.orientation > 90):
@@ -117,7 +120,7 @@ class Centering(smach.State):
                         isOrientationDone = True
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
-                if(np.fabs(st.centroidx - st.cols/2) < st.outer_center and np.fabs(st.centroidy - st.rows/2) <st.outer_center and np.fabs(orientation_error - st.yaw) <5):
+                if (np.fabs(st.centroidx - st.cols/2) < st.outer_center) and np.fabs(st.centroidy - st.rows/2) <st.outer_center and np.fabs(orientation_error - st.yaw) <5 and isOrientationDone :
                     #userdata.center_pos = st.position
                     locomotionGoal.heading_setpoint = orientation_error
                     movement_client.cancel_all_goals()
@@ -141,8 +144,8 @@ class Centering(smach.State):
        
 class Aiming(smach.State):
     global mission_srv_request
-    Kx = 0.004
-    Ky = 0.006
+    Kx = 0.002
+    Ky = 0.004
     isLowering = True
     def __init__(self):
         smach.State.__init__(self, outcomes=['aiming_complete','aborted'],input_keys=['center_pos'])
@@ -152,16 +155,17 @@ class Aiming(smach.State):
         global st
         global movement_client
         global locomotionGoal
+        global speedtrap_params
         depth_offset = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
             aim_x = np.min(st.centroidx_list, None, None)
             aim_y = np.min(st.centroidy_list, None, None)
             print st.max_area
-            side_error = self.Ky*(aim_x - (st.cols/2))
-            fwd_error = -self.Kx*(aim_y - st.rows/2)
-            if st.max_area > 40000:
+            side_error = speedtrap_params['aiming_y']*(aim_x - (st.cols/2))
+            fwd_error = -speedtrap_params['aiming_x']*(aim_y - st.rows/2)
+            if st.max_area > speedtrap_params['bin_area']:
                  self.isLowering = False
-            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) and st.max_area > 38000 ) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
+            if ((np.fabs(aim_x - st.cols/2) <st.outer_center and np.fabs(aim_y - st.rows/2) <st.outer_center) and st.max_area > speedtrap_params['bin_area']) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
                 locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint  + depth_offset
                 st.isAim = True
                 rospy.loginfo("Identifying target...")
@@ -188,8 +192,8 @@ class Aiming(smach.State):
             return 'aiming_complete'
 
 class Firing(smach.State):
-    Kx = 0.0015
-    Ky = 0.0030
+    Kx = 0.001
+    Ky = 0.002
     def __init__(self):
         smach.State.__init__(self, outcomes=['firing_complete',"firing_all_complete",'aborted'],
                              output_keys=['complete'])
@@ -214,22 +218,25 @@ class Firing(smach.State):
         global movement_client
         global locomotionGoal
         global count
+        global speedtrap_params
         x_error = 0
         y_error = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
-            aim_x = np.max(st.centroidx_list, None, None)
-            aim_y = np.min(st.centroidy_list, None, None)
+            #aim_x = np.max(st.centroidx_list, None, None)
+            coord_min_y = np.argmin(st.centroidy_list, None)
+            aim_x = st.centroidx_list[coord_min_y]
+            aim_y = st.centroidy_list[coord_min_y]
             if count == 0:
-                x_error = aim_x - (st.cols/2-150)
+                x_error = aim_x - (st.cols/2-100)
                 y_error = aim_y - st.rows/2
-                side_error = self.Ky*x_error
-                fwd_error = -self.Kx*y_error
+                side_error = speedtrap_params['firing_y']*x_error
+                fwd_error = -speedtrap_params['firing_x']*y_error
                 print "left correct"
             else:
-                x_error = aim_x - (st.cols/2+150)
+                x_error = aim_x - (st.cols/2+100)
                 y_error = aim_y - st.rows/2
-                side_error = self.Ky*(x_error)
-                fwd_error = -self.Kx*(y_error)
+                side_error = speedtrap_params['firing_y']*(x_error)
+                fwd_error = -speedtrap_params['firing_x']*(y_error)
                 print "right correct"
             if ((np.fabs(x_error) <st.outer_center and np.fabs(y_error) <st.outer_center) ) :
                 print "Fire aim success"
@@ -239,7 +246,7 @@ class Firing(smach.State):
                     self.fire_dropper(False)
                     rospy.loginfo("Fire left Dropper!")
                     rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(5))
+                    rospy.sleep(rospy.Duration(2))
                     count = 1
                     st.counter = 1
                     return "firing_complete"
@@ -248,7 +255,7 @@ class Firing(smach.State):
                     self.fire_dropper(True)
                     rospy.loginfo("Fire right Dropper!")
                     rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(5))
+                    rospy.sleep(rospy.Duration(2))
                     count = 2
                     st.counter = 2
                     userdata.complete = True
@@ -267,8 +274,6 @@ class Firing(smach.State):
             return 'firing_complete'
 
 class Manuoevre(smach.State):
-    Kx = 0.0015
-    Ky = 0.0030
     def __init__(self):
         smach.State.__init__(self, outcomes=['manuoevre_complete','aborted'])
     def execute(self,userdata):
@@ -280,7 +285,7 @@ class Manuoevre(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=1.5)
+                                                     sidemove_setpoint=1.2)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(10))
         return "manuoevre_complete"
@@ -316,13 +321,15 @@ def handle_srv(req):
 
 movement_client = None
 locomotionGoal = None 
-isStart = False
+isStart = True
 isAbort = False  
 isEnd = False
 count = 0
 st = None     
 r = None
 mani_pub = None
+speedtrap_params = {'bin_area': 0, 'firing_x':10,'firing_y':0,'centering_x':0,'centering_y':0,'aiming_x':0,'aiming_y':0}
+
 if __name__ == '__main__':
     rospy.init_node('SpeedTrap', anonymous=False)
     r = rospy.Rate(20)
@@ -336,21 +343,31 @@ if __name__ == '__main__':
     rospy.loginfo('speedtrap_srv initialized!')
     
     #Service Client
+    '''
     rospy.loginfo('waiting for mission_srv...')
     rospy.wait_for_service('mission_srv')
     mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
+    '''
     rospy.loginfo('connected to mission_srv!')
+    
     st = SpeedTrap()
     rospy.loginfo("SpeedTrap loaded!")
     # Set up param configuration window
-    def configCallback(config, level):
+    def speedtrapCallback(config, level):
         for param in st.yellow_params:
             st.yellow_params[param] = config['yellow_' + param]
         for param in st.red_params:
             st.red_params[param] = config['red_'+param]
         return config
-    srv = Server(SpeedTrapConfig, configCallback)
+    srv = Server(SpeedTrapConfig, speedtrapCallback)
    
+       # Set up param configuration window
+    def speedtrap_configCallback(config, level):
+        for param in speedtrap_params:
+            speedtrap_params[param] = config[param]
+        return config
+    
+    srv = Server(SpeedTrapSettingsConfig, speedtrap_configCallback)
     sm_top = smach.StateMachine(outcomes=['speedtrap_complete','aborted'])
     #Add overall States to State Machine for Gate Task 
     with sm_top:
