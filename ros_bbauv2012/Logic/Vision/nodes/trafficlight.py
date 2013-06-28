@@ -47,7 +47,10 @@ lock = threading.Lock()
 params = { 'contourMinArea': 0,
            'redHueLow': 0, 'redHueHigh': 0, 'redSatLow': 0, 'redSatHigh': 0, 'redValLow': 0, 'redValHigh': 0,
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
-           'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0
+           'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0,
+           'bumpTime': 0, 'bumpK': 0,
+           'farForwardK': 0, 'farSideK': 0,
+           'nearForwardK': 0, 'nearSideK': 0
 }
 
 
@@ -160,27 +163,27 @@ class Correction:
             if abs(offsets['y']) > self.EPSILON_Y:
                 print("Correcting vertical")
                 x,y = lightDetector.redCentre
-                w = h = 2*lightDetector.redRadius
+                r = lightDetector.redRadius
 
-                factor = 1 # max(1 - h/float(H), 0) # attenuation factor
+                factor = clamp(1 - r/float(H), 0, 1) # attenuation factor
                 hoverDepth = depth_setpoint + factor * self.DEPTH_K * offsets['y']
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = self.hoverHeading,
                         depth_setpoint = hoverDepth
                 )
-                waitTime = rospy.Duration(2,0)
+                waitTime = rospy.Duration(1,0)
             elif abs(offsets['x']) > self.EPSILON_X:
                 print("Correcting horizontal")
                 x,y = lightDetector.redCentre
-                w = h = 2*lightDetector.redRadius
+                r = lightDetector.redRadius
 
-                factor = 1 # max(1 - w/float(W), 0)
+                factor = clamp(1 - r/float(W), 0, 1)
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = self.hoverHeading,
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
-                waitTime = rospy.Duration(3,0)
+                waitTime = rospy.Duration(2,0)
 #            elif abs(offsets['angle']) > self.EPSILON_ANGLE:
 #                print ("Correcting heading")
 #                self.hoverHeading = norm_heading(lightDetector.heading + self.ANGLE_K * offsets['angle'])
@@ -198,7 +201,7 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         forward_setpoint = self.FORWARD_K * offsets['size']
                 )
-                waitTime = rospy.Duration(3,0)
+                waitTime = rospy.Duration(2,0)
 
             lock.release() #HACK
 
@@ -301,7 +304,8 @@ class Stabilize(smach.State):
     def execute(self, userdata):
         initService()
 
-        correction = Correction(FORWARD_K=-10, MIN_SIZE=0.111, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
+        correction = Correction(FORWARD_K=-params['farForwardK'], SIDE_K=params['farSideK'],
+                                MIN_SIZE=0.111, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
         result = correction.correct()
         if result in ['aborted', 'killed']:
             return result
@@ -321,7 +325,8 @@ class MoveToBuoy(smach.State):
                              output_keys=['heading', 'targetColors'])
 
     def execute(self, userdata):
-        correction = Correction(MIN_SIZE=0.19, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
+        correction = Correction(FORWARD_K=-params['nearForwardK'], SIDE_K=params['nearSideK'],
+                                MIN_SIZE=0.19, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
         correction.hoverHeading = userdata.heading
         result = correction.correct()
         if result in ['aborted', 'killed']:
@@ -344,7 +349,7 @@ class BumpIt(smach.State):
         hoverDepth = depth_setpoint
         hoverHeading = userdata.heading
 
-        BUMP_FORWARD = 10
+        BUMP_FORWARD = params['bumpK']
 
         for setpoint in [BUMP_FORWARD, -BUMP_FORWARD]:
             if rospy.is_shutdown(): return 'killed'
@@ -356,7 +361,7 @@ class BumpIt(smach.State):
                     forward_setpoint = setpoint
             )
             actionClient.send_goal(goal)
-            actionClient.wait_for_result(rospy.Duration(4,0))
+            actionClient.wait_for_result(rospy.Duration.from_sec(params['bumpTime']))
 
         actionClient.cancel_all_goals()
 
