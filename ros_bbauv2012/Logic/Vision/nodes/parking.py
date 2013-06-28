@@ -356,13 +356,13 @@ class MotionControlProcess(smach.State):
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
                 goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
-                goal.depth_setpoint -= 0.8
+                goal.depth_setpoint -= params['final_depthchange']
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Final: Depth change! area=%d' % (park.area))
                 actionClient.wait_for_result(rospy.Duration(10,0))
                                 
                 goal.forward_setpoint = 0
-                goal.sidemove_setpoint = 2.5
+                goal.sidemove_setpoint = params['final_moonwalk']
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Final: Moonwalking!')
                 actionClient.wait_for_result(rospy.Duration(40,0))
@@ -371,7 +371,7 @@ class MotionControlProcess(smach.State):
                 goal.sidemove_setpoint = 0
                 goal.heading_setpoint = ((goal.heading_setpoint+90)%360+360)%360
                 actionClient.send_goal(goal)                                                
-                rospy.loginfo('Going for final: Turning Back')
+                rospy.loginfo('Final: Turning Back')
                 actionClient.wait_for_result(rospy.Duration(10,0))
                 actionClient.cancel_all_goals()  
                 
@@ -427,7 +427,11 @@ mission_srv = None
 #vision server object; this is how mission comms with vision
 vision_srv = None
 
-params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh':0, 'closeiter':0, 'openiter':0, 'conArea':0, 'conPeri':0, 'aspectRatio':0, 'targetLockHistoryThresh':0, 'XstdDevThresh':0, 'YstdDevThresh':0, 'debug_mode':0, 'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0}
+params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh':0, 
+          'closeiter':0, 'openiter':0, 'conArea':0, 'conPeri':0, 'aspectRatio':0, 
+          'targetLockHistoryThresh':0, 'XstdDevThresh':0, 'YstdDevThresh':0, 'debug_mode':0, 
+          'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 
+          'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0, 'final_depthchange': 0, 'final_moonwalk': 0}
 
 
 # To test just the vision code, comment everything, uncomment the last 2 lines
