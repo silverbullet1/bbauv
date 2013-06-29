@@ -184,7 +184,7 @@ class TollboothDetector:
                 hole = np.invert(hole)
                 tmp = hole.copy()
                 holecontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
-                holecontours = filter(lambda c: cv2.contourArea(c) > 10, holecontours)
+                holecontours = [c for c in holecontours if cv2.contourArea(c) > 10 and cv2.pointPolygonTest(c, calcCentroid(c), False) > 0]
 
             # Retrieve the centre of the 2nd-largest hole (if any)
             if len(self.history) <= i or self.history[i] is None:
