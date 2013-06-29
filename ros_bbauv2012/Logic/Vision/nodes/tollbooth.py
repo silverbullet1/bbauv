@@ -58,7 +58,18 @@ params = { 'contourMinArea': 0,
            'redHueLow': 0, 'redHueHigh': 0, 'redSatLow': 0, 'redSatHigh': 0, 'redValLow': 0, 'redValHigh': 0,
            'blueHueLow': 0, 'blueHueHigh': 0, 'blueSatLow': 0, 'blueSatHigh': 0, 'blueValLow': 0, 'blueValHigh': 0,
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
-           'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0
+           'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0,
+           'depthGoalWait': 0, 'otherGoalWait': 0,
+           'farForwardK':0, 'farSideK':0, 'farDepthK':0, 'farAngleK':0,
+           'farEpsilonX':0, 'farEpsilonY':0, 'farEpsilonAngle':0,
+           'farMinSize':0, 'farMaxSize':0, 'farTimeout':0,
+           'nearForwardK':0, 'nearSideK':0, 'nearDepthK':0, 'nearAngleK':0,
+           'nearEpsilonX':0, 'nearEpsilonY':0, 'nearEpsilonAngle':0,
+           'nearMinSize':0, 'nearMaxSize':0, 'nearTimeout':0,
+           'holeForwardK':0, 'holeSideK':0, 'holeDepthK':0, 'holeAngleK':0,
+           'holeEpsilonX':0, 'holeEpsilonY':0, 'holeEpsilonAngle':0,
+           'holeMinSize':0, 'holeMaxSize':0, 'holeTimeout':0,
+           'chargeWait':0, 'fireWait':0
 }
 
 
@@ -84,7 +95,7 @@ def initAction():
 # States
 class Disengage(smach.State):
     def handle_srv(self, req):
-        global depth_setpoint, isAbort
+        global depth_setpoint, isAborted
 
         print 'got a request!'
         if req.start_request:
@@ -97,12 +108,12 @@ class Disengage(smach.State):
             rospy.loginfo('connected to mission_srv!')
 
             self.isStart = True
-            isAbort = False
+            isAborted = False
 
         if req.abort_request:
-            isAbort = True
+            isAborted = True
 
-        return mission_to_visionResponse(self.isStart, isAbort)
+        return mission_to_visionResponse(self.isStart, isAborted)
 
     def __init__(self):
         smach.State.__init__(
@@ -171,14 +182,14 @@ Performs correction to keep target in centre
 '''
 class Correction:
     # target can be 'board' or 'hole'
-    def __init__(self, target='board', FORWARD_K=-12, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=-0.4,
+    def __init__(self, target='board', FORWARD_K=12, SIDE_K=10.0, DEPTH_K=1.0, ANGLE_K=0.4,
                  EPSILON_X=0.08, EPSILON_Y=0.08, EPSILON_ANGLE=4,
                  MIN_SIZE=0.033, MAX_SIZE=0.6, timeout=None):
 
-        self.FORWARD_K = FORWARD_K
+        self.FORWARD_K = -FORWARD_K
         self.SIDE_K = SIDE_K
         self.DEPTH_K = DEPTH_K
-        self.ANGLE_K = ANGLE_K
+        self.ANGLE_K = -ANGLE_K
         self.target = target
 
         self.EPSILON_X = EPSILON_X
@@ -278,7 +289,7 @@ class Correction:
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
                 )
-                waitTime = rospy.Duration(2,0)
+                waitTime = params['depthGoalWait']
             elif abs(offsets['x']) > self.EPSILON_X:
                 print("Correcting horizontal")
                 x,y,w,h = tollbooth.bigBoundingRect if self.target == 'board' else tollbooth.holes[0][2]
@@ -289,7 +300,7 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
-                waitTime = rospy.Duration(3,0)
+                waitTime = params['otherGoalWait']
             elif abs(offsets['angle']) > self.EPSILON_ANGLE:
                 print ("Correcting heading")
                 hoverHeading = norm_heading(tollbooth.heading + self.ANGLE_K * offsets['angle'])
@@ -299,7 +310,7 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = math.copysign(3.0, offsets['angle'])
                 )
-                waitTime = rospy.Duration(3,0)
+                waitTime = params['otherGoalWait']
             elif offsets['size']:
                 print ("Correcting distance")
                 goal = bbauv_msgs.msg.ControllerGoal(
@@ -307,7 +318,7 @@ class Correction:
                         depth_setpoint = hoverDepth,
                         forward_setpoint = self.FORWARD_K * offsets['size']
                 )
-                waitTime = rospy.Duration(3,0)
+                waitTime = params['otherGoalWait']
             elif offsets['targetLostCount'] > 30:
                 #TODO: abort task
                 print ("Lost target; hovering")
@@ -317,7 +328,7 @@ class Correction:
 
             if goal is not None:
                 actionClient.send_goal(goal)
-                actionClient.wait_for_result(waitTime)
+                actionClient.wait_for_result(rospy.Duration.from_sec(waitTime))
                 print("got result")
 
             rosRate.sleep()
@@ -336,7 +347,18 @@ class Stabilize(smach.State):
     def execute(self, userdata):
         initAction()
 
-        correction = Correction(timeout=rospy.Duration(90,0))
+        correction = Correction(
+            FORWARD_K = params['farForwardK'],
+            SIDE_K = params['farSideK'],
+            DEPTH_K = params['farDepthK'],
+            ANGLE_K = params['farAngleK'],
+            EPSILON_X = params['farEpsilonX'],
+            EPSILON_Y = params['farEpsilonY'],
+            EPSILON_ANGLE = params['farEpsilonAngle'],
+            MIN_SIZE = params['farMinSize'],
+            MAX_SIZE = params['farMaxSize'],
+            timeout = rospy.Duration.from_sec(params['farTimeout'])
+        )
         result = correction.correct()
         if result in ['aborted', 'killed']:
             return result
@@ -362,12 +384,36 @@ class MoveToTarget(smach.State):
 
         # Adjust to board first
         rospy.loginfo('moving to single colour board')
-        correction = Correction(target='board', FORWARD_K=-2.0, EPSILON_X=0.1, SIDE_K=5.0, DEPTH_K=1.0, ANGLE_K=-0.4, EPSILON_ANGLE=6, MIN_SIZE=0.2, MAX_SIZE=0.6,timeout=rospy.Duration(75,0))
+        correction = Correction(
+            target = 'board',
+            FORWARD_K = params['nearForwardK'],
+            SIDE_K = params['nearSideK'],
+            DEPTH_K = params['nearDepthK'],
+            ANGLE_K = params['nearAngleK'],
+            EPSILON_X = params['nearEpsilonX'],
+            EPSILON_Y = params['nearEpsilonY'],
+            EPSILON_ANGLE = params['nearEpsilonAngle'],
+            MIN_SIZE = params['nearMinSize'],
+            MAX_SIZE = params['nearMaxSize'],
+            timeout = rospy.Duration.from_sec(params['nearTimeout'])
+        )
         correction.correct()
 
         # Then adjust to hole
         rospy.loginfo('moving to single hole')
-        correction = Correction(target='hole', EPSILON_X=0.08, FORWARD_K=-1.8, SIDE_K=4.0, DEPTH_K=0.3, MIN_SIZE=0.050, MAX_SIZE=0.4, timeout=rospy.Duration(60,0))
+        correction = Correction(
+            target = 'hole',
+            FORWARD_K = params['holeForwardK'],
+            SIDE_K = params['holeSideK'],
+            DEPTH_K = params['holeDepthK'],
+            ANGLE_K = params['holeAngleK'],
+            EPSILON_X = params['holeEpsilonX'],
+            EPSILON_Y = params['holeEpsilonY'],
+            EPSILON_ANGLE = params['holeEpsilonAngle'],
+            MIN_SIZE = params['holeMinSize'],
+            MAX_SIZE = params['holeMaxSize'],
+            timeout = rospy.Duration.from_sec(params['holeTimeout'])
+        )
         result = correction.correct()
 
         if result in ['aborted', 'killed']:
@@ -377,12 +423,12 @@ class MoveToTarget(smach.State):
         actionClient.cancel_all_goals()
 
         chargeTorpedo(gunSide)
-        rospy.sleep(1)
+        rospy.sleep(params['chargeWait'])
 
         rospy.loginfo("pew pew")
         fireTorpedo(gunSide)
 
-        rospy.sleep(3)
+        rospy.sleep(params['fireWait'])
 
         # If no targets left, continue
         userdata.targetIDs = remainingIDs
@@ -425,8 +471,9 @@ class Backoff(smach.State):
                 forward_setpoint = -4
         )
         actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(2,0))
+        actionClient.wait_for_result(rospy.Duration(1,0))
 
+        tries = 0
 
         while not rospy.is_shutdown():
             if isAborted: return 'aborted'
@@ -434,13 +481,18 @@ class Backoff(smach.State):
             if tollbooth.regionCount >= 3:
                 return 'found'
 
-            goal = bbauv_msgs.msg.ControllerGoal(
-                    heading_setpoint = hoverHeading,
-                    depth_setpoint = hoverDepth,
-                    forward_setpoint = -2
-            )
-            actionClient.send_goal(goal)
-            actionClient.wait_for_result(rospy.Duration(2,0))
+            if tries < 2:
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        forward_setpoint = -2
+                )
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration(1,0))
+
+                tries += 1
+            else:
+                actionClient.cancel_all_goals()
 
             rosRate.sleep()
         return 'killed'
