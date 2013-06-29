@@ -43,8 +43,14 @@ params = {  'hueLow':0, 'hueHigh':0,
             'satLow':0, 'satHigh':0,
             'valLow':0, 'valHigh':0,
             'contourMinArea':0,
-            'forwardK': 0,
-            'sidemoveK': 0
+            'houghThreshold':0,
+            'houghMinLineLength':0,
+            'houghMaxLineGap':0,
+            'epsilonX':0, 'epsilonY':0,
+            'forwardK':0, 'sidemoveK':0,
+            'goalWait':0,
+            'discardTimeout':0,
+            'minVariance':0
 } # Dynamic reconfigure params; see LaneMarkerDetector.cfg
 
 
@@ -57,7 +63,7 @@ class MedianFilter:
     def newSample(self, sample):
         curTime = rospy.Time()
         # Discard previous samples if we only sampled them a long time ago
-        if (curTime - self.lastSampled) > rospy.Duration(1,0):
+        if (curTime - self.lastSampled) > rospy.Duration.from_sec(params['discardTimeout']):
             self.samples = []
 
         self.lastSampled = curTime
@@ -80,7 +86,7 @@ States
 '''
 class Disengage(smach.State):
     def handle_srv(self, req):
-        global depth_setpoint, isAbort
+        global depth_setpoint, isAborted
 
         print 'got a request!'
         if req.start_request:
@@ -95,12 +101,12 @@ class Disengage(smach.State):
             mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
             rospy.loginfo('connected to mission_srv!')
 
-            isAbort = False
+            isAborted = False
 
         if req.abort_request:
-            isAbort = True
+            isAborted = True
 
-        return mission_to_laneResponse(self.isStart, isAbort)
+        return mission_to_laneResponse(self.isStart, isAborted)
 
     def __init__(self):
         self.isStart = False
@@ -168,7 +174,7 @@ class Stabilize(smach.State):
         )
 
     def execute(self, userdata):
-        EPSILON_X, EPSILON_Y = 0.2, 0.2
+        EPSILON_X, EPSILON_Y = params['epsilonX'], params['epsilonY']
 
         laneDetector.frameCallback = None
 
@@ -200,7 +206,9 @@ class Stabilize(smach.State):
 
                 actionClient.send_goal(goal)
                 print 'adjusting'
-                actionClient.wait_for_result(rospy.Duration(6,0))
+                actionClient.wait_for_result(
+                    rospy.Duration.from_sec(params['goalWait'])
+                )
                 print 'done adjusting'
 
             rosRate.sleep()
@@ -212,7 +220,11 @@ class Stabilize(smach.State):
                 forward_setpoint = 0,
                 sidemove_setpoint = 0)
         actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(5,0))
+        actionClient.wait_for_result(
+            rospy.Duration.from_sec(params['goalWait'])
+        )
+
+        actionClient.cancel_all_goals()
         print 'done steadying'
 
         return 'foundLane'
@@ -253,7 +265,7 @@ class Confirm(smach.State):
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
             if self.status == 'lost': return 'search_again'
-            if all([medianFilter.getVariance() < 16 for medianFilter in self.medianFilters]):
+            if all([medianFilter.getVariance() < params['minVariance'] for medianFilter in self.medianFilters]):
                 userdata.headings = [m.median for m in self.medianFilters]
                 return 'confirmed'
 
@@ -276,10 +288,7 @@ class Found(smach.State):
 
         # Lock on to confirmed heading and go towards it
         rospy.loginfo('locking on and going')
-        print 'Headings:', userdata.headings
-
-        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
-        actionClient.wait_for_server()
+        rospy.loginfo('Headings: ' + str(userdata.headings))
 
         finalHeading = userdata.headings[0]
         if userdata.expectedLanes > 1:
@@ -293,7 +302,7 @@ class Found(smach.State):
             elif userdata.outDir == 'right':
                 finalHeading = rightHeading
 
-        print "Turn to heading", finalHeading
+        rospy.loginfo("Using heading %f" % finalHeading)
 
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
@@ -397,6 +406,6 @@ if __name__ == '__main__':
         outcome = sm.execute()
     except Exception, e:
         print e
-        rospy.shutdown_reason('Shutting down due to exception.')
+        rospy.signal_shutdown('Shutting down due to exception.')
 
 # vim: set sw=4 ts=4 expandtab:

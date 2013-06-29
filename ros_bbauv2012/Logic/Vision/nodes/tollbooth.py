@@ -47,7 +47,7 @@ gunSide = 'left'
 isAborted = False
 mission_srv = None
 
-SWAP_EYE   = True
+SWAP_EYE   = True    # Set this to False if you don't want to switch between eyes
 currentEye = 'left'
 
 #HACK: use a lock to prevent race conditions

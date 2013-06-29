@@ -120,7 +120,7 @@ class LaneDetector:
             if self.DEBUG:
                 debugTmp = np.bitwise_or(rectImg, debugTmp)
 
-            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, 80, None, 60, 10)
+            lines = cv2.HoughLinesP(rectImg, 1, cv2.cv.CV_PI/180, self.params['houghThreshold'], None, self.params['houghMinLineLength'], self.params['houghMaxLineGap'])
 
             # Find median gradient of lines
             # Store as (x,y) (centre of box), angle (orientation of box)
