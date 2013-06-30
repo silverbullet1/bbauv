@@ -15,6 +15,7 @@
   </node>
 
   <node ns="stereo_camera" pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc" output="screen" >
+    <param name="_queue_size" value="50"/>
     <param name="approximate_sync" value="true"/>
     <param name="prefilter_size" value="9"/>
     <param name="prefilter_cap" value="31"/>

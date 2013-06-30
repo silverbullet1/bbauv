@@ -349,7 +349,7 @@ void DVL::assignData() {
 
     botTrack.Velocity[3] = botTrack.Velocity[3] / 1000.0; // error
     
-    altitude = botTrack.Range[0];
+    altitude = botTrack.Range[1] / 100.0;
 
     return;
 }

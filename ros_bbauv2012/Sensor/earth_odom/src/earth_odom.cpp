@@ -107,6 +107,13 @@ void dvl_callback(const nav_msgs::Odometry::ConstPtr& dvl_msg){
     east  += (lastEvel + Evel) * (curSec - lastSec) / 2.0;
     down  += (lastDvel + Dvel) * (curSec - lastSec) / 2.0;
 
+    if (north > 1000 || east > 1000 || down > 1000) {
+        ROS_ERROR("earth_odom::thousands meteres");
+        ROS_INFO("previous velocities: %lf ++ %lf ++ %lf", lastNvel, lastEvel, lastDvel);
+        ROS_INFO("current velocities: %lf ++ %lf ++ %lf", Nvel, Evel, Dvel);
+        ROS_INFO("time diff: %lf", curSec - lastSec);
+    }
+
     // convert velocity covariance
     Nvelcov = (dvl_msg->twist).covariance[0];
     Evelcov = (dvl_msg->twist).covariance[7];

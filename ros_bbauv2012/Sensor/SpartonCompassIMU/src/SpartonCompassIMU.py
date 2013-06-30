@@ -53,6 +53,7 @@ from bbauv_msgs.msg import imu_data
 import serial, string, math, time, calendar
 
 #import tf
+from tf.transformations import *
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Quaternion
 
@@ -205,31 +206,14 @@ if __name__ == '__main__':
                                 y =float(fields[15])
                                 z =float(fields[16])
                                 T =float(fields[18])
-                                # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                               
                                 #imu_data.header.stamp = rospy.Time.now() # Should add an offset here
-                                Imu_data.header.stamp = rospy.Time.from_sec(DataTimeSec-len(data)/11520.) # this is timestamp with a bit time offset 10bit per byte @115200bps
-                                Imu_data.orientation = Quaternion()
-                                # orientation
-                                Imu_data.orientation.x = x
-                                Imu_data.orientation.y = y
-                                Imu_data.orientation.z = z
-                                Imu_data.orientation.w = w
-                                
-                                # angular velocity
-                                Imu_data.angular_velocity.x = Gx
-                                Imu_data.angular_velocity.y = Gy
-                                Imu_data.angular_velocity.z = Gz
-                                
-                                # acceleration
-                                Imu_data.linear_acceleration.x = Ax
-                                Imu_data.linear_acceleration.y = Ay
-                                Imu_data.linear_acceleration.z = Az
-
+                                Imu_data.header.stamp = rospy.Time.from_sec(DataTimeSec-len(data)/11520.) # this is timestamp with a bit time offset 10bit per byte @115200bps 
                                 # Euler message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 # orientation
                                 imu_data.orientation.x = math.atan2(2. * (w*x + y*z), 1-2. * (x*x + y*y))
                                 imu_data.orientation.y = math.asin(2. * (w*y - z*x))
-                                imu_data.orientation.z = math.pi + math.atan2(2. * (w*z + x*y), 1-2.*(y*y + z*z))
+                                imu_data.orientation.z = (2.*math.pi + math.atan2(2.*(w*z + x*y), 1-2.*(y*y + z*z))) % (2.*math.pi)
                                 
                                 # angular velocity
                                 imu_data.angular_velocity.x = Gx
@@ -241,13 +225,43 @@ if __name__ == '__main__':
                                 imu_data.linear_acceleration.y = Ay
                                 imu_data.linear_acceleration.z = Az
 
-				# temperature
-				temp.data = T;
+				                # temperature
+                                temp.data = T;
+
+                                # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                                Imu_data.orientation = Quaternion()
+                                # orientation
+                                ai = imu_data.orientation.x / 2.0
+                                aj = imu_data.orientation.y / 2.0
+                                ak = imu_data.orientation.z / 2.0
+                                ci = math.cos(ai)
+                                si = math.sin(ai)
+                                cj = math.cos(aj)
+                                sj = math.sin(aj)
+                                ck = math.cos(ak)
+                                sk = math.sin(ak)
+                                quaternion = numpy.empty((4, ), dtype=numpy.float64)
                                 
+                                Imu_data.orientation.x = si*cj*ck - ci*sj*sk
+                                Imu_data.orientation.y = ci*sj*ck + si*cj*sk
+                                Imu_data.orientation.z = ci*cj*sk - si*sj*ck
+                                Imu_data.orientation.w = ci*cj*ck + si*sj*sk
+                                
+                                # angular velocity
+                                Imu_data.angular_velocity.x = Gx
+                                Imu_data.angular_velocity.y = Gy
+                                Imu_data.angular_velocity.z = Gz
+                                
+                                # acceleration
+                                Imu_data.linear_acceleration.x = Ax
+                                Imu_data.linear_acceleration.y = Ay
+                                Imu_data.linear_acceleration.z = Az
+
+
                                 # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 Imu_pub_q.publish(Imu_data)
                                 Imu_pub_e.publish(imu_data)
-				Imu_pub_temp.publish(temp)
+                                Imu_pub_temp.publish(temp)
 
                                 #SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
                                 #SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed

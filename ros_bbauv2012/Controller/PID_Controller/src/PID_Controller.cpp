@@ -83,7 +83,6 @@ bbauv::bbPID depthPID("d",1.2,0,0,20);
 bbauv::bbPID headingPID("h",1.2,0,0,20);
 bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
-bbauv::bbPID angularVelocityPID("av",1.2,0,0,20);
 
 int manual_speed[6] = {0,0,0,0,0,0};
 

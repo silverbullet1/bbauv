@@ -31,9 +31,7 @@ void callBack(const sensor_msgs::Imu::ConstPtr& msg){
     p = asin(2 * (q0*q2 - q3*q1));
     y = atan2(2 * (q0*q3 + q1*q2), 1-2*(q2*q2 + q3*q3));
 
-    r = r * 180.0 / M_PI;
-    p = p * 180.0 / M_PI;
-    y = y * 180.0 / M_PI;
+    y = M_PI + y;
 
     ROS_INFO("AHRS8_Q2E Call Back - Roll, Pitch, Yaw");
     printf("%06.2lf -- %06.2lf -- %06.2lf\n", r, p ,y);
