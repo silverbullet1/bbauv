@@ -44,7 +44,7 @@ import sys
    
 if __name__=="__main__":
 
-    port_name = rospy.get_param('~port','/dev/ttyUSB0')
+    port_name = rospy.get_param('~port','/dev/ttyACM4')
     baud = int(rospy.get_param('~baud','57600'))
     tcp_portnum = int(rospy.get_param('/rosserial_embeddedlinux/tcp_port', '11411'))
     fork_server = rospy.get_param('/rosserial_embeddedlinux/fork_server', True)

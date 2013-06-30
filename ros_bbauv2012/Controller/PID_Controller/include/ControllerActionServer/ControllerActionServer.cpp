@@ -23,10 +23,10 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 	_heading_input = 0.0;
 	_depth_input = 0.0;
 
-	MIN_FORWARD = 0.1;
-	MIN_SIDEMOVE = 0.1;
-	MIN_HEADING = 1.5;
-	MIN_DEPTH = 0.03;
+	MIN_FORWARD = 0.05;
+	MIN_SIDEMOVE = 0.05;
+	MIN_HEADING = 1;
+	MIN_DEPTH = 0.02;
 	as_.start();
 }
 

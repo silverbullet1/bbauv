@@ -85,8 +85,6 @@ bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
 bbauv::bbPID angularVelocityPID("av",1.2,0,0,20);
 
-NavUtils navHelper;
-
 int manual_speed[6] = {0,0,0,0,0,0};
 
 bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
@@ -136,8 +134,6 @@ int main(int argc, char **argv)
 	ros::ServiceServer service = nh.advertiseService("set_controller_srv", controller_srv_handler);
 	ROS_INFO("set_controller_srv ready.");
 	/* Initialize Quaternion Conversion Helper*/
-
-	navHelper = NavUtils();
 
 	/* Initialize Action Server */
 
@@ -252,6 +248,7 @@ void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg)
 {
 	ctrl.heading_input =  msg->orientation.z*180/M_PI;
 	ctrl.pitch_input = msg->orientation.y*180/M_PI;
+	orientationAngles.roll = msg->orientation.x*180/M_PI;
 	orientationAngles.yaw = ctrl.heading_input;
 	orientationAngles.pitch = ctrl.pitch_input;
 	orientationPub.publish(orientationAngles);

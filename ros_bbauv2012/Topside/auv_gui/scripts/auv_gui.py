@@ -44,6 +44,7 @@ class AUV_gui(QMainWindow):
     q_thruster = Queue.Queue()
     q_openups = Queue.Queue()
     q_temp = Queue.Queue()
+    q_altitude = Queue.Queue()
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(),
@@ -61,11 +62,16 @@ class AUV_gui(QMainWindow):
         forward_l, self.forward_box,layout1 = self.make_data_box("Forward:   ")
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
         
+        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Relative:")
+        
+        goal_heading_layout = QHBoxLayout()
+        goal_heading_layout.addLayout(layout3)
+        goal_heading_layout.addLayout(layout5)
         
         goal_layout = QVBoxLayout()
         goal_layout.addLayout(layout1)
         goal_layout.addLayout(layout2)
-        goal_layout.addLayout(layout3)
+        goal_layout.addLayout(goal_heading_layout)
         goal_layout.addLayout(layout4)
         
         # Buttons Layout
@@ -143,7 +149,7 @@ class AUV_gui(QMainWindow):
                 Qwt.QwtCompassMagnetNeedle.ThinStyle))
         self.compass.setValue(220.0)
         self.compass.setScale(36, 5, 0)
-        
+
         self.heading_provider = Qwt.QwtCompass()
         self.heading_provider.setLineWidth(4)
         self.heading_provider.setMode(Qwt.QwtCompass.RotateNeedle)
@@ -275,7 +281,7 @@ class AUV_gui(QMainWindow):
         earth_pos = None
         openups = None
         temp = None
-        
+        altitude = None
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
@@ -283,6 +289,10 @@ class AUV_gui(QMainWindow):
             pass
         try:
             temp = self.q_temp.get(False,0)
+        except Exception,e:
+            pass   
+        try:
+            altitude = self.q_altitude.get(False,0)
         except Exception,e:
             pass   
         try:
@@ -324,7 +334,9 @@ class AUV_gui(QMainWindow):
         
         '''If data in queue is available store it into data'''
         if temp!= None:
-            self.data['temp'] = temp
+            self.data['temp'] = temp.data
+        if altitude!= None:
+            self.data['altitude'] = altitude.data    
         if manipulators != None:
             self.data['manipulators'] = manipulators
         if orientation != None:
@@ -364,7 +376,7 @@ class AUV_gui(QMainWindow):
                                     "<br>RLL: "+ str(round(self.data['roll'],2)) + 
                                     "<br>DEP: "+ str(round(self.data['depth'],2)) + 
                                     "<br>PRE: " + str(round(self.data['pressure'],2)) + 
-                                    "<br>ATT: " + str(round(self.data['attitude'],2)) + "</b>")
+                                    "<br>ATT: " + str(round(self.data['altitude'],2)) + "</b>")
 
         self.attitudePanel2.setText("<b>POSX: " + str(round(self.data['earth_pos'].pose.pose.position.x,2)) + 
                                     "<br> POSY: " + str(round(self.data['earth_pos'].pose.pose.position.y,2)) +
@@ -391,7 +403,7 @@ class AUV_gui(QMainWindow):
                               "<br> RACT: " + str(self.data['manipulators'].servo7) + "</b>")
       
         
-        self.saPanel3.setText("<b>TMP0: " + str(round(self.data['temp'].data,2)) + 
+        self.saPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
@@ -429,7 +441,7 @@ class AUV_gui(QMainWindow):
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
         openups_sub = rospy.Subscriber("/openups",openups,self.openups_callback)
         temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
-    
+        altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
     def get_status(self,val):
         if val == -1:
             return "NONE"
@@ -497,7 +509,10 @@ class AUV_gui(QMainWindow):
         goal = bbauv_msgs.msg.ControllerGoal
         goal.depth_setpoint = float(self.depth_box.text())
         goal.sidemove_setpoint = float(self.sidemove_box.text())
-        goal.heading_setpoint = float(self.heading_box.text())
+        if self.rel_heading_chkbox.checkState():
+            goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
+        else:    
+            goal.heading_setpoint = float(self.heading_box.text())
         goal.forward_setpoint = float(self.forward_box.text())
         self.client.send_goal(goal, self.done_cb)
         
@@ -562,7 +577,7 @@ class AUV_gui(QMainWindow):
         self.client.wait_for_server()
         self.status_text.setText("Action Server connected.")
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        self.movebase_client.wait_for_server()
+        #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
@@ -578,10 +593,24 @@ class AUV_gui(QMainWindow):
         
         return (label, qle, layout)
     
+    def make_data_chkbox(self, name):
+        label = QLabel(name)
+        qle = QCheckBox()
+        layout = QHBoxLayout()
+        #qle.setEnabled(False)
+        layout.addWidget(label)
+        layout.addWidget(qle)
+        layout.addStretch(1)
+        
+        return (label, qle, layout)
+    
     def thruster_callback(self,thruster):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):
         self.q_orientation.put(msg)
+    
+    def altitude_callback(self,altitude):
+        self.q_altitude.put(altitude)
         
     def depth_callback(self,depth):
         self.q_depth.put(depth)

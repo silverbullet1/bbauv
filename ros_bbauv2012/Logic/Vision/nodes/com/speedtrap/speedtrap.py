@@ -27,7 +27,6 @@ class SpeedTrap:
     debug = True
     red_params = {'hueLow': 0, 'hueHigh':10,'satLow': 100, 'satHigh': 255,'valLow':0,'valHigh':255,'topHueLow':170,'topHueHigh':180}
     yellow_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
-    stParams = {'canny': 135 }    
     yellow_hist = bbHistogram("yellow",Hist_constants.TRIPLE_CHANNEL)
     red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
     isAlignState = True
@@ -36,6 +35,7 @@ class SpeedTrap:
     isCentering = False
     #shapeClass = ShapeAnalysis()
     yaw = 0
+    aim_point = None
     centroidx = 0
     centroidy = 0
     rows = 0
@@ -93,14 +93,19 @@ class SpeedTrap:
         self.bridge = CvBridge()
         self.yellow_hist.setParams(self.yellow_params)
         self.red_hist.setParams(self.red_params)
-        #cv2.namedWindow("Sub Alignment",cv2.CV_WINDOW_AUTOSIZE)
-        #cv2.moveWindow("Sub Alignment",512,30)
-        self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber(rospy.get_param('image','/bottomcam/camera/image_rect_color_remote'), Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
-        self.pos_sub = rospy.Subscriber('/WH_DVL_data',Odometry)
         self.bridge = CvBridge()
-    
+        rospy.loginfo("Speedtrap Ready")
+ 
+    def register(self):
+        self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
+        self.image_sub = rospy.Subscriber(rospy.get_param('~image','/bottomcam/camera/image_rect_color'), Image,self.processImage)
+        rospy.loginfo("Topics registered")
+    def unregister(self):
+        self.image_sub.unregister()
+        self.image_pub.unregister()
+        rospy.loginfo("Topics unregistered")
+        
     def collectPosition(self,msg):
         self.position = (msg.pose.pose.position.x , msg.pose.pose.position.y)
     def collectYaw(self,msg):
@@ -307,9 +312,11 @@ class SpeedTrap:
         if(self.cols != None):
             centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2, self.rows/2), self.inner_center, color)
             if self.counter == 0:
-                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 - 200, self.rows/2), self.outer_center, color)
+                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 - 100, self.rows/2), self.outer_center, color)
             elif self.counter == 1:
-                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 + 200, self.rows/2), self.outer_center, color)        
+                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 + 100, self.rows/2), self.outer_center, color)        
+        if self.aim_point != None:
+            cv2.circle(centroid_image,self.aim_point, 2, (0,255,9), thickness=-1)
         if self.isAim:
             shape_image = self.aiming(hsv_image)
         else:
