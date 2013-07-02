@@ -530,12 +530,12 @@ if __name__ == '__main__':
 #            smach.StateMachine.add('GATE_WAITOUT', WaitOut('gate', 60), transitions={'task_complete':'gate_complete', 'failed':'gate_failed'})
 #        smach.StateMachine.add('GATE', gate, transitions={'gate_complete':'mission_complete', 'gate_failed':'mission_failed'})
 
-        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(3,60,5.46,9.75,0.5,240), transitions={'nav_complete':'LANE_GATE_TASK', 'failed':'HOME'})
+        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(3,60,-9,-8.7,0.5,240), transitions={'nav_complete':'LANE_GATE_TASK', 'failed':'HOME'})
         
         lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
-            smach.StateMachine.add('LANE_HOVER', LinearSearch('lane', 3, 0, 'fwd', 1, False, 4), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
-            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 60, 1, 'fwd', 1, False, 4), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
+            smach.StateMachine.add('LANE_HOVER', LinearSearch('lane', 5, 0, 'fwd', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
+            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 60, 1, 'fwd', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
             smach.StateMachine.add('LANE_STORE', StoreGlobalCoord('lane1'), transitions={'store_complete':'LANE_GATE'})
             smach.StateMachine.add('LANE_GATE', WaitOut('lane', 60), transitions={'task_complete':'LANE_HEADINGCHANGE', 'failed':'lane_failed'})
             smach.StateMachine.add('LANE_HEADINGCHANGE', GoToHeading(5), transitions={'heading_complete':'lane_complete'})
@@ -573,7 +573,7 @@ if __name__ == '__main__':
 
         lane_park = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_park:
-            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 50, 1, 'fwd', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane3_searchAttempts'})
+            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 50, 1, 'fwd', 1, True, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane3_searchAttempts'})
             smach.StateMachine.add('LANE_STORE', StoreGlobalCoord('lane3'), transitions={'store_complete':'LANE_PARK'})
             smach.StateMachine.add('LANE_PARK', WaitOut('lane', 60), transitions={'task_complete':'LANE_HEADINGCHANGE', 'failed':'lane_failed'})
             smach.StateMachine.add('LANE_HEADINGCHANGE', GoToHeading(10), transitions={'heading_complete':'lane_complete'})
@@ -599,9 +599,9 @@ if __name__ == '__main__':
             smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 240), transitions={'task_complete':'speed_complete', 'failed':'speed_failed'})           
         smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'BACK_TO_LANE3', 'speed_failed':'BACK_TO_LANE3'})
 
-        smach.StateMachine.add('BACK_TO_LANE3', NavMoveBase(3,60,place='lane3'), transitions={'nav_complete':'BACK_TO_LANE2', 'failed':'mission_failed'})        
-        smach.StateMachine.add('BACK_TO_LANE2', NavMoveBase(3,60,place='lane2'), transitions={'nav_complete':'BACK_TO_LANE1', 'failed':'mission_failed'})        
-        smach.StateMachine.add('BACK_TO_LANE1', NavMoveBase(3,60,place='lane1'), transitions={'nav_complete':'HOME', 'failed':'mission_failed'})
+        smach.StateMachine.add('BACK_TO_LANE3', NavMoveBase(3,70,place='lane3'), transitions={'nav_complete':'BACK_TO_LANE2', 'failed':'mission_failed'})        
+        smach.StateMachine.add('BACK_TO_LANE2', NavMoveBase(3,70,place='lane2'), transitions={'nav_complete':'BACK_TO_LANE1', 'failed':'mission_failed'})        
+        smach.StateMachine.add('BACK_TO_LANE1', NavMoveBase(3,70,place='lane1'), transitions={'nav_complete':'HOME', 'failed':'mission_failed'})
         smach.StateMachine.add('HOME', NavMoveBase(1,60,0,0,0.5,57), transitions={'nav_complete':'SURFACE', 'failed':'mission_failed'})
         smach.StateMachine.add('SURFACE', GoToDepth(3,0.12), transitions={'depth_complete':'mission_complete'})
 
