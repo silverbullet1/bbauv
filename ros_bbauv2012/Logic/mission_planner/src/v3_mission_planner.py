@@ -185,38 +185,19 @@ class StoreGlobalCoord(smach.State):
         smach.State.__init__(self, outcomes=['store_complete'])
         self.name = self.__class__.__name__ 
         self.task_name = task_name
-        self.x = None
-        self.y = None
-        self.depth = None
-        self.heading = None
-        
-    def odomCallback(self, msg):
-        self.x =  msg.pose.pose.position.x
-        self.y = msg.pose.pose.position.y
-                
-    def depthCallback(self, msg):
-        self.depth = msg.depth
-        
-    def AHRSCallback(self,msg):
-        self.heading = msg.orientation.z * (180/pi)
-    
+            
     def execute(self, userdata):
-        
-        odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.odomCallback)
-        depth_sub = rospy.Subscriber('/depth', depth, self.depthCallback)
-        AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, self.AHRSCallback)
-        
-        rospy.sleep(1)
-        rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(self.x), str(self.y), str(self.depth), str(self.heading)))
-        rospy.set_param(self.task_name+'/x', self.x)
-        rospy.set_param(self.task_name+'/y', self.y)
-        rospy.set_param(self.task_name+'/depth', self.depth)
-        rospy.set_param(self.task_name+'/heading', self.heading)
-    
-        odom_sub.unregister()
-        depth_sub.unregister()
-        AHRS_sub.unregister()
-        
+#        global global_x
+#        global global_y
+#        global global_depth
+#        global global_heading
+
+        rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
+        rospy.set_param(self.task_name+'/x', global_x)
+        rospy.set_param(self.task_name+'/y', global_y)
+        rospy.set_param(self.task_name+'/depth', global_depth)
+        rospy.set_param(self.task_name+'/heading', global_heading)
+            
         return 'store_complete'
         
 class LinearSearch(smach.State):
@@ -311,7 +292,7 @@ class LinearSearch(smach.State):
         if self.task_name == 'lane':
             try:
                 rospy.loginfo('Failed to find %s' % self.task_name)
-                resp = lane_srv(False, None, None, None, True)            
+                resp = lane_srv(False, locomotionGoal, False, 1, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to abort: %s" % e)    
@@ -319,7 +300,7 @@ class LinearSearch(smach.State):
         if self.task_name != 'lane':
             try:
                 rospy.loginfo('Failed to find %s' % self.task_name)
-                resp = self.task_srv(False, None, True)            
+                resp = self.task_srv(False, locomotionGoal, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to abort: %s" % e)
@@ -363,7 +344,7 @@ class WaitOut(smach.State):
         if self.task_name == 'lane':
             try:
                 rospy.loginfo('Failed to complete %s' % self.task_name)
-                resp = self.task_srv(False, None, None, None,True)            
+                resp = lane_srv(False, locomotionGoal, False, 1, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to abort: %s" % e)
@@ -371,7 +352,7 @@ class WaitOut(smach.State):
         if self.task_name != 'lane':
             try:
                 rospy.loginfo('Failed to complete %s' % self.task_name)
-                resp = self.task_srv(False, None, True)            
+                resp = self.task_srv(False, locomotionGoal, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to abort: %s" % e)            
@@ -416,10 +397,9 @@ class NavMoveBase(smach.State):
         locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
 
         #convert yaw to move_base convention
-        rospy.loginfo("start_heading is =%2.5f radians" % self.start_heading)
-        yaw = self.normalize_angle(360-(self.start_heading+180)) * (pi/180)
-        x,y,z,w = quaternion_from_euler(0,0,yaw) #input must be radians
-        rospy.logdebug('z= %2.5f w= %2.5f' % (z,w))
+        ros_heading = self.normalize_angle((360-(self.start_heading))) * (pi/180) #self.start_heading * (pi/180) 
+        x,y,z,w = quaternion_from_euler(0,0,ros_heading) #input must be radians
+        rospy.logdebug('z= %s w= %s' % (str(z),str(w)))
 
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
@@ -431,8 +411,8 @@ class NavMoveBase(smach.State):
         #Execute Nav
         movebaseGoal.target_pose.header.frame_id = 'map'
         movebaseGoal.target_pose.header.stamp = rospy.Time.now()
-        movebaseGoal.target_pose.pose.position.x = -1 * self.x
-        movebaseGoal.target_pose.pose.position.y = self.y 
+        movebaseGoal.target_pose.pose.position.x = self.x
+        movebaseGoal.target_pose.pose.position.y = self.y * -1
         movebaseGoal.target_pose.pose.orientation.x = 0
         movebaseGoal.target_pose.pose.orientation.y = 0
         movebaseGoal.target_pose.pose.orientation.z = z
@@ -479,6 +459,20 @@ def handle_srv(req):
         #Controller
         return vision_to_missionResponse(False,True)   
 
+def odomCallback(msg):
+    global global_x
+    global global_y
+    global_x =  msg.pose.pose.position.x
+    global_y = msg.pose.pose.position.y
+            
+def depthCallback(msg):
+    global global_depth
+    global_depth = msg.depth
+    
+def AHRSCallback(msg):
+    global global_heading
+    global_heading = msg.orientation.z * (180/pi)
+
 locomotion_client = None
 locomotionGoal = controller()
 movebase_client = None
@@ -489,11 +483,21 @@ isSearchDone = False
 isTaskComplete = False
 lane_srv = None
 
+global_x = 0
+global_y = 0
+global_heading = 0
+global_depth = 0.3
+
 if __name__ == '__main__':
     rospy.init_node('Mission_planner', log_level=rospy.INFO, anonymous=True)
     
     mission_server = rospy.Service('mission_srv', vision_to_mission, handle_srv)
     rospy.loginfo('MissionServer Initialized!')
+
+    # Subscribing to Telemetry
+    odom_sub = rospy.Subscriber('/earth_odom', Odometry, odomCallback)
+    depth_sub = rospy.Subscriber('/depth', depth, depthCallback)
+    AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, AHRSCallback)
     
     #Service Client for Lane; Lane task is the only task that will not be shutdown
 #     rospy.loginfo('Waiting for LaneServer to start up...')
@@ -520,8 +524,8 @@ if __name__ == '__main__':
     sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(3,0.5,240),
+        smach.StateMachine.add('COUNTDOWN', Countdown(5), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(3,0.5,235),
                                 transitions={'start_complete':'NAV_TO_GATE'})
                                
 #        gate = smach.StateMachine(outcomes=['gate_complete', 'gate_failed'])
@@ -530,12 +534,13 @@ if __name__ == '__main__':
 #            smach.StateMachine.add('GATE_WAITOUT', WaitOut('gate', 60), transitions={'task_complete':'gate_complete', 'failed':'gate_failed'})
 #        smach.StateMachine.add('GATE', gate, transitions={'gate_complete':'mission_complete', 'gate_failed':'mission_failed'})
 
-        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(3,60,-9,-8.7,0.5,240), transitions={'nav_complete':'LANE_GATE_TASK', 'failed':'HOME'})
+        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(5,60,-9,-8.7,0.5,235), transitions={'nav_complete':'LANE_GATE_TASK', 'failed':'HOME'})
         
         lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
-            smach.StateMachine.add('LANE_HOVER', LinearSearch('lane', 5, 0, 'fwd', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
-            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 60, 1, 'fwd', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
+            smach.StateMachine.add('LANE_HOVER', LinearSearch('lane', 10, 0, 'fwd', 1, False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
+            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 10, -2, 'sway', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH2','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
+            smach.StateMachine.add('LANE_SEARCH2', LinearSearch('lane', 20, 2, 'sway', 1, False, 2), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane1_searchAttempts'})
             smach.StateMachine.add('LANE_STORE', StoreGlobalCoord('lane1'), transitions={'store_complete':'LANE_GATE'})
             smach.StateMachine.add('LANE_GATE', WaitOut('lane', 60), transitions={'task_complete':'LANE_HEADINGCHANGE', 'failed':'lane_failed'})
             smach.StateMachine.add('LANE_HEADINGCHANGE', GoToHeading(5), transitions={'heading_complete':'lane_complete'})
@@ -553,8 +558,10 @@ if __name__ == '__main__':
 
         lane_traffic = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_traffic:
-            smach.StateMachine.add('LANE_FORWARD', GoToDistance(20, 2, 'fwd'), transitions={'distance_complete':'LANE_SEARCH'})
-            smach.StateMachine.add('LANE_SEARCH', LinearSearch('lane', 50, 1, 'fwd', 1, False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane2_searchAttempts'})
+            smach.StateMachine.add('LANE_FORWARD', GoToDistance(30, 1.5, 'fwd'), transitions={'distance_complete':'LANE_HOVER'})
+            smach.StateMachine.add('LANE_HOVER', LinearSearch('lane', 10, 0, 'fwd', 3, False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH1','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane2_searchAttempts'})
+            smach.StateMachine.add('LANE_SEARCH1', LinearSearch('lane', 20, 2, 'sway', 3, False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'LANE_SEARCH2','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane2_searchAttempts'})
+            smach.StateMachine.add('LANE_SEARCH2', LinearSearch('lane', 40, -2, 'sway', 3, False, 1), transitions={'linear_complete':'LANE_STORE', 'failed':'lane_failed','attempts_none':'lane_failed'}, remapping={'attempt_counter':'lane2_searchAttempts'})
             smach.StateMachine.add('LANE_STORE', StoreGlobalCoord('lane2'), transitions={'store_complete':'LANE_TRAFFIC'})
             smach.StateMachine.add('LANE_TRAFFIC', WaitOut('lane', 60), transitions={'task_complete':'LANE_HEADINGCHANGE', 'failed':'lane_failed'})
             smach.StateMachine.add('LANE_HEADINGCHANGE', GoToHeading(10), transitions={'heading_complete':'lane_complete'})
@@ -582,21 +589,24 @@ if __name__ == '__main__':
         toll = smach.StateMachine(outcomes=['toll_complete', 'toll_failed'])
         with toll:
             smach.StateMachine.add('TOLL_DEPTHCHANGE', GoToDepth(3,2), transitions={'depth_complete':'TOLL_SEARCH'})
-            smach.StateMachine.add('TOLL_SEARCH', LinearSearch('tollbooth', 120, 1, 'fwd', 1), transitions={'linear_complete':'TOLL_STORE', 'failed':'toll_failed','attempts_none':'toll_failed'}, remapping={'attempt_counter':'toll_searchAttempts'})
+            smach.StateMachine.add('TOLL_SEARCH', LinearSearch('tollbooth', 30, 1, 'fwd', 2), transitions={'linear_complete':'TOLL_STORE', 'failed':'TOLL_SEARCH2','attempts_none':'toll_failed'}, remapping={'attempt_counter':'toll_searchAttempts'})
+            smach.StateMachine.add('TOLL_SEARCH2', LinearSearch('tollbooth', 60, -2, 'sway', 2), transitions={'linear_complete':'TOLL_STORE', 'failed':'TOLL_SEARCH3','attempts_none':'toll_failed'}, remapping={'attempt_counter':'toll_searchAttempts'})
+            smach.StateMachine.add('TOLL_SEARCH3', LinearSearch('tollbooth', 120, 2, 'sway', 2), transitions={'linear_complete':'TOLL_STORE', 'failed':'toll_failed','attempts_none':'toll_failed'}, remapping={'attempt_counter':'toll_searchAttempts'})
+
             smach.StateMachine.add('TOLL_STORE', StoreGlobalCoord('toll'), transitions={'store_complete':'TOLLBOOTH'})            
             smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'task_complete':'toll_complete', 'failed':'toll_failed'})
         smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'BACK_TO_LANE3'})
 
         speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
         with speed:
-            smach.StateMachine.add('SPEED_DEPTHCHANGE', GoToDepth(3,0.5), transitions={'depth_complete':'SPEED_SWAYSEARCH'})
+            smach.StateMachine.add('SPEED_DEPTHCHANGE', GoToDepth(3,0.5), transitions={'depth_complete':'SPEED_SWAY'})
 #            smach.StateMachine.add('SPEED_FWDSEARCH', LinearSearch('speedtrap', 60, 1, 'fwd', 2), transitions={'linear_complete':'SPEED_STORE', 'failed':'speed_failed','attempts_none':'speed_failed'}, remapping={'attempt_counter':'speed_searchAttempts'})
-#            smach.StateMachine.add('SPEED_SWAY', GoToDistance(30, -3, 'sway'), transitions={'distance_complete':'SPEED_STORE'})
-            smach.StateMachine.add('SPEED_SWAYSEARCH', LinearSearch('speedtrap', 60, -2, 'sway', 1), transitions={'linear_complete':'SPEED_STORE', 'failed':'speed_failed','attempts_none':'speed_failed'}, remapping={'attempt_counter':'speed_searchAttempts'})
+            smach.StateMachine.add('SPEED_SWAY', GoToDistance(30, 3, 'sway'), transitions={'distance_complete':'SPEED_STORE'})
+#            smach.StateMachine.add('SPEED_SWAYSEARCH', LinearSearch('speedtrap', 60, -2, 'sway', 1), transitions={'linear_complete':'SPEED_STORE', 'failed':'speed_failed','attempts_none':'speed_failed'}, remapping={'attempt_counter':'speed_searchAttempts'})
 #            smach.StateMachine.add('SPEED_FWDSEARCH', LinearSearch('speedtrap', 40, 1, 'fwd', 2), transitions={'linear_complete':'SPEED_STORE', 'failed':'SPEED_TO_LANE3','attempts_none':'speed_failed'}, remapping={'attempt_counter':'speed_searchAttempts'})
 #            smach.StateMachine.add('SPEED_TO_LANE3', NavMoveBase(1,60,place='lane3'), transitions={'nav_complete':'SPEED_FWDSEARCH', 'failed':'speed_failed'})
-            smach.StateMachine.add('SPEED_STORE', StoreGlobalCoord('speed'), transitions={'store_complete':'SPEEDTRAP'})
-            smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 240), transitions={'task_complete':'speed_complete', 'failed':'speed_failed'})           
+            smach.StateMachine.add('SPEED_STORE', StoreGlobalCoord('speed'), transitions={'store_complete':'speed_complete'})
+#            smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 240), transitions={'task_complete':'speed_complete', 'failed':'speed_failed'})           
         smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'BACK_TO_LANE3', 'speed_failed':'BACK_TO_LANE3'})
 
         smach.StateMachine.add('BACK_TO_LANE3', NavMoveBase(3,70,place='lane3'), transitions={'nav_complete':'BACK_TO_LANE2', 'failed':'mission_failed'})        

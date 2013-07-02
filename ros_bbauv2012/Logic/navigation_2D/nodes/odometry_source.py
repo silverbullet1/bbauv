@@ -36,8 +36,8 @@ def main():
         header['secs'] = msg.header.stamp.secs
         header['nsecs'] = msg.header.stamp.nsecs
         #converting NED axis to ROS axes convention
-        position['x'] =  msg.pose.pose.position.x  * -1
-        position['y'] = msg.pose.pose.position.y #* -1
+        position['x'] =  msg.pose.pose.position.x # * -1
+        position['y'] = msg.pose.pose.position.y * -1
         position['z'] = msg.pose.pose.position.z #* -1
 #        linear_vel['x'] = msg.twist.twist.linear.x
 #        linear_vel['y'] = msg.twist.twist.linear.y # * -1
