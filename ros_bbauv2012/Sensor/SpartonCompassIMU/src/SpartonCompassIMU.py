@@ -231,21 +231,21 @@ if __name__ == '__main__':
                                 # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                                 Imu_data.orientation = Quaternion()
                                 # orientation
-                                ai = imu_data.orientation.x / 2.0
-                                aj = imu_data.orientation.y / 2.0
-                                ak = imu_data.orientation.z / 2.0
-                                ci = math.cos(ai)
-                                si = math.sin(ai)
-                                cj = math.cos(aj)
-                                sj = math.sin(aj)
-                                ck = math.cos(ak)
-                                sk = math.sin(ak)
-                                quaternion = numpy.empty((4, ), dtype=numpy.float64)
+                                #ai = imu_data.orientation.x / 2.0
+                                #aj = imu_data.orientation.y / 2.0
+                                #ak = imu_data.orientation.z / 2.0
+                                #ci = math.cos(ai)
+                                #si = math.sin(ai)
+                                #cj = math.cos(aj)
+                                #sj = math.sin(aj)
+                                #ck = math.cos(ak)
+                                #sk = math.sin(ak)
+                                #quaternion = numpy.empty((4, ), dtype=numpy.float64)
                                 
-                                Imu_data.orientation.x = si*cj*ck - ci*sj*sk
-                                Imu_data.orientation.y = ci*sj*ck + si*cj*sk
-                                Imu_data.orientation.z = ci*cj*sk - si*sj*ck
-                                Imu_data.orientation.w = ci*cj*ck + si*sj*sk
+                                Imu_data.orientation.x = x #si*cj*ck - ci*sj*sk
+                                Imu_data.orientation.y = y #ci*sj*ck + si*cj*sk
+                                Imu_data.orientation.z = z #ci*cj*sk - si*sj*ck
+                                Imu_data.orientation.w = w #ci*cj*ck + si*sj*sk
                                 
                                 # angular velocity
                                 Imu_data.angular_velocity.x = Gx

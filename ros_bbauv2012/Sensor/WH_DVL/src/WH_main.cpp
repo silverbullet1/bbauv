@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     string alt_topic_name;
 
     // Initialize node parameters.
-    private_node_handle_.param("baud", baud, int(57600));
+    private_node_handle_.param("baud", baud, int(115200));
     private_node_handle_.param("init_time", init_time, int(5));
     private_node_handle_.param("port", port_name, string("/dev/ttyDVL"));
     private_node_handle_.param("odom_topic_name", odom_topic_name, string("WH_DVL_data"));
