@@ -10,7 +10,6 @@ import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
-from com.video.videostream import VideoWidget
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -472,8 +471,8 @@ class AUV_gui(QMainWindow):
     
     def initImage(self):
         self.bridge = CvBridge()
-        frontcam_sub = rospy.Subscriber(rospy.get_param('~front_image',"/debug/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
-        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom_image',"/debug/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
+        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/debug/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
+        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/debug/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
 
     def initSub(self):
         thruster_sub = rospy.Subscriber("/thruster_speed",thruster, self.thruster_callback)

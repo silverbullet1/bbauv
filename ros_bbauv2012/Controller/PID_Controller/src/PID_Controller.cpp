@@ -33,8 +33,7 @@ const static int PSI30 = 206842;
 const static int PSI100 = 689475;
 const static int ATM = 99974; //Pascals or 14.5PSI
 
-//Navigation Constants
-float az = 0.0;
+double thruster5_ratio,thruster6_ratio;
 
 bbauv_msgs::controller ctrl;
 bbauv_msgs::thruster thrusterSpeed;
@@ -226,8 +225,8 @@ void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,doubl
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
   {
-	double speed5_output = - depthPID_output + pitchPID_output + manual_speed[4];
-	double speed6_output = - depthPID_output - pitchPID_output + manual_speed[5];
+	double speed5_output = thruster5_ratio*(- depthPID_output + pitchPID_output + manual_speed[4]);
+	double speed6_output = thruster6_ratio*(- depthPID_output - pitchPID_output + manual_speed[5]);
     if(speed5_output < -3200) thrusterSpeed.speed5 = -3200;
     else if(speed5_output >3200) thrusterSpeed.speed5 = 3200;
     else thrusterSpeed.speed5= speed5_output;
@@ -332,6 +331,8 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inPitchPID = config.pitch_PID;
   inNavigation = config.navigation;
   inHovermode = config.hovermode;
+  thruster5_ratio = config.thruster5_ratio;
+  thruster6_ratio = config.thruster6_ratio;
 
   ctrl.heading_setpoint = config.heading_setpoint;
   ctrl.depth_setpoint = config.depth_setpoint;
