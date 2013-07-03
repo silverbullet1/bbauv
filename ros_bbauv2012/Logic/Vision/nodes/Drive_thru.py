@@ -16,14 +16,14 @@ import smach_ros
 import math
 import os
 
-from com.speedtrap.speedtrap import SpeedTrap
+from com.drive_thru.drive_thru import Drive_thru
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import * 
 
 # Dynamic Reconfigure
 
 from dynamic_reconfigure.server import Server
-from Vision.cfg import SpeedTrapConfig
+from Vision.cfg import DrivethruConfig
 
 # External libraries
 import numpy as np
@@ -48,7 +48,7 @@ class Disengage(smach.State):
         global isEnd
         global mission_srv_request
         global movement_client
-        global st
+        global dt
         global isTest
         if userdata.complete == True:
              isStart = False
@@ -70,13 +70,13 @@ class Disengage(smach.State):
                 rospy.signal_shutdown("Deactivating Gate Node")
                 return 'complete_outcome'
             if isStart:
-                st.register()
+                dt.register()
                 print "starting..."
                 return 'start_complete'
         return 'aborted'
     
 class Search(smach.State):
-    global st
+    global dt
     global mission_srv_request
    # global r
     def __init__(self):
@@ -84,10 +84,13 @@ class Search(smach.State):
         
     def execute(self, userdata):
        global r
-       global st
+       global dt
        global isAbort
        global isTest
-       while len(st.angleList) == 0 and not rospy.is_shutdown():
+       while not rospy.is_shutdown():
+           if dt.pipe_skeleton_pose != None:
+               if dt.pipe_skeleton_pose.detect_pipe:
+                   break
            if isAbort:
                 return "mission_abort"
            r.sleep()
@@ -103,14 +106,16 @@ class Search(smach.State):
 
 class Centering(smach.State):
     global mission_srv_request
+   # global r
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete', 'aborted', 'mission_abort'], output_keys=['center_pos'])
         
     def execute(self, userdata):
         global r
-        global st
+        global dt
         global movement_client
         global locomotionGoal
+        global drivethru_params
         global isAbort
         orientation_error = 0
         isOrientationDone = False
@@ -118,26 +123,25 @@ class Centering(smach.State):
         while(not center_complete and not rospy.is_shutdown()):
             if isAbort:
                 return 'mission_abort'
-            if(st.centroidx != 0):
-                side_error = speedtrap_params['centering_y'] * (st.centroidx - st.cols / 2)
-                fwd_error = -speedtrap_params['centering_x'] * (st.centroidy - st.rows / 2)
-                if(st.orientation != None):
-                    if st.isCentering and isOrientationDone == False:
-                        if(st.orientation > 90):
-                            orientation_error = (st.yaw - (180 - st.orientation)) % 360
+            if(dt.centroid != None):
+                side_error = drivethru_params['centering_y'] * (dt.centroid[0] - dt.cols / 2)
+                fwd_error = -drivethru_params['centering_x'] * (dt.centroid[1] - dt.rows / 2)
+                if(dt.orientation != None):
+                    if isOrientationDone == False:
+                        if(dt.orientation > 90):
+                            orientation_error = (dt.yaw - (180 - dt.orientation)) % 360
                         else:
-                            orientation_error = (st.yaw + st.orientation) % 360
-                        print st.angleList
-                        rospy.loginfo("selected orient:" + str(st.orientation) + "ahrs yaw:" + str(st.yaw) + "final yaw:" + str(orientation_error))
+                            orientation_error = (dt.yaw + dt.orientation) % 360
+                        rospy.loginfo("selected orient:" + str(dt.orientation) + "ahrs yaw:" + str(dt.yaw) + "final yaw:" + str(orientation_error))
                         isOrientationDone = True
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
-                if (np.fabs(st.centroidx - st.cols / 2) < st.outer_center) and np.fabs(st.centroidy - st.rows / 2) < st.outer_center and np.fabs(orientation_error - st.yaw) < 5 and isOrientationDone :
-                    # userdata.center_pos = st.position
+                if (np.fabs(dt.centroid[0] - dt.cols / 2) < dt.inner_center) and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.inner_center and np.fabs(orientation_error - dt.yaw) < 5 and isOrientationDone :
+                    # userdata.center_pos = dt.position
                     locomotionGoal.heading_setpoint = orientation_error
                     movement_client.cancel_all_goals()
                     return "centering_complete"
-                # print "orientation error:" + str(orientation_error) + "isCentering:" + str(st.isCentering)
+                # print "orientation error:" + str(orientation_error) + "isCentering:" + str(dt.isCentering)
                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error, heading_setpoint=orientation_error, depth_setpoint=locomotionGoal.depth_setpoint, sidemove_setpoint=side_error)
                 movement_client.send_goal(goal)
                 movement_client.wait_for_result(rospy.Duration(2))
@@ -153,59 +157,33 @@ class Aiming(smach.State):
         
     def execute(self, userdata):
         global r
-        global st
+        global dt
         global movement_client
         global locomotionGoal
-        global speedtrap_params
+        global drivethru_params
         global isAbort
         global count
         depth_offset = 0
-        while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
+        while not rospy.is_shutdown():
             if isAbort:
                 return "mission_abort"
-            '''Selection Algorithm for the top left and top right speed trap bins'''
-            final_coord = None
-            coord_min_y = np.argmin(st.centroidy_list, None)
-            for i in range(0,len(st.centroidy_list)):
-                if (np.fabs(st.centroidy_list[i] - st.centroidy_list[coord_min_y]) < 50):
-                    if count == 0:
-                        #Select Top Left
-                        if st.centroidx_list[i] < st.centroidx_list[coord_min_y]:
-                            final_coord = i
-                    elif count == 1:
-                        #Select Top Right
-                        if st.centroidx_list[i] > st.centroidx_list[coord_min_y]:
-                            final_coord = i
-            if final_coord == None:
-                rospy.loginfo("coord_min select")
-                aim_x = st.centroidx_list[coord_min_y]
-                aim_y = st.centroidy_list[coord_min_y]
-            else:                
-                rospy.loginfo("final_coord select")
-                aim_x = st.centroidx_list[final_coord]
-                aim_y = st.centroidy_list[final_coord]
-                
-            st.aim_point = (int(aim_x),int(aim_y))
-            x_error = aim_x - st.cols / 2
-            y_error = aim_y - st.rows / 2
+            x_error = dt.centroid[0] - dt.cols / 2
+            y_error = dt.centroid[1] - dt.rows / 2
             
-            side_error = speedtrap_params['aiming_y'] * (x_error)
-            fwd_error = -speedtrap_params['aiming_x'] * (y_error)
+            side_error = drivethru_params['aiming_y'] * (x_error)
+            fwd_error = -drivethru_params['aiming_x'] * (y_error)
             
             ''' Area selection criterion for stoppage of lowering'''
-            
-            print st.max_area
-            if st.max_area > speedtrap_params['bin_area']:
+            print dt.max_area
+            if dt.max_area > drivethru_params['bin_area']:
                  self.isLowering = False
-            if ((np.fabs(aim_x - st.cols / 2) < st.outer_center and np.fabs(aim_y - st.rows / 2) < st.outer_center) and st.max_area > speedtrap_params['bin_area'] - 5000) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
+            if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.outer_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.outer_center) and dt.max_area > drivethru_params['bin_area'] - 5000) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
                 locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint + depth_offset
-                st.isAim = True
                 rospy.loginfo("Identifying target...")
-                rospy.sleep(rospy.Duration(4))
-                rospy.loginfo("Target identified") 
-                return "aiming_complete"
+                #return "aiming_complete"
+                movement_client.cancel_all_goals()
             if self.isLowering:
-                depth_offset = depth_offset + 0.15
+                depth_offset = depth_offset + 0.05
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
@@ -220,6 +198,8 @@ class Aiming(smach.State):
             return 'aiming_complete'
 
 class Firing(smach.State):
+    Kx = 0.001
+    Ky = 0.002
     def __init__(self):
         smach.State.__init__(self, outcomes=['firing_complete', "firing_all_complete", 'aborted', 'mission_abort'],
                              output_keys=['complete'])
@@ -232,74 +212,74 @@ class Firing(smach.State):
         else:
             _manipulator.servo1 = 0
             _manipulator.servo2 = 1
-        _manipulator.servo3 = 0
-        _manipulator.servo4 = 0
+        _manipulator.servo3 = 1
+        _manipulator.servo4 = 1
         _manipulator.servo5 = 0
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
     def execute(self, userdata):
         global r
-        global st
+        global dt
         global movement_client
         global locomotionGoal
         global count
         global speedtrap_params
         x_error = 0
         y_error = 0
-        while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
+        while(len(dt.centroidx_list) > 0 and not rospy.is_shutdown()):
             if isAbort:
                 return "mission_abort"
             
             '''Selection Algorithm for the top left and top right speed trap bins'''
             final_coord = None
-            coord_min_y = np.argmin(st.centroidy_list, None)
-            for i in range(0,len(st.centroidy_list)):
-                if (np.fabs(st.centroidy_list[i] - st.centroidy_list[coord_min_y]) < 50):
+            coord_min_y = np.argmin(dt.centroidy_list, None)
+            for i in range(0,len(dt.centroidy_list)):
+                if (np.fabs(dt.centroidy_list[i] - dt.centroidy_list[coord_min_y]) < 50):
                     if count == 0:
                         #Select Top Left
-                        if st.centroidx_list[i] < st.centroidx_list[coord_min_y]:
+                        if dt.centroidx_list[i] < dt.centroidx_list[coord_min_y]:
                             final_coord = i
                     elif count == 1:
                         #Select Top Right
-                        if st.centroidx_list[i] > st.centroidx_list[coord_min_y]:
+                        if dt.centroidx_list[i] > dt.centroidx_list[coord_min_y]:
                             final_coord = i
             if final_coord == None:
-                aim_x = st.centroidx_list[coord_min_y]
-                aim_y = st.centroidy_list[coord_min_y]
+                aim_x = dt.centroidx_list[coord_min_y]
+                aim_y = dt.centroidy_list[coord_min_y]
             else:                
-                aim_x = st.centroidx_list[final_coord]
-                aim_y = st.centroidy_list[final_coord]
+                aim_x = dt.centroidx_list[final_coord]
+                aim_y = dt.centroidy_list[final_coord]
             if count == 0:
-                st.aim_point = (int(aim_x -100),int(aim_y))
-                x_error = aim_x - st.cols / 2 + 100 
-                y_error = aim_y - st.rows / 2
+                dt.aim_point = (int(aim_x -100),int(aim_y))
+                x_error = aim_x - dt.cols / 2 + 100 
+                y_error = aim_y - dt.rows / 2
             elif count == 1:
-                st.aim_point = (int(aim_x + 100),int(aim_y))
-                x_error = aim_x - st.cols / 2 - 100
-                y_error = aim_y - st.rows / 2
+                dt.aim_point = (int(aim_x + 100),int(aim_y))
+                x_error = aim_x - dt.cols / 2 - 100
+                y_error = aim_y - dt.rows / 2
             side_error = speedtrap_params['firing_y'] * (x_error)
             fwd_error = -speedtrap_params['firing_x'] * (y_error)
-            if ((np.fabs(x_error) < st.outer_center and np.fabs(y_error) < st.outer_center)) :
+            if ((np.fabs(x_error) < dt.outer_center and np.fabs(y_error) < dt.outer_center)) :
                 print "Fire aim success"
-                st.isAim = False
+                dt.isAim = False
                 if count == 0:
                     movement_client.cancel_all_goals()
-                    self.fire_dropper(True)
+                    self.fire_dropper(False)
                     rospy.loginfo("Fire left Dropper!")
                     rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(3))
+                    rospy.sleep(rospy.Duration(2))
                     count = 1
-                    st.counter = 1
+                    dt.counter = 1
                     return "firing_complete"
                 if count == 1:
                     movement_client.cancel_all_goals()
-                    self.fire_dropper(False)
+                    self.fire_dropper(True)
                     rospy.loginfo("Fire right Dropper!")
                     rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(3))
+                    rospy.sleep(rospy.Duration(2))
                     count = 2
-                    st.counter = 2
+                    dt.counter = 2
                     userdata.complete = True
                     return "firing_all_complete"
                 # rospy.loginfo("Identifying targ...")
@@ -320,16 +300,16 @@ class Manuoevre(smach.State):
         smach.State.__init__(self, outcomes=['manuoevre_complete', 'aborted', 'mission_abort'])
     def execute(self, userdata):
         global r
-        global st
+        global dt
         global movement_client
         global locomotionGoal
         global count
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=0.5)
+                                                     sidemove_setpoint=0.2)
         movement_client.send_goal(goal)
-        movement_client.wait_for_result(rospy.Duration(4))
+        movement_client.wait_for_result(rospy.Duration(2))
 	rospy.loginfo("sway movement to second bin complete!")
         return "manuoevre_complete"
         if rospy.is_shutdown():
@@ -350,7 +330,7 @@ def handle_srv(req):
     global isStart
     global isAbort
     global locomotionGoal
-    global st
+    global dt
     rospy.loginfo("Speed Trap service handled.")
     if req.start_request:
         rospy.loginfo("isStart true.")
@@ -362,42 +342,27 @@ def handle_srv(req):
         rospy.loginfo("SpeedTrap abort received")
         isAbort = True
         isStart = False
-        st.unregister()
+        dt.unregister()
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = False
+isTest = True
 movement_client = None
 locomotionGoal = None 
 isStart = False
 isAbort = False  
 isEnd = False
 count = 0
-st = None     
+dt = None     
 r = None
 mani_pub = None
-speedtrap_params = {'bin_area': 0, 'firing_x':10, 'firing_y':0, 'centering_x':0, 'centering_y':0, 'aiming_x':0, 'aiming_y':0}
+drivethru_params = {'bin_area': 0,'shape_hu':0.0, 'firing_x':10, 'firing_y':0, 'centering_x':0, 'centering_y':0, 'aiming_x':0, 'aiming_y':0}
 
 if __name__ == '__main__':
-    rospy.init_node('SpeedTrap', anonymous=False)
-    r = rospy.Rate(20)
-    st = SpeedTrap()
-    rospy.loginfo("SpeedTrap loaded!")
-    
-    # Set up param configuration window
-    def speedtrapCallback(config, level):
-        for param in st.yellow_params:
-            st.yellow_params[param] = config['yellow_' + param]
-        for param in st.red_params:
-            st.red_params[param] = config['red_' + param]
-        for param in speedtrap_params:
-            speedtrap_params[param] = config[param]
-        isTest = config['test_mode']
-        return config
-    srv = Server(SpeedTrapConfig, speedtrapCallback)
-    
+    rospy.init_node('Drivethru', anonymous=False)
     if isTest:
         isStart = True
+    r = rospy.Rate(20)
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
     mani_pub = rospy.Publisher("/manipulators", manipulator)
@@ -405,8 +370,8 @@ if __name__ == '__main__':
         locomotionGoal = bbauv_msgs.msg.ControllerGoal()
         locomotionGoal.heading_setpoint = 130
         locomotionGoal.depth_setpoint = 0.6
-    vision_srv = rospy.Service('speedtrap_srv', mission_to_vision, handle_srv)
-    rospy.loginfo('speedtrap_srv initialized!')
+    vision_srv = rospy.Service('drivethru_srv', mission_to_vision, handle_srv)
+    rospy.loginfo('drivethru_srv initialized!')
     
     # Service Client
     if not isTest:
@@ -414,13 +379,26 @@ if __name__ == '__main__':
         rospy.wait_for_service('mission_srv')
         mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
         rospy.loginfo('connected to mission_srv!')
+    
+    dt = Drive_thru()
+    rospy.loginfo("Drive Thru loaded!")
+    # Set up param configuration window
+    def drivethruCallback(config, level):
+        global dt
+        dt.shape_hu = config['shape_hu']
+        for param in dt.orange_params:
+            dt.orange_params[param] = config['orange_' + param]
+        for param in drivethru_params:
+            drivethru_params[param] = config[param]
+        return config
+    srv = Server(DrivethruConfig, drivethruCallback)
    
-    sm_top = smach.StateMachine(outcomes=['speedtrap_complete', 'aborted'])
+    sm_top = smach.StateMachine(outcomes=['drivethru_complete', 'aborted'])
     # Add overall States to State Machine for Gate Task 
     with sm_top:
         smach.StateMachine.add('DISENGAGED',
                          Disengage(),
-                         transitions={'start_complete':'SEARCH', 'complete_outcome':'speedtrap_complete', 'aborted':'aborted'}
+                         transitions={'start_complete':'SEARCH', 'complete_outcome':'drivethru_complete', 'aborted':'aborted'}
                          )
         smach.StateMachine.add('SEARCH',
                          Search(),
@@ -447,7 +425,7 @@ if __name__ == '__main__':
                                       'mission_abort':'DISENGAGED'}
                          )
 
-    sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/SPEEDTRAP')
+    sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/DRIVE_THRU')
     sis.start()
     sm_top.userdata.complete = False
     # Execute SMACH plan

@@ -93,21 +93,19 @@ class SpeedTrap:
         self.bridge = CvBridge()
         self.yellow_hist.setParams(self.yellow_params)
         self.red_hist.setParams(self.red_params)
-        self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
-        self.bridge = CvBridge()
         rospy.loginfo("Speedtrap Ready")
  
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
         self.image_sub = rospy.Subscriber(rospy.get_param('~image','/bottomcam/camera/image_rect_color'), Image,self.processImage)
+        self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         rospy.loginfo("Topics registered")
     def unregister(self):
         self.image_sub.unregister()
         self.image_pub.unregister()
+        self.yaw_sub.unregister()
         rospy.loginfo("Topics unregistered")
         
-    def collectPosition(self,msg):
-        self.position = (msg.pose.pose.position.x , msg.pose.pose.position.y)
     def collectYaw(self,msg):
         self.yaw = msg.yaw
     
@@ -209,7 +207,6 @@ class SpeedTrap:
                     contourRect= cv2.minAreaRect(contours[i])
                     pos,size,theta = contourRect
                     binList.append(contourRect)
-                    #cv2.rectangle(contourImg, (rect[0],rect[1]), (rect[0] + rect[2],rect[1] + rect[3]), (255,0,0))
                     # Obtain the actual corners of the box
                     points = cv2.cv.BoxPoints(contourRect)
                     longest_pt1 = None
@@ -325,10 +322,7 @@ class SpeedTrap:
         try:
             if(final_image != None):
                 final_image= cv2.cv.fromarray(final_image)
-                #cv_single = cv2.cv.fromarray(cv_single)
-                #contourImg = cv2.cv.fromarray(contourImg)
                 if(self.image_pub != None):
                     self.image_pub.publish(self.bridge.cv_to_imgmsg(final_image,encoding="bgr8"))
-            #cv2.waitKey(1)
         except CvBridgeError, e:
             print e

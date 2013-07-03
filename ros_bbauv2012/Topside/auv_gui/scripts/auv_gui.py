@@ -10,11 +10,18 @@ import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
+from com.video.videostream import VideoWidget
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
 import Queue
+
+import cv2 as cv2
+from cv_bridge import CvBridge, CvBridgeError
+import numpy as np
+from sensor_msgs.msg import Image
+
 from bbauv_msgs.msg._thruster import thruster
 from bbauv_msgs.msg._openups import openups
 from std_msgs import msg
@@ -31,8 +38,10 @@ class AUV_gui(QMainWindow):
     depth = 0
     pos_x = 0
     pos_y = 0
+    cvRGBImg_front = None
+    cvRGBImg_bot = None
     isArmed = False
-    update_freq = 50
+    update_freq =50
     q_orientation = Queue.Queue()
     q_depth = Queue.Queue() 
     q_earth_pos = Queue.Queue()
@@ -45,6 +54,8 @@ class AUV_gui(QMainWindow):
     q_openups = Queue.Queue()
     q_temp = Queue.Queue()
     q_altitude = Queue.Queue()
+    q_image_bot = Queue.Queue()
+    q_image_front = Queue.Queue()
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(),
@@ -63,16 +74,19 @@ class AUV_gui(QMainWindow):
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
         
         rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Relative:")
-        
+        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Relative:")
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
         goal_heading_layout.addLayout(layout5)
+        goal_depth_layout = QHBoxLayout()
+        goal_depth_layout.addLayout(layout4)
+        goal_depth_layout.addLayout(layout6)
         
         goal_layout = QVBoxLayout()
         goal_layout.addLayout(layout1)
         goal_layout.addLayout(layout2)
         goal_layout.addLayout(goal_heading_layout)
-        goal_layout.addLayout(layout4)
+        goal_layout.addLayout(goal_depth_layout)
         
         # Buttons Layout
         okButton = QPushButton("&Start Goal")
@@ -113,12 +127,12 @@ class AUV_gui(QMainWindow):
         hoverButton.clicked.connect(self.hoverBtnHandler)
         homeButton.clicked.connect(self.homeBtnHandler)
         vbox = QVBoxLayout()
-       # hbox.addStretch(1)
+        #hbox.addStretch(1)
         vbox.addWidget(okButton)
         vbox.addWidget(cancelButton)
         vbox.addWidget(disableButton)
         vbox2 = QVBoxLayout()
-       # hbox.addStretch(1)
+        #hbox.addStretch(1)
         vbox2.addWidget(hoverButton)
         vbox2.addWidget(surfaceButton)
         vbox2.addWidget(homeButton)
@@ -254,20 +268,35 @@ class AUV_gui(QMainWindow):
         main_Vlayout.addLayout(overall_display_layout)
         main_layout.addLayout(main_Vlayout)
         main_layout.addWidget(self.depth_thermo)
+        
+        video_layout = QVBoxLayout()
+        self.video_top = QLabel()
+        self.video_bot = QLabel()
+        video_top_l = QLabel("<b>Front Camera</b>")
+        video_bot_l = QLabel("<b>Bottom Camera</b>")
+        video_layout.addWidget(video_top_l)
+        video_layout.addWidget(self.video_top)
+        video_layout.addWidget(video_bot_l)
+        video_layout.addWidget(self.video_bot)
+        #video_layout.addStretch(1)
+        main_layout.addLayout(video_layout)
+        
+        
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
-        self.setGeometry(300, 300, 850, 670)
+        self.setGeometry(300, 300, 1050, 670)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
         self.setCentralWidget(self.main_frame)
         self.heading_provider.valueChanged.connect(self.valueChanged)
+        self.initImage()
         self.initAction()
         self.initSub()
         self.initService()
         self.timer = QTimer()
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
-
+    
     def on_timer(self):
         yaw = None
         depth = None
@@ -282,6 +311,8 @@ class AUV_gui(QMainWindow):
         openups = None
         temp = None
         altitude = None
+        image_bot = None
+        image_front = None
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
@@ -331,7 +362,14 @@ class AUV_gui(QMainWindow):
             earth_pos = self.q_earth_pos.get(False,0)
         except Exception,e:
             pass
-        
+        try:
+            image_front = self.q_image_front.get(False,0)
+        except Exception,e:
+            pass
+        try:
+            image_bot = self.q_image_bot.get(False,0)
+        except Exception,e:
+            pass
         '''If data in queue is available store it into data'''
         if temp!= None:
             self.data['temp'] = temp.data
@@ -369,6 +407,11 @@ class AUV_gui(QMainWindow):
             self.data['depth_error'] =controller_feedback.feedback.depth_error
             self.data['goal_id'] = controller_feedback.status.goal_id.id
             self.data['status'] = controller_feedback.status.status
+        if image_front != None:
+            self.update_video_front(image_front)
+        if image_bot != None:
+            self.update_video_bot(image_bot)
+        
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
         self.attitudePanel1.setText("<b>YAW: " + str(round(self.data['yaw'],2)) + 
@@ -422,16 +465,20 @@ class AUV_gui(QMainWindow):
                                     "<br> FWD ERR: " + str(round(self.data['forward_error'],2)) + 
                                     "<br>SIDE ERR: "+ str(round(self.data['sidemove_error'],2)) + 
                                     "<br>DEP ERR: "+ str(round(self.data ['depth_error'],2)) + "</b>")
-        
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
         self.status_text.setText("Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
-  
+    
+    def initImage(self):
+        self.bridge = CvBridge()
+        frontcam_sub = rospy.Subscriber(rospy.get_param('~front_image',"/debug/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
+        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom_image',"/debug/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
+
     def initSub(self):
         thruster_sub = rospy.Subscriber("/thruster_speed",thruster, self.thruster_callback)
-        depth_sub = rospy.Subscriber("/depth", bbauv_msgs.msg.depth ,self.depth_callback)
-        orientation_sub = rospy.Subscriber("/euler", bbauv_msgs.msg.compass_data ,self.orientation_callback)
+        depth_sub = rospy.Subscriber("/depth", depth ,self.depth_callback)
+        orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
         self.mani_pub = rospy.Publisher("/manipulators",manipulator)
@@ -483,7 +530,7 @@ class AUV_gui(QMainWindow):
         #movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, False, False,False)
-        goal = bbauv_msgs.msg.ControllerGoal
+        goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
         goal.heading_setpoint = self.data['yaw']
@@ -492,7 +539,7 @@ class AUV_gui(QMainWindow):
         
     def surfaceBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, False, False,False)
-        goal = bbauv_msgs.msg.ControllerGoal
+        goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
         goal.heading_setpoint = self.data['yaw']
@@ -501,13 +548,14 @@ class AUV_gui(QMainWindow):
         
     def disableBtnHandler(self):
         resp = self.set_controller_request(False, False, False, False, False, True, False)
-        print "resp:" + str(resp)
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
         resp = self.set_controller_request(True, True, True, True, False, False,False)
-        print "resp:" + str(resp)
-        goal = bbauv_msgs.msg.ControllerGoal
-        goal.depth_setpoint = float(self.depth_box.text())
+        goal = ControllerGoal()
+        if self.rel_depth_chkbox.checkState():
+            goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
+        else:    
+            goal.depth_setpoint = float(self.depth_box.text())
         goal.sidemove_setpoint = float(self.sidemove_box.text())
         if self.rel_heading_chkbox.checkState():
             goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
@@ -571,7 +619,7 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Action Client ended goal.")
         #resp = self.set_controller_request(False, False, False, False, False, True, False)
     def initAction(self):
-        self.client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+        self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
         self.status_text.setText("Waiting for Action Server to connect.")
         self.client.wait_for_server()
@@ -604,6 +652,42 @@ class AUV_gui(QMainWindow):
         
         return (label, qle, layout)
     
+    # Convert a ROS Image to the Numpy matrix used by cv2 functions
+    def rosimg2cv(self, ros_image):
+        # Convert from ROS Image to old OpenCV image
+        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        # Convert from old OpenCV image trackbarnameto Numpy matrix
+        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
+    
+    def update_video_front(self,image):
+        #convert numpy mat to pixmap image
+        qimg = QImage(image.data,image.shape[1], image.shape[0], QImage.Format_RGB888)
+        
+        qpm = QPixmap.fromImage(qimg)
+        
+        self.video_top.setPixmap(qpm)
+        
+    def update_video_bot(self,image):
+        qimg = QImage(image.data,image.shape[1], image.shape[0], QImage.Format_RGB888)
+        
+        qpm = QPixmap.fromImage(qimg)
+        
+        self.video_bot.setPixmap(qpm)
+        
+    def front_callback(self,image):
+        cvRGBImg_front = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+        try:
+            self.q_image_front.put(cvRGBImg_front)
+        except CvBridgeError, e:
+            print e
+        
+    def bottom_callback(self,image):
+        cvRGBImg_bot = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+        try:
+            self.q_image_bot.put(cvRGBImg_bot)
+        except CvBridgeError, e:
+            print e
+        
     def thruster_callback(self,thruster):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):
