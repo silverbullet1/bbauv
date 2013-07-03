@@ -36,6 +36,9 @@ bool nearField = true;
 // output data
 double x, y, z;
 
+double yaw = 0;
+double max_turning_rate = 90;
+
 void hydrophone_callback(const geometry_msgs::Twist::ConstPtr& msg);
 void control_callback(const bbauv_msgs::acoustic_control::ConstPtr& msg);
 
@@ -48,9 +51,9 @@ int main(int argc, char **argv){
     // initialize node constants
     int ros_rate = 10;
     speedOfSound = 1484;
-    x_1 = 0.07;    y_1 = 0.07;    z_1 = 0;
-    x_2 = 0.07;    y_2 = -0.07;   z_2 = 0;
-    x_3 = 0;  	   y_3 = 0;       z_3 = -0.1;
+    x_1 = 0;       y_1 = -0.07;    z_1 = 0.07;
+    x_2 = 0;       y_2 = 0.07;     z_2 = 0.07;
+    x_3 = 0.1;     y_3 = 0;        z_3 = 0;
     z = 3;
     
     ros::init(argc, argv, "acoustic_TDOA");
@@ -62,6 +65,7 @@ int main(int argc, char **argv){
     ros::Subscriber control_sub = nh.subscribe(control_topic, 100, control_callback);
 
     ros::Rate loop_rate(ros_rate);
+    double temp_yaw = 0;
     while (ros::ok()){
         d10 = time_diff1 * speedOfSound;
         d20 = time_diff2 * speedOfSound;
@@ -79,7 +83,9 @@ int main(int argc, char **argv){
         point_msg.y = y;
         point_msg.z = z;
         pub.publish(point_msg);
-	cout << "YAW:" << atan2(y,x) * 180.0 / M_PI << endl;;
+        temp_yaw = atan2(y,x) * 180.0 / M_PI;
+        if (abs(yaw - temp_yaw) < max_turning_rate) yaw = temp_yaw;;
+	    cout << "yaw angle:" << yaw << endl;
 
         ros::spinOnce();
         loop_rate.sleep();

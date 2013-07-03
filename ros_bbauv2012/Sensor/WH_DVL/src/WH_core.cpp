@@ -232,13 +232,13 @@ void DVL::findData() {
     end_location = 0;
     start_location = rcvStr.find(WH_HEADER_ID);
     if (start_location == (int)string::npos) {
-        ROS_INFO("WH_core cannot find header ID");
+        ROS_ERROR("WH_core cannot find header ID");
         return;
     }
 
     end_location = rcvStr.find(CMD_END, start_location);
     if (end_location == (int)string::npos) {
-        ROS_INFO("WH_core cannot find newline character");
+        ROS_DEBUG("WH_core cannot find newline character");
         return;
     }
 

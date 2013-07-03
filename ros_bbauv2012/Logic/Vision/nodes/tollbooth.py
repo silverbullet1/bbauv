@@ -531,8 +531,8 @@ Torpedo functions
 manipulator_pub = None # Publisher
 def chargeTorpedo(side):
     manip = manipulator()
-    manip.servo1 = 1
-    manip.servo2 = 1
+    manip.servo1 = 0
+    manip.servo2 = 0
     manip.servo3 = int(side != 'left')
     manip.servo4 = int(side != 'right')
     manip.servo5 = 0
@@ -542,8 +542,8 @@ def chargeTorpedo(side):
     
 def fireTorpedo(side):
     manip = manipulator()
-    manip.servo1 = 1
-    manip.servo2 = 1
+    manip.servo1 = 0
+    manip.servo2 = 0
     manip.servo3 = 1
     manip.servo4 = 1
     manip.servo5 = 0
