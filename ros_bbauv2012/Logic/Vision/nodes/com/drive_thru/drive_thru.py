@@ -207,7 +207,7 @@ class Drive_thru:
     def register(self):
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber(rospy.get_param('~image','/bottomcam/camera/image_rect_color_opt'), Image,self.processImage)
+        self.image_sub = rospy.Subscriber(rospy.get_param('~image','/bottomcam/camera/image_rect_color'), Image,self.processImage)
         self.cam_info_sub_ = rospy.Subscriber('bottomcam/camera/camera_info', CameraInfo, self.CameraInfoCB)
         rospy.loginfo("Topics registered")
     def unregister(self):
