@@ -7,8 +7,10 @@
 
 #include <ros/ros.h>
 #include <bbauv_msgs/openups.h>
+#include <bbauv_msgs/openups_stats.h>
 
 const int NUM_UPS = 4;
+const float LOW_VOLTAGE = 21.6;
 
 using namespace std;
 
@@ -57,16 +59,28 @@ int main(int argc, char** argv)
 	bbauv_msgs::openups openupsMsg;
 	int8_t *charges = &openupsMsg.battery1;
 
-	ros::Publisher pub = n.advertise<bbauv_msgs::openups>("openups", 1);
+	bbauv_msgs::openups_stats openupsStatsMsg;
+	int8_t *statsCharges = &openupsStatsMsg.charge1;
+	float *statsCurrents = &openupsStatsMsg.current1;
+	float *statsVoltages = &openupsStatsMsg.voltage1;
+
+	ros::Publisher pubCharges = n.advertise<bbauv_msgs::openups>("battery_charge", 1);
+	ros::Publisher pubStats = n.advertise<bbauv_msgs::openups>("openups", 1);
 	ros::Rate loop_rate(0.2);
 
 	while (ros::ok())
 	{
 		for (int ups_id=1; ups_id<=NUM_UPS; ++ups_id)
 		{
+			int index = ups_id - 1;
+
 			ostringstream os;
 			os << "upsc openups" << ups_id << "@localhost 2> /dev/null";
 			FILE *fp = popen(os.str().c_str(), "r");
+
+			statsCharges[index] = charges[index] = -2;
+			statsCurrents[index] = 0;
+			statsVoltages[index] = 0;
 
 			if (fp)
 			{
@@ -78,17 +92,25 @@ int main(int argc, char** argv)
 				string status = extractBatteryState<string>(upsOutput, "ups.status", "");
 
 				//HACK: if "DISCHRG" not found in status, return default value
+				float voltage = extractBatteryState<float>(upsOutput, "battery.voltage", -1);
+
 				if (status.find("DISCHRG") == string::npos) {
-					charges[ups_id-1] = -1;
+					statsCharges[index] = charges[index] = (voltage < LOW_VOLTAGE) ? 0 : -1;
 				} else {
-					charges[ups_id-1] = extractBatteryState<int>(upsOutput, "battery.charge", -1);
+					charges[index] = extractBatteryState<int>(upsOutput, "battery.charge", -2);
+					charges[index] = (voltage < LOW_VOLTAGE) ? 0 : charges[index];
+
+					statsCharges[index] = charges[index];
+					statsCurrents[index] = extractBatteryState<float>(upsOutput, "battery.current", -1);
+					statsVoltages[index] = voltage;
 				}
 
 //				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, (int)charges[ups_id-1]);
 			}
 			pclose(fp);
 		}
-		pub.publish(openupsMsg);
+		pubCharges.publish(openupsMsg);
+		pubStats.publish(openupsStatsMsg);
 
 		ros::spinOnce();
 		loop_rate.sleep();
