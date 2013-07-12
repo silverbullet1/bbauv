@@ -131,7 +131,7 @@ class Centering(smach.State):
                         if(dt.orientation > 90):
                             orientation_error = (dt.yaw - (180 - dt.orientation)) % 360
                         else:
-                            orientation_error = (dt.yaw + dt.orientation) % 360
+                            orientation_error = (dt.yaw - dt.orientation) % 360
                         rospy.loginfo("selected orient:" + str(dt.orientation) + "ahrs yaw:" + str(dt.yaw) + "final yaw:" + str(orientation_error))
                         isOrientationDone = True
                 else:
@@ -167,31 +167,32 @@ class Aiming(smach.State):
         while not rospy.is_shutdown():
             if isAbort:
                 return "mission_abort"
-            x_error = dt.centroid[0] - dt.cols / 2
-            y_error = dt.centroid[1] - dt.rows / 2
-            
-            side_error = drivethru_params['aiming_y'] * (x_error)
-            fwd_error = -drivethru_params['aiming_x'] * (y_error)
-            
-            ''' Area selection criterion for stoppage of lowering'''
-            print dt.max_area
-            if dt.max_area > drivethru_params['bin_area']:
-                 self.isLowering = False
-            if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.outer_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.outer_center) and dt.max_area > drivethru_params['bin_area'] - 5000) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
-                locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint + depth_offset
-                rospy.loginfo("Identifying target...")
-                #return "aiming_complete"
-                movement_client.cancel_all_goals()
-            if self.isLowering:
-                depth_offset = depth_offset + 0.05
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
-                                                     heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
-                                                     sidemove_setpoint=side_error)
-            movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(2))
-            #rospy.loginfo("isLowering:" + str(self.isLowering))
-            r.sleep()
+            if dt.centroid[0] != None:
+                x_error = dt.centroid[0] - dt.cols / 2
+                y_error = dt.centroid[1] - dt.rows / 2
+                
+                side_error = drivethru_params['aiming_y'] * (x_error)
+                fwd_error = -drivethru_params['aiming_x'] * (y_error)
+                
+                ''' Area selection criterion for stoppage of lowering'''
+                print dt.max_area
+                if dt.max_area > drivethru_params['bin_area']:
+                     self.isLowering = False
+                if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.outer_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.outer_center) and dt.max_area > drivethru_params['bin_area'] - 5000) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
+                    locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint + depth_offset
+                    rospy.loginfo("Identifying target...")
+                    #return "aiming_complete"
+                    movement_client.cancel_all_goals()
+                if self.isLowering:
+                    depth_offset = depth_offset + 0.05
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                         heading_setpoint=locomotionGoal.heading_setpoint,
+                                                         depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
+                                                         sidemove_setpoint=side_error)
+                movement_client.send_goal(goal)
+                movement_client.wait_for_result(rospy.Duration(2))
+                #rospy.loginfo("isLowering:" + str(self.isLowering))
+                r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
         else:
@@ -212,8 +213,8 @@ class Firing(smach.State):
         else:
             _manipulator.servo1 = 0
             _manipulator.servo2 = 1
-        _manipulator.servo3 = 1
-        _manipulator.servo4 = 1
+        _manipulator.servo3 = 0
+        _manipulator.servo4 = 0
         _manipulator.servo5 = 0
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0

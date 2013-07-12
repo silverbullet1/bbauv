@@ -18,7 +18,7 @@ import cv2
 import math
 
 class Drive_thru:
-    debug = True
+    debug = False
     orange_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
     orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
     shape_hu = 0.0
@@ -122,7 +122,7 @@ class Drive_thru:
                         test, lowest_pt, second_lowest_pt = self.Calc_pose(rect_points, self.pipe_skeleton_pose)
                         pt1 = tuple(np.int32(lowest_pt))
                         pt2 = tuple(np.int32(second_lowest_pt))
-                        cv2.line(contourImg, pt1, pt2, (0,0,255), 2, 8)
+                        cv2.line(contourImg, pt2, pt1, (0,0,255), 2, 8)
                         self.orientation = np.fabs(self.computeAngle(pt1,pt2))
                         cv2.putText(contourImg,str(np.round(self.orientation,2)), (int(pt2[0]),int(pt2[1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                         if self.pipe_skeleton_pose.detect_pipe:

@@ -283,7 +283,7 @@ class AUV_gui(QMainWindow):
         
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
-        self.setGeometry(300, 300, 1050, 670)
+        self.setGeometry(300, 300, 1050, 700)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
         self.setCentralWidget(self.main_frame)
@@ -550,7 +550,7 @@ class AUV_gui(QMainWindow):
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
         resp = self.set_controller_request(True, True, True, True, False, False,False)
-        goal = ControllerGoal()
+        goal = ControllerGoal
         if self.rel_depth_chkbox.checkState():
             goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
         else:    

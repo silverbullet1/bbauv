@@ -8,7 +8,7 @@ import actionlib
 
 # Brings in the messages used by the fibonacci action, including the
 # goal message and the result message.
-import PID_Controller.msg
+import bbauv_msgs.msg
 
 def doneCB(state,result):
     print "I'm done!"
@@ -31,11 +31,11 @@ if __name__ == '__main__':
         # Initializes a rospy node so that the SimpleActionClient can
         # publish and subscribe over ROS.
         rospy.init_node('Test_Controller_Py')
-        client = actionlib.SimpleActionClient('LocomotionServer', PID_Controller.msg.ControllerAction)
+        client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         client.wait_for_server()
         
          # Creates a goal to send to the action server.
-        goal = PID_Controller.msg.ControllerGoal(forward_setpoint=0.5,heading_setpoint=0,depth_setpoint=0.5,sidemove_setpoint=0.3)
+        goal = ControllerGoal(forward_setpoint=0.5,heading_setpoint=0,depth_setpoint=0.5,sidemove_setpoint=0.3)
 
         # Sends the goal to the action sserver.
         client.send_goal(goal,doneCB,None,feedbackCB)
