@@ -29,10 +29,12 @@
   </node>
 
   <!-- this node to provide stereo-vision service of object distance culculation -->
+<!--
   <node pkg="stereo_vision_bbauv" type="pcl_process" name="pcl_process" output="screen">
     <remap from="/cloud" to="/stereo_camera/points2" />
     <param name="z_limit" value="5.0"/>
   </node>
+-->
 
   <param name="stereo_camera/left/image_raw/compressed/format" value="png" />
   <param name="stereo_camera/right/image_raw/compressed/format" value="png" />

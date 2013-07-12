@@ -9,7 +9,8 @@ import smach_ros
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
-from geometry_msgs.msg import *
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Float32
 
 import math
 import numpy as np
@@ -18,40 +19,25 @@ import numpy as np
 #1: Disengage - start/stop control of the node
 class Disengage(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'],
-                            input_keys=['complete'])
-    def execute(self,userdata):
-        #maintain heading after finishing 
-        if userdata.complete == True:
-            isStart = False
-            isEnd = True
-            locomotionGoal.depth_setpoint = 0.6
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
-                                                    heading_setpoint=locomotionGoal.heading_setpoint,
-                                                    depth_setpoint=locomotionGoal.depth_setpoint,
-                                                    sidemove_setpoint=0)
-            movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(15))
-
+        smach.State.__init__(self, outcomes=['started', 'deactivated', 'aborted'])
+    def execute(self,userdata):      
         while not rospy.is_shutdown():
             if isEnd:
                 rospy.signal_shutdown("Deactivating Acoustic Node")
-                return 'complete_outcome'
+                return 'deactivated'
             if isStart:
-                acoustic_nav.register()
-                print "starting Acoustic node"
-                return 'start_complete'
+                print "#1 Starting Acoustic node"
+                return 'started'
         return 'aborted'
 #2: CorrectHeading - use far field equation
 class CorrectHeading(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['correct_heading_completed','aborted'])
+        smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
-        r=rospy.Rate(0.5) #run at 2Hz
-        rel_angle=360 #fake angle to start the loop. comment: better use do... while (...)
+        print '#2 Correcting heading:'
+        far_field()
+        rel_yaw = (math.atan2(y,x)*180/math.pi) 
         while (np.fabs(rel_angle)>10):
-            far_field()
-            rel_yaw = (math.atan2(y,x)*180/math.pi) 
             if (rel_yaw != old_yaw):
                 print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_yaw={4:.3f}'.format(x,y,z,yaw,rel_yaw)
                 if (np.fabs(rel_yaw) < 80):
@@ -65,34 +51,46 @@ class CorrectHeading(smach.State):
                 old_yaw=rel_yaw
             else:
                 print 'waiting for new TDOA'
-            r.sleep() 
-        return 'correct_heading_completed'
+            rospy.sleep(3)
+            far_field()
+            rel_yaw = (math.atan2(y,x)*180/math.pi) 
+            
+        #maintain current heading, depth 
+        return 'completed'
         
 #3: SearchAhead - keep current heading, search until certain condition to use near field equation
 class SearchAhead(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['search_finished','aborted'])
-    #def execute(self,userdata):
+        smach.State.__init__(self, outcomes=['completed','aborted'])
+    def execute(self,userdata):
+        print '#3 Moving forward:'
+        rospy.sleep(5) #sleep 5s
+
+        return 'completed'
         #while z<? (to determine how close)
             #update goal to move forward
 #4: DriveThru - use near file equation and find exact position of the pinger
 class DriveThru(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['drive_finished','aborted'])
-    #def execute(self,userdata):
+        smach.State.__init__(self, outcomes=['completed','aborted'])
+    def execute(self,userdata):
+        r=rospy.Rate(0.2)
+        print '#4 Moving to exact positionmsg'
+        r.sleep()
+        print 'mission success'
+        return 'completed'
         #call nearfield
         #send final forward & sidemove goal
         #notify finish driving, go back to disengage state
 
 def TDOA_sub_callback(msg):
+    global d10,d20,d30
     d10=msg.linear.x/1000000*speedOfSound
     d20=msg.linear.y/1000000*speedOfSound
     d30=msg.linear.z/1000000*speedOfSound
 
 def far_field():
     global x,y,z
-    global x_1,x_2,x_3,y_1,y_2,y_3,z_1,z_2,z_3
-    global d10,d20,d30
 
     detA = x_1 * (y_2 * z_3 - y_3 * z_2)
     detA -= y_1 * (x_2 * z_3 - x_3 * z_2)
@@ -120,15 +118,67 @@ def far_field():
         y = y / normalize
         z = z / normalize
 
-def get_heading(data):
+def near_field():
+    global x,y,z
+
+    z = 3 #altitude
+    
+    if (d10!=0 and d20!=0 and d30!=0):
+        A2 = 2 * (x_2 / d20 - x_1 / d10)
+        B2 = 2 * (y_2 / d20 - y_1 / d10)
+        A3 = 2 * (x_3 / d30 - x_1 / d10)
+        B3 = 2 * (y_3 / d30 - y_1 / d10)
+        
+        C2 = z * 2 * (z_2/d20 - z_1/d10)
+        C2 += d20 - d10
+        C2 += -(x_2 * x_2 + y_2 * y_2 + z_2 * z_2)/d20 + (x_1 * x_1 + y_1 * y_1 + z_1 * z_1)/d10
+        C2 = -C2
+        C3 = z * 2 * (z_3/d30 - z_1/d10)
+        C3 += d30 - d10 
+        C3 += -(x_3 * x_3 + y_3 * y_3 + z_3 * z_3)/d30 + (x_1 * x_1 + y_1 * y_1 + z_1 * z_1)/d10
+        C3 = -C3
+
+        if (A2*B3 == A3*B2):
+            x = 0
+            y = 0
+        else:
+            x = (C2 * B3 - C3 * B2) / (A2 * B3 - A3 * B2)
+            y = (C3 * A2 - C2 * A3) / (B3 * A2 - B2 * A3)
+
+def get_heading(msg):
     global yaw
-    yaw=data.yaw
+    yaw=msg.yaw
+
+
+def get_altitude(msg):
+    global altitude
+    altitude=msg.data
+
+def handle_srv(req):
+    global isStart
+    global isAbort
+    global locomotionGoal
+    rospy.loginfo("Speed Trap service handled.")
+    if req.start_request:
+        rospy.loginfo("isStart true.")
+        isStart = True
+        isAbort = False
+        # Format for service: start_response, abort_response
+        locomotionGoal = req.start_ctrl
+    if req.abort_request:
+        rospy.loginfo("SpeedTrap abort received")
+        isAbort = True
+        isStart = False
+    return mission_to_visionResponse(isStart, isAbort)
 
 ################### MAIN #####################
 #States variabes
 isStart = False
 isEnd = False
 isAbort = False
+isTest = True
+movement_client = None
+locomotionGoal = None 
 
 #Current state of vehicle:
 #from Compass, DVL
@@ -137,59 +187,84 @@ altitude =0
 #heading from last calculation
 old_yaw = 0
 #from hydrophones (TDOA)
-d10=0
-d20=0
-d30=0
-
-#Triangulation variables
-#hydrophones position
-x_1=0
-y_1=-0.07
-z_1 = 0.07
-x_2=0
-y_2=0.07
-z_2 = 0.07
-x_3=0.1
-y_3=0
-z_3 =0
-#const
+d10,d20,d30=0,0,0
+#Triangulation consts
 speedOfSound = 1484
+x_1, y_1, z_1 = 0  ,-0.07, 0.07 #left hydrophone
+x_2, y_2, z_2 = 0  , 0.07, 0.07 #right hydrophone
+x_3, y_3, z_3 = 0.1, 0   , 0    #top hydrophone
 #result (direction/position)
-x=0
-y=0
-z=0
+x, y ,z =0, 0, 0
 
 if __name__ == '__main__':
+    rospy.init_node('acoustic_navigation')
+    loop_rate=rospy.Rate(0.5)
+
+    rospy.loginfo("AcousticNavigation activated!")
+
+    #Setup movement client
+    movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+    #movement_client.wait_for_server()
+    #Setup acoustic service 
+    #pls rename mission-to-vision to mission-to-task!!!
+    #acoustic_srv = rospy.service('acoustic_srv',mission_to_vision,handle_srv)
+
+    if isTest:
+        isStart= True
+    else:
+        rospy.loginfo('waiting for mission_srv...')
+        rospy.wait_for_service('mission_srv')
+        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
+        rospy.loginfo('connected to mission_srv!')
+
+    #Setup Subscribers
+    rospy.Subscriber("/hydrophone/time_diff",Twist,TDOA_sub_callback)
+    rospy.Subscriber("/euler",compass_data,get_heading)
+    rospy.Subscriber("/altitude",Float32,get_altitude)
+
+    #State Machines
+    sm_top = smach.StateMachine(outcomes=['Task_completed','Aborted'])
+    with sm_top:
+        smach.StateMachine.add('DISENGAGE',Disengage(),
+            transitions ={'started':'CORRECTHEADING','deactivated':'Aborted','aborted':'Aborted'})
+        smach.StateMachine.add('CORRECTHEADING',CorrectHeading(),
+            transitions ={'completed':'SEARCHAHEAD','aborted':'Aborted'})
+        smach.StateMachine.add('SEARCHAHEAD',SearchAhead(),
+            transitions ={'completed':'DRIVETHRU','aborted':'Aborted'})
+        smach.StateMachine.add('DRIVETHRU',DriveThru(),
+            transitions ={'completed':'Task_completed','aborted':'Aborted'})
+
+    sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/ACOUSTICNAVIGATION')
+    sis.start()
+    sm_top.userdata.complete = False
+    # Execute SMACH plan
+    outcome = sm_top.execute()
     try:
-        rospy.init_node('acoustic_navigation')
-        client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
-        client.wait_for_server()
+        rospy.spin()
+        # sis.stop()
+    except KeyboardInterrupt:
+        print "Shutting down"
+    pass
+#-------back up code-----
+    # while not rospy.is_shutdown():
+    #     far_field()
+    #     rel_yaw = (math.atan2(y,x)*180/math.pi) 
+    #     if (rel_yaw != old_yaw):
+    #         print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_yaw={4:.3f}'.format(x,y,z,yaw,rel_yaw)
+    #         if (np.fabs(rel_yaw) < 80):
+    #             new_heading = (yaw + rel_yaw)%360
+    #             if (np.fabs(rel_yaw) >	10):
+    #                 print 'correcting heading to {0:.3f}'.format(new_heading) 
+    #                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=1,sidemove_setpoint=0)
+    #             else:
+    #                 print 'moving forward'
+    #                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=5,heading_setpoint=yaw,depth_setpoint=1,sidemove_setpoint=0)
+    #             client.send_goal(goal)
+    #             client.wait_for_result(rospy.Duration(30))
+    #         else:
+    #             print 'suspect wrong angle! rel_yaw = {0}'.format(rel_yaw)
+    #         old_yaw=rel_yaw
+    #     else:
+    #         print 'waiting for new TDOA'
+    #     r.sleep() 
 
-        rospy.Subscriber("/hydrophone/time_diff",Twist,TDOA_sub_callback)
-        rospy.Subscriber("/euler",compass_data,get_heading)
-        r=rospy.Rate(0.5) #run at 2Hz
-
-        while not rospy.is_shutdown():
-            far_field()
-            rel_yaw = (math.atan2(y,x)*180/math.pi) 
-            if (rel_yaw != old_yaw):
-                print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_yaw={4:.3f}'.format(x,y,z,yaw,rel_yaw)
-                if (np.fabs(rel_yaw) < 80):
-                    new_heading = (yaw + rel_yaw)%360
-                    if (np.fabs(rel_yaw) >	10):
-                        print 'correcting heading to {0:.3f}'.format(new_heading) 
-                        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=1,sidemove_setpoint=0)
-                    else:
-                        print 'moving forward'
-                        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=5,heading_setpoint=yaw,depth_setpoint=1,sidemove_setpoint=0)
-                    client.send_goal(goal)
-                    client.wait_for_result(rospy.Duration(30))
-                else:
-                    print 'suspect wrong angle! rel_yaw = {0}'.format(rel_yaw)
-                old_yaw=rel_yaw
-            else:
-                print 'waiting for new TDOA'
-            r.sleep() 
-
-    except rospy.ROSInterruptException:
-        print "program interrupted before completion"
