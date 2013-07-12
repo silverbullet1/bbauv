@@ -308,6 +308,23 @@ def handle_srv(req):
         isStart = False
     return mission_to_visionResponse(isStart, isAbort)
 
+def handle_srv(req):
+    global isStart
+    global isAbort
+    global locomotionGoal
+    rospy.loginfo("Speed Trap service handled.")
+    if req.start_request:
+        rospy.loginfo("isStart true.")
+        isStart = True
+        isAbort = False
+        # Format for service: start_response, abort_response
+        locomotionGoal = req.start_ctrl
+    if req.abort_request:
+        rospy.loginfo("SpeedTrap abort received")
+        isAbort = True
+        isStart = False
+    return mission_to_visionResponse(isStart, isAbort)
+
 ################### MAIN #####################
 #States variabes
 isStart = False
