@@ -64,9 +64,12 @@ int main(int argc, char** argv)
 	float *statsCurrents = &openupsStatsMsg.current1;
 	float *statsVoltages = &openupsStatsMsg.voltage1;
 
-	ros::Publisher pubCharges = n.advertise<bbauv_msgs::openups>("battery_charge", 1);
-	ros::Publisher pubStats = n.advertise<bbauv_msgs::openups>("openups", 1);
-	ros::Rate loop_rate(0.2);
+	ros::Publisher pubCharges = n.advertise<bbauv_msgs::openups>("openups_charge", 1);
+	ros::Publisher pubStats = n.advertise<bbauv_msgs::openups_stats>("openups_stat", 1);
+	ros::Rate loop_rate(2); // Hz
+
+	//HACK: publish charge at a slower rate
+	int counter = 0;
 
 	while (ros::ok())
 	{
@@ -101,7 +104,7 @@ int main(int argc, char** argv)
 					charges[index] = (voltage < LOW_VOLTAGE) ? 0 : charges[index];
 
 					statsCharges[index] = charges[index];
-					statsCurrents[index] = extractBatteryState<float>(upsOutput, "battery.current", -1);
+					statsCurrents[index] = extractBatteryState<float>(upsOutput, "output.current", -1);
 					statsVoltages[index] = voltage;
 				}
 
@@ -109,8 +112,11 @@ int main(int argc, char** argv)
 			}
 			pclose(fp);
 		}
-		pubCharges.publish(openupsMsg);
+		if (counter == 0)
+			pubCharges.publish(openupsMsg);
 		pubStats.publish(openupsStatsMsg);
+
+		counter = (counter+1) % 5;
 
 		ros::spinOnce();
 		loop_rate.sleep();
