@@ -10,6 +10,7 @@ import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
+from bbauv_msgs.msg import openups_stats
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -22,7 +23,6 @@ import numpy as np
 from sensor_msgs.msg import Image
 
 from bbauv_msgs.msg._thruster import thruster
-from bbauv_msgs.msg._openups import openups
 from std_msgs import msg
 from std_msgs.msg._Float32 import Float32
 
@@ -57,7 +57,7 @@ class AUV_gui(QMainWindow):
     q_image_front = Queue.Queue()
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
-            'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(),
+            'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups_stats(),
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
             'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
     
@@ -206,15 +206,21 @@ class AUV_gui(QMainWindow):
         #Attitude Information GUI
         attitudeBox =  QGroupBox("Attitude Information")
         self.attitudePanel1 = QTextBrowser()
-        self.attitudePanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.attitudePanel1.setStyleSheet("QTextBrowser { background-color : black; color :white;}")
         self.attitudePanel2 = QTextBrowser()
         self.attitudePanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.attitudePanel3 = QTextBrowser()
         self.attitudePanel3.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.attitudePanel4 = QTextBrowser()
+        self.attitudePanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.attitudePanel5 = QTextBrowser()
+        self.attitudePanel5.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         attitude_layout = QHBoxLayout()
         attitude_layout.addWidget(self.attitudePanel1)
         attitude_layout.addWidget(self.attitudePanel2)
         attitude_layout.addWidget(self.attitudePanel3)
+        attitude_layout.addWidget(self.attitudePanel4)
+        attitude_layout.addWidget(self.attitudePanel5)
         attitudeBox.setLayout(attitude_layout)
         #Setpoint information
         
@@ -247,9 +253,28 @@ class AUV_gui(QMainWindow):
         sa_layout.addWidget(self.saPanel4)
         saBox.setLayout(sa_layout)
         
+        #OpenUPS Information
+        oBox = QGroupBox("OpenUPS Information")
+        self.oPanel1 = QTextBrowser()
+        self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.oPanel2 = QTextBrowser()
+        self.oPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.oPanel3 = QTextBrowser()
+        self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.oPanel4 = QTextBrowser()
+        self.oPanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        
+        o_layout = QHBoxLayout()
+        o_layout.addWidget(self.oPanel1)
+        o_layout.addWidget(self.oPanel2)
+        o_layout.addWidget(self.oPanel3)
+        o_layout.addWidget(self.oPanel4)
+        oBox.setLayout(o_layout)
+        
         display_layout = QVBoxLayout()
         display_layout.addWidget(attitudeBox)
         display_layout.addWidget(saBox)
+        display_layout.addWidget(oBox)
         overall_display_layout = QHBoxLayout()
         overall_display_layout.addLayout(display_layout)
         overall_display_layout.addWidget(setpointBox) 
@@ -415,45 +440,56 @@ class AUV_gui(QMainWindow):
         self.compass.setValue(int(self.data['yaw']))
         self.attitudePanel1.setText("<b>YAW: " + str(round(self.data['yaw'],2)) + 
                                     "<br> PIT: " + str(round(self.data['pitch'],2)) +
-                                    "<br>RLL: "+ str(round(self.data['roll'],2)) + 
-                                    "<br>DEP: "+ str(round(self.data['depth'],2)) + 
-                                    "<br>PRE: " + str(round(self.data['pressure'],2)) + 
+                                    "<br>RLL: "+ str(round(self.data['roll'],2)) + "</b>")
+        
+        self.attitudePanel2.setText("<b>DEP: "+ str(round(self.data['depth'],2)) + 
+                                    "<br>PRE: " + str(round(self.data['pressure']/1000,2)) + 
                                     "<br>ATT: " + str(round(self.data['altitude'],2)) + "</b>")
-
-        self.attitudePanel2.setText("<b>POSX: " + str(round(self.data['earth_pos'].pose.pose.position.x,2)) + 
-                                    "<br> POSY: " + str(round(self.data['earth_pos'].pose.pose.position.y,2)) +
-                                    "<br>RPOSX: " + str(round(self.data['rel_pos'].pose.pose.position.x,2)) + 
+        
+        
+        self.attitudePanel3.setText("<b>POSX: " + str(round(self.data['earth_pos'].pose.pose.position.x,2)) + 
+                                    "<br> POSY: " + str(round(self.data['earth_pos'].pose.pose.position.y,2)) + "</b>")
+        
+        self.attitudePanel4.setText("<b>RPOSX: " + str(round(self.data['rel_pos'].pose.pose.position.x,2)) + 
                                     "<br>RPOSY: " + str(round(self.data['rel_pos'].pose.pose.position.y,2)) + 
                                     "<br>RPOSZ : " + str(round(self.data['rel_pos'].pose.pose.position.z,2)) + "</b>")
         
-        self.attitudePanel3.setText("<b>VELX: " + str(round(self.data['rel_pos'].twist.twist.linear.x,2)) + 
+        self.attitudePanel5.setText("<b>VELX: " + str(round(self.data['rel_pos'].twist.twist.linear.x,2)) + 
                                     "<br> VELY: " + str(round(self.data['rel_pos'].twist.twist.linear.y,2)) +
                                     "<br>VELZ: " + str(round(self.data['rel_pos'].twist.twist.linear.z,2)) + "</b>")
         
         self.saPanel1.setText("<b>THR1: " + str(self.data['thrusters'].speed1) + 
                               "<br> THR2: " + str(self.data['thrusters'].speed2) +
-                              "<br> THR3: " + str(self.data['thrusters'].speed3) + 
-                              "<br> THR4: " + str(self.data['thrusters'].speed4) +
+                              "<br> THR3: " + str(self.data['thrusters'].speed3) + "</b>")
+        self.saPanel2.setText("<b>THR4: " + str(self.data['thrusters'].speed4) +
                               "<br> THR5: " + str(self.data['thrusters'].speed5) +
                               "<br> THR6: " + str(self.data['thrusters'].speed6) + "</b>")
-        self.saPanel2.setText("<b>LDROP: " + str(self.data['manipulators'].servo1) + 
+        self.saPanel3.setText("<b>LDROP: " + str(self.data['manipulators'].servo1) + 
                               "<br> RDROP: " + str(self.data['manipulators'].servo2) +
                               "<br> LTOR: " + str(self.data['manipulators'].servo3) + 
-                              "<br> RTOR: " + str(self.data['manipulators'].servo4) +
+                              #"<br> RTOR: " + str(self.data['manipulators'].servo4) +
                               "<br> GACT: " + str(self.data['manipulators'].servo5) +
-                              "<br> LACT: " + str(self.data['manipulators'].servo6) + 
-                              "<br> RACT: " + str(self.data['manipulators'].servo7) + "</b>")
+                              #"<br> LACT: " + str(self.data['manipulators'].servo6) + 
+                              #"<br> RACT: " + str(self.data['manipulators'].servo7) +
+                              "</b>")
       
-        
-        self.saPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
+        self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
         
-        self.saPanel4.setText("<b>OUPS1: " + str(self.data['openups'].battery1) + 
-                              "<br> OUPS2: " + str(self.data['openups'].battery2) +
-                              "<br> OUPS3: " + str(self.data['openups'].battery3) + 
-                              "<br> OUPS4: " + str(self.data['openups'].battery4) + "</b>")
+        self.oPanel1.setText("<b>OUPS1: " + str(self.data['openups'].charge1) + 
+                              "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +
+                              "<br> VOLT1: " + str(round(self.data['openups'].voltage1,2))+ "</b>")
+        self.oPanel2.setText("<b>OUPS2: " + str(self.data['openups'].charge2) + 
+                              "%<br> CUR2: " + str(round(self.data['openups'].current2,2)) +
+                              "<br> VOLT2: " + str(round(self.data['openups'].voltage2,2))+ "</b>")
+        self.oPanel3.setText("<b>OUPS3: " + str(self.data['openups'].charge3) + 
+                              "%<br> CUR3: " + str(round(self.data['openups'].current3,2)) +
+                              "<br> VOLT3: " + str(round(self.data['openups'].voltage3,2))+ "</b>")
+        self.oPanel4.setText("<b>OUPS4: " + str(self.data['openups'].charge4) + 
+                              "%<br> CUR4: " + str(round(self.data['openups'].current4,2)) +
+                              "<br> VOLT4: " + str(round(self.data['openups'].voltage4,2))+ "</b>")
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
@@ -485,7 +521,7 @@ class AUV_gui(QMainWindow):
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
-        openups_sub = rospy.Subscriber("/openups",openups,self.openups_callback)
+        openups_sub = rospy.Subscriber("/openups_stats",openups_stats,self.openups_callback)
         temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
     def get_status(self,val):
@@ -713,8 +749,8 @@ class AUV_gui(QMainWindow):
     def controller_feedback_callback(self,feedback):
         self.q_controller_feedback.put(feedback)
         
-    def openups_callback(self,openups):
-        self.q_openups.put(openups)
+    def openups_callback(self,stats):
+        self.q_openups.put(stats)
         
     def temp_callback(self,temp):
         self.q_temp.put(temp)
