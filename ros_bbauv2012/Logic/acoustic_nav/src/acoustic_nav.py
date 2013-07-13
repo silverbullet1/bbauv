@@ -19,12 +19,12 @@ import numpy as np
 #1: Disengage - start/stop control of the node
 class Disengage(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['started', 'deactivated', 'aborted'])
+        smach.State.__init__(self, outcomes=['started', 'completed', 'aborted'])
     def execute(self,userdata):      
         while not rospy.is_shutdown():
             if isEnd:
                 rospy.signal_shutdown("Deactivating Acoustic Node")
-                return 'deactivated'
+                return 'completed'
             if isStart:
                 print "#1 Starting Acoustic node"
                 return 'started'
@@ -37,18 +37,20 @@ class CorrectHeading(smach.State):
         print '#2 Correcting heading:'
         far_field()
         rel_yaw = (math.atan2(y,x)*180/math.pi) 
-        while (np.fabs(rel_angle)>10):
-            if (rel_yaw != old_yaw):
+        old_rel_yaw=0
+        while (np.fabs(rel_yaw)>10) and not rospy.is_shutdown():
+            if (rel_yaw != old_rel_yaw):
                 print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_yaw={4:.3f}'.format(x,y,z,yaw,rel_yaw)
                 if (np.fabs(rel_yaw) < 80):
                     new_heading = (yaw + rel_yaw)%360
                     print 'correcting heading to {0:.3f}'.format(new_heading) 
-                    goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=1,sidemove_setpoint=0)
-                    client.send_goal(goal)
-                    client.wait_for_result(rospy.Duration(30))
+                    goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=0.7,sidemove_setpoint=0)
+                    movement_client.send_goal(goal)
+                    print 'sending new goal...'
+                    movement_client.wait_for_result(rospy.Duration(15))
                 else:
                     print 'suspect wrong angle! rel_yaw = {0}'.format(rel_yaw)
-                old_yaw=rel_yaw
+                old_rel_yaw=rel_yaw
             else:
                 print 'waiting for new TDOA'
             rospy.sleep(3)
@@ -63,9 +65,10 @@ class SearchAhead(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
-        print '#3 Moving forward:'
-        rospy.sleep(5) #sleep 5s
-
+        print '#3 moving forward'
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=3,heading_setpoint=yaw,depth_setpoint=0.7,sidemove_setpoint=0)
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(rospy.Duratio(15))
         return 'completed'
         #while z<? (to determine how close)
             #update goal to move forward
@@ -74,10 +77,14 @@ class DriveThru(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
-        r=rospy.Rate(0.2)
         print '#4 Moving to exact positionmsg'
-        r.sleep()
-        print 'mission success'
+        near_field()
+        rel_yaw = (math.atan2(y,x)*180/math.pi)
+        new_heading = (yaw + rel_yaw)%360
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=x,heading_setpoint=new_heading,depth_setpoint=0.7,sidemove_setpoint=y)
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(rospy.Duration(30))
+ 
         return 'completed'
         #call nearfield
         #send final forward & sidemove goal
@@ -149,7 +156,6 @@ def get_heading(msg):
     global yaw
     yaw=msg.yaw
 
-
 def get_altitude(msg):
     global altitude
     altitude=msg.data
@@ -201,10 +207,15 @@ if __name__ == '__main__':
     loop_rate=rospy.Rate(0.5)
 
     rospy.loginfo("AcousticNavigation activated!")
-
+    rospy.wait_for_service('set_controller_srv')
+    set_controller_request=rospy.ServiceProxy('set_controller_srv',set_controller)
+    set_controller_request(True,True,True,True,False,False,False)
+     
     #Setup movement client
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
-    #movement_client.wait_for_server()
+    print 'waiting for action server'
+    movement_client.wait_for_server()
+    print 'finished waiting'
     #Setup acoustic service 
     #pls rename mission-to-vision to mission-to-task!!!
     #acoustic_srv = rospy.service('acoustic_srv',mission_to_vision,handle_srv)
@@ -226,13 +237,13 @@ if __name__ == '__main__':
     sm_top = smach.StateMachine(outcomes=['Task_completed','Aborted'])
     with sm_top:
         smach.StateMachine.add('DISENGAGE',Disengage(),
-            transitions ={'started':'CORRECTHEADING','deactivated':'Aborted','aborted':'Aborted'})
+            transitions ={'started':'CORRECTHEADING','completed':'Task_completed','aborted':'Aborted'})
         smach.StateMachine.add('CORRECTHEADING',CorrectHeading(),
             transitions ={'completed':'SEARCHAHEAD','aborted':'Aborted'})
         smach.StateMachine.add('SEARCHAHEAD',SearchAhead(),
             transitions ={'completed':'DRIVETHRU','aborted':'Aborted'})
         smach.StateMachine.add('DRIVETHRU',DriveThru(),
-            transitions ={'completed':'Task_completed','aborted':'Aborted'})
+            transitions ={'completed':'DISENGAGE','aborted':'Aborted'})
 
     sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/ACOUSTICNAVIGATION')
     sis.start()

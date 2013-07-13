@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 	float *statsVoltages = &openupsStatsMsg.voltage1;
 
 	ros::Publisher pubCharges = n.advertise<bbauv_msgs::openups>("openups_charge", 1);
-	ros::Publisher pubStats = n.advertise<bbauv_msgs::openups_stats>("openups_stat", 1);
+	ros::Publisher pubStats = n.advertise<bbauv_msgs::openups_stats>("openups_stats", 1);
 	ros::Rate loop_rate(2); // Hz
 
 	//HACK: publish charge at a slower rate
