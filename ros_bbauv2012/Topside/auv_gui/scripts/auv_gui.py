@@ -477,17 +477,45 @@ class AUV_gui(QMainWindow):
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
+        batt_state = list()
+        if self.data['openups'].charge1== -1:
+            batt_state.append("DISCON")
+        elif self.data['openups'].charge1== -2:
+            batt_state.append("OFF")
+        else:
+            batt_state.append(self.data['openups'].charge1)
         
-        self.oPanel1.setText("<b>OUPS1: " + str(self.data['openups'].charge1) + 
+        if self.data['openups'].charge2== -1:
+            batt_state.append("DISCON")
+        elif self.data['openups'].charge2== -2:
+            batt_state.append("OFF")
+        else:
+            batt_state.append(self.data['openups'].charge2) 
+        
+        if self.data['openups'].charge3== -1:
+            batt_state.append("DISCON")
+        elif self.data['openups'].charge3== -2:
+            batt_state.append("OFF")
+        else:
+            batt_state.append(self.data['openups'].charge3)
+            
+        if self.data['openups'].charge4== -1:
+            batt_state.append("DISCON")
+        elif self.data['openups'].charge4== -2:
+            batt_state.append("OFF")
+        else:
+            batt_state.append(self.data['openups'].charge4)
+        
+        self.oPanel1.setText("<b>OUPS1: " + str(batt_state[0]) + 
                               "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +
                               "<br> VOLT1: " + str(round(self.data['openups'].voltage1,2))+ "</b>")
-        self.oPanel2.setText("<b>OUPS2: " + str(self.data['openups'].charge2) + 
+        self.oPanel2.setText("<b>OUPS2: " + str(batt_state[1]) + 
                               "%<br> CUR2: " + str(round(self.data['openups'].current2,2)) +
                               "<br> VOLT2: " + str(round(self.data['openups'].voltage2,2))+ "</b>")
-        self.oPanel3.setText("<b>OUPS3: " + str(self.data['openups'].charge3) + 
+        self.oPanel3.setText("<b>OUPS3: " + str(batt_state[2]) + 
                               "%<br> CUR3: " + str(round(self.data['openups'].current3,2)) +
                               "<br> VOLT3: " + str(round(self.data['openups'].voltage3,2))+ "</b>")
-        self.oPanel4.setText("<b>OUPS4: " + str(self.data['openups'].charge4) + 
+        self.oPanel4.setText("<b>OUPS4: " + str(batt_state[3]) + 
                               "%<br> CUR4: " + str(round(self.data['openups'].current4,2)) +
                               "<br> VOLT4: " + str(round(self.data['openups'].voltage4,2))+ "</b>")
         

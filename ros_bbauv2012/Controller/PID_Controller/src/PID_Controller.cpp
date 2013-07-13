@@ -47,6 +47,8 @@ bool inTopside,inTeleop,inHovermode = false, oldHovermode = false;
 bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID,inPitchPID;
 bool inNavigation;
 bool inVisionTracking;
+bool isForward = false;
+bool isSidemove = false;
 
 /**********************Function Prototypes**********************************/
 void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
@@ -71,10 +73,6 @@ ros::Subscriber teleopSub;
 ros::Subscriber autonomousSub;
 ros::Subscriber velocitySub;
 ros::Subscriber navigationVelSub;
-
-/**********************Action Server**********************************/
-
-
 
 /**********************PID Controllers**********************************/
 bbauv::bbPID forwardPID("f",1.2,0,0,20);
@@ -194,8 +192,8 @@ int main(int argc, char **argv)
 			ctrl.heading_setpoint = as.getHeading();
 			ctrl.depth_setpoint = as.getDepth();
 			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
-
 		}
+
 		controllerPub.publish(ctrl);
 		thrusterPub.publish(thrusterSpeed);
 		ROS_DEBUG("%i,%i,%i,%i,%i,%i",inForwardPID,inSidemovePID,inHeadingPID,inSidemovePID,inDepthPID,inNavigation);

@@ -241,20 +241,6 @@ class SpeedTrap:
                         centroidy.append(moments['m01']/moments['m00'])
                         centroidx.append(moments['m10']/moments['m00'])
                         cv2.circle(contourImg,(int(centroidx[len(centroidx) -1]),int(centroidy[len(centroidy) - 1])), 2, (0,0,255), thickness=-1)
-                        #calculate central plane for AUV to aim towards
-                    if(len(centroidx) > 3):
-                        for j in range(0,len(centroidx) -1):
-                            pass
-                                #'''cv2.line(contourImg,(int(centroidx[j]),int(centroidy[j])),(int(centroidx[j+1]),int(centroidy[j+1])),(255,255,0),thickness= 1,lineType=cv2.CV_AA)
-                                #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1])/(centroidx[j] -centroidx[j+1])))
-                                #targetAngle = math.degrees(math.atan((centroidy[j] -centroidy[j+1]),(centroidx[j] -centroidx[j+1])))
-                                #cv2.putText(contourImg,str(np.round(targetAngle,1)), (int(centroidx[j]),int(centroidy[j])), cv2.FONT_HERSHEY_PLAIN, 1, colorTxt)
-                                #self.computeCorrection(targetAngle)
-                                #target = (centroidx[0] + centroidx[1])/2
-                                #cv2.circle(contourImg,(int(target),int(rows/2)), 2, (0,0,255), thickness=-1)
-                    else:
-                        colorTxt = (0,255,255)
-                    #cv2.putText(contourImg,"u0:" + str(np.round(humoments[0][0],3)),(int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, colorTxt)
         else:
             self.centroidx = 0
             self.centroidy = 0
@@ -265,7 +251,7 @@ class SpeedTrap:
             self.centroidx, self.centroidy = self.computeCenter(centroidx, centroidy) 
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
         #Compute orientation angle correction for vehicle orientation
-        if len(self.angleList) >3:
+        if len(self.angleList) >1:
             self.isCentering = True
             final_list = sorted(self.angleList)
             self.orientation = self.angleList[1]

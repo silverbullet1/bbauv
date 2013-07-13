@@ -106,6 +106,7 @@ class Centering(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['centering_complete', 'aborted', 'mission_abort'], output_keys=['center_pos'])
         
+        
     def execute(self, userdata):
         global r
         global st
