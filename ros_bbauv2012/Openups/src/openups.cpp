@@ -78,7 +78,7 @@ int main(int argc, char** argv)
 			int index = ups_id - 1;
 
 			ostringstream os;
-			os << "upsc openups" << ups_id << "@localhost 2> /dev/null";
+			os << "upsc openups" << ups_id << "@localhost 2>&1";
 			FILE *fp = popen(os.str().c_str(), "r");
 
 			statsCharges[index] = charges[index] = -3;
@@ -93,8 +93,11 @@ int main(int argc, char** argv)
 				string upsOutput(tmp);
 
 				size_t found = upsOutput.find("Data stale");
+                size_t foundDisconnected = upsOutput.find("not connected");
 				if (found != string::npos) {
 					statsCharges[index] = charges[index] = -1;
+                } else if (foundDisconnected != string::npos) {
+					statsCharges[index] = charges[index] = -3;
 				} else {
 					string status = extractBatteryState<string>(upsOutput, "ups.status", "");
 
