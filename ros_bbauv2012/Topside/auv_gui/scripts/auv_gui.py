@@ -60,7 +60,7 @@ class AUV_gui(QMainWindow):
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups_stats(),
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
             'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
-    
+    counter = 0
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
         
@@ -94,6 +94,7 @@ class AUV_gui(QMainWindow):
         hoverButton = QPushButton("&Hover")
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
+        self.modeButton = QPushButton("Default")
         self.armButton = QCommandLinkButton("NOT ARMED")
         fireButton = QPushButton("&Fire")
         self.check1 = QCheckBox("Left Dropper")
@@ -125,6 +126,7 @@ class AUV_gui(QMainWindow):
         surfaceButton.clicked.connect(self.surfaceBtnHandler)
         hoverButton.clicked.connect(self.hoverBtnHandler)
         homeButton.clicked.connect(self.homeBtnHandler)
+        self.modeButton.clicked.connect(self.modeBtnHandler)
         vbox = QVBoxLayout()
         #hbox.addStretch(1)
         vbox.addWidget(okButton)
@@ -136,6 +138,10 @@ class AUV_gui(QMainWindow):
         vbox2.addWidget(surfaceButton)
         vbox2.addWidget(homeButton)
         
+        vbox3 = QVBoxLayout()
+        #hbox.addStretch(1)
+        vbox3.addWidget(self.modeButton)
+        
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
@@ -145,6 +151,7 @@ class AUV_gui(QMainWindow):
         goalBtn_layout = QHBoxLayout()
         goalBtn_layout.addLayout(vbox)
         goalBtn_layout.addLayout(vbox2)
+        goalBtn_layout.addLayout(vbox3)
         goalBox_layout.addStretch(1)
         goalBox_layout.addLayout(goalBtn_layout)
         
@@ -260,7 +267,7 @@ class AUV_gui(QMainWindow):
         self.oPanel2 = QTextBrowser()
         self.oPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.oPanel3 = QTextBrowser()
-        self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white;font-size : 8; }")
         self.oPanel4 = QTextBrowser()
         self.oPanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         
@@ -308,7 +315,7 @@ class AUV_gui(QMainWindow):
         
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
-        self.setGeometry(300, 300, 1050, 700)
+        self.setGeometry(300, 300, 1100, 700)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
         self.setCentralWidget(self.main_frame)
@@ -446,7 +453,6 @@ class AUV_gui(QMainWindow):
                                     "<br>PRE: " + str(round(self.data['pressure']/1000,2)) + 
                                     "<br>ATT: " + str(round(self.data['altitude'],2)) + "</b>")
         
-        
         self.attitudePanel3.setText("<b>POSX: " + str(round(self.data['earth_pos'].pose.pose.position.x,2)) + 
                                     "<br> POSY: " + str(round(self.data['earth_pos'].pose.pose.position.y,2)) + "</b>")
         
@@ -467,7 +473,7 @@ class AUV_gui(QMainWindow):
         self.saPanel3.setText("<b>LDROP: " + str(self.data['manipulators'].servo1) + 
                               "<br> RDROP: " + str(self.data['manipulators'].servo2) +
                               "<br> LTOR: " + str(self.data['manipulators'].servo3) + 
-                              #"<br> RTOR: " + str(self.data['manipulators'].servo4) +
+                              "<br> RTOR: " + str(self.data['manipulators'].servo4) +
                               "<br> GACT: " + str(self.data['manipulators'].servo5) +
                               #"<br> LACT: " + str(self.data['manipulators'].servo6) + 
                               #"<br> RACT: " + str(self.data['manipulators'].servo7) +
@@ -530,9 +536,13 @@ class AUV_gui(QMainWindow):
                                     "<br>DEP ERR: "+ str(round(self.data ['depth_error'],2)) + "</b>")
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
-        self.status_text.setText("Service ready.")
+        self.status_text.setText("set_controller Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
-    
+        
+        #rospy.wait_for_service('locomotion_mode_srv')
+        self.status_text.setText("Locomotion Mode Service ready.")
+        self.locomotion_mode_request = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+        
     def initImage(self):
         self.bridge = CvBridge()
         frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/debug/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
@@ -592,7 +602,7 @@ class AUV_gui(QMainWindow):
         self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
         #movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
     def hoverBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, False, False,False)
+        resp = self.set_controller_request(True, True, True, True, True, False,False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -611,9 +621,30 @@ class AUV_gui(QMainWindow):
         
     def disableBtnHandler(self):
         resp = self.set_controller_request(False, False, False, False, False, True, False)
+    def modeBtnHandler(self):
+        print self.counter
+        if(self.counter == 0):
+            self.modeButton.setText("Forward")
+            #Enable Forward Mode
+            resp = self.locomotion_mode_request(True,False)
+            self.counter = self.counter + 1
+            print "forward"
+        elif(self.counter == 1):
+            resp = self.locomotion_mode_request(False,True)
+            self.modeButton.setText("Sidemove")
+            #Enable Sidemove Mode
+            
+            self.counter = self.counter + 1
+        elif(self.counter == 2):
+            resp = self.locomotion_mode_request(False,False)
+            self.modeButton.setText("Default")
+            #Enable Sidemove Mode
+            
+            self.counter = 0
+
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
-        resp = self.set_controller_request(True, True, True, True, False, False,False)
+        resp = self.set_controller_request(True, True, True, True, True, False,False)
         goal = ControllerGoal
         if self.rel_depth_chkbox.checkState():
             goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())

@@ -25,6 +25,7 @@
 #include <geometry_msgs/Twist.h>
 #include <bbauv_msgs/imu_data.h>
 #include <bbauv_msgs/set_controller.h>
+#include <bbauv_msgs/locomotion_mode.h>
 #define _USE_MATH_DEFINES // for C++
 #include <math.h>
 
@@ -81,8 +82,52 @@ bbauv::bbPID headingPID("h",1.2,0,0,20);
 bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
 
+int act_forward[2];
+int act_sidemove[2];
+int act_heading[2];
+
+//Forward mode settings: Index 0 and 1
+//Sidemove mode settings: Index 2 and 3
+int loc_mode_forward[4] = {-2400,2400,-400,400};
+int loc_mode_sidemove[4] = {-400,400,-2400,2400};
+int loc_mode_heading[4] = {-400,400,-400,400};
+
 int manual_speed[6] = {0,0,0,0,0,0};
 
+bool locomotion_srv_handler(bbauv_msgs::locomotion_mode::Request  &req,
+        bbauv_msgs::locomotion_mode::Response &res)
+{
+	if(req.forward && req.sidemove)
+	{
+		res.success = false;
+		return true;
+	}
+	else if(req.forward)
+	{
+		headingPID.setActuatorSatModel(loc_mode_heading[0],loc_mode_heading[1]);
+		sidemovePID.setActuatorSatModel(loc_mode_sidemove[0],loc_mode_sidemove[1]);
+		forwardPID.setActuatorSatModel(loc_mode_forward[0],loc_mode_forward[1]);
+		res.success = true;
+		ROS_INFO("Switching to Forward mode.");
+	}else if(req.sidemove)
+	{
+		headingPID.setActuatorSatModel(loc_mode_heading[2],loc_mode_heading[3]);
+		sidemovePID.setActuatorSatModel(loc_mode_sidemove[2],loc_mode_sidemove[3]);
+		forwardPID.setActuatorSatModel(loc_mode_forward[2],loc_mode_forward[3]);
+		ROS_INFO("Switching to Sidemove mode.");
+		res.success = true;
+	}else if(!req.forward && !req.sidemove)
+	{
+		ROS_DEBUG("h_min: %i,h_max: %i,s_min:%i,s_max:%i,f_min: %i,f_max: %i",act_heading[0],act_heading[1],act_sidemove[0],act_sidemove[1],act_forward[0],act_forward[1]);
+		//If forward and sidemove mode are not activated, revert to default
+		headingPID.setActuatorSatModel(act_heading[0],act_heading[1]);
+		sidemovePID.setActuatorSatModel(act_sidemove[0],act_sidemove[1]);
+		forwardPID.setActuatorSatModel(act_forward[0],act_forward[1]);
+		ROS_INFO("Switching to Default mode.");
+		res.success = true;
+	} else	res.success = false;
+	return true;
+}
 bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
          bbauv_msgs::set_controller::Response &res)
 {
@@ -129,7 +174,9 @@ int main(int argc, char **argv)
 
 	ros::ServiceServer service = nh.advertiseService("set_controller_srv", controller_srv_handler);
 	ROS_INFO("set_controller_srv ready.");
-	/* Initialize Quaternion Conversion Helper*/
+
+	ros::ServiceServer locomotion_service = nh.advertiseService("locomotion_mode_srv", locomotion_srv_handler);
+	ROS_INFO("locomotion_mode_srv ready.");
 
 	/* Initialize Action Server */
 
@@ -138,7 +185,8 @@ int main(int argc, char **argv)
 	ros::Rate loop_rate(loop_frequency);
 
 	ROS_INFO("PID Controllers Initialized.");
-	//PID Initialization
+	//PID Loop Computation
+	//Loop running at 20Hz
 	while(ros::ok())
 	{
 		/* To enable PID
@@ -156,7 +204,6 @@ int main(int argc, char **argv)
 			headingPID_output = 0;
 			headingPID.clearIntegrator();
 			}
-		//ROS_INFO("%f, %f",ctrl.depth_setpoint,ctrl. 	depth_input);
 		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
 		else
 		{
@@ -344,14 +391,26 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   depth_offset = config.depth_offset;
   depthPID.setActuatorSatModel(config.depth_min,config.depth_max);
 
+  headingPID.setKp(config.heading_Kp);
+  headingPID.setTi(config.heading_Ti);
+  headingPID.setTd(config.heading_Td);
+  headingPID.setActuatorSatModel(config.heading_min,config.heading_max);
+  act_heading[0] = config.heading_min;
+  act_heading[1] = config.heading_max;
+
   forwardPID.setKp(config.forward_Kp);
   forwardPID.setTi(config.forward_Ti);
   forwardPID.setTd(config.forward_Td);
   forwardPID.setActuatorSatModel(config.forward_min,config.forward_max);
+  act_forward[0] = config.forward_min;
+  act_forward[1] = config.forward_max;
+
   sidemovePID.setKp(config.sidemove_Kp);
   sidemovePID.setTi(config.sidemove_Ti);
   sidemovePID.setTd(config.sidemove_Td);
   sidemovePID.setActuatorSatModel(config.sidemove_min,config.sidemove_max);
+  act_sidemove[0] = config.sidemove_min;
+  act_sidemove[1] = config.sidemove_max;
 
   pitchPID.setKp(config.pitch_Kp);
   pitchPID.setTd(config.pitch_Td);
