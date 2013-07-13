@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 			os << "upsc openups" << ups_id << "@localhost 2> /dev/null";
 			FILE *fp = popen(os.str().c_str(), "r");
 
-			statsCharges[index] = charges[index] = -2;
+			statsCharges[index] = charges[index] = -3;
 			statsCurrents[index] = 0;
 			statsVoltages[index] = 0;
 
@@ -92,22 +92,26 @@ int main(int argc, char** argv)
 				fread(tmp, 1, MAX_BUFFER-1, fp);
 				string upsOutput(tmp);
 
-				string status = extractBatteryState<string>(upsOutput, "ups.status", "");
-
-				//HACK: if "DISCHRG" not found in status, return default value
-				float voltage = extractBatteryState<float>(upsOutput, "battery.voltage", -1);
-
-				if (status.find("DISCHRG") == string::npos) {
-					statsCharges[index] = charges[index] = (voltage < LOW_VOLTAGE) ? 0 : -1;
+				size_t found = upsOutput.find("Data stale");
+				if (found != string::npos) {
+					statsCharges[index] = charges[index] = -1;
 				} else {
-					charges[index] = extractBatteryState<int>(upsOutput, "battery.charge", -2);
-					charges[index] = (voltage < LOW_VOLTAGE) ? 0 : charges[index];
+					string status = extractBatteryState<string>(upsOutput, "ups.status", "");
 
-					statsCharges[index] = charges[index];
-					statsCurrents[index] = extractBatteryState<float>(upsOutput, "output.current", -1);
-					statsVoltages[index] = voltage;
+					//HACK: if "DISCHRG" not found in status, return default value
+					float voltage = extractBatteryState<float>(upsOutput, "battery.voltage", -1);
+
+					if (status.find("DISCHRG") == string::npos) {
+						statsCharges[index] = charges[index] = -2;
+					} else {
+						charges[index] = extractBatteryState<int>(upsOutput, "battery.charge", -1);
+						charges[index] = (voltage < LOW_VOLTAGE) ? 0 : charges[index];
+
+						statsCharges[index] = charges[index];
+						statsCurrents[index] = extractBatteryState<float>(upsOutput, "output.current", -1);
+						statsVoltages[index] = voltage;
+					}
 				}
-
 //				ROS_INFO("openups%d: %d %.3lfA %dsec %.2lfV\n", ups_id, (int)charges[ups_id-1]);
 			}
 			pclose(fp);
