@@ -41,13 +41,15 @@ class CorrectHeading(smach.State):
         while (np.fabs(rel_yaw)>10) and not rospy.is_shutdown():
             if (rel_yaw != old_rel_yaw):
                 print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_yaw={4:.3f}'.format(x,y,z,yaw,rel_yaw)
-                if (np.fabs(rel_yaw) < 80):
+                if (np.fabs(rel_yaw) < 130):
                     new_heading = (yaw + rel_yaw)%360
                     print 'correcting heading to {0:.3f}'.format(new_heading) 
-                    goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=0.7,sidemove_setpoint=0)
+                    goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=0.3,sidemove_setpoint=0)
+                    print '####'
+                    print goal
+                    print '####'
                     movement_client.send_goal(goal)
-                    print 'sending new goal...'
-                    movement_client.wait_for_result(rospy.Duration(15))
+                    movement_client.wait_for_result(rospy.Duration(30))
                 else:
                     print 'suspect wrong angle! rel_yaw = {0}'.format(rel_yaw)
                 old_rel_yaw=rel_yaw
@@ -66,25 +68,43 @@ class SearchAhead(smach.State):
         smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
         print '#3 moving forward'
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=3,heading_setpoint=yaw,depth_setpoint=0.7,sidemove_setpoint=0)
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=3.5,heading_setpoint=yaw,depth_setpoint=0.3,sidemove_setpoint=0)
+        print '####'
+        print goal
+        print '####'
         movement_client.send_goal(goal)
-        movement_client.wait_for_result(rospy.Duratio(15))
+        movement_client.wait_for_result()
+        print 'finished moving forward 3m'
         return 'completed'
         #while z<? (to determine how close)
             #update goal to move forward
 #4: DriveThru - use near file equation and find exact position of the pinger
 class DriveThru(smach.State):
+    global isStart,isEnd
     def __init__(self):
         smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
-        print '#4 Moving to exact positionmsg'
+        print '#4 Moving to exact position using near field'
         near_field()
         rel_yaw = (math.atan2(y,x)*180/math.pi)
-        new_heading = (yaw + rel_yaw)%360
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=x,heading_setpoint=new_heading,depth_setpoint=0.7,sidemove_setpoint=y)
+        print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_yaw={4:.3f}'.format(x,y,z,yaw,rel_yaw)
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=x,heading_setpoint=yaw,depth_setpoint=0.3,sidemove_setpoint=y)
+        print '####'
+        print goal
+        print '####'
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(30))
- 
+        
+        print 'MISSION DONE SURFACING...'
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=yaw,depth_setpoint=0,sidemove_setpoint=0)
+        print '####'
+        print goal
+        print '####'
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(rospy.Duration(30))
+        
+        rospy.signal_shutdown("Deactivating Acoustic Node")
+
         return 'completed'
         #call nearfield
         #send final forward & sidemove goal
@@ -128,7 +148,7 @@ def far_field():
 def near_field():
     global x,y,z
 
-    z = 3 #altitude
+    z =1.61 #altitude
     
     if (d10!=0 and d20!=0 and d30!=0):
         A2 = 2 * (x_2 / d20 - x_1 / d10)
@@ -243,7 +263,7 @@ if __name__ == '__main__':
         smach.StateMachine.add('SEARCHAHEAD',SearchAhead(),
             transitions ={'completed':'DRIVETHRU','aborted':'Aborted'})
         smach.StateMachine.add('DRIVETHRU',DriveThru(),
-            transitions ={'completed':'DISENGAGE','aborted':'Aborted'})
+            transitions ={'completed':'Task_completed','aborted':'Aborted'})
 
     sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/ACOUSTICNAVIGATION')
     sis.start()
