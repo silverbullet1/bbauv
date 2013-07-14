@@ -18,6 +18,9 @@ tmux rename-window 'launch'
 tmux send-keys 'pls' C-m
 sleep 4
 tmux new-window -tbbauv:4
+tmux rename-window 'arduino'
+tmux send-keys 'roslaunch launch embedded.launch' C-m
+tmux new-window -tbbauv:5
 tmux rename-window 'boot'
 tmux send-keys 'rostopic pub -1 /lcd_commands std_msgs/Int8 -- 1' C-m
 tmux set-option -s mouse-resize-pane on

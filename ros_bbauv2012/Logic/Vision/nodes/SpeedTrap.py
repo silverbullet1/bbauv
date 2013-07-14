@@ -228,14 +228,14 @@ class Firing(smach.State):
         global mani_pub
         _manipulator = manipulator()
         if(left):
-            _manipulator.servo1 = 1
-            _manipulator.servo2 = 0
-        else:
             _manipulator.servo1 = 0
             _manipulator.servo2 = 1
+        else:
+            _manipulator.servo1 = 1
+            _manipulator.servo2 = 0
         _manipulator.servo3 = 0
         _manipulator.servo4 = 0
-        _manipulator.servo5 = 0
+        _manipulator.servo5 = 1
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
@@ -273,11 +273,11 @@ class Firing(smach.State):
                 aim_y = st.centroidy_list[final_coord]
             if count == 0:
                 st.aim_point = (int(aim_x -100),int(aim_y))
-                x_error = aim_x - st.cols / 2 + 100 
+                x_error = aim_x - st.cols / 2 + 150 
                 y_error = aim_y - st.rows / 2
             elif count == 1:
                 st.aim_point = (int(aim_x + 100),int(aim_y))
-                x_error = aim_x - st.cols / 2 - 100
+                x_error = aim_x - st.cols / 2 - 150
                 y_error = aim_y - st.rows / 2
             side_error = speedtrap_params['firing_y'] * (x_error)
             fwd_error = -speedtrap_params['firing_x'] * (y_error)
@@ -328,9 +328,18 @@ class Manuoevre(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=0.5)
+                                                     sidemove_setpoint=1)
         movement_client.send_goal(goal)
-        movement_client.wait_for_result(rospy.Duration(4))
+        movement_client.wait_for_result(rospy.Duration(30))
+        print st.centroidx_list
+        if st.centroidx == 0:
+            rospy.loginfo("Bin not found reversing left")
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=locomotionGoal.depth_setpoint,
+                                                     sidemove_setpoint=-2)
+            movement_client.send_goal(goal)
+            movement_client.wait_for_result(rospy.Duration(30))
 	rospy.loginfo("sway movement to second bin complete!")
         return "manuoevre_complete"
         if rospy.is_shutdown():
@@ -367,7 +376,7 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = False
+isTest = True
 movement_client = None
 locomotionGoal = None 
 isStart = False

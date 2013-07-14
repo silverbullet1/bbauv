@@ -201,7 +201,7 @@ class SpeedTrap:
         if(contours != None):
             for i in range(0,len(contours)):
                 moments =cv2.moments(contours[i],binaryImage=False)
-                if moments['m00'] > 300:
+                if moments['m00'] > 700:
                     humoments = cv2.HuMoments(moments)
                     cv2.drawContours(contourImg, contours, i, (100,255,100), lineType=8, thickness= 1,maxLevel=0)
                     contourRect= cv2.minAreaRect(contours[i])
@@ -250,11 +250,17 @@ class SpeedTrap:
             self.centroidy_list = centroidy
             self.centroidx, self.centroidy = self.computeCenter(centroidx, centroidy) 
             cv2.circle(contourImg,(int(self.centroidx),int(self.centroidy)), 2, (0,0,255), thickness=-1)
+        else:
+            self.centroidx = 0
+            self.centroidy = 0
         #Compute orientation angle correction for vehicle orientation
         if len(self.angleList) >1:
             self.isCentering = True
             final_list = sorted(self.angleList)
             self.orientation = self.angleList[1]
+        elif len(self.angleList) == 1:
+            self.isCentering = True
+            self.orientation = self.angleList[0]
         else:
             self.isCentering = False
         
@@ -295,9 +301,9 @@ class SpeedTrap:
         if(self.cols != None):
             centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2, self.rows/2), self.inner_center, color)
             if self.counter == 0:
-                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 - 100, self.rows/2), self.outer_center, color)
+                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 - 150, self.rows/2), self.outer_center, color)
             elif self.counter == 1:
-                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 + 100, self.rows/2), self.outer_center, color)        
+                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 + 150, self.rows/2), self.outer_center, color)        
         if self.aim_point != None:
             cv2.circle(centroid_image,self.aim_point, 2, (0,255,9), thickness=-1)
         if self.isAim:

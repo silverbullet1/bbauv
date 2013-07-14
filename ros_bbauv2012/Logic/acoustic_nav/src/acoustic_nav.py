@@ -216,9 +216,22 @@ old_yaw = 0
 d10,d20,d30=0,0,0
 #Triangulation consts
 speedOfSound = 1484
+x_offset=2.7 #compare with compass
+y_offset=-0.065 #compare with compass
+z_offset=0.3 #compare with depth sensors. floating depth = 0.2..
+#pinger depth = 2.8 
 x_1, y_1, z_1 = 0  ,-0.07, 0.07 #left hydrophone
 x_2, y_2, z_2 = 0  , 0.07, 0.07 #right hydrophone
 x_3, y_3, z_3 = 0.1, 0   , 0    #top hydrophone
+x_1+=x_offset
+x_2+=x_offset
+x_3+=x_offset
+y_1+=y_offset
+y_2+=y_offset
+y_3+=y_offset
+z_1+=z_offset
+z_2+=z_offset
+z_3+=z_offset
 #result (direction/position)
 x, y ,z =0, 0, 0
 
