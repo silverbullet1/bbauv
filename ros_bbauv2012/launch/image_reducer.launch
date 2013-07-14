@@ -13,5 +13,5 @@
   </node>
 
   <param name="debug/stereo_camera/left/image_rect_color/compressed/jpeg_quality" value="40" />
-  <param name="debug/bottomcam/camera/image_rect_color/compressed/jpeg_quality" value="20" />
+  <param name="debug/bottomcam/camera/image_rect_color/compressed/jpeg_quality" value="40" />
 </launch>
