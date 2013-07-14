@@ -38,4 +38,7 @@
 
   <param name="stereo_camera/left/image_raw/compressed/format" value="png" />
   <param name="stereo_camera/right/image_raw/compressed/format" value="png" />
+
+  <param name="stereo_camera/left/image_rect_color/compressed/format" value="png" />
+  <param name="stereo_camera/right/image_rect_color/compressed/format" value="png" />
 </launch>
