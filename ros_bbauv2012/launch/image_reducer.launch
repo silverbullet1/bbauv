@@ -1,6 +1,5 @@
 <launch>
-  <node pkg="Vision" type="image_reducer.py" name="image_reducer"
-        args="/bottomcam/camera/image_rect_color /stereo_camera/left/image_rect_color /stereo_camera/right/image_rect_color">
+  <node pkg="Vision" type="image_debugger.py" name="image_debugger">
     <param name="~factor" value="0.5" />
   </node>
   <node ns="/debug/bottomcam/camera" pkg="image_transport" type="republish" name="republish_bottom"
