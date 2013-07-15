@@ -126,7 +126,7 @@ class Centering(smach.State):
             if(dt.centroid != None):
                 side_error = drivethru_params['centering_y'] * (dt.centroid[0] - dt.cols / 2)
                 fwd_error = -drivethru_params['centering_x'] * (dt.centroid[1] - dt.rows / 2)
-                if(dt.orientation != None):
+                if(dt.orientation != 0):
                     if isOrientationDone == False:
                         if(dt.orientation > 90):
                             orientation_error = (dt.yaw - (180 - dt.orientation)) % 360
@@ -167,32 +167,31 @@ class Aiming(smach.State):
         while not rospy.is_shutdown():
             if isAbort:
                 return "mission_abort"
-            if dt.centroid[0] != None:
-                x_error = dt.centroid[0] - dt.cols / 2
-                y_error = dt.centroid[1] - dt.rows / 2
-                
-                side_error = drivethru_params['aiming_y'] * (x_error)
-                fwd_error = -drivethru_params['aiming_x'] * (y_error)
-                
-                ''' Area selection criterion for stoppage of lowering'''
-                print dt.max_area
-                if dt.max_area > drivethru_params['bin_area']:
-                     self.isLowering = False
-                if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.outer_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.outer_center) and dt.max_area > drivethru_params['bin_area'] - 5000) or (depth_offset + locomotionGoal.depth_setpoint) > 4 :
-                    locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint + depth_offset
-                    rospy.loginfo("Identifying target...")
-                    #return "aiming_complete"
-                    movement_client.cancel_all_goals()
-                if self.isLowering:
-                    depth_offset = depth_offset + 0.05
-                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
-                                                         heading_setpoint=locomotionGoal.heading_setpoint,
-                                                         depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
-                                                         sidemove_setpoint=side_error)
-                movement_client.send_goal(goal)
-                movement_client.wait_for_result(rospy.Duration(2))
-                #rospy.loginfo("isLowering:" + str(self.isLowering))
-                r.sleep()
+            x_error = dt.centroid[0] - dt.cols / 2
+            y_error = dt.centroid[1] - dt.rows / 2
+            
+            side_error = drivethru_params['aiming_y'] * (x_error)
+            fwd_error = -drivethru_params['aiming_x'] * (y_error)
+            
+            ''' Area selection criterion for stoppage of lowering'''
+            print dt.max_area
+            if dt.max_area > drivethru_params['bin_area']:
+                 self.isLowering = False
+            if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.inner_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.inner_center) and dt.max_area > drivethru_params['bin_area'] - 5000):
+                locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint + depth_offset
+                rospy.loginfo("Identifying target...")
+                #return "aiming_complete"
+                movement_client.cancel_all_goals()
+            if self.isLowering:
+                depth_offset = depth_offset + 0.05
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
+                                                     sidemove_setpoint=side_error)
+            movement_client.send_goal(goal)
+            movement_client.wait_for_result(rospy.Duration(2))
+            #rospy.loginfo("isLowering:" + str(self.isLowering))
+            r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
         else:

@@ -16,11 +16,12 @@ from com.histogram.histogram import bbHistogram
 import numpy as np
 import cv2
 import math
+from numpy.core.fromnumeric import argmin
 
 class Drive_thru:
     debug = False
     orange_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
-    orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
+    orange_hist = None
     shape_hu = 0.0
     centroid = None
     orientation = 0
@@ -30,6 +31,9 @@ class Drive_thru:
     max_area = 0
     pipe_skeleton_pose = pipe_pose()
     def __init__(self):
+        if self.debug:
+            orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
+            self.orange_hist.setParams(self.orange_params)
         self.cvbridge = CvBridge()
         self.register()    
         self.cameraInfo_initialized_ = False
@@ -39,7 +43,6 @@ class Drive_thru:
         self.rows = 0
         self.cols = 0
         self.find_times_limit_ = 30
-        self.orange_hist.setParams(self.orange_params)
         self.pipePose_pub_ = rospy.Publisher('/pipe_pose', pipe_pose)
 
     def CameraInfoCB(self, info_msg):
@@ -92,7 +95,7 @@ class Drive_thru:
             #cv2.line(pipe_orange_threshold, tuple(contours[i-1][0][0]), tuple(contours[i][0][0]), 255, 2)
         
         self.pipe_skeleton_pose = pipe_pose()
-        self.centroid = None
+        #self.centroid = None
         copy_for_contour2 = pipe_orange_threshold.copy()
         contours, _ = cv2.findContours(copy_for_contour2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         self.rows,self.cols,val = cvimg.shape
@@ -108,23 +111,25 @@ class Drive_thru:
                         self.max_area = moments['m00']
                     self.centroid = (int(moments['m10']/moments['m00']),int(moments['m01']/moments['m00']))
                     cv2.circle(contourImg,self.centroid, 2, (0,0,255), thickness=-1)
-
+                    
                     cv2.drawContours(contourImg, contours, i, (100,255,100), lineType=8, thickness= 2,maxLevel=0)
                     humoments = cv2.HuMoments(moments)
-                    if(abs(humoments[0] - 0.17) < 0.05):
-                        minArea_rectangle = cv2.minAreaRect(contours[i])
+                    minArea_rectangle = cv2.minAreaRect(contours[i])
+                    if(abs(humoments[0] - self.shape_hu) < 0.05 and minArea_rectangle[1][0]/minArea_rectangle[1][1] - 1 < 0.1):
                         rect_points = cv2.cv.BoxPoints(minArea_rectangle)
                         cv2.putText(contourImg,str(np.round(humoments[0],2)), (int(rect_points[0][0]),int(rect_points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                         for j in range(4):
                             pt1 = tuple(np.int32(rect_points[j]))
                             pt2 = tuple(np.int32(rect_points[(j+1)%4]))
                             cv2.line(contourImg, pt1, pt2, (255,0,0), 2, 8)
-                        test, lowest_pt, second_lowest_pt = self.Calc_pose(rect_points, self.pipe_skeleton_pose)
-                        pt1 = tuple(np.int32(lowest_pt))
-                        pt2 = tuple(np.int32(second_lowest_pt))
-                        cv2.line(contourImg, pt2, pt1, (0,0,255), 2, 8)
-                        self.orientation = np.fabs(self.computeAngle(pt1,pt2))
-                        cv2.putText(contourImg,str(np.round(self.orientation,2)), (int(pt2[0]),int(pt2[1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+                        #test, lowest_pt, second_lowest_pt = self.Calc_pose(rect_points, self.pipe_skeleton_pose)
+                        pt1,pt2 = self.compute_lowest_line(rect_points)
+                        pt1 = tuple(np.int32(pt1))
+                        pt2 = tuple(np.int32(pt2))
+                        
+                        cv2.line(contourImg, (int(pt1[0]),int(pt1[1])), (int(pt2[0]),int(pt2[1])), (0,0,255), 2, 8)
+                        self.orientation = np.fabs(self.computeAngle(rect_points[2], rect_points[3]))
+                        cv2.putText(contourImg,str(np.round(self.orientation,2)), (int(rect_points[3][0]),int(rect_points[3][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                         if self.pipe_skeleton_pose.detect_pipe:
                             self.find_times_ += 1
                         else:
@@ -133,8 +138,11 @@ class Drive_thru:
         self.pipe_skeleton_pose.detection_stable = self.find_times_ > self.find_times_limit_
         self.pipePose_pub_.publish(self.pipe_skeleton_pose)
         
-        #cv2.imshow('orange_threshold', pipe_orange_threshold)
+        
         final_image = contourImg
+        #cv2.line(final_image, (self.cols/2 - self.inner_center,self.rows/2),(self.cols/2 + self.inner_center,self.rows/2), (0,0,255))
+        #cv2.line(final_image, (self.cols/2,self.rows/2 - self.inner_center),(self.cols/2,self.rows/2 + self.inner_center), (0,0,255))
+        final_image = self.draw_crosshair(final_image,(self.cols/2,self.rows/2), self.inner_center)
         cv2.waitKey(2)
         try:
             if(final_image != None):
@@ -144,7 +152,27 @@ class Drive_thru:
             #cv2.waitKey(1)
         except CvBridgeError, e:
             print e
-
+    
+    def draw_crosshair(self,image, center,radius):
+        cv2.line(image, (center[0] - radius,center[1]),(center[0] + radius,center[1]), (0,0,255))
+        cv2.line(image, (center[0],center[1] - radius),(center[0],center[1] + radius), (0,0,255))
+        return image
+    def compute_lowest_line(self,rect_points):
+        y_points = list()
+        x_points = list()
+        min_x = 0
+        for point in rect_points:
+            x_points.append(point[0])
+            y_points.append(point[1])
+        min_y_index = argmin(y_points)
+        min_pt = rect_points[min_y_index]
+        y_points.pop(min_y_index)
+        min_y_index = argmin(y_points)
+        min_pt2 = rect_points[min_y_index]
+        
+        return min_pt, min_pt2
+        
+        
     def Calc_pose(self, rect_points, pipeFrame_pose):
         dist1 = math.sqrt((rect_points[0][0] - rect_points[1][0])*(rect_points[0][0] - rect_points[1][0])+(rect_points[0][1] - rect_points[1][1])*(rect_points[0][1] - rect_points[1][1]))
         dist2 = math.sqrt((rect_points[2][0] - rect_points[1][0])*(rect_points[2][0] - rect_points[1][0])+(rect_points[0][1] - rect_points[1][1])*(rect_points[0][1] - rect_points[1][1]))
