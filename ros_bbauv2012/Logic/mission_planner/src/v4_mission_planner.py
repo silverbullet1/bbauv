@@ -229,7 +229,7 @@ class StoreGlobalCoord(smach.State):
         #increment marker_id because each marker must have unique id
         marker_id += 1
         task_marker.type = task_marker.CUBE
-        task_marker.action = task.marker.ADD
+        task_marker.action = task_marker.ADD
         task_marker.scale.x = 1
         task_marker.scale.y = 1
         task_marker.scale.z = 1
