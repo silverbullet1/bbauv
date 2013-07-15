@@ -724,7 +724,7 @@ if __name__ == '__main__':
 
     with sm_mission:
         
-        smach.StateMachine.add('COUNTDOWN', Countdown(700), transitions={'succeeded':'START'})
+        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
         smach.StateMachine.add('START',Start(10,0.2,0),
                                 transitions={'succeeded':'MARKER1'})
         
