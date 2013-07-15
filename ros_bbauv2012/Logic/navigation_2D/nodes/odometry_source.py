@@ -75,26 +75,26 @@ def main():
         rospy.Time.now(), "/base_footprint", "/odom")
         rospy.logdebug("Sending Transform")
 
-#        output = Odometry()
-#        output.header.seq = header['seq']
-#        output.header.stamp.secs = header['secs']
-#        output.header.stamp.nsecs = header['nsecs']
-#        output.header.frame_id = header['frame_id']
-#        output.child_frame_id = header['child_frame_id']
-#        output.pose.pose.position.x = position['x']
-#        output.pose.pose.position.y = position['y']
-#        output.pose.pose.position.z = position['z']
-#        output.pose.pose.orientation.x = orientation['x']
-#        output.pose.pose.orientation.y = orientation['y']
-#        output.pose.pose.orientation.z = orientation['z']                
-#        output.pose.pose.orientation.w = orientation['w']
-#        output.twist.twist.linear.x = linear_vel['x']
-#        output.twist.twist.linear.y = linear_vel['y']
-#        output.twist.twist.linear.z = linear_vel['z']
-#        output.twist.twist.angular.x = angular_vel['x']
-#        output.twist.twist.angular.y = angular_vel['y']
-#        output.twist.twist.angular.z = angular_vel['z']
-#        odometry.publish(output)
+        output = Odometry()
+        output.header.seq = header['seq']
+        output.header.stamp.secs = header['secs']
+        output.header.stamp.nsecs = header['nsecs']
+        output.header.frame_id = header['frame_id']
+        output.child_frame_id = header['child_frame_id']
+        output.pose.pose.position.x = position['x']
+        output.pose.pose.position.y = position['y']
+        output.pose.pose.position.z = position['z']
+        output.pose.pose.orientation.x = orientation['x']
+        output.pose.pose.orientation.y = orientation['y']
+        output.pose.pose.orientation.z = orientation['z']                
+        output.pose.pose.orientation.w = orientation['w']
+        output.twist.twist.linear.x = linear_vel['x']
+        output.twist.twist.linear.y = linear_vel['y']
+        output.twist.twist.linear.z = linear_vel['z']
+        output.twist.twist.angular.x = angular_vel['x']
+        output.twist.twist.angular.y = angular_vel['y']
+        output.twist.twist.angular.z = angular_vel['z']
+        odometry.publish(output)
                                                         
         rospy.sleep(0.05)
 

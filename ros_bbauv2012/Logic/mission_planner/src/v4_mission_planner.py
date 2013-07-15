@@ -92,14 +92,31 @@ class GoToDistance(smach.State):
     def execute(self,userdata):
         global locomotionGoal
         global locomotion_client
+        global set_LocoMode
         
         if self.direction == 'fwd':
+
+            #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+            try:
+                resp = set_LocoMode(True, False)
+                rospy.loginfo("LocoMode set to Fwd")
+            except rospy.ServiceException, e:
+                rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
+            
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distance,
                                                 sidemove_setpoint=0,
                                                 depth_setpoint=locomotionGoal.depth_setpoint,
                                                 heading_setpoint=locomotionGoal.heading_setpoint)
         
         if self.direction == 'sway':
+            
+            #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+            try:
+                resp = set_LocoMode(False, True)
+                rospy.loginfo("LocoMode set to Sway")
+            except rospy.ServiceException, e:
+                rospy.loginfo("LocoMode Sway NOT set: %s" % e)
+                
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                 sidemove_setpoint=self.distance,
                                                 depth_setpoint=locomotionGoal.depth_setpoint,
@@ -159,6 +176,14 @@ class GoToHeading(smach.State):
     def execute(self,userdata):
         global locomotionGoal
         global locomotion_client
+        global set_LocoMode
+        
+        #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+        try:
+            resp = set_LocoMode(False, False)
+            rospy.loginfo("LocoMode set to Default")
+        except rospy.ServiceException, e:
+            rospy.loginfo("LocoMode Default NOT set: %s" % e)        
         
         if self.heading == None:
             self.heading = locomotionGoal.heading_setpoint
@@ -215,11 +240,19 @@ class HoverSearch(smach.State):
         global locomotionGoal
         global locomotion_client
         global set_ConPIDMode
+        global set_LocoMode
         global lane_srv
         global isSearchDone
         isSearchDone = False
 
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))
+
+        #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+        try:
+            resp = set_LocoMode(False, False)
+            rospy.loginfo("LocoMode set to Default")
+        except rospy.ServiceException, e:
+            rospy.loginfo("LocoMode Default NOT set: %s" % e)
         
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
@@ -312,7 +345,7 @@ class LinearSearch(smach.State):
 
     def motion_callback(self,status,result):
         if status==actionlib.GoalStatus.SUCCEEDED:
-            rospy.loginfo("Search Callback Motion Complete")
+            rospy.loginfo("Search Motion Callback Complete")
             self.motionStatus = True
                    
     def execute(self, userdata):
@@ -320,12 +353,19 @@ class LinearSearch(smach.State):
         global locomotionGoal
         global locomotion_client
         global set_ConPIDMode
+        global set_LocoMode
         global lane_srv
         global isSearchDone
         isSearchDone = False
         
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
         
+        #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+        try:
+            resp = set_LocoMode(False, False)
+            rospy.loginfo("LocoMode set to Default")
+        except rospy.ServiceException, e:
+            rospy.loginfo("LocoMode Default NOT set: %s" % e)
 
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
@@ -501,6 +541,13 @@ class NavMoveBase(smach.State):
         x,y,z,w = quaternion_from_euler(0,0,ros_heading) #input must be radians
         rospy.logdebug('z= %s w= %s' % (str(z),str(w)))
 
+        #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+        try:
+            resp = set_LocoMode(False, False)
+            rospy.loginfo("LocoMode set to Default")
+        except rospy.ServiceException, e:
+            rospy.loginfo("LocoMode Default NOT set: %s" % e) 
+
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
             resp = set_ConPIDMode(True, True, True, True, False, False, True)
@@ -577,6 +624,7 @@ locomotion_client = None
 locomotionGoal = controller()
 movebase_client = None
 set_ConPIDMode = None
+set_LocoMode = None
 
 mission_server = None
 isSearchDone = False
@@ -600,24 +648,31 @@ if __name__ == '__main__':
     AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, AHRSCallback)
       
     #Service Client for Lane; Lane task is the only task that will not be shutdown
-    rospy.loginfo('Waiting for LaneServer to start up...')
+    rospy.loginfo('Mission Waiting for LaneServer to start up...')
     rospy.wait_for_service('lane_srv')
     lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
     rospy.loginfo('Mission Connected to LaneServer')
       
     # Action Client for PIDs
     locomotion_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+    rospy.loginfo('Mission Waiting for Locomotion Server to start up...')
     locomotion_client.wait_for_server()
     rospy.loginfo("Mission connected to LocomotionServer")
       
     #Service Client for PID & Modes
-    rospy.loginfo('Waiting for Set Controller Service to start up...')
+    rospy.loginfo('Mission Waiting for Set Controller Service to start up...')
     rospy.wait_for_service('set_controller_srv')
     set_ConPIDMode = rospy.ServiceProxy('set_controller_srv', set_controller)
     rospy.loginfo('Mission Connected to Set Controller Service')
-      
+    
+    rospy.loginfo('Mission Waiting for Locomotion Modes Service to start up...')
+    rospy.wait_for_service('locomotion_mode_srv')
+    set_LocoMode = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+    rospy.loginfo('Mission Connected to Locomotion Mode Service')
+    
     # Action Client for Move Base
     movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+    rospy.loginfo('Mission Waiting for Move Base Service to start up...')
     movebase_client.wait_for_server()
     rospy.loginfo("Mission connected to MovebaseServer")
 
