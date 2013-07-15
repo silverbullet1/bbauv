@@ -255,7 +255,8 @@ class Disengage(smach.State):
         global park
 
         isStart = False
-
+        
+        r = rospy.Rate(20)
         while (not rospy.is_shutdown()):
             if isEnd:
                 return 'completed'
@@ -263,6 +264,7 @@ class Disengage(smach.State):
                 park.register()
                 rospy.sleep(3)
                 return 'start_complete'
+            r.sleep()
 
 class Search(smach.State):
     
