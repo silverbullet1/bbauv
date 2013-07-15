@@ -4,6 +4,8 @@ import roslib; roslib.load_manifest('mission_planner')
 import rospy
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
+from std_msgs.msg import Float32
+from visualization_msgs.msg import Marker
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 import dynamic_reconfigure.client
@@ -216,12 +218,38 @@ class StoreGlobalCoord(smach.State):
         global global_y
         global global_depth
         global global_heading
-
+        global marker_id
+        
+#       Publishing marker so that RVIZ can visualize
+        task_marker_pub = rospy.Publisher("/task_visualization", Marker)
+        task_marker = Marker()
+        
+        task_marker.header.frame_id = "/"+self.task_name
+        task_marker.id = marker_id
+        #increment marker_id because each marker must have unique id
+        marker_id += 1
+        task_marker.type = task_marker.CUBE
+        task_marker.action = task_marker.ADD
+        task_marker.scale.x = 0.1
+        task_marker.scale.y = 0.1
+        task_marker.scale.z = 0.1
+        task_marker.color.a = 1
+        task_marker.color.r = 1
+        task_marker.color.g = 1
+        task_marker.color.b = 1
+        task_marker.pose.position.x = global_x
+        task_marker.pose.position.y = global_y
+        task_marker.pose.position.z = global_altitude
+        task_marker.text = self.task_name
+       
         rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
         rospy.set_param(self.task_name+'/x', global_x)
         rospy.set_param(self.task_name+'/y', global_y)
         rospy.set_param(self.task_name+'/depth', global_depth)
         rospy.set_param(self.task_name+'/heading', global_heading)
+        rospy.set_param(self.task_name+'/altitude', global_altitude)
+        
+        task_marker_pub.publish(task_marker)
             
         return 'succeeded'
         
@@ -620,6 +648,10 @@ def AHRSCallback(msg):
     global global_heading
     global_heading = msg.orientation.z * (180/pi)
 
+def AltitudeCallback(msg):
+    global global_altitude
+    global_altitude = msg.data
+
 locomotion_client = None
 locomotionGoal = controller()
 movebase_client = None
@@ -635,50 +667,68 @@ global_x = 0
 global_y = 0
 global_heading = 0
 global_depth = 0.3
+global_altitude = 0
+marker_id = 0
 
 if __name__ == '__main__':
     rospy.init_node('Mission_planner', anonymous=True)
     
+    test_mode = False
+    
     mission_server = rospy.Service('mission_srv', vision_to_mission, handle_srv)
     rospy.loginfo('MissionServer Initialized!')
 
-    # Subscribing to Telemetry
-    odom_sub = rospy.Subscriber('/earth_odom', Odometry, odomCallback)
-    depth_sub = rospy.Subscriber('/depth', depth, depthCallback)
-    AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, AHRSCallback)
-      
-    #Service Client for Lane; Lane task is the only task that will not be shutdown
-    rospy.loginfo('Mission Waiting for LaneServer to start up...')
-    rospy.wait_for_service('lane_srv')
-    lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
-    rospy.loginfo('Mission Connected to LaneServer')
-      
-    # Action Client for PIDs
-    locomotion_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
-    rospy.loginfo('Mission Waiting for Locomotion Server to start up...')
-    locomotion_client.wait_for_server()
-    rospy.loginfo("Mission connected to LocomotionServer")
-      
-    #Service Client for PID & Modes
-    rospy.loginfo('Mission Waiting for Set Controller Service to start up...')
-    rospy.wait_for_service('set_controller_srv')
-    set_ConPIDMode = rospy.ServiceProxy('set_controller_srv', set_controller)
-    rospy.loginfo('Mission Connected to Set Controller Service')
-    
-    rospy.loginfo('Mission Waiting for Locomotion Modes Service to start up...')
-    rospy.wait_for_service('locomotion_mode_srv')
-    set_LocoMode = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
-    rospy.loginfo('Mission Connected to Locomotion Mode Service')
-    
-    # Action Client for Move Base
-    movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-    rospy.loginfo('Mission Waiting for Move Base Service to start up...')
-    movebase_client.wait_for_server()
-    rospy.loginfo("Mission connected to MovebaseServer")
+    if not test_mode:    
+        # Subscribing to Telemetry
+        odom_sub = rospy.Subscriber('/earth_odom', Odometry, odomCallback)
+        depth_sub = rospy.Subscriber('/depth', depth, depthCallback)
+        AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, AHRSCallback)
+        Altitude_sub = rospy.Subscriber('/altitude', Float32, AltitudeCallback)
+          
+        #Service Client for Lane; Lane task is the only task that will not be shutdown
+        rospy.loginfo('Mission Waiting for LaneServer to start up...')
+        rospy.wait_for_service('lane_srv')
+        lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
+        rospy.loginfo('Mission Connected to LaneServer')
+          
+        # Action Client for PIDs
+        locomotion_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
+        rospy.loginfo('Mission Waiting for Locomotion Server to start up...')
+        locomotion_client.wait_for_server()
+        rospy.loginfo("Mission connected to LocomotionServer")
+          
+        #Service Client for PID & Modes
+        rospy.loginfo('Mission Waiting for Set Controller Service to start up...')
+        rospy.wait_for_service('set_controller_srv')
+        set_ConPIDMode = rospy.ServiceProxy('set_controller_srv', set_controller)
+        rospy.loginfo('Mission Connected to Set Controller Service')
+        
+        rospy.loginfo('Mission Waiting for Locomotion Modes Service to start up...')
+        rospy.wait_for_service('locomotion_mode_srv')
+        set_LocoMode = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+        rospy.loginfo('Mission Connected to Locomotion Mode Service')
+        
+        # Action Client for Move Base
+        movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        rospy.loginfo('Mission Waiting for Move Base Service to start up...')
+        movebase_client.wait_for_server()
+        rospy.loginfo("Mission connected to MovebaseServer")
 
 ### Insert Mission Here ###
   
+    sm_mission = smach.StateMachine(outcomes=['mission_complete'])
 
+    with sm_mission:
+        
+        smach.StateMachine.add('COUNTDOWN', Countdown(700), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(10,0.2,0),
+                                transitions={'succeeded':'MARKER1'})
+        
+        smach.StateMachine.add('MARKER1', StoreGlobalCoord('mission_marker1'), transitions={'succeeded':'MOVE_LEFT'})
+        smach.StateMachine.add('MOVE_LEFT', GoToDistance(30, 2, 'sway'), transitions={'succeeded':'MARKER2'})
+        smach.StateMachine.add('MARKER2', StoreGlobalCoord('mission_marker2'), transitions={'succeeded':'MOVE_FWD'})
+        smach.StateMachine.add('MOVE_FWD', GoToDistance(30, 2,'fwd'), transitions={'succeeded':'MARKER3'})
+        smach.StateMachine.add('MARKER3', StoreGlobalCoord('mission_marker3'), transitions={'succeeded':'mission_complete'})
 
 ### Mission Ends Here ###  
 

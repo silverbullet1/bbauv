@@ -8,6 +8,7 @@ import sys
 from math import pi
 
 # import msgs
+from std_msgs.msg import Float32
 from std_msgs.msg import Float64MultiArray 
 from geometry_msgs.msg import Pose 
 from geometry_msgs.msg import Quaternion
@@ -38,7 +39,7 @@ def main():
         #converting NED axis to ROS axes convention
         position['x'] =  msg.pose.pose.position.x # * -1
         position['y'] = msg.pose.pose.position.y * -1
-        position['z'] = msg.pose.pose.position.z #* -1
+#         position['z'] = msg.pose.pose.position.z #* -1
 #        linear_vel['x'] = msg.twist.twist.linear.x
 #        linear_vel['y'] = msg.twist.twist.linear.y # * -1
 #        linear_vel['z'] = msg.twist.twist.linear.z #* -1
@@ -53,6 +54,9 @@ def main():
 #        angular_vel['y'] = msg.angular_velocity.y #* -1
 #        angular_vel['z'] = msg.angular_velocity.z #* -1
 
+    def callback_Altitude(msg):
+        position['z'] = msg.data #* -1        
+
     def normalize_angle(angle):
         # Inspiration: http://www.ros.org/doc/api/angles/html/angles_8h_source.html; Normalizes the angle to be 0 to 360 It takes and returns degrees.
         normalized = (angle%360+360)%360
@@ -64,7 +68,8 @@ def main():
 	#declare subscribing from what
     WH_DVL = rospy.Subscriber("/earth_odom", Odometry, callback_earthodom)    
     AHRS8 = rospy.Subscriber("/AHRS8_data_q", Imu, callback_AHRS8)
-
+    Altitude = rospy.Subscriber("/altitude", Float32, callback_Altitude)
+    
 	#declare publishing to what
     odometry = rospy.Publisher("/odom", Odometry)
 
