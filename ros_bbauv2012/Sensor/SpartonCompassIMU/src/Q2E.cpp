@@ -33,6 +33,7 @@ void callBack(const sensor_msgs::Imu::ConstPtr& msg){
 
     y = 2. * M_PI + y;
     if (y >= 2.*M_PI) y-= 2. * M_PI;
+    y = y * 180 / M_PI;
 
     ROS_INFO("AHRS8_Q2E Call Back - Roll, Pitch, Yaw");
     printf("%06.2lf -- %06.2lf -- %06.2lf\n", r, p ,y);
