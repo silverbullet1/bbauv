@@ -69,9 +69,9 @@ class ImageDebugger:
                 cvimg = np.array(cvimg, dtype=np.uint8)
 
                 cvimg = cv2.resize(cvimg, (0, 0), None, factor, factor)
-                self.drawReticle(cvimg)
+                outimg = self.drawReticle(cvimg)
 
-                outimg = cv2.cv.fromarray(cvimg)
+                outimg = cv2.cv.fromarray(outimg)
                 publisher.publish(self.cvbridge.cv_to_imgmsg(outimg, encoding="bgr8")) #TODO: figure out actual encoding
             except CvBridgeError, e:
                 print e
@@ -79,15 +79,17 @@ class ImageDebugger:
         return (reticleCallback if showReticle else plainCallback)
 
 
-    def drawReticle(self, img):
+    def drawReticle(self, origimg):
         yaw, pitch, roll = self.yaw, self.pitch, self.roll
 
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
-        height, width, _ = img.shape
-        colour = (0, 90, 0)
+        height, width, _ = origimg.shape
+        colour = (255, 255, 255)
         pitch_start, pitch_end = 40, height-40
         yaw_start, yaw_end = 40, width-40
+
+        img = origimg
 
         mid_x, mid_y = width/2, height/2
 
@@ -183,6 +185,8 @@ class ImageDebugger:
      
             current_yaw += H_BASE
             yaw_x += yaw_inc
+
+        return img
 
 
 
