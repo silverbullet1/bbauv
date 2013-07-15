@@ -12,6 +12,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import random
 import numpy as np
 import cv2
+from collections import deque
 
 from com.histogram.histogram import bbHistogram
 
@@ -42,6 +43,8 @@ class TollboothDetector:
         self.history = []
         self.holes = []
 
+        self.ringbuffer = deque(maxlen=2)
+
         # Initial state
         self.heading = 0.0
         self.regionCount = 0
@@ -61,6 +64,14 @@ class TollboothDetector:
         self.lock.acquire()
 
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
+
+        tmp = cv2.resize(imghsv, (0,0), None, 0.25, 0.25)
+        self.ringbuffer.append(tmp)
+        tmp = np.mean(self.ringbuffer, axis=0)
+        tmp = np.array(tmp, dtype=np.uint8)
+        imghsv = cv2.resize(tmp, (0,0), None, 4, 4)
+
+        #imghsv = cv2.medianBlur(imghsv, 7)
 #        # Equalize on S
 #        imgh, imgs, imgv = cv2.split(imghsv)
 #        imghsv = cv2.merge([imgh, cv2.equalizeHist(imgs), imgv])
@@ -184,11 +195,13 @@ class TollboothDetector:
                 hole = np.invert(hole)
                 tmp = hole.copy()
                 holecontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
-                holecontours = [c for c in holecontours if cv2.contourArea(c) > 10 and cv2.pointPolygonTest(c, calcCentroid(c), False) > 0]
+                hole_rects = [(c, cv2.boundingRect(c)) for c in holecontours]
+                #holecontours = [c for c in holecontours if cv2.contourArea(c) > 10 and cv2.pointPolygonTest(c, calcCentroid(c), False) > 0]
+                holecontours = [c for (c,b) in hole_rects if cv2.contourArea(c) > 10 and abs(1.0-float(b[2])/b[3]) < 0.2]
 
             # Retrieve the centre of the 2nd-largest hole (if any)
             if len(self.history) <= i or self.history[i] is None:
-                targetHoles = sorted(holecontours, key=cv2.contourArea)[-1:] #TODO: switch to -2 during competition
+                targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:] #TODO: switch to -2 during competition
                 targetContour = None if len(targetHoles)==0 else targetHoles[0]
                 targetInfo = None
                 targetCentre = None

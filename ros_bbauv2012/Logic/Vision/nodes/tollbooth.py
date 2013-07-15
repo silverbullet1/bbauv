@@ -34,6 +34,7 @@ import smach_ros
 COMPETITION_TARGETS = ['red', 'yellow']
 
 # GLOBALS
+TEST_MODE = False
 DEBUG = True
 camdebug = None
 tollbooth = None
@@ -80,8 +81,10 @@ def initAction():
         rospy.wait_for_service('set_controller_srv')
         set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         rospy.wait_for_service('set_controller_srv')
-        set_controller_request(True, True, True, True, False, False, False)
+        set_controller_request(True, True, True, True, True, False, False)
         print "set controller request"
+        locomotion_mode_request = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+        locomotion_mode_request(False,False)
 
         firstRunAction = False
 
@@ -133,7 +136,7 @@ class Disengage(smach.State):
             srvServer = rospy.Service('tollbooth_srv', mission_to_vision, self.handle_srv)
             rospy.loginfo('tollbooth_srv initialized!')
 
-        self.isStart = False
+        self.isStart = TEST_MODE
 
         while not self.isStart:
             if rospy.is_shutdown(): return 'killed'
@@ -166,7 +169,8 @@ class Search(smach.State):
     def execute(self, userdata):
         while not rospy.is_shutdown():
             if tollbooth.regionCount >= 3:
-                mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+                if not TEST_MODE:
+                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
                 return 'search_complete'
 
             if isAborted:
@@ -422,8 +426,7 @@ class MoveToTarget(smach.State):
         # Lock on to target and fire torpedo
         actionClient.cancel_all_goals()
 
-        chargeTorpedo(gunSide)
-        rospy.sleep(params['chargeWait'])
+        #rospy.sleep(params['chargeWait'])
 
         rospy.loginfo("pew pew")
         fireTorpedo(gunSide)
@@ -520,7 +523,8 @@ class Done(smach.State):
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
         ctrl.heading_setpoint = cur_heading
-        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+        if not TEST_MODE:
+            mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
         return 'succeeded'
 
 
@@ -529,24 +533,13 @@ Torpedo functions
 - side: 'left' or 'right'
 '''
 manipulator_pub = None # Publisher
-def chargeTorpedo(side):
-    manip = manipulator()
-    manip.servo1 = 0
-    manip.servo2 = 0
-    manip.servo3 = int(side != 'left')
-    manip.servo4 = int(side != 'right')
-    manip.servo5 = 0
-    manip.servo6 = 0
-    manip.servo7 = 0
-    manipulator_pub.publish(manip)
-    
 def fireTorpedo(side):
     manip = manipulator()
-    manip.servo1 = 0
-    manip.servo2 = 0
-    manip.servo3 = 1
-    manip.servo4 = 1
-    manip.servo5 = 0
+    manip.servo1 = 1
+    manip.servo2 = 1
+    manip.servo3 = int(side == 'left')
+    manip.servo4 = int(side == 'right')
+    manip.servo5 = 1
     manip.servo6 = 0
     manip.servo7 = 0
     manipulator_pub.publish(manip)
