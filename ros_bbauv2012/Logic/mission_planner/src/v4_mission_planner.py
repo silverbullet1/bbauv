@@ -221,30 +221,32 @@ class StoreGlobalCoord(smach.State):
         global marker_id
         
 #       Publishing marker so that RVIZ can visualize
-        task_marker_pub = rospy.Publisher("/task_visualization", Marker)
-        task_marker = Marker()
-        
-        task_marker.header.frame_id = "/odom"
-        task_marker.id = marker_id
-        #increment marker_id because each marker must have unique id
-        marker_id += 1
-        task_marker.type = task_marker.CUBE
-        task_marker.action = task_marker.ADD
-        task_marker.scale.x = 1
-        task_marker.scale.y = 1
-        task_marker.scale.z = 1
-        task_marker.color.a = 1
-        task_marker.color.r = 1
-        task_marker.color.g = 1
-        task_marker.color.b = 0
-        task_marker.pose.position.x = global_x
-        task_marker.pose.position.y = global_y
-        task_marker.pose.position.z = global_altitude
-        task_marker.pose.orientation.x = 0
-        task_marker.pose.orientation.y = 0
-        task_marker.pose.orientation.z = 0
-        task_marker.pose.orientation.w = 1  
-        task_marker.text = self.task_name
+#         task_marker_pub = rospy.Publisher("/task_visualization", Marker)
+#         task_marker = Marker()
+#         
+#         task_marker.header.frame_id = "/odom"
+#         task_marker.header.stamp = rospy.Time.now()
+#         task_marker.id = marker_id        
+#         #increment marker_id because each marker must have unique id
+#         marker_id += 1
+#         task_marker.type = task_marker.CUBE
+#         task_marker.action = task_marker.ADD
+#         task_marker.scale.x = 1
+#         task_marker.scale.y = 1
+#         task_marker.scale.z = 1
+#         task_marker.color.a = 1
+#         task_marker.color.r = 1
+#         task_marker.color.g = 1
+#         task_marker.color.b = 0
+#         task_marker.pose.position.x = global_x
+#         task_marker.pose.position.y = global_y
+#         task_marker.pose.position.z = global_altitude
+#         task_marker.pose.orientation.x = 0
+#         task_marker.pose.orientation.y = 0
+#         task_marker.pose.orientation.z = 0
+#         task_marker.pose.orientation.w = 1  
+#         task_marker.text = self.task_name
+#         task_marker_pub.publish(task_marker)
        
         rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
         rospy.set_param(self.task_name+'/x', global_x)
@@ -252,9 +254,7 @@ class StoreGlobalCoord(smach.State):
         rospy.set_param(self.task_name+'/depth', global_depth)
         rospy.set_param(self.task_name+'/heading', global_heading)
         rospy.set_param(self.task_name+'/altitude', global_altitude)
-        
-        task_marker_pub.publish(task_marker)
-            
+                    
         return 'succeeded'
         
 class HoverSearch(smach.State):
@@ -723,16 +723,68 @@ if __name__ == '__main__':
     sm_mission = smach.StateMachine(outcomes=['mission_complete'])
 
     with sm_mission:
+        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(5,0.2,0),
+                                transitions={'succeeded':'NAV_TO_GATE'})
         
-        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'MARKER1'})
-#         smach.StateMachine.add('START',Start(10,0.2,0),
-#                                 transitions={'succeeded':'MARKER1'})
+        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(1,60,3.8,3.8,0.2,0), transitions={'succeeded':'LANE_GATE_TASK', 'failed':'SURFACE'})
+
+        lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
+        with lane_gate:
+            smach.StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH'})
+            smach.StateMachine.add('SEARCH', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('lane', 20, 2, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'lane_failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_lane_gate'), transitions={'succeeded':'LANE_GATE'})
+            smach.StateMachine.add('LANE_GATE', WaitOut('lane', 60), transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
+            smach.StateMachine.add('HEADINGCHANGE', GoToHeading(20), transitions={'succeeded':'lane_complete'})
+        smach.StateMachine.add('LANE_GATE_TASK', lane_gate, transitions={'lane_complete':'TRAFFIC_TASK', 'lane_failed':'SURFACE'})        
+
+        traffic = smach.StateMachine(outcomes=['traffic_complete', 'traffic_failed'])
+        with traffic:
+            smach.StateMachine.add('SEARCH', LinearSearch('traffic', 60, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('traffic', 60, -1, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
+            smach.StateMachine.add('SEARCH3', LinearSearch('traffic', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'traffic_failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_traffic'), transitions={'succeeded':'TRAFFIC'})
+            smach.StateMachine.add('TRAFFIC', WaitOut('traffic', 180), transitions={'succeeded':'MOVETOSIDE', 'failed':'traffic_failed'})
+            smach.StateMachine.add('MOVETOSIDE', GoToDistance(15,-0.75, 'sway'), transitions={'succeeded':'MOVEFWD'})
+            smach.StateMachine.add('MOVEFWD', GoToDistance(15,1.5, 'fwd'), transitions={'succeeded':'traffic_complete'})
+        smach.StateMachine.add('TRAFFIC_TASK', traffic, transitions={'traffic_complete':'TOLL_TASK', 'traffic_failed':'SURFACE'})            
+
+        toll = smach.StateMachine(outcomes=['toll_complete', 'toll_failed'])
+        with toll:
+            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.2), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('SEARCH', LinearSearch('tollbooth', 30, 4, 'fwd'), transitions={'succeeded':'STORE', 'failed':'TOLL_SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('tollbooth', 30, -2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
+            smach.StateMachine.add('SEARCH3', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'TOLL_STORE', 'failed':'SEARCH4'})
+            smach.StateMachine.add('SEARCH4', LinearSearch('tollbooth', 30, 2, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH5'})
+            smach.StateMachine.add('SEARCH5', LinearSearch('tollbooth', 60, -4, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH6'})
+            smach.StateMachine.add('SEARCH6', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'STORE', 'failed':'failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('toll'), transitions={'succeeded':'TOLLBOOTH'})            
+            smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})
+        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'SPEED_TASK'})
+
+        speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
+        with speed:
+            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.2), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, -1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
+            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH4'})
+            smach.StateMachine.add('SEARCH4', LinearSearch('speedtrap', 30, 2, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH5'})
+            smach.StateMachine.add('SEARCH5', LinearSearch('speedtrap', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'speed_failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_speed'), transitions={'succeeded':'SPEEDTRAP'})
+            smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 240), transitions={'succeeded':'speed_complete', 'failed':'speed_failed'})           
+        smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'HOME', 'speed_failed':'HOME'})
+
+#         drive_thru = smach.StateMachine(outcomes=['drive_complete', 'drive_failed'])
+#         with drive_thru:
+#             smach.StateMachine.add()
+#             smach.StateMachine.add()
+#             smach.StateMachine.add()
+#             smach.StateMachine.add()
+#         smach.StateMachine.add('DRIVE_THRU_TASK', drive_thru, transitions={'drive_complete': , 'drive_failed': })
         
-        smach.StateMachine.add('MARKER1', StoreGlobalCoord('mission_marker1'), transitions={'succeeded':'mission_complete'})
-#         smach.StateMachine.add('MOVE_LEFT', GoToDistance(30, 2, 'sway'), transitions={'succeeded':'MARKER2'})
-#         smach.StateMachine.add('MARKER2', StoreGlobalCoord('mission_marker2'), transitions={'succeeded':'MOVE_FWD'})
-#         smach.StateMachine.add('MOVE_FWD', GoToDistance(30, 2,'fwd'), transitions={'succeeded':'MARKER3'})
-#         smach.StateMachine.add('MARKER3', StoreGlobalCoord('mission_marker3'), transitions={'succeeded':'mission_complete'})
+        smach.StateMachine.add('HOME', NavMoveBase(1,60,0,0,0.5,26), transitions={'succeeded':'SURFACE', 'failed':'mission_failed'})
+        smach.StateMachine.add('SURFACE', GoToDepth(3,0.12), transitions={'succeeded':'mission_complete'})
 
 ### Mission Ends Here ###  
 

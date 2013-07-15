@@ -9,7 +9,7 @@ if __name__ == '__main__':
         smach.StateMachine.add('START',Start(5,0.2,0),
                                 transitions={'succeeded':'NAV_TO_GATE'})
         
-        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(1,1,3.8,3.8,0.2,0), transitions={'succeeded':'LANE_GATE_TASK', 'failed':'SURFACE'})
+        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(1,60,3.8,3.8,0.2,0), transitions={'succeeded':'LANE_GATE_TASK', 'failed':'SURFACE'})
 
         lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
