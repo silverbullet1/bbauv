@@ -224,22 +224,26 @@ class StoreGlobalCoord(smach.State):
         task_marker_pub = rospy.Publisher("/task_visualization", Marker)
         task_marker = Marker()
         
-        task_marker.header.frame_id = "/"+self.task_name
+        task_marker.header.frame_id = "/odom"
         task_marker.id = marker_id
         #increment marker_id because each marker must have unique id
         marker_id += 1
         task_marker.type = task_marker.CUBE
-        task_marker.action = task_marker.ADD
-        task_marker.scale.x = 0.1
-        task_marker.scale.y = 0.1
-        task_marker.scale.z = 0.1
+        task_marker.action = task.marker.ADD
+        task_marker.scale.x = 1
+        task_marker.scale.y = 1
+        task_marker.scale.z = 1
         task_marker.color.a = 1
         task_marker.color.r = 1
         task_marker.color.g = 1
-        task_marker.color.b = 1
+        task_marker.color.b = 0
         task_marker.pose.position.x = global_x
         task_marker.pose.position.y = global_y
         task_marker.pose.position.z = global_altitude
+        task_marker.pose.orientation.x = 0
+        task_marker.pose.orientation.y = 0
+        task_marker.pose.orientation.z = 0
+        task_marker.pose.orientation.w = 1  
         task_marker.text = self.task_name
        
         rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
@@ -668,7 +672,7 @@ global_y = 0
 global_heading = 0
 global_depth = 0.3
 global_altitude = 0
-marker_id = 0
+marker_id = 1
 
 if __name__ == '__main__':
     rospy.init_node('Mission_planner', anonymous=True)
