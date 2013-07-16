@@ -30,6 +30,7 @@ import smach
 import smach_ros
 
 # GLOBALS
+TEST_MODE = True
 DEBUG = True
 firstRun = True
 firstRunAction = True
@@ -61,8 +62,10 @@ def initService():
         rospy.wait_for_service('set_controller_srv')
         set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         rospy.wait_for_service('set_controller_srv')
-        set_controller_request(True, True, True, True, False, False, False)
+        set_controller_request(True, True, True, True, True, False, False)
         print "set controller request"
+        locomotion_mode_request = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+        locomotion_mode_request(False,False)
 
         firstRunAction = False
 
@@ -257,7 +260,7 @@ class Disengage(smach.State):
             rospy.Service('traffic_srv', mission_to_vision, self.handle_srv)
             rospy.loginfo('traffic_srv initialized!')
 
-        self.isStart = False
+        self.isStart = TEST_MODE
 
         while not self.isStart:
             if rospy.is_shutdown(): return 'killed'
@@ -287,7 +290,9 @@ class Search(smach.State):
             if isAborted: return 'aborted'
             rosRate.sleep()
 
-        mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+        if not TEST_MODE:
+            mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+
         return 'search_complete'
 
 
@@ -390,7 +395,9 @@ class Done(smach.State):
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
         ctrl.heading_setpoint = cur_heading
-        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+        if not TEST_MODE:
+            mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+
         return 'succeeded'
 
 

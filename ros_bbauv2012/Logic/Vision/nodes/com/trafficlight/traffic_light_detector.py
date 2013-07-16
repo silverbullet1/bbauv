@@ -12,6 +12,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import random
 import numpy as np
 import cv2
+from collections import deque
 
 #from com.histogram.histogram import bbHistogram
 
@@ -34,6 +35,8 @@ class TrafficLight:
 
         self.buoyDetected = False
         self.redCentre, self.redRadius = (-1,-1), 0
+
+        self.history = deque(maxlen=5)
 
     # Callback for subscribing to Image topic
     def gotRosFrame(self, rosImage):
@@ -76,9 +79,26 @@ class TrafficLight:
         #TODO: determine where the red (circular) buoy is (relative to the others)
         tmp = redImg.copy()
         redContours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        redCircles = [cv2.minEnclosingCircle(c) for c in redContours]
+        redCircles = [(cv2.minEnclosingCircle(c), cv2.contourArea(c)) for c in redContours]
+        redCircles = [((c,r),a) for ((c,r),a) in redCircles if r > 5]
         if redCircles:
-            self.redCentre, self.redRadius = max(redCircles, key=lambda (c,r): r)
+            if not self.history:
+                sortedCircles = sorted(redCircles, key=lambda ((c,r),a): r)
+                (curCentre, curRadius), curArea = sortedCircles[0]
+                curAreaRatio = float(curArea)/(curRadius * curRadius)
+                for (c, r), a in sortedCircles[1:]:
+                    if abs(r - self.redRadius) < 5 and float(a)/(r*r) > curAreaRatio:
+                        curCentre, curRadius = c, r
+                        curAreaRatio = float(curArea)/(curRadius * curRadius)
+                self.redCentre, self.redRadius = curCentre, curRadius
+            else:
+                # Minimize distance and radius difference
+                prevCentre, prevRadius = self.history[0]
+                bestCircle = min(redCircles, key=lambda ((c,r),a): (prevCentre[0]-c[0])**2 + (prevCentre[1]-c[1])**2 + (prevRadius-r)**2)[0]
+                self.redCentre, self.redRadius = bestCircle
+
+            self.history.appendleft((self.redCentre, self.redRadius))
+
             self.buoyDetected = True
 
         #TODO: identify buoys
