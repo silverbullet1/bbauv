@@ -22,6 +22,10 @@ def calcCentroid(contour):
     m = cv2.moments(contour)
     return (m['m10']/m['m00'], m['m01']/m['m00'])
 
+def sqDistance(a, b):
+    d1, d2 = a[0]-b[0], a[1]-b[1]
+    return d1*d1 + d2*d2
+
 # Tollbooth detector class
 class TollboothDetector:
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
@@ -40,8 +44,10 @@ class TollboothDetector:
         self.DEBUG = camdebug is not None and camdebug.debugOn
 
         self.target = 'all'
-        self.history = []
+        self.holehistory = []
         self.holes = []
+
+        self.centroid_histories = deque(maxlen=5)
 
         self.ringbuffer = deque(maxlen=2)
 
@@ -80,9 +86,11 @@ class TollboothDetector:
 
         self.shape = imghsv.shape
 
+        currentContoursFound = { }
+
         '''Returns coloured region, its contour, and axis-aligned bounding rect'''
         def findColouredRegionContours(imghsv, colour):
-            minArea = self.params['contourMinArea']/1000.0 * cvimg.shape[0] * cvimg.shape[1]
+            minArea = self.params['contourMinArea']
             hueLo, hueHi = self.params[colour+'HueLow'], self.params[colour+'HueHigh']
             satLo, satHi = self.params[colour+'SatLow'], self.params[colour+'SatHigh']
             valLo, valHi = self.params[colour+'ValLow'], self.params[colour+'ValHigh']
@@ -117,9 +125,28 @@ class TollboothDetector:
 
             tmp = img.copy() # findContours modifies the original
             contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            contours = filter(lambda c: cv2.contourArea(c) > minArea, contours)
-            maxcontour = max(contours, key=cv2.contourArea) if contours else None
-            boundingRect = cv2.boundingRect(maxcontour) if maxcontour is not None else (0,0,1,1)
+            contours = [(c, cv2.contourArea(c)) for c in contours]
+            contours = [(c,a,calcCentroid(c)) for (c,a) in contours if a > minArea]
+
+            if not contours:
+                maxcontour, boundingRect = None, (0, 0, 1, 1)
+#            elif not currentContoursFound:
+#                maxcontour, area, centroid = max(contours, key=lambda c: c[1])
+#                boundingRect = cv2.boundingRect(maxcontour)
+#                currentContoursFound[colour] = centroid
+            else:
+                # Pick the one closest to the contours found so far
+                keypts = [] if not currentContoursFound else currentContoursFound.values()
+                if self.centroid_histories and colour in self.centroid_histories[0]:
+                    keypts.append(self.centroid_histories[0][colour])
+
+                if not keypts:
+                    maxcontour, area, centroid = max(contours, key=lambda c: c[1])
+                else:
+                    closestcontour = min(contours, key=lambda c: np.sum([sqDistance(c[2], v) for v in keypts]))
+                    maxcontour, area, centroid = closestcontour
+                boundingRect = cv2.boundingRect(maxcontour)
+                currentContoursFound[colour] = centroid
 
             return (img, maxcontour, boundingRect)
 
@@ -127,6 +154,7 @@ class TollboothDetector:
         choices = COLOURS if self.target == 'all' else [self.target]
         for colour in choices:
             images.append(findColouredRegionContours(imghsv, colour))
+        self.centroid_histories.appendleft(currentContoursFound)
 
         self.regionCount = sum([contour is not None for _, contour, _ in images])
 
@@ -200,7 +228,7 @@ class TollboothDetector:
                 holecontours = [c for (c,b) in hole_rects if cv2.contourArea(c) > 10 and abs(1.0-float(b[2])/b[3]) < 0.2]
 
             # Retrieve the centre of the 2nd-largest hole (if any)
-            if len(self.history) <= i or self.history[i] is None:
+            if len(self.holehistory) <= i or self.holehistory[i] is None:
                 targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:] #TODO: switch to -2 during competition
                 targetContour = None if len(targetHoles)==0 else targetHoles[0]
                 targetInfo = None
@@ -211,13 +239,13 @@ class TollboothDetector:
                     targetArea = cv2.contourArea(targetContour)
                     targetRect = cv2.boundingRect(targetContour)
                     targetInfo = (targetCentre, targetArea, targetRect)
-                if len(self.history) <= i:
-                    self.history.append(targetInfo)
+                if len(self.holehistory) <= i:
+                    self.holehistory.append(targetInfo)
                 else:
-                    self.history[i] = targetInfo
+                    self.holehistory[i] = targetInfo
             else:
                 # Minimize distance and area difference
-                prevPt = self.history[i]
+                prevPt = self.holehistory[i]
                 if not holecontours:
                     targetInfo = None
                     targetCentre = None
@@ -225,7 +253,7 @@ class TollboothDetector:
                     targetCentres = [(calcCentroid(c),cv2.contourArea(c),c) for c in holecontours]
                     targetTmp = min(targetCentres, key=lambda c: (prevPt[0][0]-c[0][0])**2 + (prevPt[0][1]-c[0][1])**2 + (prevPt[1]-c[1])**2)
                     targetInfo = (targetTmp[0], targetTmp[1], cv2.boundingRect(targetTmp[2]))
-                    self.history[i] = targetInfo
+                    self.holehistory[i] = targetInfo
 
             self.holes.append(targetInfo)
 
@@ -256,7 +284,7 @@ class TollboothDetector:
 
     def changeTarget(self, target):
         self.target = target
-        self.history = []
+        self.holehistory = []
         self.regionCount = 0
         self.holes = []
 

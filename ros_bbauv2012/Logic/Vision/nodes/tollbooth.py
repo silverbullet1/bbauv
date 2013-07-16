@@ -34,7 +34,7 @@ import smach_ros
 COMPETITION_TARGETS = ['red', 'yellow']
 
 # GLOBALS
-TEST_MODE = False
+TEST_MODE = True
 DEBUG = True
 camdebug = None
 tollbooth = None
