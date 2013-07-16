@@ -36,185 +36,110 @@ class Disengage(smach.State):
 #Waiting for a clean signal to come
 
 class CollectTDOA(smach.State):
-    def __init__(self,timeout=30,samples=5,farfield=True):
-        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
+    def __init__(self,timeout=10,samples=5):
+        smach.State.__init__(self, outcomes=['succeeded','failed','aborted'])
+        self.timeout=timeout
+        self.samples=samples
     def execute(self,userdata):
         global tdoa_queue
+        global farfield
+        global isAbort
+        global new_data
 
-        start_time = rospy.get_time()
-        for i in range(samples):
-            print 'waiting for #{0} good ping...'.format(i)
+        for i in range(self.samples):
             start_time = rospy.get_time()
-            while not new_data and (rospy.get_time() - start_time) < timeout:
+            while (not new_data and not isAbort and not rospy.is_shutdown()
+                    and (rospy.get_time() - start_time) < self.timeout):
+                print 'waiting for #{0} good ping...'.format(i + 1)
                 rospy.sleep(1)
 
+            if isAbort or rospy.is_shutdown():
+                return 'aborted'
             if new_data:
-                print 'acquired #{0} good ping'.format(i)
-                if farfield:
-                    tdoa = far_field()
-                else:
-                    tdoa = nearfield()
-                tdoa_queue.put(tdoa)
+                print 'acquired #{0} good ping'.format(i+1)
+                tdoa = (d10,d20,d30)
+                new_data=False
+                tdoa_queue.put(tdoa)              
             else:
                 print 'timed out! Cannot acquire any good ping'
+                return 'failed'
 
-#Collect 5 sets of clean signal, calculate angle/direction
-def collectsignal(timeout=30,maxangle=130,samples=5,far_field=True):
-    global state_heading
-    global state0_heading
-    global P_heading
-    global P0_heading
-    global R_heading
-    global new_data
-    global new_heading
-    #(state_heading, P_Heading) = initialize_filter(state0_heading, P0_heading)
-    state_heading = state0_heading
-    P_heading = P0_heading
-    for i in range(samples):
-        print 'waiting for #{0} good ping'.format(i)
-        start_time = rospy.get_time()
-        while not new_data and (rospy.get_time() - start_time) < timeout:
-            rospy.sleep(1)
+        if isTest == False:
+            try:
+                resp = mission_srv_request(True, False, None)
+            except rospy.ServiceException, e:
+                print "Service call failed: %s" % e
 
-        if new_data:
-            print 'acquired #{0} good ping'.format(i)
-            direction=far_field()
-            rel_heading = math.atan2(direction.y,direction.x)*180/math.pi
+        return 'succeeded'
 
-            if np.fabs(rel_heading) < maxangle:
-                print "new relative heading", rel_heading
-                (state_heading, P_heading) = step_filter(state_heading, rel_heading, P_heading, R_heading)
-                print "new filtered heading", state_heading
-                print "current heading", yaw
-            else:
-                print 'suspect wrong angle! rel_heading = {0}'.format(rel_heading)
-        else:
-            print 'timed out! Cannot acquire any good ping'
-
-#2: CorrectHeading - use far field equation
 class CorrectHeading(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['completed','aborted'])
+        smach.State.__init__(self, outcomes=['farfield', 'nearfield', 'aborted'])
     def execute(self,userdata):
-        print '#2 Correcting heading:'
+        global farfield
+        global cur_heading
+        global tdoa_queue
+        z_threshold = 0.5
+        
+        if isAbort:
+            return 'aborted'
 
-        new_heading = (yaw +state_heading) % 360
-        print "Correcting heading to {0:.3f}".format(new_heading)
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0, heading_setpoint=new_heading, depth_setpoint=0.3, sidemove_setpoint=0)
-        print "####"
+        (rel_heading, z) = triangulate(tdoa_queue, "farfield")
+        print 'rel_heading={0}, z={1})'.format(rel_heading,z)
+        new_heading = (cur_heading + rel_heading) % 360
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = new_heading, depth_setpoint=0.3, sidemove_setpoint=0)
+        print "-----------------------"
         print goal
-        print "####"
+        print "-----------------------"
         movement_client.send_goal(goal)
-        movement_client.wait_for_result()
-                        
-        #maintain current heading, depth 
+        movement_client.wait_for_result(action_timeout)
+
+        cur_heading = new_heading
+
+        if z < z_threshold:
+            # continue far field, go to move forward
+            farfield = True
+            return 'farfield'
+        else:
+            # continue near field, go to collect TDOA 
+            farfield = False
+            return 'nearfield'
+
+class GoToXY(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['completed', 'aborted'])
+    def execute(self,userdata):
+        global tdoa_queue
+        global cur_heading
+
+        if isAbort:
+            return 'aborted'
+
+        x, y = triangulate(tdoa_queue, "nearfield")
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = x, heading_setpoint = cur_heading, depth_setpoint=search_depth, sidemove_setpoint=y)
+        print "-----------------------"
+        print goal
+        print "-----------------------"
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(action_timeout)
         return 'completed'
 
-#3: SearchAhead - keep current heading, search until certain condition to use near field equation
-class SearchAhead(smach.State):
+class MoveForward(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['completed','aborted'])
+        smach.State.__init__(self, outcomes=['completed', 'aborted'])
     def execute(self,userdata):
-        print '#3 moving forward'
-        #New code
-        global new_heading
-        global search_depth
-        global search_distance
-        global z_threshold
-        global x, y, z
-        global new_data
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=2*search_distance, heading_setpoint=new_heading,depth_setpoint=search_depth,sidemove_setpoint=0)
-        print "####"
-        print goal
-        print "####"
-        movement_client.send_goal(goal)
-        movement_client.wait_for_result()
-        
-        while z < z_threshold and not rospy.is_shutdown():
-            while not new_data: #busy waiting to wait for new data
-                pass
-            new_data = False
-            far_field()
-            rel_heading = math.atan2(y,x) * 180.0/math.pi
-            if np.fabs(rel_heading) > 130:
-                print "Suspect wrong relative heading"
-                continue
-            new_heading = (yaw + rel_heading) % 360
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=search_distance, heading_setpoint=new_heading,depth_setpoint=search_depth,sidemove_setpoint=0)
-            print "####"
-            print goal
-            print "####"
-            movement_client.send_goal(goal)
-            movement_client.wait_for_result()
-            
-            print "Finish searching, change to near field equation"
-            return 'completed'
-        #End new code
-#4: DriveThru - use near file equation and find exact position of the pinger
-class DriveThru(smach.State):
-    global isStart,isEnd
-    global search_depth
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['completed','aborted'])
-    def execute(self,userdata):
-        global meas_x, state_x, state0_x
-        global P_x, P0_x, R_x
-        global meas_y, state_y, state0_y
-        global P_y, P0_y, R_y
-        global x, y, z
-        global new_data
+        if isAbort:
+            return 'aborted'
 
-        print '#4 Moving to exact position using near field'
-        state_x = state0_x
-        P_x = P0_x
-        state_y = state0_y
-        P_y = P0_y
-        for i in range(5):
-            while not new_data: #busy waiting to wait for new data
-                pass
-            new_data = False
-            near_field()
-
-            (state_x, P_x) = step_filter(state_x, x, P_x, R_x)
-            (state_y, P_y) = step_filter(state_y, y, P_y, R_y)
-            print "Collecting near field data: ", i
-            print "x y:        ", x, y
-            print "filtered x y", x, y
-        
-        rel_heading = math.atan2(y,x) * 180.0/math.pi
-        print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_heading={4:.3f}'.format(x,y,z,yaw,rel_heading)
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=x,heading_setpoint=yaw,depth_setpoint=search_depth,sidemove_setpoint=y)
-        print '####'
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = search_distance, heading_setpoint = cur_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
+        print "-----------------------"
         print goal
-        print '####'
+        print "-----------------------"
         movement_client.send_goal(goal)
-        movement_client.wait_for_result(rospy.Duration(30))
-        
-        print 'MISSION DONE SURFACING...'
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=yaw,depth_setpoint=0,sidemove_setpoint=0)
-        print '####'
-        print goal
-        print '####'
-        movement_client.send_goal(goal)
-        movement_client.wait_for_result(rospy.Duration(30))
-        
-        rospy.signal_shutdown("Deactivating Acoustic Node")
-
+        movement_client.wait_for_result(action_timeout)
         return 'completed'
-        #call nearfield
-        #send final forward & sidemove goal
-        #notify finish driving, go back to disengage state
 
-#Triangulation consts
-speedOfSound = 1484
-x_1, y_1, z_1 = 0  ,-0.07, 0.07 #left hydrophone
-x_2, y_2, z_2 = 0  , 0.07, 0.07 #right hydrophone
-x_3, y_3, z_3 = 0.1, 0   , 0    #top hydrophone
-
-def far_field():
-    global new_data
-    new_data = False
-
+def far_field(d10, d20, d30):
     detA = x_1 * (y_2 * z_3 - y_3 * z_2)
     detA -= y_1 * (x_2 * z_3 - x_3 * z_2)
     detA += z_1 * (x_2 * y_3 - x_3 * y_2)
@@ -242,10 +167,7 @@ def far_field():
         z = z / normalize
     return (x,y,z)
     
-def near_field(z=2.4):
-    global new_data
-    new_data = False
-    
+def near_field(d10, d20, d30, z=2.4):   
     if (d10!=0 and d20!=0 and d30!=0):
         A2 = 2 * (x_2 / d20 - x_1 / d10)
         B2 = 2 * (y_2 / d20 - y_1 / d10)
@@ -269,11 +191,49 @@ def near_field(z=2.4):
             y = (C3 * A2 - C2 * A3) / (B3 * A2 - B2 * A3)
     return (x,y,z)
 
-def step_filter(state, meas, P, R):
-    K = P/(P + R)
-    state = state + K * (meas - state)
-    P = (1 - K) * P
-    return (state, P)
+def triangulate(data_queue, mode):
+    queue_length = data_queue.qsize()
+    if mode == "farfield":
+        Ph = 200
+        Rh = 0.5
+        Pz = 40
+        Rz = 0.1
+        filter_heading = 0
+        filter_z = 0
+        for i in range(queue_length):
+            #compute new measurement
+            d10,d20,d30=data_queue.get()
+            x, y, z = far_field(d10,d20,d30)
+            rel_heading = math.atan2(y,x) * 180 / math.pi
+            #filter steps
+            Kh = Ph / (Ph + Rh)
+            Kz = Pz / (Pz + Rz)
+            filter_heading = filter_heading + Kh * (rel_heading - filter_heading)
+            filter_z = filter_z + Kz * (z - filter_z)
+            Ph = (1 - Kh) * Ph
+            Pz = (1 - Kz) * Pz
+
+            print '(rel_heading,z)=({0},{1})'.format(rel_heading,z)
+        return filter_heading, filter_z
+
+    else:
+        Px = 40
+        Rx = 0.1
+        Py = 40
+        Ry = 0.1
+        filter_x = 0
+        filter_y = 0
+        for i in range(queue_length):
+            d10,d20,d30=data_queue.get()
+            x, y, z = near_field(d10,d20,d30)
+            Kx = Px / (Px + Rx)
+            Ky = Py / (Py + Ry)
+            filter_x = filter_x + Kx * (x - filter_x)
+            filter_y = filter_y + Ky * (y - filter_y)
+            Px = (1 - Kx) * Px
+            Py = (1 - Ky) * Py
+
+        return filter_x, filter_y
 
 def get_tdoa(msg):
     global d10,d20,d30
@@ -326,6 +286,12 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 ################### MAIN #####################
+#Triangulation consts
+speedOfSound = 1484
+x_1, y_1, z_1 = 0  ,-0.07, 0.07 #left hydrophone
+x_2, y_2, z_2 = 0  , 0.07, 0.07 #right hydrophone
+x_3, y_3, z_3 = 0.1, 0   , 0    #top hydrophone
+
 #States variabes
 isStart = False
 isEnd = False
@@ -334,34 +300,14 @@ isTest = True
 movement_client = None
 locomotionGoal = None 
 
+action_timeout=rospy.Duration(2)
 #Current state of vehicle:
 #from Compass, DVL
 yaw =0 
 altitude =0
-#heading from last calculation
-old_yaw = 0
+cur_heading=0
 #from hydrophones (TDOA)
-d10,d20,d30=0,0,0  
-
-
-#Kalman filter variables
-state_heading = 0
-state0_heading = 0
-P_heading = 0
-P0_heading = 200
-R_heading = 0.5
-
-state_x = 0
-state0_x = 0
-P_x = 0
-P0_x = 40
-R_x = 0.1
-
-state_y = 0
-state0_y = 0
-P_y = 0
-P0_y = 40
-R_y = 0.1
+d10, d20, d30 = 0, 0, 0
 
 #whether new time diff values received
 new_data = False
@@ -404,15 +350,21 @@ if __name__ == '__main__':
     rospy.Subscriber("/altitude",Float32,get_altitude)
 
     #State Machines
-    sm_top = smach.StateMachine(outcomes=['Task_completed','Aborted'])
+    sm_top = smach.StateMachine(outcomes=['Task_completed','Task_failed','Aborted'])
     with sm_top:
         smach.StateMachine.add('DISENGAGE',Disengage(),
-            transitions ={'started':'CORRECTHEADING','completed':'Task_completed','aborted':'Aborted'})
+            transitions ={'started':'SEARCH','completed':'Task_completed','aborted':'Aborted'})
+        
+        smach.StateMachine.add('SEARCH',CollectTDOA(),
+            transitions ={'succeeded':'CORRECTHEADING','failed':'Task_failed','aborted':'Aborted'})
+        
         smach.StateMachine.add('CORRECTHEADING',CorrectHeading(),
-            transitions ={'completed':'SEARCHAHEAD','aborted':'Aborted'})
-        smach.StateMachine.add('SEARCHAHEAD',SearchAhead(),
-            transitions ={'completed':'DRIVETHRU','aborted':'Aborted'})
-        smach.StateMachine.add('DRIVETHRU',DriveThru(),
+            transitions ={'farfield':'MOVEFORWARD','nearfield':'GOTOXY','aborted':'Aborted'})
+        
+        smach.StateMachine.add('MOVEFORWARD',MoveForward(),
+            transitions ={'completed':'SEARCH','aborted':'Aborted'})
+
+        smach.StateMachine.add('GOTOXY',GoToXY(),
             transitions ={'completed':'Task_completed','aborted':'Aborted'})
 
     sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/ACOUSTICNAVIGATION')
