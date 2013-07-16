@@ -108,7 +108,7 @@ class TrafficLight:
         tmp = imgCombined.copy()
         contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        minArea = self.params['contourMinArea']/1000.0 * cvimg.shape[0] * cvimg.shape[1]
+        minArea = self.params['contourMinArea']
         contourAreas = [(contour, cv2.contourArea(contour)) for contour in contours]
         contourAreas = filter(lambda (c,a): a >= minArea, contourAreas)
         contourAreas.sort(key=lambda x: x[1])
