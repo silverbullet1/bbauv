@@ -8,17 +8,17 @@ tmux rename-window 'Control diagnostics'
 tmux new-window -tPool:1
 tmux rename-window 'System diagnostics'
 tmux new-window -tPool:2
-tmux rename-window 'reconfigure-joy'
+tmux rename-window 'reconfigure'
 tmux split-window -h
 tmux send-keys 'rosrun dynamic_reconfigure reconfigure_gui' C-m
 tmux select-pane -L
-tmux send-keys 'rosrun joy joy_node' C-m
+#tmux send-keys 'rosrun joy joy_node' C-m
 #tmux new-window -t Pool:3
 #tmux rename-window 'rqt_gui'
 #tmux send-keys 'rosrun rqt_gui rqt_gui' C-m
 tmux new-window -t Pool:3
 tmux rename-window 'image_view'
-tmux send-keys 'sh child/see-cams.sh' C-m
+tmux send-keys 'rosrun rqt_image_view rqt_image_view' C-m
 tmux new-window -t Pool:4
 tmux rename-window 'rxconsole'
 tmux send-keys 'rxconsole' C-m
@@ -27,10 +27,12 @@ tmux rename-window 'filezilla'
 tmux send-keys 'filezilla &' C-m
 tmux new-window -t Pool:7
 tmux rename-window 'auv_gui'
-tmux rosrun auv_gui auv_gui.py
+tmux send-keys 'cd ~/fuerte_workspace/bbauv/ros_bbauv2012/Topside/auv_gui/ && ./debug_uncompress.sh' C-m
+tmux split-window -h
+tmux send-keys 'cd ~/fuerte_workspace/bbauv/ros_bbauv2012/Topside/auv_gui/ && rosrun auv_gui auv_gui.py' C-m
 tmux new-window -t Pool:8
 tmux rename-window 'scripts'
-
+tmux send-keys 'sshfs -o idmap=user -o gid=`id --group` bbauvsbc1@bbauv:bbauv_workspace/bbauv/ros_bbauv2012/Logic/Vision/nodes /home/gohew/fuerte_workspace/bbauv/ros_bbauv2012/Logic/Vision/mnt' C-m
 tmux select-window -tPool:0
 tmux split-window -h
 tmux split-window -h

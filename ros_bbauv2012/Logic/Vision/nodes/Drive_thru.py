@@ -129,16 +129,17 @@ class Centering(smach.State):
                 if(dt.orientation != 0):
                     if isOrientationDone == False:
                         if(dt.orientation > 90):
-                            orientation_error = (dt.yaw - (180 - dt.orientation)) % 360
+                            orientation_error = (dt.yaw + (180 - dt.orientation)) % 360
                         else:
                             orientation_error = (dt.yaw - dt.orientation) % 360
                         rospy.loginfo("selected orient:" + str(dt.orientation) + "ahrs yaw:" + str(dt.yaw) + "final yaw:" + str(orientation_error))
                         isOrientationDone = True
+                        locomotionGoal.heading_setpoint = orientation_error
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
                 if (np.fabs(dt.centroid[0] - dt.cols / 2) < dt.inner_center) and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.inner_center and np.fabs(orientation_error - dt.yaw) < 5 and isOrientationDone :
                     # userdata.center_pos = dt.position
-                    locomotionGoal.heading_setpoint = orientation_error
+                    
                     movement_client.cancel_all_goals()
                     return "centering_complete"
                 # print "orientation error:" + str(orientation_error) + "isCentering:" + str(dt.isCentering)
@@ -180,7 +181,7 @@ class Aiming(smach.State):
             if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.inner_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.inner_center) and dt.max_area > drivethru_params['bin_area'] - 5000):
                 locomotionGoal.depth_setpoint = locomotionGoal.depth_setpoint + depth_offset
                 rospy.loginfo("Identifying target...")
-                #return "aiming_complete"
+                return "aiming_complete"
                 movement_client.cancel_all_goals()
             if self.isLowering:
                 depth_offset = depth_offset + 0.05
@@ -189,7 +190,7 @@ class Aiming(smach.State):
                                                      depth_setpoint=locomotionGoal.depth_setpoint + depth_offset,
                                                      sidemove_setpoint=side_error)
             movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(2))
+            movement_client.wait_for_result(rospy.Duration(1))
             #rospy.loginfo("isLowering:" + str(self.isLowering))
             r.sleep()
         if rospy.is_shutdown():
@@ -197,24 +198,23 @@ class Aiming(smach.State):
         else:
             return 'aiming_complete'
 
-class Firing(smach.State):
+class Grabbing(smach.State):
     Kx = 0.001
     Ky = 0.002
     def __init__(self):
-        smach.State.__init__(self, outcomes=['firing_complete', "firing_all_complete", 'aborted', 'mission_abort'],
+        smach.State.__init__(self, outcomes=['grabbing_complete', "firing_all_complete", 'aborted', 'mission_abort'],
                              output_keys=['complete'])
-    def fire_dropper(self, left):
+    def fire_grabber(self, grab):
         global mani_pub
         _manipulator = manipulator()
-        if(left):
-            _manipulator.servo1 = 1
-            _manipulator.servo2 = 0
-        else:
-            _manipulator.servo1 = 0
-            _manipulator.servo2 = 1
+        _manipulator.servo1 = 1
+        _manipulator.servo2 = 1
         _manipulator.servo3 = 0
         _manipulator.servo4 = 0
-        _manipulator.servo5 = 0
+        if grab:
+            _manipulator.servo5 = 0
+        else:
+            _manipulator.servo5 = 1
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
@@ -227,68 +227,29 @@ class Firing(smach.State):
         global speedtrap_params
         x_error = 0
         y_error = 0
-        while(len(dt.centroidx_list) > 0 and not rospy.is_shutdown()):
+        while(dt.l_center_x and not rospy.is_shutdown()):
             if isAbort:
                 return "mission_abort"
+            x_error = dt.l_center_x - dt.cols/2
+            y_error = dt.l_center_y - dt.rows/2
             
-            '''Selection Algorithm for the top left and top right speed trap bins'''
-            final_coord = None
-            coord_min_y = np.argmin(dt.centroidy_list, None)
-            for i in range(0,len(dt.centroidy_list)):
-                if (np.fabs(dt.centroidy_list[i] - dt.centroidy_list[coord_min_y]) < 50):
-                    if count == 0:
-                        #Select Top Left
-                        if dt.centroidx_list[i] < dt.centroidx_list[coord_min_y]:
-                            final_coord = i
-                    elif count == 1:
-                        #Select Top Right
-                        if dt.centroidx_list[i] > dt.centroidx_list[coord_min_y]:
-                            final_coord = i
-            if final_coord == None:
-                aim_x = dt.centroidx_list[coord_min_y]
-                aim_y = dt.centroidy_list[coord_min_y]
-            else:                
-                aim_x = dt.centroidx_list[final_coord]
-                aim_y = dt.centroidy_list[final_coord]
-            if count == 0:
-                dt.aim_point = (int(aim_x -100),int(aim_y))
-                x_error = aim_x - dt.cols / 2 + 100 
-                y_error = aim_y - dt.rows / 2
-            elif count == 1:
-                dt.aim_point = (int(aim_x + 100),int(aim_y))
-                x_error = aim_x - dt.cols / 2 - 100
-                y_error = aim_y - dt.rows / 2
-            side_error = speedtrap_params['firing_y'] * (x_error)
-            fwd_error = -speedtrap_params['firing_x'] * (y_error)
-            if ((np.fabs(x_error) < dt.outer_center and np.fabs(y_error) < dt.outer_center)) :
-                print "Fire aim success"
-                dt.isAim = False
-                if count == 0:
-                    movement_client.cancel_all_goals()
-                    self.fire_dropper(False)
-                    rospy.loginfo("Fire left Dropper!")
-                    rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(2))
-                    count = 1
-                    dt.counter = 1
-                    return "firing_complete"
-                if count == 1:
-                    movement_client.cancel_all_goals()
-                    self.fire_dropper(True)
-                    rospy.loginfo("Fire right Dropper!")
-                    rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(2))
-                    count = 2
-                    dt.counter = 2
-                    userdata.complete = True
-                    return "firing_all_complete"
-                # rospy.loginfo("Identifying targ...")
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error,
+            
+            side_error = drivethru_params['firing_y'] * (x_error)
+            fwd_error = -drivethru_params['firing_x'] * (y_error)
+            #if ((np.fabs(x_error) < dt.outer_center and np.fabs(y_error) < dt.outer_center)) :
+            if True:    
+                print "Target locked"
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.05,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=side_error)
-            movement_client.send_goal(goal)
-            movement_client.wait_for_result(rospy.Duration(1))
+                                                     depth_setpoint=locomotionGoal.depth_setpoint + 1.25,
+                                                     sidemove_setpoint=-0.10)
+                movement_client.send_goal(goal)
+                movement_client.wait_for_result(rospy.Duration(30))
+                self.fire_grabber(True)
+                rospy.loginfo("Fire grabber!")
+                rospy.loginfo("Going to sleep. Waiting for Dropper")
+                rospy.sleep(rospy.Duration(2))
+                return "grabbing_complete"
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -297,7 +258,7 @@ class Firing(smach.State):
 
 class Manuoevre(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['manuoevre_complete', 'aborted', 'mission_abort'])
+        smach.State.__init__(self,outcomes=['manuoevre_complete', 'aborted', 'mission_abort'])
     def execute(self, userdata):
         global r
         global dt
@@ -306,16 +267,14 @@ class Manuoevre(smach.State):
         global count
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=0.2)
+                                                     depth_setpoint=0,
+                                                     sidemove_setpoint=0)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(2))
-	rospy.loginfo("sway movement to second bin complete!")
-        return "manuoevre_complete"
-        if rospy.is_shutdown():
-            return 'aborted'
-        else:
-            return 'firing_complete'
+	rospy.loginfo("Surfacing vehicle!")
+        #return "manuoevre_complete"
+        #if rospy.is_shutdown():
+        return 'aborted'
 
 
 '''
@@ -410,18 +369,18 @@ if __name__ == '__main__':
                          )
         smach.StateMachine.add('AIMING',
                          Aiming(),
-                         transitions={'aiming_complete': 'FIRING', 'aborted':'aborted',
+                         transitions={'aiming_complete': 'GRABBING', 'aborted':'aborted',
                                       'mission_abort':'DISENGAGED'}
                          )
-        smach.StateMachine.add('FIRING',
-                         Firing(),
-                         transitions={'firing_complete': 'MANUOEVRE',
+        smach.StateMachine.add('GRABBING',
+                         Grabbing(),
+                         transitions={'grabbing_complete': 'MANUOEVRE',
                                       'firing_all_complete':'DISENGAGED',
                                       'aborted':'aborted', 'mission_abort':'DISENGAGED'}
                          )
         smach.StateMachine.add('MANUOEVRE',
                          Manuoevre(),
-                         transitions={'manuoevre_complete': 'FIRING', 'aborted':'aborted',
+                         transitions={'manuoevre_complete': 'DISENGAGED', 'aborted':'aborted',
                                       'mission_abort':'DISENGAGED'}
                          )
 

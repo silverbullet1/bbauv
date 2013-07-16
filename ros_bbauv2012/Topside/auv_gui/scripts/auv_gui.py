@@ -37,6 +37,7 @@ class AUV_gui(QMainWindow):
     depth = 0
     pos_x = 0
     pos_y = 0
+    isAlert = [True,True,True,True]
     cvRGBImg_front = None
     cvRGBImg_bot = None
     isArmed = False
@@ -488,6 +489,8 @@ class AUV_gui(QMainWindow):
             batt_state.append("DISCON")
         elif self.data['openups'].charge1== -2:
             batt_state.append("OFF")
+        elif self.data['openups'].charge1== -3:
+            batt_state.append("LOADING")
         else:
             batt_state.append(self.data['openups'].charge1)
         
@@ -495,6 +498,8 @@ class AUV_gui(QMainWindow):
             batt_state.append("DISCON")
         elif self.data['openups'].charge2== -2:
             batt_state.append("OFF")
+        elif self.data['openups'].charge2== -3:
+            batt_state.append("LOADING")
         else:
             batt_state.append(self.data['openups'].charge2) 
         
@@ -502,6 +507,8 @@ class AUV_gui(QMainWindow):
             batt_state.append("DISCON")
         elif self.data['openups'].charge3== -2:
             batt_state.append("OFF")
+        elif self.data['openups'].charge3== -3:
+            batt_state.append("LOADING")
         else:
             batt_state.append(self.data['openups'].charge3)
             
@@ -509,8 +516,33 @@ class AUV_gui(QMainWindow):
             batt_state.append("DISCON")
         elif self.data['openups'].charge4== -2:
             batt_state.append("OFF")
+        elif self.data['openups'].charge4== -3:
+            batt_state.append("LOADING")
         else:
             batt_state.append(self.data['openups'].charge4)
+        
+        if self.data['openups'].charge1 < 10 and self.data['openups'].charge1 > -1 and self.isAlert[0] == False:
+            self.showDialog(1)
+            self.isAlert[0] = True
+        if self.data['openups'].charge2 < 10 and self.data['openups'].charge2 > -1 and self.isAlert[1] == False:
+            self.showDialog(2)
+            self.isAlert[1] = True
+        if self.data['openups'].charge3 < 10 and self.data['openups'].charge3 > -1 and self.isAlert[2] == False:
+            self.showDialog(3)
+            self.isAlert[2] = True
+        if self.data['openups'].charge4 < 10 and self.data['openups'].charge4 > -1 and self.isAlert[3] == False:
+            self.showDialog(4)
+            self.isAlert[3] = True
+            
+        if self.data['openups'].charge1 > 10:
+            self.isAlert[0] = False
+        if self.data['openups'].charge2 > 10:
+            self.isAlert[1] = False
+        if self.data['openups'].charge3 > 10:
+            self.isAlert[2] = False
+        if self.data['openups'].charge4 > 10:
+            self.isAlert[3] = False
+        
         
         self.oPanel1.setText("<b>OUPS1: " + str(batt_state[0]) + 
                               "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +
@@ -534,6 +566,10 @@ class AUV_gui(QMainWindow):
                                     "<br> FWD ERR: " + str(round(self.data['forward_error'],2)) + 
                                     "<br>SIDE ERR: "+ str(round(self.data['sidemove_error'],2)) + 
                                     "<br>DEP ERR: "+ str(round(self.data ['depth_error'],2)) + "</b>")
+    
+    def showDialog(self,ups):
+        QMessageBox.about(self,"Battery Low","OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
+    
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
         self.status_text.setText("set_controller Service ready.")
@@ -622,13 +658,11 @@ class AUV_gui(QMainWindow):
     def disableBtnHandler(self):
         resp = self.set_controller_request(False, False, False, False, False, True, False)
     def modeBtnHandler(self):
-        print self.counter
         if(self.counter == 0):
             self.modeButton.setText("Forward")
             #Enable Forward Mode
             resp = self.locomotion_mode_request(True,False)
             self.counter = self.counter + 1
-            print "forward"
         elif(self.counter == 1):
             resp = self.locomotion_mode_request(False,True)
             self.modeButton.setText("Sidemove")

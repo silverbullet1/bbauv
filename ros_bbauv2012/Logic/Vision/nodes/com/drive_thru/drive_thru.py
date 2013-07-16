@@ -26,13 +26,15 @@ class Drive_thru:
     centroid = None
     orientation = 0
     yaw = 0
+    l_center_x = 0
+    l_center_y = 0
     outer_center = 40
     inner_center = 20
     max_area = 0
     pipe_skeleton_pose = pipe_pose()
     def __init__(self):
         if self.debug:
-            orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
+            self.orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
             self.orange_hist.setParams(self.orange_params)
         self.cvbridge = CvBridge()
         self.register()    
@@ -54,8 +56,8 @@ class Drive_thru:
         angle = math.degrees(math.atan2((pt2[1] - pt1[1]),(pt2[0] - pt1[0])))
         return angle
     def processImage(self, image_msg):
-        if not self.cameraInfo_initialized_:
-            return
+        #if not self.cameraInfo_initialized_:
+        #    return
 
         try:
             iplimg = self.cvbridge.imgmsg_to_cv(image_msg, image_msg.encoding)
@@ -81,8 +83,8 @@ class Drive_thru:
         closing_size = 5
         closing_element = cv2.getStructuringElement(cv2.MORPH_RECT, (2*closing_size+1, 2*closing_size+1))
 
-        pipe_orange_threshold = cv2.morphologyEx(pipe_orange_threshold, cv2.MORPH_OPEN, opening_element)
-        pipe_orange_threshold = cv2.morphologyEx(pipe_orange_threshold, cv2.MORPH_CLOSE, closing_element,iterations=2)
+        #pipe_orange_threshold = cv2.morphologyEx(pipe_orange_threshold, cv2.MORPH_OPEN, opening_element)
+        pipe_orange_threshold = cv2.morphologyEx(pipe_orange_threshold, cv2.MORPH_CLOSE, closing_element,iterations=3)
 
         #cv2.imshow('raw_threshold', pipe_orange_threshold)
 
@@ -124,11 +126,16 @@ class Drive_thru:
                             cv2.line(contourImg, pt1, pt2, (255,0,0), 2, 8)
                         #test, lowest_pt, second_lowest_pt = self.Calc_pose(rect_points, self.pipe_skeleton_pose)
                         pt1,pt2 = self.compute_lowest_line(rect_points)
+                        
+                        #Calculate Center of lowest point
+                        self.l_center_x = (pt1[0] + pt2[0])/2
+                        self.l_center_y = (pt1[1] + pt2[1])/2
+                        
                         pt1 = tuple(np.int32(pt1))
                         pt2 = tuple(np.int32(pt2))
                         
                         cv2.line(contourImg, (int(pt1[0]),int(pt1[1])), (int(pt2[0]),int(pt2[1])), (0,0,255), 2, 8)
-                        self.orientation = np.fabs(self.computeAngle(rect_points[2], rect_points[3]))
+                        self.orientation = np.fabs(self.computeAngle(pt1,pt2))
                         cv2.putText(contourImg,str(np.round(self.orientation,2)), (int(rect_points[3][0]),int(rect_points[3][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                         if self.pipe_skeleton_pose.detect_pipe:
                             self.find_times_ += 1
@@ -160,17 +167,18 @@ class Drive_thru:
     def compute_lowest_line(self,rect_points):
         y_points = list()
         x_points = list()
-        min_x = 0
         for point in rect_points:
             x_points.append(point[0])
             y_points.append(point[1])
-        min_y_index = argmin(y_points)
-        min_pt = rect_points[min_y_index]
-        y_points.pop(min_y_index)
-        min_y_index = argmin(y_points)
-        min_pt2 = rect_points[min_y_index]
+        max_y_index = np.argmax(y_points)
+        max_pt = rect_points[max_y_index]
+        y_points.pop(max_y_index)
+        max_y2 = np.max(y_points)
+        for point in rect_points:
+            if point[1] == max_y2:
+                max_pt2 = point
         
-        return min_pt, min_pt2
+        return max_pt, max_pt2
         
         
     def Calc_pose(self, rect_points, pipeFrame_pose):
