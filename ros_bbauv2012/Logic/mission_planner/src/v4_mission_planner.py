@@ -720,14 +720,14 @@ if __name__ == '__main__':
 
 ### Insert Mission Here ###
   
-    sm_mission = smach.StateMachine(outcomes=['mission_complete'])
+    sm_mission = smach.StateMachine(outcomes=['mission_complete', 'mission_failed'])
 
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
         smach.StateMachine.add('START',Start(5,0.2,0),
                                 transitions={'succeeded':'NAV_TO_GATE'})
         
-        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(1,60,3.8,3.8,0.2,0), transitions={'succeeded':'LANE_GATE_TASK', 'failed':'SURFACE'})
+        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(1,60,4.2,4.2,0.2,0), transitions={'succeeded':'LANE_GATE_TASK', 'failed':'SURFACE'})
 
         lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
@@ -753,12 +753,12 @@ if __name__ == '__main__':
         toll = smach.StateMachine(outcomes=['toll_complete', 'toll_failed'])
         with toll:
             smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.2), transitions={'succeeded':'SEARCH'})
-            smach.StateMachine.add('SEARCH', LinearSearch('tollbooth', 30, 4, 'fwd'), transitions={'succeeded':'STORE', 'failed':'TOLL_SEARCH2'})
+            smach.StateMachine.add('SEARCH', LinearSearch('tollbooth', 30, 4, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
             smach.StateMachine.add('SEARCH2', LinearSearch('tollbooth', 30, -2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'TOLL_STORE', 'failed':'SEARCH4'})
+            smach.StateMachine.add('SEARCH3', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH4'})
             smach.StateMachine.add('SEARCH4', LinearSearch('tollbooth', 30, 2, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH5'})
             smach.StateMachine.add('SEARCH5', LinearSearch('tollbooth', 60, -4, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH6'})
-            smach.StateMachine.add('SEARCH6', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'STORE', 'failed':'failed'})
+            smach.StateMachine.add('SEARCH6', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'STORE', 'failed':'toll_failed'})
             smach.StateMachine.add('STORE', StoreGlobalCoord('toll'), transitions={'succeeded':'TOLLBOOTH'})            
             smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})
         smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'SPEED_TASK'})
