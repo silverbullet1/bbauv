@@ -130,10 +130,6 @@ class TollboothDetector:
 
             if not contours:
                 maxcontour, boundingRect = None, (0, 0, 1, 1)
-#            elif not currentContoursFound:
-#                maxcontour, area, centroid = max(contours, key=lambda c: c[1])
-#                boundingRect = cv2.boundingRect(maxcontour)
-#                currentContoursFound[colour] = centroid
             else:
                 # Pick the one closest to the contours found so far
                 keypts = [] if not currentContoursFound else currentContoursFound.values()
