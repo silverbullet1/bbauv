@@ -10,19 +10,21 @@ import smach_ros
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Point
 from std_msgs.msg import Float32
+from Queue import Queue
 
 import math
 import numpy as np
 
-new_data = False
-
+tdoa_queue = Queue()
 ### State Declaration ###
 #1: Disengage - start/stop control of the node
+
 class Disengage(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['started', 'completed', 'aborted'])
-    def execute(self,userdata):      
+    def execute(self,userdata) :     
         while not rospy.is_shutdown():
             if isEnd:
                 rospy.signal_shutdown("Deactivating Acoustic Node")
@@ -31,65 +33,70 @@ class Disengage(smach.State):
                 print "#1 Starting Acoustic node"
                 return 'started'
         return 'aborted'
+#Waiting for a clean signal to come
+
+class CollectTDOA(smach.State):
+    def __init__(self,timeout=30,samples=5,farfield=True):
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
+    def execute(self,userdata):
+        global tdoa_queue
+
+        start_time = rospy.get_time()
+        for i in range(samples):
+            print 'waiting for #{0} good ping...'.format(i)
+            start_time = rospy.get_time()
+            while not new_data and (rospy.get_time() - start_time) < timeout:
+                rospy.sleep(1)
+
+            if new_data:
+                print 'acquired #{0} good ping'.format(i)
+                if farfield:
+                    tdoa = far_field()
+                else:
+                    tdoa = nearfield()
+                tdoa_queue.put(tdoa)
+            else:
+                print 'timed out! Cannot acquire any good ping'
+
+#Collect 5 sets of clean signal, calculate angle/direction
+def collectsignal(timeout=30,maxangle=130,samples=5,far_field=True):
+    global state_heading
+    global state0_heading
+    global P_heading
+    global P0_heading
+    global R_heading
+    global new_data
+    global new_heading
+    #(state_heading, P_Heading) = initialize_filter(state0_heading, P0_heading)
+    state_heading = state0_heading
+    P_heading = P0_heading
+    for i in range(samples):
+        print 'waiting for #{0} good ping'.format(i)
+        start_time = rospy.get_time()
+        while not new_data and (rospy.get_time() - start_time) < timeout:
+            rospy.sleep(1)
+
+        if new_data:
+            print 'acquired #{0} good ping'.format(i)
+            direction=far_field()
+            rel_heading = math.atan2(direction.y,direction.x)*180/math.pi
+
+            if np.fabs(rel_heading) < maxangle:
+                print "new relative heading", rel_heading
+                (state_heading, P_heading) = step_filter(state_heading, rel_heading, P_heading, R_heading)
+                print "new filtered heading", state_heading
+                print "current heading", yaw
+            else:
+                print 'suspect wrong angle! rel_heading = {0}'.format(rel_heading)
+        else:
+            print 'timed out! Cannot acquire any good ping'
+
 #2: CorrectHeading - use far field equation
 class CorrectHeading(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
         print '#2 Correcting heading:'
-        """far_field()
-        rel_heading = (math.atan2(y,x)*180/math.pi) 
-        old_rel_heading=0
-        while (np.fabs(rel_heading)>10) and not rospy.is_shutdown():
-            if (rel_heading != old_rel_heading):
-                print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_heading={4:.3f}'.format(x,y,z,yaw,rel_heading)
-                if (np.fabs(rel_heading) < 130):
-                    new_heading = (yaw + rel_heading)%360
-                    print 'correcting heading to {0:.3f}'.format(new_heading) 
-                    goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=0.3,sidemove_setpoint=0)
-                    print '####'
-                    print goal
-                    print '####'
-                    movement_client.send_goal(goal)
-                    movement_client.wait_for_result(rospy.Duration(30))
-                else:
-                    print 'suspect wrong angle! rel_heading = {0}'.format(rel_heading)
-                old_rel_heading=rel_heading
-            else:
-                print 'waiting for new TDOA'
-            rospy.sleep(3)
-            far_field()
-            rel_heading = (math.atan2(y,x)*180/math.pi) 
-        """
-
-        #New code
-        global meas_heading
-        global state_heading
-        global state0_heading
-        global P_heading
-        global P0_heading
-        global R_heading
-        global new_data
-        global new_heading
-        global x, y, z
-        #(state_heading, P_Heading) = initialize_filter(state0_heading, P0_heading)
-        state_heading = state0_heading
-        P_heading = P0_heading
-        for i in range(5):
-            print "Collecting heading data no.",i
-            while not new_data: #busy waiting to wait for new data
-                pass
-            new_data = False
-            far_field()
-            rel_heading = math.atan2(y,x) * 180.0/math.pi
-            if np.fabs(rel_heading) < 130:
-                meas_heading = rel_heading
-                print "new relative heading", rel_heading
-                (state_heading, P_heading) = step_filter(state_heading, meas_heading, P_heading, R_heading)
-                print "new filtered heading", state_heading
-                print "current heading", yaw
-            else:
-                print 'suspect wrong angle! rel_heading = {0}'.format(rel_heading)
 
         new_heading = (yaw +state_heading) % 360
         print "Correcting heading to {0:.3f}".format(new_heading)
@@ -99,27 +106,16 @@ class CorrectHeading(smach.State):
         print "####"
         movement_client.send_goal(goal)
         movement_client.wait_for_result()
-        
-        #End new code
-                
+                        
         #maintain current heading, depth 
         return 'completed'
-        
+
 #3: SearchAhead - keep current heading, search until certain condition to use near field equation
 class SearchAhead(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['completed','aborted'])
     def execute(self,userdata):
         print '#3 moving forward'
-        """goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=3.5,heading_setpoint=yaw,depth_setpoint=0.3,sidemove_setpoint=0)
-        print '####'
-        print goal
-        print '####'
-        movement_client.send_goal(goal)
-        movement_client.wait_for_result()
-        print 'finished moving forward 3m'
-        return 'completed'
-        """
         #New code
         global new_heading
         global search_depth
@@ -169,8 +165,6 @@ class DriveThru(smach.State):
         global new_data
 
         print '#4 Moving to exact position using near field'
-        #(state_x, P_x) = initialize_filter(state0_x, P0_x)
-        #(state_y, P_y) = initialize_filter(state0_y, P0_y)
         state_x = state0_x
         P_x = P0_x
         state_y = state0_y
@@ -180,10 +174,9 @@ class DriveThru(smach.State):
                 pass
             new_data = False
             near_field()
-            meas_x = x
-            meas_y = y
-            (state_x, P_x) = step_filter(state_x, meas_x, P_x, R_x)
-            (state_y, P_y) = step_filter(state_y, meas_y, P_y, R_y)
+
+            (state_x, P_x) = step_filter(state_x, x, P_x, R_x)
+            (state_y, P_y) = step_filter(state_y, y, P_y, R_y)
             print "Collecting near field data: ", i
             print "x y:        ", x, y
             print "filtered x y", x, y
@@ -212,16 +205,15 @@ class DriveThru(smach.State):
         #send final forward & sidemove goal
         #notify finish driving, go back to disengage state
 
-def TDOA_sub_callback(msg):
-    global d10,d20,d30
-    global new_data
-    new_data = True
-    d10=msg.linear.x/1000000*speedOfSound
-    d20=msg.linear.y/1000000*speedOfSound
-    d30=msg.linear.z/1000000*speedOfSound
+#Triangulation consts
+speedOfSound = 1484
+x_1, y_1, z_1 = 0  ,-0.07, 0.07 #left hydrophone
+x_2, y_2, z_2 = 0  , 0.07, 0.07 #right hydrophone
+x_3, y_3, z_3 = 0.1, 0   , 0    #top hydrophone
 
 def far_field():
-    global x,y,z
+    global new_data
+    new_data = False
 
     detA = x_1 * (y_2 * z_3 - y_3 * z_2)
     detA -= y_1 * (x_2 * z_3 - x_3 * z_2)
@@ -248,11 +240,11 @@ def far_field():
         x = x / normalize
         y = y / normalize
         z = z / normalize
-
-def near_field():
-    global x,y,z
-
-    z =2.4 #altitude
+    return (x,y,z)
+    
+def near_field(z=2.4):
+    global new_data
+    new_data = False
     
     if (d10!=0 and d20!=0 and d30!=0):
         A2 = 2 * (x_2 / d20 - x_1 / d10)
@@ -275,6 +267,21 @@ def near_field():
         else:
             x = (C2 * B3 - C3 * B2) / (A2 * B3 - A3 * B2)
             y = (C3 * A2 - C2 * A3) / (B3 * A2 - B2 * A3)
+    return (x,y,z)
+
+def step_filter(state, meas, P, R):
+    K = P/(P + R)
+    state = state + K * (meas - state)
+    P = (1 - K) * P
+    return (state, P)
+
+def get_tdoa(msg):
+    global d10,d20,d30
+    global new_data
+    new_data = True
+    d10=msg.linear.x/1000000*speedOfSound
+    d20=msg.linear.y/1000000*speedOfSound
+    d30=msg.linear.z/1000000*speedOfSound
 
 def get_heading(msg):
     global yaw
@@ -283,17 +290,6 @@ def get_heading(msg):
 def get_altitude(msg):
     global altitude
     altitude=msg.data
-
-def initialize_filter(state0, P0):
-    state = state0
-    P = P0
-    return (state, P)
-
-def step_filter(state, meas, P, R):
-    K = P/(P + R)
-    state = state + K * (meas - state)
-    P = (1 - K) * P
-    return (state, P)
 
 def handle_srv(req):
     global isStart
@@ -329,18 +325,7 @@ altitude =0
 old_yaw = 0
 #from hydrophones (TDOA)
 d10,d20,d30=0,0,0  
-#Triangulation consts
-speedOfSound = 1484
-x_offset=2.7 #compare with compass
-y_offset=-0.065 #compare with compass
-z_offset=0.3 #compare with depth sensors. floating depth = 0.2..
-#pinger depth = 2.8 
-x_1, y_1, z_1 = 0  ,-0.07, 0.07 #left hydrophone
-x_2, y_2, z_2 = 0  , 0.07, 0.07 #right hydrophone
-x_3, y_3, z_3 = 0.1, 0   , 0    #top hydrophone
 
-#result (direction/position)
-x, y ,z =0, 0, 0
 
 #Kalman filter variables
 state_heading = 0
@@ -348,24 +333,21 @@ state0_heading = 0
 P_heading = 0
 P0_heading = 200
 R_heading = 0.5
-meas_heading = 0
 
 state_x = 0
 state0_x = 0
 P_x = 0
 P0_x = 40
 R_x = 0.1
-meas_x = 0
 
 state_y = 0
 state0_y = 0
 P_y = 0
 P0_y = 40
 R_y = 0.1
-meas_y = 0
 
 #whether new time diff values received
-#new_data = False
+new_data = False
 #calculated heading
 new_heading = 0
 #seach state parameters
@@ -400,7 +382,7 @@ if __name__ == '__main__':
         rospy.loginfo('connected to mission_srv!')
 
     #Setup Subscribers
-    rospy.Subscriber("/hydrophone/time_diff",Twist,TDOA_sub_callback)
+    rospy.Subscriber("/hydrophone/time_diff",Twist,get_tdoa)
     rospy.Subscriber("/euler",compass_data,get_heading)
     rospy.Subscriber("/altitude",Float32,get_altitude)
 
@@ -427,26 +409,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print "Shutting down"
     pass
-#-------back up code-----
-    # while not rospy.is_shutdown():
-    #     far_field()
-    #     rel_heading = (math.atan2(y,x)*180/math.pi) 
-    #     if (rel_heading != old_yaw):
-    #         print 'x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f},rel_heading={4:.3f}'.format(x,y,z,yaw,rel_heading)
-    #         if (np.fabs(rel_heading) < 80):
-    #             new_heading = (yaw + rel_heading)%360
-    #             if (np.fabs(rel_heading) >	10):
-    #                 print 'correcting heading to {0:.3f}'.format(new_heading) 
-    #                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,heading_setpoint=new_heading,depth_setpoint=1,sidemove_setpoint=0)
-    #             else:
-    #                 print 'moving forward'
-    #                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=5,heading_setpoint=yaw,depth_setpoint=1,sidemove_setpoint=0)
-    #             client.send_goal(goal)
-    #             client.wait_for_result(rospy.Duration(30))
-    #         else:
-    #             print 'suspect wrong angle! rel_heading = {0}'.format(rel_heading)
-    #         old_yaw=rel_heading
-    #     else:
-    #         print 'waiting for new TDOA'
-    #     r.sleep() 
-
