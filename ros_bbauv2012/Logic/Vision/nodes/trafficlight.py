@@ -42,6 +42,9 @@ input_heading = 0
 depth_setpoint = 0.5
 cur_heading = 0
 
+#TODO: Use competition colours
+TARGET_COLORS = ['red']
+
 #HACK: use a lock to prevent race conditions
 lock = threading.Lock()
 
@@ -111,6 +114,8 @@ class Correction:
                 return True
 
             x,y = lightDetector.redCentre
+#            #HACK: shift y by a bit to compensate
+#            y -= 30
             rad = lightDetector.redRadius
             w = h = 2*rad
             H,W = lightDetector.shape[0:2]
@@ -248,7 +253,7 @@ class Disengage(smach.State):
         smach.State.__init__(
                         self,
                         outcomes=['start_complete', 'killed'],
-                        output_keys=[]
+                        output_keys=['targetColors']
         )
 
     def execute(self, userdata):
@@ -269,6 +274,7 @@ class Disengage(smach.State):
             rosRate.sleep()
 
         lightDetector = TrafficLight(params, lock, camdebug)
+        userdata.targetColors = TARGET_COLORS
 
         return 'start_complete'
 
@@ -281,8 +287,8 @@ class Search(smach.State):
         smach.State.__init__(
                         self,
                         outcomes=['search_complete', 'aborted', 'killed'],
-                        input_keys=[],
-                        output_keys=[]
+                        input_keys=['targetColors'],
+                        output_keys=['targetColors']
         )
 
     def execute(self, userdata):
@@ -469,7 +475,7 @@ class BumpToColor(smach.State):
             actionClient.cancel_all_goals()
 
             rospy.sleep(1) # wait a bit before checking LED color
-            if lightDetector.colorsFound and lightDetector.colors[0][0] == userdata.targetColors[0]:
+            if lightDetector.colorsFound and lightDetector.colorsFound[0][0] == userdata.targetColors[0]:
                 remainingColors = userdata.targetColors[1:]
                 userdata.targetColors = remainingColors
                 break
@@ -568,25 +574,26 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'BUMP',
                         BumpIt(),
-                        transitions={'bumped': 'DONE',
+#                        transitions={'bumped': 'DONE',
+                        transitions={'bumped': 'SIDEMOVE_TO_BUOY',
                                      'aborted': 'DISENGAGED',
                                      'killed': 'killed'}
         )
-#        smach.StateMachine.add(
-#                        'SIDEMOVE_TO_BUOY',
-#                        SidemoveToBuoy(),
-#                        transitions={'succeeded': 'BUMP_TO_COLOR',
-#                                     'aborted': 'DISENGAGED',
-#                                     'killed': 'killed'}
-#        )
-#        smach.StateMachine.add(
-#                        'BUMP_TO_COLOR',
-#                        BumpToColor(),
-#                        transitions={'bumped': 'SIDEMOVE_TO_BUOY',
-#                                     'done': 'DONE',
-#                                     'aborted': 'DISENGAGED',
-#                                     'killed': 'killed'}
-#        )
+        smach.StateMachine.add(
+                        'SIDEMOVE_TO_BUOY',
+                        SidemoveToBuoy(),
+                        transitions={'succeeded': 'BUMP_TO_COLOR',
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
+        )
+        smach.StateMachine.add(
+                        'BUMP_TO_COLOR',
+                        BumpToColor(),
+                        transitions={'bumped': 'SIDEMOVE_TO_BUOY',
+                                     'done': 'DONE',
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
+        )
         smach.StateMachine.add(
                         'DONE',
                         Done(),
