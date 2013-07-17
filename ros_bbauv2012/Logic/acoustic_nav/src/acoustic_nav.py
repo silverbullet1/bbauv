@@ -36,7 +36,7 @@ class Disengage(smach.State):
 #Waiting for a clean signal to come
 
 class CollectTDOA(smach.State):
-    def __init__(self,timeout=10,samples=5):
+    def __init__(self,timeout=20,samples=5):
         smach.State.__init__(self, outcomes=['succeeded','failed','aborted'])
         self.timeout=timeout
         self.samples=samples
@@ -79,23 +79,26 @@ class CorrectHeading(smach.State):
         global farfield
         global cur_heading
         global tdoa_queue
-        z_threshold = 0.5
+        z_threshold = 0.7
         
         if isAbort:
             return 'aborted'
-
+        print 'cur_heading = ',cur_heading
         (rel_heading, z) = triangulate(tdoa_queue, "farfield")
-        print 'rel_heading={0}, z={1})'.format(rel_heading,z)
-        new_heading = (cur_heading + rel_heading) % 360
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = new_heading, depth_setpoint=0.3, sidemove_setpoint=0)
-        print "-----------------------"
-        print goal
-        print "-----------------------"
-        movement_client.send_goal(goal)
-        movement_client.wait_for_result(action_timeout)
-
-        cur_heading = new_heading
-
+        print '(rel_heading={0}, z={1})'.format(rel_heading,z)
+        if rel_heading > 10
+            print "correcting heading...."
+            new_heading = (cur_heading + rel_heading) % 360
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = new_heading, depth_setpoint=0.3, sidemove_setpoint=0)
+            print "-----------------------"
+            print goal
+            print "-----------------------"
+            movement_client.send_goal(goal)
+            movement_client.wait_for_result(action_timeout)
+            cur_heading = new_heading
+        else:
+            print "good heading! maintain current heading"
+             
         if z < z_threshold:
             # continue far field, go to move forward
             farfield = True
@@ -245,7 +248,11 @@ def get_tdoa(msg):
 
 def get_heading(msg):
     global yaw
+    global cur_heading
     yaw=msg.yaw
+    if cur_heading == 10000:
+        print 'set cur_heading ',yaw
+        cur_heading=msg.yaw
 
 def get_altitude(msg):
     global altitude
@@ -300,7 +307,7 @@ isTest = True
 movement_client = None
 locomotionGoal = None 
 
-action_timeout=rospy.Duration(2)
+action_timeout=rospy.Duration(30)
 #Current state of vehicle:
 #from Compass, DVL
 yaw =0 
@@ -338,6 +345,7 @@ if __name__ == '__main__':
 
     if isTest:
         isStart= True
+        cur_heading=10000 #dummy val
     else:
         rospy.loginfo('waiting for mission_srv...')
         rospy.wait_for_service('mission_srv')
@@ -355,15 +363,18 @@ if __name__ == '__main__':
         smach.StateMachine.add('DISENGAGE',Disengage(),
             transitions ={'started':'SEARCH','completed':'Task_completed','aborted':'Aborted'})
         
-        smach.StateMachine.add('SEARCH',CollectTDOA(),
+        smach.StateMachine.add('SEARCH 1',CollectTDOA(),
             transitions ={'succeeded':'CORRECTHEADING','failed':'Task_failed','aborted':'Aborted'})
-        
+
         smach.StateMachine.add('CORRECTHEADING',CorrectHeading(),
-            transitions ={'farfield':'MOVEFORWARD','nearfield':'GOTOXY','aborted':'Aborted'})
-        
+            transitions ={'farfield':'MOVEFORWARD','nearfield':'SEARCH 2','aborted':'Aborted'})
+
         smach.StateMachine.add('MOVEFORWARD',MoveForward(),
             transitions ={'completed':'SEARCH','aborted':'Aborted'})
-
+        
+        smach.StateMachine.add('SEARCH 2',CollectTDOA(),
+            transitions ={'succeeded':'GOTOXY','failed':'Task_failed','aborted':'Aborted'})
+         
         smach.StateMachine.add('GOTOXY',GoToXY(),
             transitions ={'completed':'Task_completed','aborted':'Aborted'})
 
