@@ -16,6 +16,16 @@ from collections import deque
 
 #from com.histogram.histogram import bbHistogram
 
+def calcCentroid(contour):
+    m = cv2.moments(contour)
+    return (m['m10']/m['m00'], m['m01']/m['m00'])
+
+DEBUG_COLORS = {
+    'red': (255, 0, 0),
+    'yellow': (255, 255, 0),
+    'green': (0, 255, 0)
+}
+
 class TrafficLight:
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
@@ -35,6 +45,7 @@ class TrafficLight:
 
         self.buoyDetected = False
         self.redCentre, self.redRadius = (-1,-1), 0
+        self.colorsFound = []
 
         self.history = deque(maxlen=5)
 
@@ -49,6 +60,9 @@ class TrafficLight:
 
         self.shape = cvimg.shape
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
+
+        self.buoyDetected = False
+        self.colorsFound = []
 
         openingSize = 1
         openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (2*openingSize+1, 2*openingSize+1))
@@ -80,7 +94,7 @@ class TrafficLight:
         tmp = redImg.copy()
         redContours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         redCircles = [(cv2.minEnclosingCircle(c), cv2.contourArea(c)) for c in redContours]
-        redCircles = [((c,r),a) for ((c,r),a) in redCircles if r > 5]
+        redCircles = [((c,r),a) for ((c,r),a) in redCircles if r >= self.params['minBuoyRadius']]
         if redCircles:
             if not self.history:
                 sortedCircles = sorted(redCircles, key=lambda ((c,r),a): r)
@@ -101,19 +115,17 @@ class TrafficLight:
 
             self.buoyDetected = True
 
-        #TODO: identify buoys
-
-        #TODO: find 3 largest contours
-        imgCombined = redImg | yellowImg | greenImg
-        tmp = imgCombined.copy()
-        contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        minArea = self.params['contourMinArea']
-        contourAreas = [(contour, cv2.contourArea(contour)) for contour in contours]
-        contourAreas = filter(lambda (c,a): a >= minArea, contourAreas)
-        contourAreas.sort(key=lambda x: x[1])
-        contourAreas.reverse()
-        contourAreas = contourAreas[0:3]
+        #TODO: find largest contour and its colour
+        minArea = 80 # self.params['contourMinArea']
+        for color,img in {'red': redImg, 'yellow': yellowImg, 'green': greenImg}.iteritems():
+            tmp = img.copy()
+            contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contourAreas = [(contour, cv2.contourArea(contour)) for contour in contours]
+            contourAreas = [(c,a) for (c,a) in contourAreas if a >= minArea]
+            if contourAreas:
+                maxContour, _ = max(contourAreas, key=lambda (c,a): a)
+                centroid = calcCentroid(maxContour)
+                self.colorsFound.append((color, centroid))
 
         #TODO: calculate distances apart
 
@@ -121,12 +133,17 @@ class TrafficLight:
 
         # Display debug stream
         if self.DEBUG:
-            imgDebug = cv2.merge([redImg]*3)
+            imgCombined = redImg | yellowImg | greenImg
+            imgDebug = cv2.merge([yellowImg]*3)
             if self.buoyDetected:
                 ctr = (int(self.redCentre[0]), int(self.redCentre[1]))
                 cv2.circle(imgDebug, ctr, 1, (0,0,255), 1)
                 cv2.circle(imgDebug, ctr, int(self.redRadius), (0,0,255), 1)
             self.camdebug.publishImage('image_filter', imgDebug)
+
+            for (color, centroid) in self.colorsFound:
+                ctr = (int(centroid[0]), int(centroid[1]))
+                cv2.circle(imgDebug, ctr, 4, DEBUG_COLORS[color], -1)
 
         self.lock.release()
 
@@ -135,7 +152,7 @@ class TrafficLight:
 # For testing
 if __name__ == '__main__':
     rospy.init_node('trafficlight', anonymous=False)
-    tmpparams = { 'contourMinArea': 0,
+    tmpparams = { 'minBuoyRadius': 0, 'contourMinArea': 0,
                'redHueLow': 0, 'redHueHigh': 0, 'redSatLow': 0, 'redSatHigh': 0, 'redValLow': 0, 'redValHigh': 0,
                'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
                'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0

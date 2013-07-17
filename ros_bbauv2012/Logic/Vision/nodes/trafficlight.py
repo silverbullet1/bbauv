@@ -38,6 +38,7 @@ isAborted = False
 camdebug = None
 actionClient = None
 lightDetector = None
+input_heading = 0
 depth_setpoint = 0.5
 cur_heading = 0
 
@@ -45,7 +46,7 @@ cur_heading = 0
 lock = threading.Lock()
 
 # dynamic_reconfigure params; see TrafficLight.cfg
-params = { 'contourMinArea': 0,
+params = { 'minBuoyRadius': 0, 'contourMinArea': 0,
            'redHueLow': 0, 'redHueHigh': 0, 'redSatLow': 0, 'redSatHigh': 0, 'redValLow': 0, 'redValHigh': 0,
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
            'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0,
@@ -56,7 +57,7 @@ params = { 'contourMinArea': 0,
 
 
 def initService():
-    global firstRunAction
+    global firstRunAction, locomotion_mode_request
     if firstRunAction:
         print "waiting for service"
         rospy.wait_for_service('set_controller_srv')
@@ -97,7 +98,7 @@ class Correction:
 
         self.timeout = timeout
 
-        self.hoverHeading = cur_heading
+        self.hoverHeading = input_heading if not TEST_MODE else cur_heading
 
     def correct(self):
         hoverDepth = depth_setpoint
@@ -222,10 +223,11 @@ States
 '''
 class Disengage(smach.State):
     def handle_srv(self, req):
-        global depth_setpoint, isAborted
+        global input_heading, depth_setpoint, isAborted
 
         print 'got a request!'
         if req.start_request:
+            input_heading  = req.start_ctrl.heading_setpoint
             depth_setpoint = req.start_ctrl.depth_setpoint
 
             rospy.wait_for_service('mission_srv')
@@ -374,10 +376,108 @@ class BumpIt(smach.State):
 
 
 '''
-Move to next light and bump it
+Sidemove to next light and bump it
 '''
-#TODO: wait until light turns to correct colour, then bump it
+#NOTE: assumption: red buoy is left of the LEDs
+class SidemoveToBuoy(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['succeeded', 'aborted', 'killed'],
+                             input_keys=['heading','targetColors'],
+                             output_keys=['heading', 'targetColors'])
 
+    def execute(self, userdata):
+        # Move to the right until no colors found,
+        # then continue moving until we see a color
+
+        #TODO: set locomotion_mode
+        goal = bbauv_msgs.msg.ControllerGoal(
+                heading_setpoint = userdata.heading,
+                depth_setpoint = depth_setpoint,
+                sidemove_setpoint = 4
+        )
+        actionClient.send_goal(goal)
+
+        noBuoyCount = 0 # number of consecutive frames without seeing a buoy
+        while noBuoyCount < 5:
+            if rospy.is_shutdown(): return 'killed'
+            if isAborted: return 'aborted'
+
+            if lightDetector.colorsFound:
+                noBuoyCount = 0
+            else:
+                noBuoyCount += 1
+            rospy.sleep(0.05)
+
+        buoyCount = 0 # number of consecutive frames seeing a buoy
+        while buoyCount < 5:
+            if rospy.is_shutdown(): return 'killed'
+            if isAborted: return 'aborted'
+
+            if not lightDetector.colorsFound:
+                buoyCount = 0
+            else:
+                buoyCount += 1
+            rospy.sleep(0.05)
+
+        #TODO: centre the buoy
+        while True:
+            if rospy.is_shutdown(): return 'killed'
+            if isAborted: return 'aborted'
+
+            if lightDetector.colorsFound:
+                centroid = lightDetector.colorsFound[0][1]
+                if centroid[0] < 370:
+                    actionClient.cancel_all_goals()
+                    break
+            rospy.sleep(0.05)
+
+        return 'succeeded'
+
+'''
+Bump until a certain color
+'''
+class BumpToColor(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['bumped', 'done', 'aborted', 'killed'],
+                             input_keys=['heading', 'targetColors'],
+                             output_keys=['targetColors'])
+
+    def execute(self, userdata):
+        hoverDepth = depth_setpoint
+        hoverHeading = userdata.heading
+
+        BUMP_FORWARD = params['bumpK']
+
+        while True:
+            if rospy.is_shutdown(): return 'killed'
+            if isAborted: return 'aborted'
+
+            for setpoint in [BUMP_FORWARD, -BUMP_FORWARD]:
+                if rospy.is_shutdown(): return 'killed'
+                if isAborted: return 'aborted'
+
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        forward_setpoint = setpoint
+                )
+                actionClient.send_goal(goal)
+                actionClient.wait_for_result(rospy.Duration.from_sec(params['bumpTime']))
+
+            actionClient.cancel_all_goals()
+
+            rospy.sleep(1) # wait a bit before checking LED color
+            if lightDetector.colorsFound and lightDetector.colors[0][0] == userdata.targetColors[0]:
+                remainingColors = userdata.targetColors[1:]
+                userdata.targetColors = remainingColors
+                break
+
+        if remainingColors:
+            return 'bumped'
+        else:
+            return 'done'
 
 '''
 Done
@@ -392,9 +492,11 @@ class Done(smach.State):
     def execute(self, userdata):
         if isAborted: return 'aborted'
 
+        #TODO: return to middle buoy
+
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
-        ctrl.heading_setpoint = cur_heading
+        ctrl.heading_setpoint = input_heading if not TEST_MODE else cur_heading
         if not TEST_MODE:
             mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
 
@@ -419,9 +521,6 @@ if __name__ == '__main__':
     srv = Server(TrafficLightConfig, configCallback)
 
     camdebug = CamDebug('Vision', debugOn=DEBUG)
-
-    global inputHeading
-    inputHeading = 0 #TODO: take in the input heading for the previous task
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)
@@ -473,6 +572,21 @@ if __name__ == '__main__':
                                      'aborted': 'DISENGAGED',
                                      'killed': 'killed'}
         )
+#        smach.StateMachine.add(
+#                        'SIDEMOVE_TO_BUOY',
+#                        SidemoveToBuoy(),
+#                        transitions={'succeeded': 'BUMP_TO_COLOR',
+#                                     'aborted': 'DISENGAGED',
+#                                     'killed': 'killed'}
+#        )
+#        smach.StateMachine.add(
+#                        'BUMP_TO_COLOR',
+#                        BumpToColor(),
+#                        transitions={'bumped': 'SIDEMOVE_TO_BUOY',
+#                                     'done': 'DONE',
+#                                     'aborted': 'DISENGAGED',
+#                                     'killed': 'killed'}
+#        )
         smach.StateMachine.add(
                         'DONE',
                         Done(),
