@@ -466,15 +466,15 @@ class Backoff(smach.State):
         if gunSide == 'left':
             gunSide = 'right'
 
-        tollbooth.changeTarget('all')
-
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = hoverHeading,
                 depth_setpoint = hoverDepth,
-                forward_setpoint = -4
+                forward_setpoint = -7
         )
         actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(1,0))
+        actionClient.wait_for_result(rospy.Duration(6.5))
+
+        tollbooth.changeTarget('all')
 
         tries = 0
 
