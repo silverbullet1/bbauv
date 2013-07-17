@@ -233,18 +233,17 @@ class Grabbing(smach.State):
             x_error = dt.l_center_x - dt.cols/2
             y_error = dt.l_center_y - dt.rows/2
             
-            
             side_error = drivethru_params['firing_y'] * (x_error)
             fwd_error = -drivethru_params['firing_x'] * (y_error)
             #if ((np.fabs(x_error) < dt.outer_center and np.fabs(y_error) < dt.outer_center)) :
             if True:    
                 print "Target locked"
-                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.05,
+                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.07,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint + 1.25,
-                                                     sidemove_setpoint=-0.10)
+                                                     sidemove_setpoint=-0.03)
                 movement_client.send_goal(goal)
-                movement_client.wait_for_result(rospy.Duration(30))
+                movement_client.wait_for_result(rospy.Duration(10))
                 self.fire_grabber(True)
                 rospy.loginfo("Fire grabber!")
                 rospy.loginfo("Going to sleep. Waiting for Dropper")
