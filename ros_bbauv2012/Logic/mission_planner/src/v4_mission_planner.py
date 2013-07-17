@@ -743,7 +743,6 @@ def handle_srv(req):
     if(req.search_request):
         isSearchDone = True
         search_call = True
-        rospy.loginfo("Eng Wei Finally Found Toilet Bowl")
         rospy.logdebug("Search complete")
     
     if not (req.search_request):
@@ -755,7 +754,6 @@ def handle_srv(req):
     if(req.task_complete_request):
         isTaskComplete = True
         task_call = True
-        rospy.loginfo("Eng Wei Finally Finished Pang Sai")
         rospy.logdebug("Task complete")
         locomotionGoal = req.task_complete_ctrl 
 
@@ -857,8 +855,12 @@ if __name__ == '__main__':
     sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(5,0.5,90),transitions={'succeeded':'MOVERIGHT'})
+        smach.StateMachine.add('COUNTDOWN', Countdown(30), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(10,0.4,69),transitions={'succeeded':'GO_FWD'})
+        smach.StateMachine.add('GO_FWD', GoToDistance(70, 9, 'fwd'), transitions={'succeeded':'HOVER'})
+        smach.StateMachine.add('HOVER', HoverSearch('tollbooth', 30), transitions={'succeeded':'TOLLBOOTH', 'failed':'MOVERIGHT'})
+        smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'RISE', 'failed': 'RISE'})
+        smach.StateMachine.add('RISE', GoToDepth(10, 0.5), transitions={'succeeded':'MOVERIGHT'})
         smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 4, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
         smach.StateMachine.add('TASK', WaitOut('speedtrap', 120), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
         smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
