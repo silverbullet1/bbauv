@@ -230,14 +230,14 @@ class Firing(smach.State):
         global mani_pub
         _manipulator = manipulator()
         if(left):
-            _manipulator.servo1 = 0
-            _manipulator.servo2 = 1
-        else:
             _manipulator.servo1 = 1
             _manipulator.servo2 = 0
+        else:
+            _manipulator.servo1 = 0
+            _manipulator.servo2 = 1
         _manipulator.servo3 = 0
         _manipulator.servo4 = 0
-        _manipulator.servo5 = 1
+        _manipulator.servo5 = 0
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
@@ -378,7 +378,7 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = True
+isTest = False
 movement_client = None
 locomotionGoal = None 
 isStart = False

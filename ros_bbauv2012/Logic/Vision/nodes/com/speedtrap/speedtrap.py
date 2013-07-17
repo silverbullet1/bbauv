@@ -263,8 +263,7 @@ class SpeedTrap:
             self.orientation = self.angleList[0]
         else:
             self.isCentering = False
-        
-        #Compute Max area of all bounding rectangles
+            
         #pos,size,theta
         max_area = 0
         if len(binList) > 0:
@@ -283,6 +282,11 @@ class SpeedTrap:
        y_ave = np.average(centroid_y,None,None)
        return x_ave,y_ave
    
+    def draw_crosshair(self,image, center,radius):
+        cv2.line(image, (center[0] - radius,center[1]),(center[0] + radius,center[1]), (0,0,255))
+        cv2.line(image, (center[0],center[1] - radius),(center[0],center[1] + radius), (0,0,255))
+        return image
+    
     def draw_aiming_box(self,image,center,space,color):
         cv2.rectangle(image,(center[0] - space,center[1] - space),(center[0] + space,center[1] + space), color)
         return image
@@ -299,11 +303,11 @@ class SpeedTrap:
         #Draw aiming window on image to center
         color = (255,100,255)
         if(self.cols != None):
-            centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2, self.rows/2), self.inner_center, color)
+            centroid_image = self.draw_crosshair(centroid_image, (self.cols/2, self.rows/2), self.inner_center)
             if self.counter == 0:
-                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 - 150, self.rows/2), self.outer_center, color)
+                centroid_image = self.draw_crosshair(centroid_image, (self.cols/2 - 150, self.rows/2), self.outer_center)
             elif self.counter == 1:
-                centroid_image = self.draw_aiming_box(centroid_image, (self.cols/2 + 150, self.rows/2), self.outer_center, color)        
+                centroid_image = self.draw_crosshair(centroid_image, (self.cols/2 + 150, self.rows/2), self.outer_center)        
         if self.aim_point != None:
             cv2.circle(centroid_image,self.aim_point, 2, (0,255,9), thickness=-1)
         if self.isAim:

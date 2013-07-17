@@ -471,6 +471,8 @@ class AUV_gui(QMainWindow):
         self.saPanel2.setText("<b>THR4: " + str(self.data['thrusters'].speed4) +
                               "<br> THR5: " + str(self.data['thrusters'].speed5) +
                               "<br> THR6: " + str(self.data['thrusters'].speed6) + "</b>")
+        
+        self.data['manipulators']
         self.saPanel3.setText("<b>LDROP: " + str(self.data['manipulators'].servo1) + 
                               "<br> RDROP: " + str(self.data['manipulators'].servo2) +
                               "<br> LTOR: " + str(self.data['manipulators'].servo3) + 
@@ -479,7 +481,7 @@ class AUV_gui(QMainWindow):
                               #"<br> LACT: " + str(self.data['manipulators'].servo6) + 
                               #"<br> RACT: " + str(self.data['manipulators'].servo7) +
                               "</b>")
-      
+    
         self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
@@ -572,11 +574,11 @@ class AUV_gui(QMainWindow):
     
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
-        self.status_text.setText("set_controller Service ready.")
+        rospy.loginfo("set_controller Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         
         #rospy.wait_for_service('locomotion_mode_srv')
-        self.status_text.setText("Locomotion Mode Service ready.")
+        rospy.loginfo("Locomotion Mode Service ready.")
         self.locomotion_mode_request = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
         
     def initImage(self):
@@ -751,6 +753,7 @@ class AUV_gui(QMainWindow):
         rospy.loginfo("Waiting for Action Server to connect.")
         self.status_text.setText("Waiting for Action Server to connect.")
         self.client.wait_for_server()
+        rospy.loginfo("Action Server connected.")
         self.status_text.setText("Action Server connected.")
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()

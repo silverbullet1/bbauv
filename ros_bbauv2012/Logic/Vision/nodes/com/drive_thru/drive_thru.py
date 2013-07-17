@@ -37,7 +37,6 @@ class Drive_thru:
             self.orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
             self.orange_hist.setParams(self.orange_params)
         self.cvbridge = CvBridge()
-        self.register()    
         self.cameraInfo_initialized_ = False
         self.pipe_length_total_ = 0.305
         self.pipe_length_little_ = 0.0

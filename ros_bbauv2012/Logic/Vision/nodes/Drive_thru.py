@@ -50,6 +50,7 @@ class Disengage(smach.State):
         global movement_client
         global dt
         global isTest
+        global r
         if userdata.complete == True:
              isStart = False
              isEnd = True
@@ -73,6 +74,7 @@ class Disengage(smach.State):
                 dt.register()
                 print "starting..."
                 return 'start_complete'
+            r.sleep()
         return 'aborted'
     
 class Search(smach.State):
@@ -164,6 +166,7 @@ class Aiming(smach.State):
         global drivethru_params
         global isAbort
         global count
+        global isTest
         depth_offset = 0
         while not rospy.is_shutdown():
             if isAbort:
@@ -175,7 +178,8 @@ class Aiming(smach.State):
             fwd_error = -drivethru_params['aiming_x'] * (y_error)
             
             ''' Area selection criterion for stoppage of lowering'''
-            print dt.max_area
+            if isTest:
+                print dt.max_area
             if dt.max_area > drivethru_params['bin_area']:
                  self.isLowering = False
             if ((np.fabs(dt.centroid[0] - dt.cols / 2) < dt.inner_center and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.inner_center) and dt.max_area > drivethru_params['bin_area'] - 5000):
@@ -202,19 +206,18 @@ class Grabbing(smach.State):
     Kx = 0.001
     Ky = 0.002
     def __init__(self):
-        smach.State.__init__(self, outcomes=['grabbing_complete', "firing_all_complete", 'aborted', 'mission_abort'],
-                             output_keys=['complete'])
+        smach.State.__init__(self, outcomes=['grabbing_complete', "firing_all_complete", 'aborted', 'mission_abort'])
     def fire_grabber(self, grab):
         global mani_pub
         _manipulator = manipulator()
-        _manipulator.servo1 = 1
-        _manipulator.servo2 = 1
+        _manipulator.servo1 = 0
+        _manipulator.servo2 = 0
         _manipulator.servo3 = 0
         _manipulator.servo4 = 0
         if grab:
-            _manipulator.servo5 = 0
-        else:
             _manipulator.servo5 = 1
+        else:
+            _manipulator.servo5 = 0
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
@@ -257,7 +260,8 @@ class Grabbing(smach.State):
 
 class Manuoevre(smach.State):
     def __init__(self):
-        smach.State.__init__(self,outcomes=['manuoevre_complete', 'aborted', 'mission_abort'])
+        smach.State.__init__(self,outcomes=['manuoevre_complete', 'aborted', 'mission_abort'],
+                             output_keys=['complete'])
     def execute(self, userdata):
         global r
         global dt
@@ -270,11 +274,11 @@ class Manuoevre(smach.State):
                                                      sidemove_setpoint=0)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(2))
-	rospy.loginfo("Surfacing vehicle!")
-        #return "manuoevre_complete"
-        #if rospy.is_shutdown():
-        return 'aborted'
-
+        rospy.loginfo("Surfacing vehicle!")
+        userdata.complete = True
+        if rospy.is_shutdown():
+            return 'aborted'
+        return 'manuoevre_complete'
 
 '''
 ###################################################################
@@ -289,9 +293,7 @@ def handle_srv(req):
     global isAbort
     global locomotionGoal
     global dt
-    rospy.loginfo("Speed Trap service handled.")
     if req.start_request:
-        rospy.loginfo("isStart true.")
         isStart = True
         isAbort = False
         # Format for service: start_response, abort_response
@@ -304,7 +306,7 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = True
+isTest = False
 movement_client = None
 locomotionGoal = None 
 isStart = False
@@ -320,6 +322,8 @@ if __name__ == '__main__':
     rospy.init_node('Drivethru', anonymous=False)
     if isTest:
         isStart = True
+    else:
+        isStart = False
     r = rospy.Rate(20)
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
