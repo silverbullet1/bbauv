@@ -31,7 +31,8 @@ import smach_ros
 
 
 #TODO: use actual competition IDs
-COMPETITION_TARGETS = ['red', 'yellow']
+SINGLE_BOARD_MODE = True
+COMPETITION_TARGETS = ['red'] if SINGLE_BOARD_MODE else ['red', 'yellow']
 
 # GLOBALS
 TEST_MODE = False
@@ -164,6 +165,7 @@ class Search(smach.State):
                              output_keys=['targetIDs'])
 
     def execute(self, userdata):
+        #HACK: search for single board instead now
         tollbooth.changeTarget('red')
         while not rospy.is_shutdown():
             if tollbooth.regionCount >= 1:
@@ -235,7 +237,7 @@ class Correction:
             if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
                 offsets['size'] = sizeRatio - sizeMidPt
 
-            print '(' + self.target + ') vals:', { 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }
+            rospy.logdebug('(' + self.target + ') vals: ' + str({ 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }))
 
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
@@ -274,7 +276,7 @@ class Correction:
                 lock.release() #HACK
                 break
 
-            print 'offsets:', offsets
+            rospy.logdebug('offsets: ' + str(offsets))
 
             H,W = tollbooth.shape[0:2]
 
@@ -464,38 +466,42 @@ class Backoff(smach.State):
         if gunSide == 'left':
             gunSide = 'right'
 
-        goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = hoverHeading,
-                depth_setpoint = hoverDepth,
-                forward_setpoint = -7
-        )
-        actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(6.5))
+        if not SINGLE_BOARD_MODE:
+            goal = bbauv_msgs.msg.ControllerGoal(
+                    heading_setpoint = hoverHeading,
+                    depth_setpoint = hoverDepth,
+                    forward_setpoint = -7
+            )
+            actionClient.send_goal(goal)
+            actionClient.wait_for_result(rospy.Duration(5.5))
 
-        tollbooth.changeTarget('all')
+            tollbooth.changeTarget('all')
 
-        tries = 0
+            tries = 0
 
-        while not rospy.is_shutdown():
-            if isAborted: return 'aborted'
+            while not rospy.is_shutdown():
+                if isAborted: return 'aborted'
 
-            if tollbooth.regionCount >= 3:
-                return 'found'
+                if tollbooth.regionCount >= 3:
+                    return 'found'
 
-            if tries < 2:
-                goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
-                        depth_setpoint = hoverDepth,
-                        forward_setpoint = -2
-                )
-                actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(1,0))
+                if tries < 2:
+                    goal = bbauv_msgs.msg.ControllerGoal(
+                            heading_setpoint = hoverHeading,
+                            depth_setpoint = hoverDepth,
+                            forward_setpoint = -2
+                    )
+                    actionClient.send_goal(goal)
+                    actionClient.wait_for_result(rospy.Duration(1,0))
 
-                tries += 1
-            else:
-                actionClient.cancel_all_goals()
+                    tries += 1
+                else:
+                    actionClient.cancel_all_goals()
 
-            rosRate.sleep()
+                rosRate.sleep()
+        else:
+            tollbooth.changeTarget('red')
+
         return 'killed'
 
 '''
