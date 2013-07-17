@@ -1,0 +1,82 @@
+#!/usr/bin/env python2
+
+PACKAGE = "Vision"
+# The following line should not be here for Groovy and above
+import roslib;roslib.load_manifest(PACKAGE)
+
+# For Groovy and above, the following line should be
+# from dynamic_reconfigure.parameter_generator_catkin import *
+from dynamic_reconfigure.parameter_generator import *
+
+gen = ParameterGenerator()
+
+gen.add("contourMinArea", int_t, 0, "Min contour area (pixels)", 20, 0, 1000)
+gen.add("redHueLow",  int_t, 0, "Red Hue Low",    0, 0, 180)
+gen.add("redHueHigh", int_t, 0, "Red Hue High",   7, 0, 180)
+gen.add("redSatLow",  int_t, 0, "Red Sat Low",  170, 0, 255)
+gen.add("redSatHigh", int_t, 0, "Red Sat High", 255, 0, 255)
+gen.add("redValLow",  int_t, 0, "Red Val Low",    0, 0, 255)
+gen.add("redValHigh", int_t, 0, "Red Val High", 255, 0, 255)
+
+gen.add("blueHueLow",  int_t, 0, "Blue Hue Low",   80, 0, 180)
+gen.add("blueHueHigh", int_t, 0, "Blue Hue High", 105, 0, 180)
+gen.add("blueSatLow",  int_t, 0, "Blue Sat Low",   20, 0, 255)
+gen.add("blueSatHigh", int_t, 0, "Blue Sat High", 255, 0, 255)
+gen.add("blueValLow",  int_t, 0, "Blue Val Low",    0, 0, 255)
+gen.add("blueValHigh", int_t, 0, "Blue Val High", 255, 0, 255)
+
+gen.add("yellowHueLow",  int_t, 0, "Yellow Hue Low",   13, 0, 180)
+gen.add("yellowHueHigh", int_t, 0, "Yellow Hue High",  16, 0, 180)
+gen.add("yellowSatLow",  int_t, 0, "Yellow Sat Low",  220, 0, 255)
+gen.add("yellowSatHigh", int_t, 0, "Yellow Sat High", 255, 0, 255)
+gen.add("yellowValLow",  int_t, 0, "Yellow Val Low",    0, 0, 255)
+gen.add("yellowValHigh", int_t, 0, "Yellow Val High", 255, 0, 255)
+
+gen.add("greenHueLow",  int_t, 0, "Green Hue Low",   32, 0, 180)
+gen.add("greenHueHigh", int_t, 0, "Green Hue High",  63, 0, 180)
+gen.add("greenSatLow",  int_t, 0, "Green Sat Low",  107, 0, 255)
+gen.add("greenSatHigh", int_t, 0, "Green Sat High", 255, 0, 255)
+gen.add("greenValLow",  int_t, 0, "Green Val Low",    0, 0, 255)
+gen.add("greenValHigh", int_t, 0, "Green Val High", 255, 0, 255)
+
+gen.add("depthGoalWait", double_t, 0, "Seconds to wait for depth goals", 1, 0, 10)
+gen.add("otherGoalWait", double_t, 0, "Seconds to wait for other motion goals", 1, 0, 10)
+
+gen.add("farForwardK", double_t, 0, "Forward K when far away", 12, 0, 100)
+gen.add("farSideK", double_t, 0, "Sidemove K when far away", 10, 0, 100)
+gen.add("farDepthK", double_t, 0, "Depth K when far away", 1, 0, 100)
+gen.add("farAngleK", double_t, 0, "Angular K when far away", 0.4, 0, 100)
+gen.add("farEpsilonX", double_t, 0, "Allowed error for X when far", 0.08, 0, 1)
+gen.add("farEpsilonY", double_t, 0, "Allowed error for Y when far", 0.08, 0, 1)
+gen.add("farEpsilonAngle", double_t, 0, "Allowed error for angle when far", 4, 0, 90)
+gen.add("farMinSize", double_t, 0, "Min size when far", 0.033, 0, 1)
+gen.add("farMaxSize", double_t, 0, "Max size when far", 0.6, 0, 1)
+gen.add("farTimeout", double_t, 0, "Seconds for far correction", 80, 0, 200)
+
+gen.add("nearForwardK", double_t, 0, "Forward K when near", 2, 0, 100)
+gen.add("nearSideK", double_t, 0, "Sidemove K when near", 5, 0, 100)
+gen.add("nearDepthK", double_t, 0, "Depth K when near", 1, 0, 100)
+gen.add("nearAngleK", double_t, 0, "Angular K when near", 0.4, 0, 100)
+gen.add("nearEpsilonX", double_t, 0, "Allowed error for X when near", 0.1, 0, 1)
+gen.add("nearEpsilonY", double_t, 0, "Allowed error for Y when near", 0.08, 0, 1)
+gen.add("nearEpsilonAngle", double_t, 0, "Allowed error for angle when near", 6, 0, 90)
+gen.add("nearMinSize", double_t, 0, "Min size when near", 0.2, 0, 1)
+gen.add("nearMaxSize", double_t, 0, "Max size when near", 0.6, 0, 1)
+gen.add("nearTimeout", double_t, 0, "Seconds for near correction", 70, 0, 200)
+
+gen.add("holeForwardK", double_t, 0, "Forward K when going for hole", 1.8, 0, 100)
+gen.add("holeSideK", double_t, 0, "Sidemove K when going for hole", 4, 0, 100)
+gen.add("holeDepthK", double_t, 0, "Depth K when going for hole", 0.3, 0, 100)
+gen.add("holeAngleK", double_t, 0, "Angular K when going for hole", 0.4, 0, 100)
+gen.add("holeEpsilonX", double_t, 0, "Allowed error for X for hole", 0.08, 0, 1)
+gen.add("holeEpsilonY", double_t, 0, "Allowed error for Y for hole", 0.08, 0, 1)
+gen.add("holeEpsilonAngle", double_t, 0, "Allowed error for angle for hole", 0.4, 0, 90)
+gen.add("holeMinSize", double_t, 0, "Min size for hole", 0.05, 0, 1)
+gen.add("holeMaxSize", double_t, 0, "Max size for hole", 0.4, 0, 1)
+gen.add("holeTimeout", double_t, 0, "Seconds to try for hole", 45, 0, 200)
+
+gen.add("chargeWait", double_t, 0, "Seconds to charge torpedo", 1, 0, 10)
+gen.add("fireWait", double_t, 0, "Seconds to wait after firing torpedo", 3, 0, 10)
+
+
+exit(gen.generate(PACKAGE, "Tollbooth", "Tollbooth"))
