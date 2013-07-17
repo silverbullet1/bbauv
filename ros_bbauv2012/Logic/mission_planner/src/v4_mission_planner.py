@@ -276,6 +276,8 @@ class HoverSearch(smach.State):
         global set_LocoMode
         global lane_srv
         global isSearchDone
+        global isSearchFailed
+        isSearchFailed = False
         isSearchDone = False
 
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))
@@ -338,6 +340,11 @@ class HoverSearch(smach.State):
             if isSearchDone:                
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
+            
+            if isSearchFailed:
+                rospy.loginfo("Failed to find %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
+                return 'failed'
+            
             r.sleep()
         
         #Timed out
@@ -390,6 +397,8 @@ class LinearSearch(smach.State):
         global set_LocoMode
         global lane_srv
         global isSearchDone
+        global isSearchFailed
+        isSearchFailed = False
         isSearchDone = False
         
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
@@ -455,6 +464,7 @@ class LinearSearch(smach.State):
         start_time = rospy.get_time()
         rospy.loginfo("Moving to search for %s" % self.task_name)
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
+            
             if not isSearchDone:
                 if self.motionStatus:
                     return 'failed'
@@ -463,6 +473,11 @@ class LinearSearch(smach.State):
                 locomotion_client.cancel_all_goals()             
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
+            
+            if isSearchFailed:
+                locomotion_client.cancel_all_goals()
+                rospy.loginfo("Failed to find %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
+                return 'failed'            
             r.sleep()
         
         #Timed out
@@ -494,10 +509,13 @@ class WaitOut(smach.State):
         
     def execute(self, userdata):
         global lane_srv
-        global isTaskComplete
         global locomotion_client
         global locomotionGoal
-        isTaskComplete = False        
+        global isTaskComplete
+        global isTaskFailed
+        isTaskFailed = False
+        isTaskComplete = False     
+           
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
 
         #connecting to task server;      
@@ -515,6 +533,9 @@ class WaitOut(smach.State):
             if isTaskComplete:
                 rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
+            if isTaskFailed:
+                rospy.loginfo("Failed to complete %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
+                return 'failed'
             r.sleep()
         
         #Aborting task due to timeout
@@ -538,7 +559,7 @@ class WaitOut(smach.State):
 
 class WaitOutAndSearch(smach.State):
     def __init__(self, task_name, timeout):
-        smach.State.__init__(self, outcomes=['succeeded','failed'])
+        smach.State.__init__(self, outcomes=['task_succeeded','search_succeeded', 'failed'])
         self.name = self.__class__.__name__ 
         self.task_name = task_name
         self.task_srv_name = task_name + '_srv'
@@ -547,12 +568,19 @@ class WaitOutAndSearch(smach.State):
         
     def execute(self, userdata):
         global lane_srv
-        global isTaskComplete
         global isSearchDone
         global locomotion_client
         global locomotionGoal
-        isTaskComplete = False
+        
+        global isSearchDone
+        global isSearchFailed
+        global isTaskComplete
+        global isTaskFailed
+        isTaskFailed = False
+        isTaskComplete = False     
         isSearchDone = False
+        isSearchFailed = False
+        
         rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
 
         #Connecting to task server;      
@@ -712,13 +740,24 @@ def handle_srv(req):
         rospy.logdebug("Search complete")
         return vision_to_missionResponse(True,False)
     
+    if not (req.search_request):
+        isSearchFailed = True
+        rospy.logdebug("Search Failed To Complete")
+        return vision_to_missionResponse(True,False)
+
     #Task completion request from Vision Node.
     if(req.task_complete_request):
+        isTaskComplete = True
         rospy.logdebug("Task complete")
         locomotionGoal = req.task_complete_ctrl 
-        isTaskComplete = True
         #Controller
         return vision_to_missionResponse(False,True)   
+    if(req.task_complete_request):
+        isTaskFailed = True
+        rospy.logdebug("Task Failed To Complete")
+        locomotionGoal = req.task_complete_ctrl 
+        #Controller
+        return vision_to_missionResponse(False,True) 
 
 def odomCallback(msg):
     global global_x
@@ -746,7 +785,9 @@ set_LocoMode = None
 
 mission_server = None
 isSearchDone = False
+isSearchFailed = False
 isTaskComplete = False
+isTaskFailed = False
 lane_srv = None
 
 global_x = 0
@@ -806,13 +847,11 @@ if __name__ == '__main__':
 
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(10,0.5,0),transitions={'succeeded':'TURN_TO_GATE'}) 
-#        smach.StateMachine.add('NAV_TO_WYPT1', NavMoveBase(10,30,3,0,0.2,0), transitions={'succeeded':'NAV_TO_GATE', 'failed':'SURFACE_SADLY'})   
-        smach.StateMachine.add('TURN_TO_GATE', GoToHeading(10, 35), transitions={'succeeded':'GO_TO_GATE'})
-        smach.StateMachine.add('GO_TO_GATE', GoToDistance(30, 6, 'fwd'), transitions={'succeeded':'SURFACE_VICTORIOUSLY'})
-#        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(10,60,5,4,0.2,90), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.2), transitions={'succeeded':'mission_failed'})
-        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.2), transitions={'succeeded':'VICTORY_SPIN'})
+        smach.StateMachine.add('START',Start(5,0.5,90),transitions={'succeeded':'MOVERIGHT'})
+        smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 3, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('TASK', WaitOut('speedtrap', 120), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
+        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
         smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
 
 ### Mission Ends Here ###  
