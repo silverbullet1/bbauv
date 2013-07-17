@@ -77,8 +77,9 @@ class CamDebug():
 
         publisher = self.topics[topicName]
         try:
-            outImg = array2cv(image)
-            publisher.publish(self.cvbridge.cv_to_imgmsg(outImg))
+            #outImg = array2cv(image)
+            outImg = cv2.cv.fromarray(image)
+            publisher.publish(self.cvbridge.cv_to_imgmsg(outImg,encoding='bgr8'))
         except CvBridgeError, e:
             print e
 
