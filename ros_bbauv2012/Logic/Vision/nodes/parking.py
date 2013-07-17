@@ -277,6 +277,8 @@ class Search(smach.State):
         global mission_srv
         
         rospy.loginfo('Executing state SEARCH')
+        
+        r = rospy.Rate(20)
         while not rospy.is_shutdown():
             #search conditions here
             if park.targetLockStatus:
@@ -288,7 +290,7 @@ class Search(smach.State):
             
             if isAbort:
                 return 'aborted'               
-            rospy.sleep(0.05)
+            r.sleep()
 
 class MotionControlProcess(smach.State):
     
@@ -323,7 +325,8 @@ class MotionControlProcess(smach.State):
         rospy.logdebug("Initalizing") 
         actionClient.wait_for_result(rospy.Duration(0.1,0))
         rospy.logdebug("Done Initalizing") 
-       
+        
+        r = rospy.Rate(40)
         while(not rospy.is_shutdown()):
             
 
@@ -389,6 +392,7 @@ class MotionControlProcess(smach.State):
 
             if isAbort:
                 return 'aborted'
+            r.sleep()
 
 def handle_srv(req):
     global isStart

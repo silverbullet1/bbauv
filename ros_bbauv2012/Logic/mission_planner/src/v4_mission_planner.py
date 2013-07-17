@@ -30,7 +30,7 @@ class Countdown(smach.State):
         
         #This is to allow enough time for ethernet cable to be removed
         rospy.loginfo("Going for COUNTDOWN")        
-        r = rospy.Rate(1)
+        r = rospy.Rate(10)
         start_time = rospy.get_time()
         while (rospy.get_time() - start_time) < self.sleep_time:
             r.sleep()
@@ -246,7 +246,7 @@ class StoreGlobalCoord(smach.State):
 #         task_marker.pose.orientation.z = 0
 #         task_marker.pose.orientation.w = 1  
 #         task_marker.text = self.task_name
-#         task_marker_pub.publish(task_marker)
+#         task_marker_pub.publish(task_marker) #Needs to be published constantly
        
         rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
         rospy.set_param(self.task_name+'/x', global_x)
@@ -504,7 +504,7 @@ class WaitOut(smach.State):
             rospy.loginfo('Mission Connected to %s Server' % self.task_name)        
         
         #Waiting Out
-        r = rospy.Rate(0.5)
+        r = rospy.Rate(10)
         start_time = rospy.get_time()
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
@@ -512,7 +512,8 @@ class WaitOut(smach.State):
                 rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
             r.sleep()
-            
+        
+        #Aborting task due to timeout
         if self.task_name == 'lane':
             try:
                 rospy.loginfo('Failed to complete %s' % self.task_name)
@@ -529,7 +530,84 @@ class WaitOut(smach.State):
                 return 'failed'              
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to abort: %s" % e)            
-                return 'failed'                    
+                return 'failed'
+
+class WaitOutAndSearch(smach.State):
+    def __init__(self, task_name, timeout):
+        smach.State.__init__(self, outcomes=['succeeded','failed'])
+        self.name = self.__class__.__name__ 
+        self.task_name = task_name
+        self.task_srv_name = task_name + '_srv'
+        self.task_srv = None
+        self.timeout = timeout    
+        
+    def execute(self, userdata):
+        global lane_srv
+        global isTaskComplete
+        global isSearchDone
+        global locomotion_client
+        global locomotionGoal
+        isTaskComplete = False
+        isSearchDone = False
+        rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
+
+        #Connecting to task server;      
+        if self.task_name != 'lane':        
+            rospy.wait_for_service(self.task_srv_name)   
+            self.task_srv = rospy.ServiceProxy(self.task_srv_name, mission_to_vision)
+            rospy.loginfo('Mission Connected to %s Server' % self.task_name)        
+
+        #Begin Searching For Task
+        if self.task_name == 'lane':
+            try:
+                resp = lane_srv(True,locomotionGoal,self.use_left,self.num_lanes,False)
+            except rospy.ServiceException, e:
+                rospy.loginfo("Failed to start Search" % e)
+                return 'failed'  
+        if self.task_name != 'lane':
+            try:
+                resp = self.task_srv(True, locomotionGoal, False)
+                rospy.loginfo("Searching for %s" % self.task_name)
+            except rospy.ServiceException, e:
+                rospy.loginfo("Failed to start Search" % e)
+                return 'failed'
+        
+        #Waiting Out
+        r = rospy.Rate(10)
+        start_time = rospy.get_time()
+        rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
+        while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
+#             if isSearchDone and not isTaskComplete:
+#                 pass
+#             if isSearchDone and isTaskComplete:
+#                 pass
+#             if not isSearchDone and isTaskComplete:
+#                 pass
+#             if not isSearchDone and not isTaskComplete:
+#                 pass
+            if isTaskComplete:
+                rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
+                return 'succeeded'
+            r.sleep()
+        
+        #Aborting task due to timeout
+        if self.task_name == 'lane':
+            try:
+                rospy.loginfo('Failed to complete %s' % self.task_name)
+                resp = lane_srv(False, locomotionGoal, False, 1, True)            
+                return 'failed'              
+            except rospy.ServiceException, e:
+                rospy.loginfo("Failed to abort: %s" % e)
+                return 'failed'                              
+     
+        if self.task_name != 'lane':
+            try:
+                rospy.loginfo('Failed to complete %s' % self.task_name)
+                resp = self.task_srv(False, locomotionGoal, True)            
+                return 'failed'              
+            except rospy.ServiceException, e:
+                rospy.loginfo("Failed to abort: %s" % e)            
+                return 'failed'
 
 class NavMoveBase(smach.State):
     def __init__ (self, prep_timeout, nav_timeout, x=0, y=0, depth = 0.5, start_heading=0, place= None): #yaw here is BBAUV's controller convention'
@@ -720,71 +798,16 @@ if __name__ == '__main__':
 
 ### Insert Mission Here ###
   
-    sm_mission = smach.StateMachine(outcomes=['mission_complete', 'mission_failed'])
+    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(5,0.2,0),
-                                transitions={'succeeded':'NAV_TO_GATE'})
-        
-        smach.StateMachine.add('NAV_TO_GATE', NavMoveBase(1,60,4.2,4.2,0.2,0), transitions={'succeeded':'LANE_GATE_TASK', 'failed':'SURFACE'})
-
-        lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
-        with lane_gate:
-            smach.StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH'})
-            smach.StateMachine.add('SEARCH', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-            smach.StateMachine.add('SEARCH2', LinearSearch('lane', 20, 2, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'lane_failed'})
-            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_lane_gate'), transitions={'succeeded':'LANE_GATE'})
-            smach.StateMachine.add('LANE_GATE', WaitOut('lane', 60), transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
-            smach.StateMachine.add('HEADINGCHANGE', GoToHeading(20), transitions={'succeeded':'lane_complete'})
-        smach.StateMachine.add('LANE_GATE_TASK', lane_gate, transitions={'lane_complete':'TRAFFIC_TASK', 'lane_failed':'SURFACE'})        
-
-        traffic = smach.StateMachine(outcomes=['traffic_complete', 'traffic_failed'])
-        with traffic:
-            smach.StateMachine.add('SEARCH', LinearSearch('traffic', 60, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-            smach.StateMachine.add('SEARCH2', LinearSearch('traffic', 60, -1, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('traffic', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'traffic_failed'})
-            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_traffic'), transitions={'succeeded':'TRAFFIC'})
-            smach.StateMachine.add('TRAFFIC', WaitOut('traffic', 180), transitions={'succeeded':'MOVETOSIDE', 'failed':'traffic_failed'})
-            smach.StateMachine.add('MOVETOSIDE', GoToDistance(15,-0.75, 'sway'), transitions={'succeeded':'MOVEFWD'})
-            smach.StateMachine.add('MOVEFWD', GoToDistance(15,1.5, 'fwd'), transitions={'succeeded':'traffic_complete'})
-        smach.StateMachine.add('TRAFFIC_TASK', traffic, transitions={'traffic_complete':'TOLL_TASK', 'traffic_failed':'SURFACE'})            
-
-        toll = smach.StateMachine(outcomes=['toll_complete', 'toll_failed'])
-        with toll:
-            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.2), transitions={'succeeded':'SEARCH'})
-            smach.StateMachine.add('SEARCH', LinearSearch('tollbooth', 30, 4, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-            smach.StateMachine.add('SEARCH2', LinearSearch('tollbooth', 30, -2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH4'})
-            smach.StateMachine.add('SEARCH4', LinearSearch('tollbooth', 30, 2, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH5'})
-            smach.StateMachine.add('SEARCH5', LinearSearch('tollbooth', 60, -4, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH6'})
-            smach.StateMachine.add('SEARCH6', LinearSearch('tollbooth', 60, 4, 'sway'), transitions={'succeeded':'STORE', 'failed':'toll_failed'})
-            smach.StateMachine.add('STORE', StoreGlobalCoord('toll'), transitions={'succeeded':'TOLLBOOTH'})            
-            smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})
-        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'SPEED_TASK'})
-
-        speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
-        with speed:
-            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.2), transitions={'succeeded':'SEARCH'})
-            smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-            smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, -1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -2, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH4'})
-            smach.StateMachine.add('SEARCH4', LinearSearch('speedtrap', 30, 2, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH5'})
-            smach.StateMachine.add('SEARCH5', LinearSearch('speedtrap', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'speed_failed'})
-            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_speed'), transitions={'succeeded':'SPEEDTRAP'})
-            smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 240), transitions={'succeeded':'speed_complete', 'failed':'speed_failed'})           
-        smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'HOME', 'speed_failed':'HOME'})
-
-#         drive_thru = smach.StateMachine(outcomes=['drive_complete', 'drive_failed'])
-#         with drive_thru:
-#             smach.StateMachine.add()
-#             smach.StateMachine.add()
-#             smach.StateMachine.add()
-#             smach.StateMachine.add()
-#         smach.StateMachine.add('DRIVE_THRU_TASK', drive_thru, transitions={'drive_complete': , 'drive_failed': })
-        
-        smach.StateMachine.add('HOME', NavMoveBase(1,60,0,0,0.5,26), transitions={'succeeded':'SURFACE', 'failed':'mission_failed'})
-        smach.StateMachine.add('SURFACE', GoToDepth(3,0.12), transitions={'succeeded':'mission_complete'})
+        smach.StateMachine.add('COUNTDOWN', Countdown(700), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(15,0.2,90),transitions={'succeeded':'HOVER'})
+        smach.StateMachine.add('HOVER', HoverSearch('drivethru', 30), transitions={'succeeded':'DRIVE_THRU', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('DRIVE_THRU', WaitOut('drivethru', 60), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0, surface=True), transitions={'succeeded':'mission_failed'})
+        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0, surface=True), transitions={'succeeded':'VICTORY_SPIN'})
+        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 300, relative=True), transitions={'succeeded':'mission_complete'})
 
 ### Mission Ends Here ###  
 
