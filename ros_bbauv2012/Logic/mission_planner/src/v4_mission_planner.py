@@ -526,7 +526,7 @@ class WaitOut(smach.State):
             rospy.loginfo('Mission Connected to %s Server' % self.task_name)        
         
         #Waiting Out
-        r = rospy.Rate(10)
+        r = rospy.Rate(30)
         start_time = rospy.get_time()
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
@@ -732,31 +732,42 @@ class NavMoveBase(smach.State):
 def handle_srv(req):
     global locomotionGoal
     global isSearchDone
+    global isSearchFailed
     global isTaskComplete
+    global isTaskFailed
+    
+    search_call = None
+    task_call = None
     
     #Search completion request from Vision Node.
     if(req.search_request):
         isSearchDone = True
+        search_call = True
+        rospy.loginfo("Eng Wei Finally Found Toilet Bowl")
         rospy.logdebug("Search complete")
-        return vision_to_missionResponse(True,False)
     
     if not (req.search_request):
         isSearchFailed = True
+        search_call = True
         rospy.logdebug("Search Failed To Complete")
-        return vision_to_missionResponse(True,False)
 
     #Task completion request from Vision Node.
     if(req.task_complete_request):
         isTaskComplete = True
+        task_call = True
+        rospy.loginfo("Eng Wei Finally Finished Pang Sai")
         rospy.logdebug("Task complete")
         locomotionGoal = req.task_complete_ctrl 
-        #Controller
-        return vision_to_missionResponse(False,True)   
-    if(req.task_complete_request):
+
+    if not (req.task_complete_request):
         isTaskFailed = True
+        task_call = True
         rospy.logdebug("Task Failed To Complete")
         locomotionGoal = req.task_complete_ctrl 
-        #Controller
+    
+    if search_call:
+        return vision_to_missionResponse(True,False) 
+    if task_call:
         return vision_to_missionResponse(False,True) 
 
 def odomCallback(msg):
@@ -848,7 +859,7 @@ if __name__ == '__main__':
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
         smach.StateMachine.add('START',Start(5,0.5,90),transitions={'succeeded':'MOVERIGHT'})
-        smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 3, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 4, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
         smach.StateMachine.add('TASK', WaitOut('speedtrap', 120), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
         smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
         smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
