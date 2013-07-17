@@ -90,10 +90,10 @@ if __name__ == '__main__':
     #SpartonPose2D.x=float(0.0)
     #SpartonPose2D.y=float(0.0)
     #Init D_Compass port
-    D_Compassport = rospy.get_param('~port','/dev/ttyAHRS')
+    D_Compassport = rospy.get_param('~port','/dev/ttyUSB0')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
-    D_Compassprintmodulus = rospy.get_param('~printmodulus',83)
+    D_Compassprintmodulus = rospy.get_param('~printmodulus',1)
     #Digital compass heading offset in degree
     D_Compass_offset = rospy.get_param('~offset',0.)
     Imu_data = Imu()
@@ -170,6 +170,8 @@ if __name__ == '__main__':
         #Read in D_Compass
         #Testdata='P:,%i,ap,-6.34,-22.46,1011.71,gp,0.00,0.00,-0.00,yt,342.53,q,0.98,-0.01,0.01,-0.15\n'
         #i=0
+
+        heading_array = []
         while not rospy.is_shutdown():
             #read D_Compass line  , The data example $HCHDT,295.5,T*2B
             #                                        [0]    [1] 
@@ -258,10 +260,17 @@ if __name__ == '__main__':
                                 Imu_data.linear_acceleration.z = Az
 
 
-                                # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-                                Imu_pub_q.publish(Imu_data)
-                                Imu_pub_e.publish(imu_data)
-                                Imu_pub_temp.publish(temp)
+                                heading_array.append(imu_data.orientation.z)
+                                if len(heading_array) == 5:
+                                    total = 0
+                                    for i in range(5):
+                                        total += heading_array[i]
+                                    imu_data.orientation.z = total / 5.0
+                                    heading_array = []
+                                    # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                                    Imu_pub_q.publish(Imu_data)
+                                    Imu_pub_e.publish(imu_data)
+                                    Imu_pub_temp.publish(temp)
 
                                 #SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
                                 #SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed
