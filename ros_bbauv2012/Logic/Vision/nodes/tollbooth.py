@@ -34,7 +34,7 @@ import smach_ros
 COMPETITION_TARGETS = ['red', 'yellow']
 
 # GLOBALS
-TEST_MODE = True
+TEST_MODE = False
 DEBUG = True
 camdebug = None
 tollbooth = None
@@ -164,11 +164,12 @@ class Search(smach.State):
                              output_keys=['targetIDs'])
 
     def execute(self, userdata):
+        tollbooth.changeTarget('red')
         while not rospy.is_shutdown():
-#            if tollbooth.regionCount >= 3:
-#                if not TEST_MODE:
-#                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
-#                return 'search_complete'
+            if tollbooth.regionCount >= 1:
+                if not TEST_MODE:
+                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+                return 'search_complete'
 
             if isAborted:
                 return 'aborted'
