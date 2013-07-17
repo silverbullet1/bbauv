@@ -15,6 +15,7 @@
 #include <PID_Controller/PID_ControllerConfig.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int16.h>
+#include <std_msgs/Int8.h>
 #include <PID_Controller/PID.h>
 #include <NavUtils/NavUtils.h>
 #include <sensor_msgs/Imu.h>
@@ -67,14 +68,13 @@ ros::Publisher thrusterPub;
 ros::Publisher depthPub;
 ros::Publisher orientationPub;
 ros::Publisher controllerPub;
+ros::Publisher locomotionModePub;
 /**********************Subscriber**********************************/
 ros::Subscriber orientationSub;
 ros::Subscriber pressureSub;
 ros::Subscriber teleopSub;
 ros::Subscriber autonomousSub;
 ros::Subscriber velocitySub;
-ros::Subscriber navigationVelSub;
-
 /**********************PID Controllers**********************************/
 bbauv::bbPID forwardPID("f",1.2,0,0,20);
 bbauv::bbPID depthPID("d",1.2,0,0,20);
@@ -97,6 +97,7 @@ int manual_speed[6] = {0,0,0,0,0,0};
 bool locomotion_srv_handler(bbauv_msgs::locomotion_mode::Request  &req,
         bbauv_msgs::locomotion_mode::Response &res)
 {
+	int mode = 0;
 	if(req.forward && req.sidemove)
 	{
 		res.success = false;
@@ -108,9 +109,11 @@ bool locomotion_srv_handler(bbauv_msgs::locomotion_mode::Request  &req,
 		sidemovePID.setActuatorSatModel(loc_mode_sidemove[0],loc_mode_sidemove[1]);
 		forwardPID.setActuatorSatModel(loc_mode_forward[0],loc_mode_forward[1]);
 		res.success = true;
+		mode = 1;
 		ROS_INFO("Switching to Forward mode.");
 	}else if(req.sidemove)
 	{
+		mode = 2;
 		headingPID.setActuatorSatModel(loc_mode_heading[2],loc_mode_heading[3]);
 		sidemovePID.setActuatorSatModel(loc_mode_sidemove[2],loc_mode_sidemove[3]);
 		forwardPID.setActuatorSatModel(loc_mode_forward[2],loc_mode_forward[3]);
@@ -118,6 +121,7 @@ bool locomotion_srv_handler(bbauv_msgs::locomotion_mode::Request  &req,
 		res.success = true;
 	}else if(!req.forward && !req.sidemove)
 	{
+		mode = 0;
 		ROS_DEBUG("h_min: %i,h_max: %i,s_min:%i,s_max:%i,f_min: %i,f_max: %i",act_heading[0],act_heading[1],act_sidemove[0],act_sidemove[1],act_forward[0],act_forward[1]);
 		//If forward and sidemove mode are not activated, revert to default
 		headingPID.setActuatorSatModel(act_heading[0],act_heading[1]);
@@ -126,6 +130,9 @@ bool locomotion_srv_handler(bbauv_msgs::locomotion_mode::Request  &req,
 		ROS_INFO("Switching to Default mode.");
 		res.success = true;
 	} else	res.success = false;
+	std_msgs::Int8 std_mode;
+	std_mode.data = mode;
+	locomotionModePub.publish(std_mode);
 	return true;
 }
 bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
@@ -158,6 +165,7 @@ int main(int argc, char **argv)
 	depthPub = nh.advertise<bbauv_msgs::depth>("/depth",1000);
 	orientationPub = nh.advertise<bbauv_msgs::compass_data>("/euler",1000);
 	controllerPub = nh.advertise<bbauv_msgs::controller>("/controller_points",100);
+	locomotionModePub = nh.advertise<std_msgs::Int8>("/locomotion_mode",100,true);
 
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
@@ -184,6 +192,10 @@ int main(int argc, char **argv)
 	//Execute PID Loop computation at 20Hz
 	ros::Rate loop_rate(loop_frequency);
 
+	//Initialize initial Locomotion Mode publish
+	std_msgs::Int8 std_mode;
+	std_mode.data = 0;
+	locomotionModePub.publish(std_mode);
 	ROS_INFO("PID Controllers Initialized.");
 	//PID Loop Computation
 	//Loop running at 20Hz

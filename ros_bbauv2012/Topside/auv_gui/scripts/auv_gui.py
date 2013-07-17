@@ -23,8 +23,8 @@ import numpy as np
 from sensor_msgs.msg import Image
 
 from bbauv_msgs.msg._thruster import thruster
-from std_msgs import msg
 from std_msgs.msg._Float32 import Float32
+from std_msgs.msg._Int8 import Int8
 
 class AUV_gui(QMainWindow):
     main_frame = None
@@ -49,6 +49,7 @@ class AUV_gui(QMainWindow):
     q_controller = Queue.Queue()
     q_hull_status = Queue.Queue()
     q_mani = Queue.Queue()
+    q_mode = Queue.Queue()
     q_controller_feedback = Queue.Queue()
     q_thruster = Queue.Queue()
     q_openups = Queue.Queue()
@@ -56,7 +57,7 @@ class AUV_gui(QMainWindow):
     q_altitude = Queue.Queue()
     q_image_bot = Queue.Queue()
     q_image_front = Queue.Queue()
-    data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0, 'attitude':0,
+    data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups_stats(),
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
@@ -96,15 +97,18 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
+        self.l_mode = QLineEdit("Default")
+        self.l_mode.setAlignment(Qt.AlignCenter)
+        self.l_mode.setEnabled(False)
         self.armButton = QCommandLinkButton("NOT ARMED")
         fireButton = QPushButton("&Fire")
         self.check1 = QCheckBox("Left Dropper")
         self.check2 = QCheckBox("Right Dropper")
         self.check3 = QCheckBox("Left Torpedo")
         self.check4 = QCheckBox("Right Torpedo")
-        self.check5 = QCheckBox("Grabber Actuator")
-        self.check6 = QCheckBox("Linear Actuator")
-        self.check7 = QCheckBox("Rotary Actuator")
+        self.check5 = QCheckBox("Grabber")
+        self.check6 = QCheckBox("Linear")
+        self.check7 = QCheckBox("Rotary")
         
         mani_layout = QVBoxLayout()
         mani_layout.addWidget(self.check1)
@@ -141,6 +145,7 @@ class AUV_gui(QMainWindow):
         
         vbox3 = QVBoxLayout()
         #hbox.addStretch(1)
+        vbox3.addWidget(self.l_mode)
         vbox3.addWidget(self.modeButton)
         
         goal_gui_layout = QHBoxLayout()
@@ -153,11 +158,12 @@ class AUV_gui(QMainWindow):
         goalBtn_layout.addLayout(vbox)
         goalBtn_layout.addLayout(vbox2)
         goalBtn_layout.addLayout(vbox3)
-        goalBox_layout.addStretch(1)
+        #goalBox_layout.addStretch(1)
         goalBox_layout.addLayout(goalBtn_layout)
         
-        vbox.addStretch(1)
-        vbox2.addStretch(1)
+        #vbox.addStretch(1)
+        #vbox2.addStretch(1)
+        vbox3.addStretch(1)
         goalBox.setLayout(goalBox_layout)
         self.compass = Qwt.QwtCompass()
         self.compass.setGeometry(0,0,200,200)
@@ -292,10 +298,6 @@ class AUV_gui(QMainWindow):
         main_Vlayout = QVBoxLayout()
         main_Hlayout.addWidget(goalBox)
         main_Hlayout.addWidget(maniBox)
-        #main_Hlayout.addWidget(compass_box)
-        
-        #main_Vlayout.addWidget(goalBox)
-        #main_Vlayout.addWidget(compass_box)
         main_Vlayout.addLayout(main_Hlayout)
         main_Vlayout.addLayout(overall_display_layout)
         main_layout.addLayout(main_Vlayout)
@@ -316,7 +318,7 @@ class AUV_gui(QMainWindow):
         
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
-        self.setGeometry(300, 300, 1100, 700)
+        self.setGeometry(300, 300, 1090, 710)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
         self.setCentralWidget(self.main_frame)
@@ -345,6 +347,7 @@ class AUV_gui(QMainWindow):
         altitude = None
         image_bot = None
         image_front = None
+        mode = None
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
@@ -357,7 +360,11 @@ class AUV_gui(QMainWindow):
         try:
             altitude = self.q_altitude.get(False,0)
         except Exception,e:
-            pass   
+            pass
+        try:
+            mode = self.q_mode.get(False,0)
+        except Exception,e:
+            pass
         try:
             openups = self.q_openups.get(False,0)
         except Exception,e:
@@ -426,6 +433,8 @@ class AUV_gui(QMainWindow):
             self.data['thrusters'] = thrusters
         if openups != None:
             self.data['openups'] = openups
+        if mode != None:
+            self.data['mode'] = mode.data
         if controller_setpoints != None:
             self.data['heading_setpoint'] = controller_setpoints.heading_setpoint
             self.data['depth_setpoint'] = controller_setpoints.depth_setpoint
@@ -446,6 +455,15 @@ class AUV_gui(QMainWindow):
         
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
+        
+        if self.data['mode']== 0:
+            self.l_mode.setText("Default")
+        elif self.data['mode'] == 1:
+            self.l_mode.setText("Forward")
+        elif self.data['mode'] == 2:
+            self.l_mode.setText("Sidemove")
+        
+        
         self.attitudePanel1.setText("<b>YAW: " + str(round(self.data['yaw'],2)) + 
                                     "<br> PIT: " + str(round(self.data['pitch'],2)) +
                                     "<br>RLL: "+ str(round(self.data['roll'],2)) + "</b>")
@@ -472,12 +490,37 @@ class AUV_gui(QMainWindow):
                               "<br> THR5: " + str(self.data['thrusters'].speed5) +
                               "<br> THR6: " + str(self.data['thrusters'].speed6) + "</b>")
         
-        self.data['manipulators']
-        self.saPanel3.setText("<b>LDROP: " + str(self.data['manipulators'].servo1) + 
-                              "<br> RDROP: " + str(self.data['manipulators'].servo2) +
-                              "<br> LTOR: " + str(self.data['manipulators'].servo3) + 
-                              "<br> RTOR: " + str(self.data['manipulators'].servo4) +
-                              "<br> GACT: " + str(self.data['manipulators'].servo5) +
+        mani_name = ["","","","","","",""]
+        if self.data['manipulators'].servo1:
+            mani_name[0] = "OPEN"
+        else:
+            mani_name[0] = "CLOSED"
+        
+        if self.data['manipulators'].servo2:
+            mani_name[1] = "OPEN"
+        else:
+            mani_name[1] = "CLOSED"
+        
+        if self.data['manipulators'].servo3:
+            mani_name[2] = "FIRED"
+        else:
+            mani_name[2] = "NONE"
+        
+        if self.data['manipulators'].servo4:
+            mani_name[3] = "FIRED"
+        else:
+            mani_name[3] = "NONE"
+            
+        if self.data['manipulators'].servo5:
+            mani_name[4] = "CLOSED"
+        else:
+            mani_name[4] = "OPENED"
+        
+        self.saPanel3.setText("<b>LD: " + mani_name[0] + 
+                              "<br> RD: " + mani_name[1] +
+                              "<br> LT: " + mani_name[2] + 
+                              "<br> RT: " + mani_name[3] +
+                              "<br> GA: " + mani_name[4] +
                               #"<br> LACT: " + str(self.data['manipulators'].servo6) + 
                               #"<br> RACT: " + str(self.data['manipulators'].servo7) +
                               "</b>")
@@ -562,7 +605,8 @@ class AUV_gui(QMainWindow):
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
         
-        self.setpointPanel2.setText("<b>ID: " + self.data['goal_id'] +
+        goal_string = self.data['goal_id'].partition('-')
+        self.setpointPanel2.setText("<b>ID: " + goal_string[0] +
                                     "<br>ST: " + self.get_status(self.data['status']) + 
                                     "<br>HDG ERR: " + str(round(self.data['heading_error'],2)) + 
                                     "<br> FWD ERR: " + str(round(self.data['forward_error'],2)) + 
@@ -600,6 +644,7 @@ class AUV_gui(QMainWindow):
         openups_sub = rospy.Subscriber("/openups_stats",openups_stats,self.openups_callback)
         temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
+        mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
     def get_status(self,val):
         if val == -1:
             return "NONE"
@@ -674,7 +719,7 @@ class AUV_gui(QMainWindow):
         elif(self.counter == 2):
             resp = self.locomotion_mode_request(False,False)
             self.modeButton.setText("Default")
-            #Enable Sidemove Mode
+            #Enable Default Mode
             
             self.counter = 0
 
@@ -818,7 +863,9 @@ class AUV_gui(QMainWindow):
             self.q_image_bot.put(cvRGBImg_bot)
         except CvBridgeError, e:
             print e
-        
+    
+    def mode_callback(self,mode):
+        self.q_mode.put(mode)
     def thruster_callback(self,thruster):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):

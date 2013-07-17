@@ -64,6 +64,7 @@ class Disengage(smach.State):
              try:
                  if isTest == False:
                      resp = mission_srv_request(False, True, locomotionGoal)
+                     rospy.loginfo("SpeedTrap Task completed")
              except rospy.ServiceException, e:
                  print "Service call failed: %s" % e
         while not rospy.is_shutdown():
@@ -180,11 +181,11 @@ class Aiming(smach.State):
                         if st.centroidx_list[i] > st.centroidx_list[coord_min_y]:
                             final_coord = i
             if final_coord == None:
-                rospy.loginfo("coord_min select")
+                #rospy.loginfo("coord_min select")
                 aim_x = st.centroidx_list[coord_min_y]
                 aim_y = st.centroidy_list[coord_min_y]
             else:                
-                rospy.loginfo("final_coord select")
+                #rospy.loginfo("final_coord select")
                 aim_x = st.centroidx_list[final_coord]
                 aim_y = st.centroidy_list[final_coord]
                 
@@ -241,6 +242,23 @@ class Firing(smach.State):
         _manipulator.servo6 = 0
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
+        mani_pub.publish(_manipulator)
+        rospy.loginfo("Going to sleep. Waiting for Dropper")
+        rospy.sleep(3)
+        if(left):
+            _manipulator.servo1 = 0
+            _manipulator.servo2 = 0
+        else:
+            _manipulator.servo1 = 0
+            _manipulator.servo2 = 0
+        _manipulator.servo3 = 0
+        _manipulator.servo4 = 0
+        _manipulator.servo5 = 0
+        _manipulator.servo6 = 0
+        _manipulator.servo7 = 0
+        mani_pub.publish(_manipulator)
+        mani_pub.publish(_manipulator)
+        
     def execute(self, userdata):
         global r
         global st
@@ -299,8 +317,6 @@ class Firing(smach.State):
                     movement_client.cancel_all_goals()
                     self.fire_dropper(False)
                     rospy.loginfo("Fire right Dropper!")
-                    rospy.loginfo("Going to sleep. Waiting for Dropper")
-                    rospy.sleep(rospy.Duration(3))
                     count = 2
                     st.counter = 2
                     userdata.complete = True
@@ -393,7 +409,7 @@ speedtrap_params = {'bin_area': 0, 'firing_x':10, 'firing_y':0, 'centering_x':0,
 if __name__ == '__main__':
     rospy.init_node('SpeedTrap', anonymous=False)
     r = rospy.Rate(20)
-    st = SpeedTrap()
+    st = SpeedTrap(False)
     rospy.loginfo("SpeedTrap loaded!")
     
     # Set up param configuration window

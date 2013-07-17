@@ -27,8 +27,8 @@ class SpeedTrap:
     debug = True
     red_params = {'hueLow': 0, 'hueHigh':10,'satLow': 100, 'satHigh': 255,'valLow':0,'valHigh':255,'topHueLow':170,'topHueHigh':180}
     yellow_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
-    yellow_hist = bbHistogram("yellow",Hist_constants.TRIPLE_CHANNEL)
-    red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
+    yellow_hist = None
+    red_hist = None
     isAlignState = True
     isLoweringState = True
     isAim = False
@@ -87,12 +87,16 @@ class SpeedTrap:
     '''
     Node Functions
     '''    
-    def __init__(self):
+    def __init__(self,debug_state):
         #imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_rect_color')
         #yawTopic = rospy.get_param('~compass', '/euler')
+        self.debug = debug_state
+        if self.debug:
+            yellow_hist = bbHistogram("yellow",Hist_constants.TRIPLE_CHANNEL)
+            red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
+            self.yellow_hist.setParams(self.yellow_params)
+            self.red_hist.setParams(self.red_params)
         self.bridge = CvBridge()
-        self.yellow_hist.setParams(self.yellow_params)
-        self.red_hist.setParams(self.red_params)
         rospy.loginfo("Speedtrap Ready")
  
     def register(self):
