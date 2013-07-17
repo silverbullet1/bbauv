@@ -93,10 +93,10 @@ int main(int argc, char** argv)
 				string upsOutput(tmp);
 
 				size_t found = upsOutput.find("Data stale");
-                size_t foundDisconnected = upsOutput.find("not connected");
+				size_t foundDisconnected = upsOutput.find("not connected");
 				if (found != string::npos) {
 					statsCharges[index] = charges[index] = -1;
-                } else if (foundDisconnected != string::npos) {
+				} else if (foundDisconnected != string::npos) {
 					statsCharges[index] = charges[index] = -3;
 				} else {
 					string status = extractBatteryState<string>(upsOutput, "ups.status", "");
@@ -108,7 +108,7 @@ int main(int argc, char** argv)
 						statsCharges[index] = charges[index] = -2;
 					} else {
 						charges[index] = extractBatteryState<int>(upsOutput, "battery.charge", -1);
-						charges[index] = (voltage < LOW_VOLTAGE) ? 0 : charges[index];
+						//charges[index] = (voltage < LOW_VOLTAGE) ? 0 : charges[index];
 
 						statsCharges[index] = charges[index];
 						statsCurrents[index] = extractBatteryState<float>(upsOutput, "output.current", -1);
