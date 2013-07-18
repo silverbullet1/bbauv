@@ -108,7 +108,7 @@ class Disengage(smach.State):
 
             rospy.wait_for_service('mission_srv')
             global mission_srv
-            mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
+            mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':4})
             rospy.loginfo('connected to mission_srv!')
 
             self.isStart = True
