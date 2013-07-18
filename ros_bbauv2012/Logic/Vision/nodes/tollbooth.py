@@ -31,8 +31,8 @@ import smach_ros
 
 
 #TODO: use actual competition IDs
-SINGLE_BOARD_MODE = True
-COMPETITION_TARGETS = ['red'] if SINGLE_BOARD_MODE else ['red', 'yellow']
+SINGLE_BOARD_MODE = False # Set to True if just going for a single color
+COMPETITION_TARGETS = ['red','red'] if SINGLE_BOARD_MODE else ['red', 'blue']
 
 # GLOBALS
 TEST_MODE = True
@@ -308,6 +308,14 @@ class Correction:
                         sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
                 waitTime = params['otherGoalWait']
+            elif offsets['size']:
+                print ("Correcting distance")
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        forward_setpoint = self.FORWARD_K * offsets['size']
+                )
+                waitTime = params['otherGoalWait']
             elif abs(offsets['angle']) > self.EPSILON_ANGLE:
                 print ("Correcting heading")
                 hoverHeading = norm_heading(tollbooth.heading + self.ANGLE_K * offsets['angle'])
@@ -316,14 +324,6 @@ class Correction:
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth,
                         sidemove_setpoint = math.copysign(3.0, offsets['angle'])
-                )
-                waitTime = params['otherGoalWait']
-            elif offsets['size']:
-                print ("Correcting distance")
-                goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
-                        depth_setpoint = hoverDepth,
-                        forward_setpoint = self.FORWARD_K * offsets['size']
                 )
                 waitTime = params['otherGoalWait']
             elif offsets['targetLostCount'] > 30:
@@ -478,14 +478,15 @@ class Backoff(smach.State):
             actionClient.send_goal(goal)
             actionClient.wait_for_result(rospy.Duration(5.5))
 
-            tollbooth.changeTarget('all')
+            color = userdata.targetIDs[0]
+            tollbooth.changeTarget(color)
 
             tries = 0
 
             while not rospy.is_shutdown():
                 if isAborted: return 'aborted'
 
-                if tollbooth.regionCount >= 3:
+                if tollbooth.regionCount >= 1:
                     return 'found'
 
                 if tries < 2:
@@ -504,6 +505,7 @@ class Backoff(smach.State):
                 rosRate.sleep()
         else:
             tollbooth.changeTarget('red')
+            return 'found'
 
         return 'killed'
 
