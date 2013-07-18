@@ -350,19 +350,19 @@ class HoverSearch(smach.State):
         #Timed out
         if self.task_name == 'lane':
             try:
-                rospy.loginfo('Failed to find %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to find %s' % self.task_name)
                 resp = lane_srv(False, locomotionGoal, False, 1, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)    
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)    
                 return 'failed'                         
         if self.task_name != 'lane':
             try:
-                rospy.loginfo('Failed to find %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to find %s' % self.task_name)
                 resp = self.task_srv(False, locomotionGoal, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
                 return 'failed'                   
         
         return 'succeeded'        
@@ -483,19 +483,19 @@ class LinearSearch(smach.State):
         #Timed out
         if self.task_name == 'lane':
             try:
-                rospy.loginfo('Failed to find %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to find %s' % self.task_name)
                 resp = lane_srv(False, locomotionGoal, False, 1, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)    
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)    
                 return 'failed'                         
         if self.task_name != 'lane':
             try:
-                rospy.loginfo('Failed to find %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to find %s' % self.task_name)
                 resp = self.task_srv(False, locomotionGoal, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
                 return 'failed'                 
         
 class WaitOut(smach.State):
@@ -541,29 +541,35 @@ class WaitOut(smach.State):
         #Aborting task due to timeout
         if self.task_name == 'lane':
             try:
-                rospy.loginfo('Failed to complete %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to complete %s' % self.task_name)
                 resp = lane_srv(False, locomotionGoal, False, 1, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
                 return 'failed'                              
      
         if self.task_name != 'lane':
             try:
-                rospy.loginfo('Failed to complete %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to complete %s' % self.task_name)
                 resp = self.task_srv(False, locomotionGoal, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)            
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)            
                 return 'failed'
 
 class WaitOutAndSearch(smach.State):
-    def __init__(self, task_name, timeout):
+    def __init__(self, waitout_task_name, search_task_name, timeout):
         smach.State.__init__(self, outcomes=['task_succeeded','search_succeeded', 'failed'])
         self.name = self.__class__.__name__ 
-        self.task_name = task_name
-        self.task_srv_name = task_name + '_srv'
-        self.task_srv = None
+
+        self.waitout_task_name = waitout_task_name
+        self.waitout_task_srv_name = waitout_task_name + '_srv'
+        self.waitout_task_srv = None
+
+        self.search_task_name = search_task_name
+        self.search_task_srv_name = search_task_name + '_srv'
+        self.search_task_srv = None
+
         self.timeout = timeout    
         
     def execute(self, userdata):
@@ -581,25 +587,30 @@ class WaitOutAndSearch(smach.State):
         isSearchDone = False
         isSearchFailed = False
         
-        rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
+        rospy.loginfo("Entering %s %s state" % (self.waitout_task_name, self.name))  
 
         #Connecting to task server;      
-        if self.task_name != 'lane':        
-            rospy.wait_for_service(self.task_srv_name)   
-            self.task_srv = rospy.ServiceProxy(self.task_srv_name, mission_to_vision)
-            rospy.loginfo('Mission Connected to %s Server' % self.task_name)        
+        if self.waitout_task_name != 'lane':        
+            rospy.wait_for_service(self.waitout_task_srv_name)   
+            self.waitout_task_srv = rospy.ServiceProxy(self.waitout_task_srv_name, mission_to_vision)
+            rospy.loginfo('Mission Connected to %s Server' % self.waitout_task_name)
+
+        if self.search_task_name != 'lane':
+            rospy.wait_for_service(self.search_task_srv_name)   
+            self.search_task_srv = rospy.ServiceProxy(self.search_task_srv_name, mission_to_vision)
+            rospy.loginfo('Mission Connected to %s Server' % self.search_task_name)      
 
         #Begin Searching For Task
-        if self.task_name == 'lane':
+        if self.search_task_name == 'lane':
             try:
                 resp = lane_srv(True,locomotionGoal,self.use_left,self.num_lanes,False)
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to start Search" % e)
                 return 'failed'  
-        if self.task_name != 'lane':
+        if self.search_task_name != 'lane':
             try:
-                resp = self.task_srv(True, locomotionGoal, False)
-                rospy.loginfo("Searching for %s" % self.task_name)
+                resp = self.search_task_srv(True, locomotionGoal, False)
+                rospy.loginfo("Searching for %s" % self.search_task_name)
             except rospy.ServiceException, e:
                 rospy.loginfo("Failed to start Search" % e)
                 return 'failed'
@@ -607,38 +618,114 @@ class WaitOutAndSearch(smach.State):
         #Waiting Out
         r = rospy.Rate(10)
         start_time = rospy.get_time()
-        rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
+        rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.waitout_task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
-#             if isSearchDone and not isTaskComplete:
-#                 pass
-#             if isSearchDone and isTaskComplete:
-#                 pass
-#             if not isSearchDone and isTaskComplete:
-#                 pass
-#             if not isSearchDone and not isTaskComplete:
-#                 pass
+
+            if isSearchDone:
+                rospy.loginfo("Search Completed %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
+
+                #Aborting WaitOut task due to search task found
+                if self.waitout_task_name == 'lane':
+                    try:
+                        rospy.loginfo('Found %s during Waitout, Aborting %s' % (self.search_task_name, self.waitout_task_name))
+                        resp = lane_srv(False, locomotionGoal, False, 1, True)
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Timed Out: Failed to abort: %s" % e)
+                        return 'failed'                              
+             
+                if self.waitout_task_name != 'lane':
+                    try:
+                        rospy.loginfo('Found %s during Waitout, Aborting %s' % (self.search_task_name, self.waitout_task_name))
+                        resp = self.waitout_task_srv(False, locomotionGoal, True)            
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Failed to abort: %s" % e)            
+                        return 'failed'
+                return 'search_succeeded'
+
             if isTaskComplete:
-                rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
-                return 'succeeded'
+                rospy.loginfo("Task Completed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
+
+                #Aborting Search task due to waitout task complete
+                if self.search_task_name == 'lane':
+                    try:
+                        rospy.loginfo('Task Complete, Failed to find %s' % self.search_task_name)
+                        resp = lane_srv(False, locomotionGoal, False, 1, True)            
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Timed Out: Failed to abort: %s" % e)
+                        return 'failed'                              
+             
+                if self.search_task_name != 'lane':
+                    try:
+                        rospy.loginfo('Task Complete, Failed to find %s' % self.search_task_name)
+                        resp = self.search_task_srv(False, locomotionGoal, True)            
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Failed to abort: %s" % e)            
+                        return 'failed'
+
+                return 'task_succeeded'
+
+            if isSearchFailed:
+                rospy.loginfo("Search Failed %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
+                return 'failed'
+
+            if isTaskFailed:
+                rospy.loginfo("Task Failed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
+
+                #Aborting Search task due to waitout task failed
+                if self.search_task_name == 'lane':
+                    try:
+                        rospy.loginfo('Task Failed, Failed to find %s' % self.search_task_name)
+                        resp = lane_srv(False, locomotionGoal, False, 1, True)            
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Timed Out: Failed to abort: %s" % e)
+                        return 'failed'                              
+             
+                if self.search_task_name != 'lane':
+                    try:
+                        rospy.loginfo('Task Failed, Failed to find %s' % self.search_task_name)
+                        resp = self.search_task_srv(False, locomotionGoal, True)            
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("Failed to abort: %s" % e)            
+                        return 'failed'
+
+                return 'failed'
             r.sleep()
         
         #Aborting task due to timeout
-        if self.task_name == 'lane':
+        if self.waitout_task_name == 'lane':
             try:
-                rospy.loginfo('Failed to complete %s' % self.task_name)
+                rospy.loginfo('Timed Out: Failed to complete %s' % self.waitout_task_name)
                 resp = lane_srv(False, locomotionGoal, False, 1, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
                 return 'failed'                              
      
-        if self.task_name != 'lane':
+        if self.waitout_task_name != 'lane':
             try:
-                rospy.loginfo('Failed to complete %s' % self.task_name)
-                resp = self.task_srv(False, locomotionGoal, True)            
+                rospy.loginfo('Timed Out: Failed to complete %s' % self.waitout_task_name)
+                resp = self.waitout_task_srv(False, locomotionGoal, True)            
                 return 'failed'              
             except rospy.ServiceException, e:
-                rospy.loginfo("Failed to abort: %s" % e)            
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)            
+                return 'failed'
+
+        if self.search_task_name == 'lane':
+            try:
+                rospy.loginfo('Timed Out: Failed to find %s' % self.search_task_name)
+                resp = lane_srv(False, locomotionGoal, False, 1, True)            
+                return 'failed'              
+            except rospy.ServiceException, e:
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
+                return 'failed'                              
+     
+        if self.search_task_name != 'lane':
+            try:
+                rospy.loginfo('Timed Out: Failed to find %s' % self.search_task_name)
+                resp = self.search_task_srv(False, locomotionGoal, True)            
+                return 'failed'              
+            except rospy.ServiceException, e:
+                rospy.loginfo("Timed Out: Failed to abort: %s" % e)            
                 return 'failed'
 
 class NavMoveBase(smach.State):
@@ -672,11 +759,11 @@ class NavMoveBase(smach.State):
             self.start_heading = rospy.get_param(self.place + '/heading')
 
         #Change Depth and Face Heading First
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.depth,heading_setpoint=self.start_heading)
+#        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.depth,heading_setpoint=self.start_heading)
 
-        locomotion_client.send_goal(goal)
-        rospy.loginfo('Going to depth %s m. Facing yaw=%s deg' % (str(self.depth), str(self.start_heading)))
-        locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
+#        locomotion_client.send_goal(goal)
+#        rospy.loginfo('Going to depth %s m. Facing yaw=%s deg' % (str(self.depth), str(self.start_heading)))
+#        locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
 
         #convert yaw to move_base convention
         ros_heading = self.normalize_angle((360-(self.start_heading))) * (pi/180) #self.start_heading * (pi/180) 
@@ -736,8 +823,8 @@ def handle_srv(req):
     global isTaskComplete
     global isTaskFailed
     
-    search_call = None
-    task_call = None
+    search_call = False
+    task_call = False
     
     #Search completion request from Vision Node.
     if(req.search_request):
@@ -851,21 +938,50 @@ if __name__ == '__main__':
         rospy.loginfo("Mission connected to MovebaseServer")
 
 ### Insert Mission Here ###
-  
+ 
     sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(30), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(10,0.4,69),transitions={'succeeded':'GO_FWD'})
-        smach.StateMachine.add('GO_FWD', GoToDistance(70, 9, 'fwd'), transitions={'succeeded':'HOVER'})
-        smach.StateMachine.add('HOVER', HoverSearch('tollbooth', 30), transitions={'succeeded':'TOLLBOOTH', 'failed':'MOVERIGHT'})
-        smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'RISE', 'failed': 'RISE'})
-        smach.StateMachine.add('RISE', GoToDepth(10, 0.5), transitions={'succeeded':'MOVERIGHT'})
-        smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 4, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('TASK', WaitOut('speedtrap', 120), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(10,0.5,70),transitions={'succeeded':'HOVER'})
+        smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD'})
+
+        smach.StateMachine.add('GOFWD', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER2'})
+        smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD2'})
+
+        smach.StateMachine.add('GOFWD2', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER3'})
+        smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD3'})
+
+        smach.StateMachine.add('GOFWD3', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER4'})
+        smach.StateMachine.add('HOVER4', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
+
+        smach.StateMachine.add('TASK', WaitOutAndSearch('acoustic','drivethru', 180), transitions={'task_succeeded':'HOVER5', 'search_succeeded':'TASK2','failed':'SURFACE_SADLY'})
+
+        smach.StateMachine.add('TASK2', WaitOut('drivethru', 180), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+
+        smach.StateMachine.add('HOVER5', HoverSearch('drivethru', 120), transitions={'succeeded':'TASK2', 'failed':'SEARCH_LEFT'})    
+        smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 30, -1, 'sway'), transitions={'succeeded':'TASK2', 'failed':'SEARCH_RIGHT'})
+        smach.StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 30, 2, 'sway'), transitions={'succeeded':'TASK2', 'failed':'SURFACE_SADLY'})
+       
         smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
         smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
         smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
+ 
+#    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
+
+#    with sm_mission:
+#        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
+#        smach.StateMachine.add('START',Start(10,0.5,70),transitions={'succeeded':'GO_FWD'})
+#        smach.StateMachine.add('GO_FWD', GoToDistance(80, 11, 'fwd'), transitions={'succeeded':'HOVER'})
+#        smach.StateMachine.add('HOVER', HoverSearch('tollbooth', 30), transitions={'succeeded':'TOLLBOOTH', 'failed':'MOVERIGHT'})
+#        smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'RISE', 'failed': 'RISE'})
+#        smach.StateMachine.add('RISE', GoToDepth(10, 0.5), transitions={'succeeded':'FACEWALL'})
+#        smach.StateMachine.add('FACEWALL', GoToHeading(10, 90), transitions={'succeeded':'MOVERIGHT'})
+#        smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 4, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
+#        smach.StateMachine.add('TASK', WaitOut('speedtrap', 120), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+#        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
+#        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
+#        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
 
 ### Mission Ends Here ###  
 

@@ -37,10 +37,11 @@ class Disengage(smach.State):
 #Waiting for a clean signal to come
 
 class CollectTDOA(smach.State):
-    def __init__(self,samples=5,timeout=15):
+    def __init__(self,samples=5,timeout=30,initSearch=False):
         smach.State.__init__(self, outcomes=['succeeded','failed','aborted'])
         self.timeout=timeout
         self.samples=samples
+        self.initSearch=initSearch
     def execute(self,userdata):
         global tdoa_queue
         global farfield
@@ -68,12 +69,12 @@ class CollectTDOA(smach.State):
                 rospy.loginfo('timed out! Cannot acquire any good ping')
                 return 'failed'
 
-        if isTest == False:
+        if isTest == False and self.initSearch == True:
             try:
                 resp = mission_srv_request(True, False, None)
+                rospy.loginfo(resp)
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" % e)
-
         return 'succeeded'
 
 class CorrectHeading(smach.State):
@@ -83,26 +84,26 @@ class CorrectHeading(smach.State):
         global farfield
         global cur_heading
         global tdoa_queue
-        z_threshold = 0.7
         
         if isAbort:
             return 'aborted'
+        
+        tdoa_backup=tdoa_queue
+
         rospy.loginfo('yaw = {0}, cur_heading = {1}'.format(yaw,cur_heading))
         (rel_heading, z) = triangulate(tdoa_queue, "farfield")
         rospy.loginfo('yaw = {0}, cur_heading = {1}'.format(yaw,cur_heading))
         rospy.loginfo('==>rel_heading={0}, z={1}'.format(rel_heading,z))
-        if np.fabs(rel_heading) > 10:
-            rospy.loginfo("correcting heading....")
-            new_heading = (cur_heading + rel_heading) % 360
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = new_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
-            print "-----------------------"
-            print goal
-            print "-----------------------"
-            movement_client.send_goal(goal)
-            movement_client.wait_for_result(action_timeout)
-            cur_heading = new_heading
-        else:
-            rospy.loginfo("good heading! maintain current heading")
+        rospy.loginfo("correcting heading....")
+        new_heading = (cur_heading + rel_heading) % 360
+
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = new_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
+        print "-----------------------"
+        print goal
+        print "-----------------------"
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(action_timeout)
+        cur_heading = new_heading
              
         if z < z_threshold:
             # continue far field, go to move forward
@@ -137,6 +138,7 @@ class GoToXY(smach.State):
                 ctrl.depth_setpoint = search_depth
                 ctrl.heading_setpoint = cur_heading
                 resp = mission_srv_request(False, True, ctrl)
+                rospy.loginfo(resp)
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" % e)
 
@@ -155,6 +157,43 @@ class MoveForward(smach.State):
         print "-----------------------"
         movement_client.send_goal(goal)
         movement_client.wait_for_result(action_timeout)
+        return 'completed'
+
+recover_time = 0
+
+class Recover(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['completed', 'aborted'])
+    def execute(self,userdata):
+        global cur_heading
+        global recover_time
+
+        if isAbort: 
+            return 'aborted'
+        if recover_time==3:
+            rospy.loginfo('Unable to recover. Abort and go to Disengage')
+            if isTest == False:
+                try:
+                    ctrl = controller()
+                    ctrl.depth_setpoint = search_depth
+                    ctrl.heading_setpoint = cur_heading
+                    resp = mission_srv_request(False, False, ctrl)
+                    rospy.loginfo(resp)
+                except rospy.ServiceException, e:
+                    rospy.loginfo("Service call failed: %s" % e)
+            return 'aborted'
+
+        recover_time+=1
+        cur_heading+=90
+        rospy.loginfo("#{0} attempt to recover....".format(recover_time))
+
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = cur_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
+        print "-----------------------"
+        print goal
+        print "-----------------------"
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(action_timeout)
+         
         return 'completed'
 
 def far_field(d10, d20, d30):
@@ -386,7 +425,7 @@ if __name__ == '__main__':
         smach.StateMachine.add('DISENGAGE',Disengage(),
             transitions ={'started':'INITIALSEARCH','completed':'Task_completed','aborted':'DISENGAGE'})
         
-        smach.StateMachine.add('INITIALSEARCH',CollectTDOA(samples=3),
+        smach.StateMachine.add('INITIALSEARCH',CollectTDOA(samples=3,timeout=30,initSearch=True),
             transitions ={'succeeded':'CORRECTHEADING','failed':'DISENGAGE','aborted':'DISENGAGE'})
 
         smach.StateMachine.add('CORRECTHEADING',CorrectHeading(),
@@ -395,14 +434,17 @@ if __name__ == '__main__':
         smach.StateMachine.add('MOVEFORWARD',MoveForward(),
             transitions ={'completed':'FARSEARCH','aborted':'DISENGAGE'})
         
-        smach.StateMachine.add('FARSEARCH',CollectTDOA(samples=3),
-            transitions ={'succeeded':'CORRECTHEADING','failed':'DISENGAGE','aborted':'DISENGAGE'})
+        smach.StateMachine.add('FARSEARCH',CollectTDOA(samples=3,timeout=20),
+            transitions ={'succeeded':'CORRECTHEADING','failed':'RECOVER','aborted':'DISENGAGE'})
         
-        smach.StateMachine.add('NEARSEARCH',CollectTDOA(samples=5),
-            transitions ={'succeeded':'GOTOXY','failed':'DISENGAGE','aborted':'DISENGAGE'})
+        smach.StateMachine.add('NEARSEARCH',CollectTDOA(samples=5,timeout=20),
+            transitions ={'succeeded':'GOTO_XY','failed':'RECOVER','aborted':'DISENGAGE'})
          
-        smach.StateMachine.add('GOTOXY',GoToXY(),
+        smach.StateMachine.add('GOTO_XY',GoToXY(),
             transitions ={'completed':'Task_completed','aborted':'DISENGAGE'})
+    
+        smach.StateMachine.add('RECOVER',Recover(),
+            transitions ={'completed':'FARSEARCH','aborted':'DISENGAGE'})
 
     sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/ACOUSTICNAVIGATION')
     sis.start()
