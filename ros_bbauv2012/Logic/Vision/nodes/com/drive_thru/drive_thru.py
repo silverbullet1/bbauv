@@ -67,6 +67,7 @@ class Drive_thru:
         hsv_image = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
         
         if self.debug:
+            self.orange_hist.setParams(self.orange_params)
             self.orange_hist.getTripleHist(hsv_image)
             
         #color_min = np.array([20, 10, 20], np.uint8)

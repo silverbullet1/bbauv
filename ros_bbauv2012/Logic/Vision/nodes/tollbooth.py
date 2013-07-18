@@ -56,16 +56,16 @@ lock = threading.Lock()
 
 # dynamic_reconfigure params; see Tollbooth.cfg
 params = { 'contourMinArea': 0,
-           'redHueLow': 0, 'redHueHigh': 0, 'redSatLow': 0, 'redSatHigh': 0, 'redValLow': 0, 'redValHigh': 0,
-           'blueHueLow': 0, 'blueHueHigh': 0, 'blueSatLow': 0, 'blueSatHigh': 0, 'blueValLow': 0, 'blueValHigh': 0,
-           'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
-           'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0,
+           'red_hueLow': 0, 'red_hueHigh': 0, 'red_satLow': 0, 'red_satHigh': 0, 'red_valLow': 0, 'red_valHigh': 0,
+           'blue_hueLow': 0, 'blue_hueHigh': 0, 'blue_satLow': 0, 'blue_satHigh': 0, 'blue_valLow': 0, 'blue_valHigh': 0,
+           'yellow_hueLow': 0, 'yellow_hueHigh': 0, 'yellow_satLow': 0, 'yellow_satHigh': 0, 'yellow_valLow': 0, 'yellow_valHigh': 0,
+           'green_hueLow': 0, 'green_hueHigh': 0, 'green_satLow': 0, 'green_satHigh': 0, 'green_valLow': 0, 'green_valHigh': 0,
            'depthGoalWait': 0, 'otherGoalWait': 0,
            'farForwardK':0, 'farSideK':0, 'farDepthK':0, 'farAngleK':0,
            'farEpsilonX':0, 'farEpsilonY':0, 'farEpsilonAngle':0,
-           'farMinSize':0, 'farMaxSize':0, 'farTimeout':0,
+           'farMinSize':0, 'farMaxSize':0, 'farTimeout':1000,
            'nearForwardK':0, 'nearSideK':0, 'nearDepthK':0, 'nearAngleK':0,
-           'nearEpsilonX':0, 'nearEpsilonY':0, 'nearEpsilonAngle':0,
+           'nearEpsilonX':0, 'nearEp silonY':0, 'nearEpsilonAngle':0,
            'nearMinSize':0, 'nearMaxSize':0, 'nearTimeout':0,
            'holeForwardK':0, 'holeSideK':0, 'holeDepthK':0, 'holeAngleK':0,
            'holeEpsilonX':0, 'holeEpsilonY':0, 'holeEpsilonAngle':0,
@@ -127,7 +127,6 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         global tollbooth
-        tollbooth = None
 
         global firstRun
         if firstRun:
@@ -148,8 +147,6 @@ class Disengage(smach.State):
         currentEye = 'left'
         imageSub = rospy.Subscriber(imageLeftTopic, Image, gotRosFrame)
 
-
-        tollbooth = TollboothDetector(params, lock, camdebug)
         tollbooth.heading = cur_heading
 
         userdata.targetIDs = COMPETITION_TARGETS
@@ -168,10 +165,10 @@ class Search(smach.State):
 
     def execute(self, userdata):
         while not rospy.is_shutdown():
-            if tollbooth.regionCount >= 3:
-                if not TEST_MODE:
-                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
-                return 'search_complete'
+#            if tollbooth.regionCount >= 3:
+#                if not TEST_MODE:
+#                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+#                return 'search_complete'
 
             if isAborted:
                 return 'aborted'
@@ -544,8 +541,6 @@ def fireTorpedo(side):
     manip.servo7 = 0
     manipulator_pub.publish(manip)
 
-
-
 '''
 Main
 '''
@@ -558,15 +553,21 @@ if __name__ == '__main__':
     compassTopic = rospy.get_param('~compass', '/euler')
 
     manipulator_pub = rospy.Publisher('/manipulators', manipulator)
-
+    camdebug = CamDebug('Vision', debugOn=DEBUG)
+    tollbooth = TollboothDetector(params, lock, camdebug)
     # Set up param configuration window
     def configCallback(config, level):
-        for param in params:
-            params[param] = config[param]
+        
+        for param in tollbooth.yellow_params:
+            tollbooth.yellow_params[param] = params[param] = config['yellow_' + param]
+        for param in tollbooth.red_params:
+            tollbooth.red_params[param] = config['red_' + param]
+        for param in tollbooth.green_params:
+            tollbooth.green_params[param] = config['green_' + param]
+        for param in tollbooth.blue_params:
+            tollbooth.blue_params[param] = config['blue_' + param]
         return config
     srv = Server(TollboothConfig, configCallback)
-
-    camdebug = CamDebug('Vision', debugOn=DEBUG)
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)

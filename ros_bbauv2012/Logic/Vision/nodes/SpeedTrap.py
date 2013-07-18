@@ -244,7 +244,7 @@ class Firing(smach.State):
         mani_pub.publish(_manipulator)
         mani_pub.publish(_manipulator)
         rospy.loginfo("Going to sleep. Waiting for Dropper")
-        rospy.sleep(3)
+        rospy.sleep(rospy.Duration(3))
         if(left):
             _manipulator.servo1 = 0
             _manipulator.servo2 = 0

@@ -97,7 +97,7 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
-        self.l_mode = QLineEdit("Default")
+        mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
         self.armButton = QCommandLinkButton("NOT ARMED")
@@ -145,7 +145,7 @@ class AUV_gui(QMainWindow):
         
         vbox3 = QVBoxLayout()
         #hbox.addStretch(1)
-        vbox3.addWidget(self.l_mode)
+        vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
         
         goal_gui_layout = QHBoxLayout()
