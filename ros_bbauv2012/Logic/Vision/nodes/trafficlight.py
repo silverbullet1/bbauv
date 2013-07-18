@@ -42,8 +42,14 @@ input_heading = 0
 depth_setpoint = 0.5
 cur_heading = 0
 
+SIDEMOVE_SETPOINT = 3
+
+#HACK
+MAX_BUMPS = 2
+bumpCount = 0
+
 #TODO: Use competition colours
-TARGET_COLORS = ['red']
+TARGET_COLORS = ['redLed'] #NOTE: use 'redLed' for the red LED
 
 #HACK: use a lock to prevent race conditions
 lock = threading.Lock()
@@ -51,6 +57,7 @@ lock = threading.Lock()
 # dynamic_reconfigure params; see TrafficLight.cfg
 params = { 'minBuoyRadius': 0, 'contourMinArea': 0,
            'redHueLow': 0, 'redHueHigh': 0, 'redSatLow': 0, 'redSatHigh': 0, 'redValLow': 0, 'redValHigh': 0,
+           'redLedHueLow': 0, 'redLedHueHigh': 0, 'redLedSatLow': 0, 'redLedSatHigh': 0, 'redLedValLow': 0, 'redLedValHigh': 0, 
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
            'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0,
            'bumpTime': 0, 'bumpK': 0,
@@ -186,16 +193,6 @@ class Correction:
                         sidemove_setpoint = factor * self.SIDE_K * offsets['x']
                 )
                 waitTime = rospy.Duration(2,0)
-#            elif abs(offsets['angle']) > self.EPSILON_ANGLE:
-#                print ("Correcting heading")
-#                self.hoverHeading = norm_heading(lightDetector.heading + self.ANGLE_K * offsets['angle'])
-#
-#                goal = bbauv_msgs.msg.ControllerGoal(
-#                        heading_setpoint = self.hoverHeading,
-#                        depth_setpoint = hoverDepth,
-#                        sidemove_setpoint = math.copysign(3.0, offsets['angle'])
-#                )
-#                waitTime = rospy.Duration(3,0)
             elif offsets['size']:
                 print ("Correcting distance")
                 goal = bbauv_msgs.msg.ControllerGoal(
@@ -285,16 +282,21 @@ class Search(smach.State):
         )
 
     def execute(self, userdata):
-        #TODO: detect all the lights
-        while not lightDetector.buoyDetected:
-            if rospy.is_shutdown(): return 'killed'
-            if isAborted: return 'aborted'
-            rosRate.sleep()
+        if False: #DEBUG
+            while not rospy.is_shutdown():
+                rospy.sleep(1)
+            return 'killed'
+        else:
+            #TODO: detect all the lights
+            while not lightDetector.buoyDetected:
+                if rospy.is_shutdown(): return 'killed'
+                if isAborted: return 'aborted'
+                rosRate.sleep()
 
-        if not TEST_MODE:
-            mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+            if not TEST_MODE:
+                mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
 
-        return 'search_complete'
+            return 'search_complete'
 
 
 '''
@@ -398,12 +400,12 @@ class SidemoveToBuoy(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.heading,
                 depth_setpoint = depth_setpoint,
-                sidemove_setpoint = 4 if userdata.sidemoveDir == 'right' else -4
+                sidemove_setpoint = SIDEMOVE_SETPOINT if userdata.sidemoveDir == 'right' else -SIDEMOVE_SETPOINT
         )
         actionClient.send_goal(goal)
 
         noBuoyCount = 0 # number of consecutive frames without seeing a buoy
-        while noBuoyCount < 8:
+        while noBuoyCount < 5:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
 
@@ -414,7 +416,7 @@ class SidemoveToBuoy(smach.State):
             rospy.sleep(0.05)
 
         buoyCount = 0 # number of consecutive frames seeing a buoy
-        while buoyCount < 8:
+        while buoyCount < 5:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
 
@@ -452,6 +454,8 @@ class BumpToColor(smach.State):
                              output_keys=['adjustment', 'targetColors', 'sidemoveDir'])
 
     def execute(self, userdata):
+        global bumpCount
+
         hoverDepth = depth_setpoint
         hoverHeading = userdata.heading
 
@@ -473,26 +477,33 @@ class BumpToColor(smach.State):
                     userdata.adjustment = 'left'
                     return 'adjustment'
 
-            for setpoint in [BUMP_FORWARD, -BUMP_FORWARD]:
-                if rospy.is_shutdown(): return 'killed'
-                if isAborted: return 'aborted'
+            bumpEnd = False
+            if bumpCount < MAX_BUMPS:
+                for setpoint in [BUMP_FORWARD, -BUMP_FORWARD]:
+                    if rospy.is_shutdown(): return 'killed'
+                    if isAborted: return 'aborted'
 
-                goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
-                        depth_setpoint = hoverDepth,
-                        forward_setpoint = setpoint
-                )
-                actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration.from_sec(params['bumpTime']))
+                    goal = bbauv_msgs.msg.ControllerGoal(
+                            heading_setpoint = hoverHeading,
+                            depth_setpoint = hoverDepth,
+                            forward_setpoint = setpoint
+                    )
+                    actionClient.send_goal(goal)
+                    actionClient.wait_for_result(rospy.Duration.from_sec(params['bumpTime']))
+                actionClient.cancel_all_goals()
+                bumpCount += 1
+                rospy.sleep(1) # wait a bit before checking LED color
+            else:
+                bumpEnd = True
 
-            actionClient.cancel_all_goals()
+            if lightDetector.colorsFound and lightDetector.colorsFound[0][0] == userdata.targetColors[0]:
+                bumpEnd = True
 
-            rospy.sleep(1) # wait a bit before checking LED color
-            if lightDetector.colorsFound:
-                if lightDetector.colorsFound[0][0] == userdata.targetColors[0]:
-                    remainingColors = userdata.targetColors[1:]
-                    userdata.targetColors = remainingColors
-                    break
+            if bumpEnd:
+                bumpCount = 0
+                remainingColors = userdata.targetColors[1:]
+                userdata.targetColors = remainingColors
+                break
 
         print 'remainingColors', remainingColors
         userdata.sidemoveDir = 'right' if remainingColors else 'left' # Go back to middle buoy
@@ -510,7 +521,7 @@ class CenterOnLED(smach.State):
                              output_keys=['heading', 'targetColors'])
 
     def execute(self, userdata):
-        sidemove_setpoint = 4 if userdata.adjustment == 'right' else -4
+        sidemove_setpoint = SIDEMOVE_SETPOINT if userdata.adjustment == 'right' else -SIDEMOVE_SETPOINT
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.heading,
                 depth_setpoint = depth_setpoint,

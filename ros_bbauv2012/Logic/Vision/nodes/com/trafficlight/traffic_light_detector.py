@@ -22,6 +22,7 @@ def calcCentroid(contour):
 
 DEBUG_COLORS = {
     'red': (0, 0, 255),
+    'redLed': (0, 0, 255),
     'yellow': (0, 255, 255),
     'green': (0, 255, 0)
 }
@@ -87,6 +88,7 @@ class TrafficLight:
             return output
 
         redImg = threshold(imghsv, 'red')
+        redLedImg = threshold(imghsv, 'redLed')
         yellowImg = threshold(imghsv, 'yellow')
         greenImg = threshold(imghsv, 'green')
 
@@ -117,7 +119,7 @@ class TrafficLight:
 
         #TODO: find largest contour and its colour
         minArea = 80 # self.params['contourMinArea']
-        for color,img in {'red': redImg, 'yellow': yellowImg, 'green': greenImg}.iteritems():
+        for color,img in {'red': redImg, 'redLed': redLedImg, 'yellow': yellowImg, 'green': greenImg}.iteritems():
             tmp = img.copy()
             contours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             contourAreas = [(contour, cv2.contourArea(contour)) for contour in contours]
@@ -134,8 +136,8 @@ class TrafficLight:
 
         # Display debug stream
         if self.DEBUG:
-            imgCombined = redImg | yellowImg | greenImg
-            imgDebug = cv2.merge([yellowImg]*3)
+            imgCombined = redImg | redLedImg | yellowImg | greenImg
+            imgDebug = cv2.merge([imgCombined]*3)
             if self.buoyDetected:
                 ctr = (int(self.redCentre[0]), int(self.redCentre[1]))
                 cv2.circle(imgDebug, ctr, 1, (0,0,255), 1)
