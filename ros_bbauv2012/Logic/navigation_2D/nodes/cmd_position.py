@@ -45,16 +45,12 @@ def main():
         lead_distance = 0
         if abs(mb_fwd_vel) == 0:
             lead_distance = 0
-        if abs(mb_fwd_vel) <=0.05: #0.25
-	    lead_distance = 0.25
-        if abs(mb_fwd_vel) <=0.1: #0.5 
+        if abs(mb_fwd_vel) <=0.1: #0.25 
+            lead_distance = 0.25
+        if abs(mb_fwd_vel) <=0.2: #0.5
             lead_distance = 0.5
-        if abs(mb_fwd_vel) <=0.2: #0.75
-            lead_distance = 0.75
-        if abs(mb_fwd_vel) <= 0.25: #1
-            lead_distance = 1
         if abs(mb_fwd_vel) <=0.3:
-            lead_distance = 2
+            lead_distance = 1 #1.75
         if mb_fwd_vel > 0:
             forward_setpoint = lead_distance + curr_Pos
         if mb_fwd_vel < 0:
@@ -80,20 +76,17 @@ def main():
         lead_angle = 0
         if abs(mb_yaw_vel) == 0:
             lead_angle = 0
-        if abs(mb_yaw_vel) <=0.1: #5
-            lead_angle = 2.5
         if abs(mb_yaw_vel) <=0.15: #5
-            lead_angle = 5
-        if abs(mb_yaw_vel) <=0.2: #10
             lead_angle = 10
-        if abs(mb_yaw_vel) <=0.4: #20
+        if abs(mb_yaw_vel) <=0.2: #10
+            lead_angle = 15
+        if abs(mb_yaw_vel) <=0.3: #20
             lead_angle = 20
-        if abs(mb_yaw_vel) <=0.6: #30
+        if abs(mb_yaw_vel) <=0.4: #20
             lead_angle = 30
-        if abs(mb_yaw_vel) <=0.7: #40
-            lead_angle = 40
-        if abs(mb_yaw_vel) >=0.7: #40
-            lead_angle = 40
+        if abs(mb_yaw_vel) <=1: #20
+            lead_angle = 60
+
         if mb_yaw_vel > 0:
             yaw_setpoint = normalize_angle(-1 * lead_angle + curr_Yaw)
         if mb_yaw_vel < 0:
