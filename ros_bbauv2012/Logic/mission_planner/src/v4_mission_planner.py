@@ -786,7 +786,7 @@ class NavMoveBase(smach.State):
 
         #Generate Start_Heading to point vehicle in the direction of travel
         
-        self.start_heading = start_heading(self.x, self.y, global_x, global_y)
+        self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
             
         #Change Depth and Face Heading First
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
