@@ -31,7 +31,8 @@ import smach_ros
 
 
 #TODO: use actual competition IDs
-COMPETITION_TARGETS = ['red', 'yellow']
+SINGLE_BOARD_MODE = True
+COMPETITION_TARGETS = ['red'] if SINGLE_BOARD_MODE else ['red', 'yellow']
 
 # GLOBALS
 TEST_MODE = True
@@ -63,9 +64,9 @@ params = { 'contourMinArea': 0,
            'depthGoalWait': 0, 'otherGoalWait': 0,
            'farForwardK':0, 'farSideK':0, 'farDepthK':0, 'farAngleK':0,
            'farEpsilonX':0, 'farEpsilonY':0, 'farEpsilonAngle':0,
-           'farMinSize':0, 'farMaxSize':0, 'farTimeout':1000,
+           'farMinSize':0, 'farMaxSize':0, 'farTimeout':0,
            'nearForwardK':0, 'nearSideK':0, 'nearDepthK':0, 'nearAngleK':0,
-           'nearEpsilonX':0, 'nearEp silonY':0, 'nearEpsilonAngle':0,
+           'nearEpsilonX':0, 'nearEpsilonY':0, 'nearEpsilonAngle':0,
            'nearMinSize':0, 'nearMaxSize':0, 'nearTimeout':0,
            'holeForwardK':0, 'holeSideK':0, 'holeDepthK':0, 'holeAngleK':0,
            'holeEpsilonX':0, 'holeEpsilonY':0, 'holeEpsilonAngle':0,
@@ -127,6 +128,7 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         global tollbooth
+        tollbooth = None
 
         global firstRun
         if firstRun:
@@ -147,6 +149,8 @@ class Disengage(smach.State):
         currentEye = 'left'
         imageSub = rospy.Subscriber(imageLeftTopic, Image, gotRosFrame)
 
+
+        tollbooth = TollboothDetector(params, lock, camdebug)
         tollbooth.heading = cur_heading
 
         userdata.targetIDs = COMPETITION_TARGETS
@@ -164,11 +168,13 @@ class Search(smach.State):
                              output_keys=['targetIDs'])
 
     def execute(self, userdata):
+        #HACK: search for single board instead now
+        tollbooth.changeTarget('red')
         while not rospy.is_shutdown():
-#            if tollbooth.regionCount >= 3:
-#                if not TEST_MODE:
-#                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
-#                return 'search_complete'
+            if tollbooth.regionCount >= 1:
+                if not TEST_MODE:
+                    mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+                return 'search_complete'
 
             if isAborted:
                 return 'aborted'
@@ -234,7 +240,7 @@ class Correction:
             if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
                 offsets['size'] = sizeRatio - sizeMidPt
 
-            print '(' + self.target + ') vals:', { 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }
+            rospy.logdebug('(' + self.target + ') vals: ' + str({ 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }))
 
             offsets['x'] = clamp((x + w/2)/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp((y + h/2)/float(H) - 0.5, -1, 1)
@@ -273,7 +279,7 @@ class Correction:
                 lock.release() #HACK
                 break
 
-            print 'offsets:', offsets
+            rospy.logdebug('offsets: ' + str(offsets))
 
             H,W = tollbooth.shape[0:2]
 
@@ -463,38 +469,42 @@ class Backoff(smach.State):
         if gunSide == 'left':
             gunSide = 'right'
 
-        goal = bbauv_msgs.msg.ControllerGoal(
-                heading_setpoint = hoverHeading,
-                depth_setpoint = hoverDepth,
-                forward_setpoint = -7
-        )
-        actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(6.5))
+        if not SINGLE_BOARD_MODE:
+            goal = bbauv_msgs.msg.ControllerGoal(
+                    heading_setpoint = hoverHeading,
+                    depth_setpoint = hoverDepth,
+                    forward_setpoint = -7
+            )
+            actionClient.send_goal(goal)
+            actionClient.wait_for_result(rospy.Duration(5.5))
 
-        tollbooth.changeTarget('all')
+            tollbooth.changeTarget('all')
 
-        tries = 0
+            tries = 0
 
-        while not rospy.is_shutdown():
-            if isAborted: return 'aborted'
+            while not rospy.is_shutdown():
+                if isAborted: return 'aborted'
 
-            if tollbooth.regionCount >= 3:
-                return 'found'
+                if tollbooth.regionCount >= 3:
+                    return 'found'
 
-            if tries < 2:
-                goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = hoverHeading,
-                        depth_setpoint = hoverDepth,
-                        forward_setpoint = -2
-                )
-                actionClient.send_goal(goal)
-                actionClient.wait_for_result(rospy.Duration(1,0))
+                if tries < 2:
+                    goal = bbauv_msgs.msg.ControllerGoal(
+                            heading_setpoint = hoverHeading,
+                            depth_setpoint = hoverDepth,
+                            forward_setpoint = -2
+                    )
+                    actionClient.send_goal(goal)
+                    actionClient.wait_for_result(rospy.Duration(1,0))
 
-                tries += 1
-            else:
-                actionClient.cancel_all_goals()
+                    tries += 1
+                else:
+                    actionClient.cancel_all_goals()
 
-            rosRate.sleep()
+                rosRate.sleep()
+        else:
+            tollbooth.changeTarget('red')
+
         return 'killed'
 
 '''
@@ -541,6 +551,8 @@ def fireTorpedo(side):
     manip.servo7 = 0
     manipulator_pub.publish(manip)
 
+
+
 '''
 Main
 '''
@@ -553,21 +565,23 @@ if __name__ == '__main__':
     compassTopic = rospy.get_param('~compass', '/euler')
 
     manipulator_pub = rospy.Publisher('/manipulators', manipulator)
-    camdebug = CamDebug('Vision', debugOn=DEBUG)
-    tollbooth = TollboothDetector(params, lock, camdebug)
+
     # Set up param configuration window
     def configCallback(config, level):
-        
-        for param in tollbooth.yellow_params:
-            tollbooth.yellow_params[param] = params[param] = config['yellow_' + param]
-        for param in tollbooth.red_params:
-            tollbooth.red_params[param] = config['red_' + param]
-        for param in tollbooth.green_params:
-            tollbooth.green_params[param] = config['green_' + param]
-        for param in tollbooth.blue_params:
-            tollbooth.blue_params[param] = config['blue_' + param]
+        for param in params:
+            params[param] = config[param]
+        for param in TollboothDetector.yellow_params:
+            TollboothDetector.yellow_params[param] = config['yellow_' + param]
+        for param in TollboothDetector.red_params:
+            TollboothDetector.red_params[param] = config['red_' + param]
+        for param in TollboothDetector.green_params:
+            TollboothDetector.green_params[param] = config['green_' + param]
+        for param in TollboothDetector.blue_params:
+            TollboothDetector.blue_params[param] = config['blue_' + param]
         return config
     srv = Server(TollboothConfig, configCallback)
+
+    camdebug = CamDebug('Vision', debugOn=DEBUG)
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)

@@ -33,12 +33,12 @@ def sqDistance(a, b):
 
 # Tollbooth detector class
 class TollboothDetector:
-  
+
     red_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
     yellow_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
     green_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
     blue_params = {'hueLow': 20, 'hueHigh':60,'satLow': 0, 'satHigh': 255,'valLow':0,'valHigh':255}
-    
+
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
         # Convert from ROS Image to old OpenCV image
@@ -47,12 +47,13 @@ class TollboothDetector:
         return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
 
 
-    def __init__(self, params, lock, camdebug=None):
+    def __init__(self, params, lock, camdebug=None, showHistogram=False):
         self.cvbridge = CvBridge()
         self.params = params
         self.lock = lock
         self.camdebug = camdebug
         self.DEBUG = camdebug is not None and camdebug.debugOn
+        self.showHistogram = showHistogram
 
         self.target = 'all'
         self.holehistory = []
@@ -68,9 +69,7 @@ class TollboothDetector:
 
         self.cvimg = None
 
-#        cv2.namedWindow("Settings", cv2.CV_WINDOW_AUTOSIZE)
-
-        if self.DEBUG:
+        if self.showHistogram:
             self.red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
             self.red_hist.setParams(self.red_params)
             self.green_hist = bbHistogram("green",Hist_constants.TRIPLE_CHANNEL)
@@ -177,132 +176,133 @@ class TollboothDetector:
 
         imgCombinedBW = reduce(lambda x, y: x | y, [region[0] for region in images])
 
-#        minXY, maxXY = (99999,99999), (-1,-1)
-#        for image in images:
-#            x,y,w,h = image[2]
-#            if image[1] is not None:
-#                minXY = (min(minXY[0],x), min(minXY[1],y))
-#                maxXY = (max(maxXY[0],x+w), max(maxXY[1],y+h))
-#        self.bigBoundingRect = (minXY[0], minXY[1], maxXY[0]-minXY[0], maxXY[1]-minXY[1])
-#
-#        imgMasked = np.zeros_like(imgCombinedBW, dtype=np.uint8)
-#        roicontours = None
-#        if self.regionCount:
-#            x,y,w,h = self.bigBoundingRect
-#            points = np.array([(x,y),(x,y+h),(x+w,y+h),(x+w,y)], dtype=np.int32)
-#            cv2.fillPoly(imgMasked, [points], 255)
-#            imgMasked = np.bitwise_and(imgCombinedBW, imgMasked)
-#
-#            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
-#            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-#            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_OPEN, openingElt)
-#            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_CLOSE, closingElt)
-#            tmp = imgMasked.copy()
-#            roicontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-#            bigContour = max(roicontours, key=cv2.contourArea)
-#
-#            # Find the quad covering the big contour:
-#            # Compute both MinAreaRect and ConvexHull.
-#            # Then, for each of the four points found by MinAreaRect,
-#            # find the corresponding nearest point in the convex hull.
-#            convexHull = cv2.convexHull(bigContour)
-#            minRectPts = cv2.cv.BoxPoints(cv2.minAreaRect(bigContour))
-#            self.bigQuad = [
-#                min(convexHull, key=lambda p: (qx-p[0][0])**2 + (qy-p[0][1])**2)[0]
-#                for qx,qy in minRectPts
-#            ]
-#            # Reorder the points such that the top-left is always the first
-#            # point (assuming that the points are already in clockwise order)
-#            ysorted = sorted(self.bigQuad, key=lambda p: p[1])
-#            xsorted = (sorted(ysorted[0:2], key=lambda p: p[0]), sorted(ysorted[2:], key=lambda p: p[0]))
-#            self.bigQuad = [xsorted[0][0], xsorted[0][1], xsorted[1][1], xsorted[1][0]]
-#
-#
-#        regions = [img[y:y+h, x:x+w] for (img, _, (x,y,w,h)) in images]
-#
-#        # Code to look for the holes
-#        self.holes = []
-#        for i, region in enumerate(regions):
-#            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
-#            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-##            hole = cv2.morphologyEx(region, cv2.MORPH_OPEN, openingElt)
-##            hole = cv2.morphologyEx(hole, cv2.MORPH_CLOSE, closingElt)
-#            hole = cv2.morphologyEx(region, cv2.MORPH_CLOSE, closingElt)
-#
-#            if False: #HACK: the code in this branch looks for holes using hierarchy
-#                tmp = hole.copy()
-#                contours, hierarchy = cv2.findContours(tmp, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
-#
-#                # Contours of holes are those which have a parent
-#                holecontours = [contours[k] for k in filter(lambda k: hierarchy[0][k][3] > -1, range(len(contours)))]
-#
-#            else: #HACK: the code in this branch looks for holes by inversion
-#                hole = np.invert(hole)
-#                tmp = hole.copy()
-#                holecontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
-#                hole_rects = [(c, cv2.boundingRect(c)) for c in holecontours]
-#                #holecontours = [c for c in holecontours if cv2.contourArea(c) > 10 and cv2.pointPolygonTest(c, calcCentroid(c), False) > 0]
-#                holecontours = [c for (c,b) in hole_rects if cv2.contourArea(c) > 10 and abs(1.0-float(b[2])/b[3]) < 0.2]
-#
-#            # Retrieve the centre of the 2nd-largest hole (if any)
-#            if len(self.holehistory) <= i or self.holehistory[i] is None:
-#                targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:] #TODO: switch to -2 during competition
-#                targetContour = None if len(targetHoles)==0 else targetHoles[0]
-#                targetInfo = None
-#                targetCentre = None
-#                targetArea = 0
-#                if targetContour is not None:
-#                    targetCentre = calcCentroid(targetContour)
-#                    targetArea = cv2.contourArea(targetContour)
-#                    targetRect = cv2.boundingRect(targetContour)
-#                    targetInfo = (targetCentre, targetArea, targetRect)
-#                if len(self.holehistory) <= i:
-#                    self.holehistory.append(targetInfo)
-#                else:
-#                    self.holehistory[i] = targetInfo
-#            else:
-#                # Minimize distance and area difference
-#                prevPt = self.holehistory[i]
-#                if not holecontours:
-#                    targetInfo = None
-#                    targetCentre = None
-#                else:
-#                    targetCentres = [(calcCentroid(c),cv2.contourArea(c),c) for c in holecontours]
-#                    targetTmp = min(targetCentres, key=lambda c: (prevPt[0][0]-c[0][0])**2 + (prevPt[0][1]-c[0][1])**2 + (prevPt[1]-c[1])**2)
-#                    targetInfo = (targetTmp[0], targetTmp[1], cv2.boundingRect(targetTmp[2]))
-#                    self.holehistory[i] = targetInfo
-#
-#            self.holes.append(targetInfo)
+        minXY, maxXY = (99999,99999), (-1,-1)
+        for image in images:
+            x,y,w,h = image[2]
+            if image[1] is not None:
+                minXY = (min(minXY[0],x), min(minXY[1],y))
+                maxXY = (max(maxXY[0],x+w), max(maxXY[1],y+h))
+        self.bigBoundingRect = (minXY[0], minXY[1], maxXY[0]-minXY[0], maxXY[1]-minXY[1])
+
+        imgMasked = np.zeros_like(imgCombinedBW, dtype=np.uint8)
+        roicontours = None
+        if self.regionCount:
+            x,y,w,h = self.bigBoundingRect
+            points = np.array([(x,y),(x,y+h),(x+w,y+h),(x+w,y)], dtype=np.int32)
+            cv2.fillPoly(imgMasked, [points], 255)
+            imgMasked = np.bitwise_and(imgCombinedBW, imgMasked)
+
+            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
+            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_OPEN, openingElt)
+            imgMasked = cv2.morphologyEx(imgMasked, cv2.MORPH_CLOSE, closingElt)
+            tmp = imgMasked.copy()
+            roicontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            bigContour = max(roicontours, key=cv2.contourArea)
+
+            # Find the quad covering the big contour:
+            # Compute both MinAreaRect and ConvexHull.
+            # Then, for each of the four points found by MinAreaRect,
+            # find the corresponding nearest point in the convex hull.
+            convexHull = cv2.convexHull(bigContour)
+            minRectPts = cv2.cv.BoxPoints(cv2.minAreaRect(bigContour))
+            self.bigQuad = [
+                min(convexHull, key=lambda p: (qx-p[0][0])**2 + (qy-p[0][1])**2)[0]
+                for qx,qy in minRectPts
+            ]
+            # Reorder the points such that the top-left is always the first
+            # point (assuming that the points are already in clockwise order)
+            ysorted = sorted(self.bigQuad, key=lambda p: p[1])
+            xsorted = (sorted(ysorted[0:2], key=lambda p: p[0]), sorted(ysorted[2:], key=lambda p: p[0]))
+            self.bigQuad = [xsorted[0][0], xsorted[0][1], xsorted[1][1], xsorted[1][0]]
+
+
+        regions = [img[y:y+h, x:x+w] for (img, _, (x,y,w,h)) in images]
+
+        # Code to look for the holes
+        self.holes = []
+        for i, region in enumerate(regions):
+            openingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
+            closingElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+#            hole = cv2.morphologyEx(region, cv2.MORPH_OPEN, openingElt)
+#            hole = cv2.morphologyEx(hole, cv2.MORPH_CLOSE, closingElt)
+            hole = cv2.morphologyEx(region, cv2.MORPH_CLOSE, closingElt)
+
+            if False: #HACK: the code in this branch looks for holes using hierarchy
+                tmp = hole.copy()
+                contours, hierarchy = cv2.findContours(tmp, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
+
+                # Contours of holes are those which have a parent
+                holecontours = [contours[k] for k in filter(lambda k: hierarchy[0][k][3] > -1, range(len(contours)))]
+
+            else: #HACK: the code in this branch looks for holes by inversion
+                hole = np.invert(hole)
+                tmp = hole.copy()
+                holecontours, _ = cv2.findContours(tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=images[i][2][0:2])
+                hole_rects = [(c, cv2.boundingRect(c)) for c in holecontours]
+                #holecontours = [c for c in holecontours if cv2.contourArea(c) > 10 and cv2.pointPolygonTest(c, calcCentroid(c), False) > 0]
+                holecontours = [c for (c,b) in hole_rects if cv2.contourArea(c) > 10 and abs(1.0-float(b[2])/b[3]) < 0.2]
+
+            # Retrieve the centre of the 2nd-largest hole (if any)
+            if len(self.holehistory) <= i or self.holehistory[i] is None:
+                targetHoles = sorted(holecontours, key=cv2.contourArea)[-2:] #TODO: switch to -2 during competition
+                targetContour = None if len(targetHoles)==0 else targetHoles[0]
+                targetInfo = None
+                targetCentre = None
+                targetArea = 0
+                if targetContour is not None:
+                    targetCentre = calcCentroid(targetContour)
+                    targetArea = cv2.contourArea(targetContour)
+                    targetRect = cv2.boundingRect(targetContour)
+                    targetInfo = (targetCentre, targetArea, targetRect)
+                if len(self.holehistory) <= i:
+                    self.holehistory.append(targetInfo)
+                else:
+                    self.holehistory[i] = targetInfo
+            else:
+                # Minimize distance and area difference
+                prevPt = self.holehistory[i]
+                if not holecontours:
+                    targetInfo = None
+                    targetCentre = None
+                else:
+                    targetCentres = [(calcCentroid(c),cv2.contourArea(c),c) for c in holecontours]
+                    targetTmp = min(targetCentres, key=lambda c: (prevPt[0][0]-c[0][0])**2 + (prevPt[0][1]-c[0][1])**2 + (prevPt[1]-c[1])**2)
+                    targetInfo = (targetTmp[0], targetTmp[1], cv2.boundingRect(targetTmp[2]))
+                    self.holehistory[i] = targetInfo
+
+            self.holes.append(targetInfo)
 
         if self.DEBUG:
             colours = [(255,0,0), (0,255,0), (0,0,255), (0,255,255)]
             imgDebug = cv2.merge([imgCombinedBW]*3)
-#            if roicontours is not None:
-#                for i in range(-1,len(self.bigQuad)-1):
-#                    pt1 = (self.bigQuad[i][0], self.bigQuad[i][1])
-#                    pt2 = (self.bigQuad[i+1][0], self.bigQuad[i+1][1])
-#                    cv2.line(imgDebug, pt1, pt2, colours[i+1], 2)
-#
-#            for target in self.holes:
-#                if target is not None:
-#                    pt = (int(target[0][0]), int(target[0][1]))
-#                    cv2.circle(imgDebug, pt, 2, (255,0,0), 2)
-#                    x,y,w,h = target[2]
-#                    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0,0,255), 1)
+            if roicontours is not None:
+                for i in range(-1,len(self.bigQuad)-1):
+                    pt1 = (self.bigQuad[i][0], self.bigQuad[i][1])
+                    pt2 = (self.bigQuad[i+1][0], self.bigQuad[i+1][1])
+                    cv2.line(imgDebug, pt1, pt2, colours[i+1], 2)
+
+            for target in self.holes:
+                if target is not None:
+                    pt = (int(target[0][0]), int(target[0][1]))
+                    cv2.circle(imgDebug, pt, 2, (255,0,0), 2)
+                    x,y,w,h = target[2]
+                    cv2.rectangle(imgDebug, (x,y), (x+w,y+h), (0,0,255), 1)
 
             self.camdebug.publishImage('image_filter', imgDebug)
             self.camdebug.publishImage('hsv', imghsv)
 
-            self.red_hist.setParams(self.red_params)
-            self.green_hist.setParams(self.green_params)
-            self.yellow_hist.setParams(self.yellow_params)
-            self.blue_hist.setParams(self.blue_params)
+            if self.showHistogram:
+                self.red_hist.setParams(self.red_params)
+                self.green_hist.setParams(self.green_params)
+                self.yellow_hist.setParams(self.yellow_params)
+                self.blue_hist.setParams(self.blue_params)
 
-            self.yellow_hist.getTripleHist(imghsv)
-            self.red_hist.getTripleHist(imghsv)
-            self.blue_hist.getTripleHist(imghsv)
-            self.green_hist.getTripleHist(imghsv)
-            cv2.waitKey(2)
+                self.yellow_hist.getTripleHist(imghsv)
+                self.red_hist.getTripleHist(imghsv)
+                self.blue_hist.getTripleHist(imghsv)
+                self.green_hist.getTripleHist(imghsv)
+                cv2.waitKey(2)
         self.lock.release() #HACK
 
 
