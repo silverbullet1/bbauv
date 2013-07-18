@@ -114,8 +114,8 @@ class Correction:
                 return True
 
             x,y = lightDetector.redCentre
-#            #HACK: shift y by a bit to compensate
-#            y -= 30
+            #HACK: shift y by a bit to compensate
+            y -= 50
             rad = lightDetector.redRadius
             w = h = 2*rad
             H,W = lightDetector.shape[0:2]
@@ -349,7 +349,7 @@ class BumpIt(smach.State):
         smach.State.__init__(self,
                              outcomes=['bumped', 'aborted', 'killed'],
                              input_keys=['heading', 'targetColors'],
-                             output_keys=['targetColors'])
+                             output_keys=['targetColors', 'sidemoveDir'])
 
     def execute(self, userdata):
         hoverDepth = depth_setpoint
@@ -372,6 +372,9 @@ class BumpIt(smach.State):
         actionClient.cancel_all_goals()
 
         userdata.sidemoveDir = 'right'
+        #HACK: shift upwards to better hit LEDs
+        global depth_setpoint
+        depth_setpoint -= 0.2
 
         return 'bumped'
 
@@ -400,7 +403,7 @@ class SidemoveToBuoy(smach.State):
         actionClient.send_goal(goal)
 
         noBuoyCount = 0 # number of consecutive frames without seeing a buoy
-        while noBuoyCount < 5:
+        while noBuoyCount < 8:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
 
@@ -411,7 +414,7 @@ class SidemoveToBuoy(smach.State):
             rospy.sleep(0.05)
 
         buoyCount = 0 # number of consecutive frames seeing a buoy
-        while buoyCount < 5:
+        while buoyCount < 8:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
 
@@ -444,9 +447,9 @@ Bump until a certain color
 class BumpToColor(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['bumped', 'adjust', 'aborted', 'killed'],
+                             outcomes=['bumped', 'adjustment', 'aborted', 'killed'],
                              input_keys=['heading', 'targetColors'],
-                             output_keys=['adjustment', 'targetColors'])
+                             output_keys=['adjustment', 'targetColors', 'sidemoveDir'])
 
     def execute(self, userdata):
         hoverDepth = depth_setpoint
@@ -458,6 +461,17 @@ class BumpToColor(smach.State):
         while True:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
+
+            if lightDetector.colorsFound:
+                centroid = lightDetector.colorsFound[0][1]
+                # If out of place, adjust
+                MID_X = 320
+                if 370 < centroid[0]:
+                    userdata.adjustment = 'right'
+                    return 'adjustment'
+                elif centroid[0] < 270:
+                    userdata.adjustment = 'left'
+                    return 'adjustment'
 
             for setpoint in [BUMP_FORWARD, -BUMP_FORWARD]:
                 if rospy.is_shutdown(): return 'killed'
@@ -474,20 +488,13 @@ class BumpToColor(smach.State):
             actionClient.cancel_all_goals()
 
             rospy.sleep(1) # wait a bit before checking LED color
-            if lightDetector.colorsFound and lightDetector.colorsFound[0][0] == userdata.targetColors[0]:
-                remainingColors = userdata.targetColors[1:]
-                userdata.targetColors = remainingColors
-                break
+            if lightDetector.colorsFound:
+                if lightDetector.colorsFound[0][0] == userdata.targetColors[0]:
+                    remainingColors = userdata.targetColors[1:]
+                    userdata.targetColors = remainingColors
+                    break
 
-            # If out of place, adjust
-            MID_X = 320
-            if 370 < centroid[0]:
-                userdata.adjustment = 'right'
-                return 'adjust'
-            elif centroid[0] < 270:
-                userdata.adjustment = 'left'
-                return 'adjust'
-
+        print 'remainingColors', remainingColors
         userdata.sidemoveDir = 'right' if remainingColors else 'left' # Go back to middle buoy
 
         return 'bumped'
