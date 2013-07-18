@@ -132,13 +132,6 @@ class Correction:
             offsets['x'] = clamp(x/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp(y/float(H) - 0.5, -1, 1)
 
-#            pts = lightDetector.bigQuad
-#            angles = [
-#                math.degrees(math.atan2(pts[1][1]-pts[0][1], pts[1][0]-pts[0][0])),
-#                math.degrees(math.atan2(pts[2][1]-pts[3][1], pts[2][0]-pts[3][0]))
-#            ]
-#            offsets['angle'] = clamp(angles[0] - angles[1], -20, 20)
-
             if abs(offsets['x']) > self.EPSILON_X or abs(offsets['y']) > self.EPSILON_Y:
                 return True
             if offsets['size'] or abs(offsets['angle']) > self.EPSILON_ANGLE:
@@ -378,6 +371,8 @@ class BumpIt(smach.State):
 
         actionClient.cancel_all_goals()
 
+        userdata.sidemoveDir = 'right'
+
         return 'bumped'
 
 
@@ -388,8 +383,8 @@ Sidemove to next light and bump it
 class SidemoveToBuoy(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['succeeded', 'aborted', 'killed'],
-                             input_keys=['heading','targetColors'],
+                             outcomes=['reached', 'done', 'aborted', 'killed'],
+                             input_keys=['heading','sidemoveDir', 'targetColors'],
                              output_keys=['heading', 'targetColors'])
 
     def execute(self, userdata):
@@ -400,7 +395,7 @@ class SidemoveToBuoy(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.heading,
                 depth_setpoint = depth_setpoint,
-                sidemove_setpoint = 4
+                sidemove_setpoint = 4 if userdata.sidemoveDir == 'right' else -4
         )
         actionClient.send_goal(goal)
 
@@ -433,12 +428,15 @@ class SidemoveToBuoy(smach.State):
 
             if lightDetector.colorsFound:
                 centroid = lightDetector.colorsFound[0][1]
-                if centroid[0] < 370:
+                if (userdata.sidemoveDir == 'right' and centroid[0] < 370) or (userdata.sidemoveDir == 'left' and centroid[0] > 270):
                     actionClient.cancel_all_goals()
                     break
             rospy.sleep(0.05)
 
-        return 'succeeded'
+        if userdata.targetColors:
+            return 'reached'
+        else:
+            return 'done'
 
 '''
 Bump until a certain color
@@ -446,9 +444,9 @@ Bump until a certain color
 class BumpToColor(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['bumped', 'done', 'aborted', 'killed'],
+                             outcomes=['bumped', 'adjust', 'aborted', 'killed'],
                              input_keys=['heading', 'targetColors'],
-                             output_keys=['targetColors'])
+                             output_keys=['adjustment', 'targetColors'])
 
     def execute(self, userdata):
         hoverDepth = depth_setpoint
@@ -456,6 +454,7 @@ class BumpToColor(smach.State):
 
         BUMP_FORWARD = params['bumpK']
 
+        #TODO: centre buoy
         while True:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
@@ -480,10 +479,50 @@ class BumpToColor(smach.State):
                 userdata.targetColors = remainingColors
                 break
 
-        if remainingColors:
-            return 'bumped'
-        else:
-            return 'done'
+            # If out of place, adjust
+            MID_X = 320
+            if 370 < centroid[0]:
+                userdata.adjustment = 'right'
+                return 'adjust'
+            elif centroid[0] < 270:
+                userdata.adjustment = 'left'
+                return 'adjust'
+
+        userdata.sidemoveDir = 'right' if remainingColors else 'left' # Go back to middle buoy
+
+        return 'bumped'
+
+'''
+Centre LED on the camera feed
+'''
+class CenterOnLED(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['succeeded', 'aborted', 'killed'],
+                             input_keys=['adjustment', 'heading', 'targetColors'],
+                             output_keys=['heading', 'targetColors'])
+
+    def execute(self, userdata):
+        sidemove_setpoint = 4 if userdata.adjustment == 'right' else -4
+        goal = bbauv_msgs.msg.ControllerGoal(
+                heading_setpoint = userdata.heading,
+                depth_setpoint = depth_setpoint,
+                sidemove_setpoint = sidemove_setpoint
+        )
+        actionClient.send_goal(goal)
+
+        while True:
+            if rospy.is_shutdown(): return 'killed'
+            if isAborted: return 'aborted'
+
+            if lightDetector.colorsFound:
+                centroid = lightDetector.colorsFound[0][1]
+                if (userdata.adjustment == 'right' and centroid[0] < 370) or (userdata.adjustment == 'left' and centroid[0] > 270):
+                    actionClient.cancel_all_goals()
+                    break
+            rospy.sleep(0.05)
+
+        return 'succeeded'
 
 '''
 Done
@@ -497,8 +536,6 @@ class Done(smach.State):
 
     def execute(self, userdata):
         if isAborted: return 'aborted'
-
-        #TODO: return to middle buoy
 
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
@@ -582,7 +619,8 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'SIDEMOVE_TO_BUOY',
                         SidemoveToBuoy(),
-                        transitions={'succeeded': 'BUMP_TO_COLOR',
+                        transitions={'reached': 'BUMP_TO_COLOR',
+                                     'done': 'DONE',
                                      'aborted': 'DISENGAGED',
                                      'killed': 'killed'}
         )
@@ -590,7 +628,14 @@ if __name__ == '__main__':
                         'BUMP_TO_COLOR',
                         BumpToColor(),
                         transitions={'bumped': 'SIDEMOVE_TO_BUOY',
-                                     'done': 'DONE',
+                                     'adjustment': 'CENTER_ON_LED',
+                                     'aborted': 'DISENGAGED',
+                                     'killed': 'killed'}
+        )
+        smach.StateMachine.add(
+                        'CENTER_ON_LED',
+                        CenterOnLED(),
+                        transitions={'succeeded': 'BUMP_TO_COLOR',
                                      'aborted': 'DISENGAGED',
                                      'killed': 'killed'}
         )

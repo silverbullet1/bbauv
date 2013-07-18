@@ -21,8 +21,8 @@ def calcCentroid(contour):
     return (m['m10']/m['m00'], m['m01']/m['m00'])
 
 DEBUG_COLORS = {
-    'red': (255, 0, 0),
-    'yellow': (255, 255, 0),
+    'red': (0, 0, 255),
+    'yellow': (0, 255, 255),
     'green': (0, 255, 0)
 }
 
@@ -125,7 +125,8 @@ class TrafficLight:
             if contourAreas:
                 maxContour, _ = max(contourAreas, key=lambda (c,a): a)
                 centroid = calcCentroid(maxContour)
-                self.colorsFound.append((color, centroid))
+                boundingRect = cv2.boundingRect(maxContour)
+                self.colorsFound.append((color, centroid, boundingRect))
 
         #TODO: calculate distances apart
 
@@ -139,11 +140,12 @@ class TrafficLight:
                 ctr = (int(self.redCentre[0]), int(self.redCentre[1]))
                 cv2.circle(imgDebug, ctr, 1, (0,0,255), 1)
                 cv2.circle(imgDebug, ctr, int(self.redRadius), (0,0,255), 1)
-            self.camdebug.publishImage('image_filter', imgDebug)
 
-            for (color, centroid) in self.colorsFound:
+            for (color, centroid, rect) in self.colorsFound:
                 ctr = (int(centroid[0]), int(centroid[1]))
                 cv2.circle(imgDebug, ctr, 4, DEBUG_COLORS[color], -1)
+
+            self.camdebug.publishImage('image_filter', imgDebug)
 
         self.lock.release()
 
