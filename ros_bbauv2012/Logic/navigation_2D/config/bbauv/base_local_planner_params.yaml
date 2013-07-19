@@ -6,14 +6,14 @@ TrajectoryPlannerROS:
 
 #Robot Config Params
 
-  acc_lim_x: 0.06
+  acc_lim_x: 0.1
   acc_lim_y: 0.1
   acc_lim_theta: 0.5
 
   max_vel_x: 0.3
   min_vel_x: 0
-  max_vel_theta: 0.4
-  min_vel_theta: -0.4
+  max_vel_theta: 0.5
+  min_vel_theta: -0.5
   min_in_place_rotational_vel: 0.1
   
   escape_vel: -0.001

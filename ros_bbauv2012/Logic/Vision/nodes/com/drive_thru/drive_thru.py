@@ -31,8 +31,12 @@ class Drive_thru:
     outer_center = 40
     inner_center = 20
     max_area = 0
+    find_times = 0
+    image_param = None
     pipe_skeleton_pose = pipe_pose()
-    def __init__(self):
+    def __init__(self, debug_state):
+        self.image_param = rospy.get_param('~image','/bottomcam/camera/image_rect_color')
+        self.debug = debug_state
         if self.debug:
             self.orange_hist = bbHistogram("orange",Hist_constants.TRIPLE_CHANNEL)
             self.orange_hist.setParams(self.orange_params)
@@ -55,8 +59,6 @@ class Drive_thru:
         angle = math.degrees(math.atan2((pt2[1] - pt1[1]),(pt2[0] - pt1[0])))
         return angle
     def processImage(self, image_msg):
-        #if not self.cameraInfo_initialized_:
-        #    return
 
         try:
             iplimg = self.cvbridge.imgmsg_to_cv(image_msg, image_msg.encoding)
@@ -70,12 +72,9 @@ class Drive_thru:
             self.orange_hist.setParams(self.orange_params)
             self.orange_hist.getTripleHist(hsv_image)
             
-        #color_min = np.array([20, 10, 20], np.uint8)
-        #color_max = np.array([90, 50, 100], np.uint8)
         COLOR_MIN = np.array([self.orange_params['hueLow'],self.orange_params['satLow'],self.orange_params['valLow']],np.uint8)
         COLOR_MAX = np.array([self.orange_params['hueHigh'],self.orange_params['satHigh'],self.orange_params['valHigh']],np.uint8)
         
-
         pipe_orange_threshold = cv2.inRange(hsv_image, COLOR_MIN, COLOR_MAX)
 
         opening_size = 1
@@ -83,18 +82,9 @@ class Drive_thru:
         closing_size = 5
         closing_element = cv2.getStructuringElement(cv2.MORPH_RECT, (2*closing_size+1, 2*closing_size+1))
 
-        #pipe_orange_threshold = cv2.morphologyEx(pipe_orange_threshold, cv2.MORPH_OPEN, opening_element)
         pipe_orange_threshold = cv2.morphologyEx(pipe_orange_threshold, cv2.MORPH_CLOSE, closing_element,iterations=3)
 
-        #cv2.imshow('raw_threshold', pipe_orange_threshold)
-
-        #white_pixel_num = np.count_nonzero(pipe_orange_threshold)
-
         copy_for_contour = pipe_orange_threshold.copy()
-
-        #contours, _ = cv2.findContours(copy_for_contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        #for i in range(1, len(contours)):
-            #cv2.line(pipe_orange_threshold, tuple(contours[i-1][0][0]), tuple(contours[i][0][0]), 255, 2)
         
         self.pipe_skeleton_pose = pipe_pose()
         #self.centroid = None
@@ -106,7 +96,7 @@ class Drive_thru:
             self.max_area = 0
             for i in range(0,len(contours)):
                 moments =cv2.moments(contours[i],binaryImage=False)
-                if moments['m00'] > 1000:
+                if moments['m00'] > 1500:
                     #Set centroid
                     self.pipe_skeleton_pose.detect_pipe = True
                     if self.max_area < moments['m00']:
@@ -117,7 +107,8 @@ class Drive_thru:
                     cv2.drawContours(contourImg, contours, i, (100,255,100), lineType=8, thickness= 2,maxLevel=0)
                     humoments = cv2.HuMoments(moments)
                     minArea_rectangle = cv2.minAreaRect(contours[i])
-                    if(abs(humoments[0] - self.shape_hu) < 0.05 and minArea_rectangle[1][0]/minArea_rectangle[1][1] - 1 < 0.1):
+                    if(abs(humoments[0] - self.shape_hu) < 0.03 and np.fabs(minArea_rectangle[1][0]/minArea_rectangle[1][1] - 1) < 0.1):
+                        self.find_times+=1
                         rect_points = cv2.cv.BoxPoints(minArea_rectangle)
                         cv2.putText(contourImg,str(np.round(humoments[0],2)), (int(rect_points[0][0]),int(rect_points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                         for j in range(4):
@@ -135,20 +126,16 @@ class Drive_thru:
                         pt2 = tuple(np.int32(pt2))
                         
                         cv2.line(contourImg, (int(pt1[0]),int(pt1[1])), (int(pt2[0]),int(pt2[1])), (0,0,255), 2, 8)
-                        self.orientation = np.fabs(self.computeAngle(pt1,pt2))
+                        if self.find_times > 30:
+                            self.orientation = np.fabs(self.computeAngle(pt1,pt2))
                         cv2.putText(contourImg,str(np.round(self.orientation,2)), (int(rect_points[3][0]),int(rect_points[3][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-                        if self.pipe_skeleton_pose.detect_pipe:
-                            self.find_times_ += 1
-                        else:
-                            self.find_times_ -= 1
-                            
+                    else:
+                        self.find_times-=1
+                        
         self.pipe_skeleton_pose.detection_stable = self.find_times_ > self.find_times_limit_
         self.pipePose_pub_.publish(self.pipe_skeleton_pose)
         
-        
         final_image = contourImg
-        #cv2.line(final_image, (self.cols/2 - self.inner_center,self.rows/2),(self.cols/2 + self.inner_center,self.rows/2), (0,0,255))
-        #cv2.line(final_image, (self.cols/2,self.rows/2 - self.inner_center),(self.cols/2,self.rows/2 + self.inner_center), (0,0,255))
         final_image = self.draw_crosshair(final_image,(self.cols/2,self.rows/2), self.inner_center)
         cv2.waitKey(2)
         try:
@@ -180,7 +167,7 @@ class Drive_thru:
         
         return max_pt, max_pt2
         
-        
+    '''   
     def Calc_pose(self, rect_points, pipeFrame_pose):
         dist1 = math.sqrt((rect_points[0][0] - rect_points[1][0])*(rect_points[0][0] - rect_points[1][0])+(rect_points[0][1] - rect_points[1][1])*(rect_points[0][1] - rect_points[1][1]))
         dist2 = math.sqrt((rect_points[2][0] - rect_points[1][0])*(rect_points[2][0] - rect_points[1][0])+(rect_points[0][1] - rect_points[1][1])*(rect_points[0][1] - rect_points[1][1]))
@@ -236,14 +223,14 @@ class Drive_thru:
         realPt.z = depth_z
 
         return realPt
-    
+    '''
     def collectYaw(self,msg):
         self.yaw = msg.yaw
         
     def register(self):
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber(rospy.get_param('~image','/bottomcam/camera/image_rect_color'), Image,self.processImage)
+        self.image_sub = rospy.Subscriber(self.image_param, Image,self.processImage)
         self.cam_info_sub_ = rospy.Subscriber('bottomcam/camera/camera_info', CameraInfo, self.CameraInfoCB)
         rospy.loginfo("Topics registered")
     def unregister(self):

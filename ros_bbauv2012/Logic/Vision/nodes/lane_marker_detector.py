@@ -29,6 +29,7 @@ import smach
 import smach_ros
 
 
+TEST_MODE = False
 DEBUG = True
 #HACK:
 firstRun = True
@@ -36,6 +37,8 @@ firstRunAction = True
 camdebug = None
 laneDetector = None
 depth_setpoint = 0.5
+
+test_heading = 0
 
 isAborted = False
 
@@ -120,7 +123,7 @@ class Disengage(smach.State):
         global laneDetector
         laneDetector = None
 
-        self.isStart = False
+        self.isStart = TEST_MODE
 
         global firstRun
         if firstRun:
@@ -134,7 +137,13 @@ class Disengage(smach.State):
             rosRate.sleep()
 
         laneDetector = LaneDetector(params, camdebug)
-        userdata.inputHeading = laneDetector.inputHeading = self.inputHeading
+        if not TEST_MODE:
+            userdata.inputHeading = laneDetector.inputHeading = self.inputHeading
+        else:
+            userdata.inputHeading = test_heading
+            self.expectedLanes = expectedLanes
+            self.outDir = outDir
+
         userdata.expectedLanes = self.expectedLanes
         userdata.outDir = self.outDir # 'left' or 'right'
 
@@ -152,15 +161,25 @@ class Search(smach.State):
         )
 
     def execute(self, userdata):
-        global mission_srv
+        global mission_srv, actionClient
         rospy.loginfo('Searching for lanes')
+
+        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+        print 'waiting for action server...'
+        actionClient.wait_for_server()
+        print 'done'
+
         
         while len(laneDetector.foundLines) == 0:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
             rosRate.sleep()
 
-        mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+        actionClient.cancel_all_goals()
+        rospy.sleep(1)
+
+        if not TEST_MODE:
+            mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
         return 'search_complete'
 
 
@@ -177,11 +196,6 @@ class Stabilize(smach.State):
         EPSILON_X, EPSILON_Y = params['epsilonX'], params['epsilonY']
 
         laneDetector.frameCallback = None
-
-        actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
-        print 'waiting for action server...'
-        actionClient.wait_for_server()
-        print 'done'
 
         rospy.loginfo('moving around to find lane')
         heading = laneDetector.heading
@@ -278,7 +292,7 @@ class Found(smach.State):
     def __init__(self):
         smach.State.__init__(
                         self,
-                        outcomes=['succeeded'],
+                        outcomes=['succeeded','killed'],
                         input_keys=['expectedLanes', 'headings', 'outDir']
         )
 
@@ -307,7 +321,10 @@ class Found(smach.State):
         ctrl = controller()
         ctrl.depth_setpoint = depth_setpoint
         ctrl.heading_setpoint = finalHeading
-        mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+        if not TEST_MODE:
+            mission_srv(search_request=False, task_complete_request=True, task_complete_ctrl=ctrl)
+        else:
+            return 'killed'
 
         return 'succeeded'
 
@@ -338,6 +355,8 @@ if __name__ == '__main__':
     compassTopic = rospy.get_param('~compass', '/euler')
     expectedLanes = rospy.get_param('~lanes', 1)
     outDir = rospy.get_param('~out', 'left')
+    TEST_MODE = rospy.get_param('~testmode', False)
+    test_heading = rospy.get_param('~heading', 0)
 
     # Set up param configuration window
     def configCallback(config, level):
@@ -396,7 +415,8 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'FOUND',
                         Found(),
-                        transitions={'succeeded': 'DISENGAGED'}
+                        transitions={'succeeded': 'DISENGAGED',
+                                     'killed': 'killed'}
         )
 
     sis = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/LANE_GATE')
@@ -407,5 +427,7 @@ if __name__ == '__main__':
     except Exception, e:
         print e
         rospy.signal_shutdown('Shutting down due to exception.')
+
+    rospy.signal_shutdown('Shutting down request')
 
 # vim: set sw=4 ts=4 expandtab:

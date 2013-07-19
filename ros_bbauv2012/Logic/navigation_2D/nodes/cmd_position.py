@@ -41,7 +41,7 @@ def main():
         normalized = (angle%360+360)%360
         return normalized
 
-    def forward_velocity(mb_fwd_vel, curr_Pos):
+    def forward_velocity(mb_fwd_vel, curr_Pos): #Forward Gains: Kp=5000, Kd=1500
         lead_distance = 0
         if abs(mb_fwd_vel) == 0:
             lead_distance = 0
@@ -72,20 +72,22 @@ def main():
             sidemove_setpoint = -1 * lead_distance + curr_Pos
         return sidemove_setpoint
 
-    def yaw_velocity(mb_yaw_vel, curr_Yaw):
+    def yaw_velocity(mb_yaw_vel, curr_Yaw): #Heading Gains: Kp = 40, Kd=25
         lead_angle = 0
         if abs(mb_yaw_vel) == 0:
             lead_angle = 0
         if abs(mb_yaw_vel) <=0.15: #5
+            lead_angle = 5
+        if abs(mb_yaw_vel) <=0.2: #7
+            lead_angle = 7    
+        if abs(mb_yaw_vel) <=0.3: #10
             lead_angle = 10
-        if abs(mb_yaw_vel) <=0.2: #10
+        if abs(mb_yaw_vel) <=0.4: #15
             lead_angle = 15
-        if abs(mb_yaw_vel) <=0.3: #20
-            lead_angle = 20
-        if abs(mb_yaw_vel) <=0.4: #20
-            lead_angle = 30
-        if abs(mb_yaw_vel) <=1: #20
-            lead_angle = 60
+        if abs(mb_yaw_vel) <=2: #20
+            lead_angle = 40
+#        if abs(mb_yaw_vel) <=1: #
+#            lead_angle = 30
 
         if mb_yaw_vel > 0:
             yaw_setpoint = normalize_angle(-1 * lead_angle + curr_Yaw)

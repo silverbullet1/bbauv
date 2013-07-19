@@ -40,7 +40,7 @@ from rospy.timer import sleep
 class Disengage(smach.State):
     client = None
     def __init__(self):
-        smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'],
+        smach.State.__init__(self, outcomes=['start_complete','phase2_complete', 'complete_outcome', 'aborted'],
                             input_keys=['complete'])
     def execute(self, userdata):
         global locomotionGoal
@@ -51,29 +51,29 @@ class Disengage(smach.State):
         global dt
         global isTest
         global r
-        if userdata.complete == True:
+        global counter
+        if userdata.complete:
              isStart = False
-             isEnd = True
-             locomotionGoal.depth_setpoint = 0.6
-             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
-                                                     heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=0)
-             movement_client.send_goal(goal)
-             movement_client.wait_for_result(rospy.Duration(15))     
+             isEnd = True   
              try:
                  if isTest == False:
                      resp = mission_srv_request(False, True, locomotionGoal)
              except rospy.ServiceException, e:
                  print "Service call failed: %s" % e
+            
+
         while not rospy.is_shutdown():
             if isEnd:
                 rospy.signal_shutdown("Deactivating Gate Node")
                 return 'complete_outcome'
             if isStart:
-                dt.register()
-                print "starting..."
-                return 'start_complete'
+                isStart = False
+                if counter == 2:
+                    dt.register()
+                    return 'phase2_complete'
+                else:
+                    dt.register()
+                    return 'start_complete'
             r.sleep()
         return 'aborted'
     
@@ -110,7 +110,7 @@ class Centering(smach.State):
     global mission_srv_request
    # global r
     def __init__(self):
-        smach.State.__init__(self, outcomes=['centering_complete', 'aborted', 'mission_abort'], output_keys=['center_pos'])
+        smach.State.__init__(self, outcomes=['centering_complete', 'aborted','identification_failed', 'mission_abort'], output_keys=['center_pos'])
         
     def execute(self, userdata):
         global r
@@ -128,6 +128,9 @@ class Centering(smach.State):
             if(dt.centroid != None):
                 side_error = drivethru_params['centering_y'] * (dt.centroid[0] - dt.cols / 2)
                 fwd_error = -drivethru_params['centering_x'] * (dt.centroid[1] - dt.rows / 2)
+                ###Conditional Checks for robust identification of target obstacles
+                if dt.find_times < -150:
+                    return "identification_failed"
                 if(dt.orientation != 0):
                     if isOrientationDone == False:
                         if(dt.orientation > 90):
@@ -140,10 +143,11 @@ class Centering(smach.State):
                 else:
                     orientation_error = locomotionGoal.heading_setpoint
                 if (np.fabs(dt.centroid[0] - dt.cols / 2) < dt.inner_center) and np.fabs(dt.centroid[1] - dt.rows / 2) < dt.inner_center and np.fabs(orientation_error - dt.yaw) < 5 and isOrientationDone :
-                    # userdata.center_pos = dt.position
-                    
-                    movement_client.cancel_all_goals()
-                    return "centering_complete"
+                    if dt.find_times > 30:
+                        movement_client.cancel_all_goals()
+                        return "centering_complete"
+                    else:
+                        return "identification_failed"
                 # print "orientation error:" + str(orientation_error) + "isCentering:" + str(dt.isCentering)
                 goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=fwd_error, heading_setpoint=orientation_error, depth_setpoint=locomotionGoal.depth_setpoint, sidemove_setpoint=side_error)
                 movement_client.send_goal(goal)
@@ -165,7 +169,6 @@ class Aiming(smach.State):
         global locomotionGoal
         global drivethru_params
         global isAbort
-        global count
         global isTest
         depth_offset = 0
         while not rospy.is_shutdown():
@@ -222,7 +225,6 @@ class Grabbing(smach.State):
         _manipulator.servo7 = 0
         mani_pub.publish(_manipulator)
     def execute(self, userdata):
-        global r
         global dt
         global movement_client
         global locomotionGoal
@@ -230,29 +232,20 @@ class Grabbing(smach.State):
         global speedtrap_params
         x_error = 0
         y_error = 0
-        while(dt.l_center_x and not rospy.is_shutdown()):
-            if isAbort:
-                return "mission_abort"
-            x_error = dt.l_center_x - dt.cols/2
-            y_error = dt.l_center_y - dt.rows/2
-            
-            side_error = drivethru_params['firing_y'] * (x_error)
-            fwd_error = -drivethru_params['firing_x'] * (y_error)
-            #if ((np.fabs(x_error) < dt.outer_center and np.fabs(y_error) < dt.outer_center)) :
-            if True:    
-                print "Target locked"
-                goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.07,
-                                                     heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=locomotionGoal.depth_setpoint + 1.25,
-                                                     sidemove_setpoint=-0.03)
-                movement_client.send_goal(goal)
-                movement_client.wait_for_result(rospy.Duration(10))
-                self.fire_grabber(True)
-                rospy.loginfo("Fire grabber!")
-                rospy.loginfo("Going to sleep. Waiting for Dropper")
-                rospy.sleep(rospy.Duration(2))
-                return "grabbing_complete"
-            r.sleep()
+        if isAbort:
+            return "mission_abort"
+        rospy.loginfo("Pizza Box Target locked. Descending to pick up.")
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.01,
+                                             heading_setpoint=locomotionGoal.heading_setpoint,
+                                             depth_setpoint=locomotionGoal.depth_setpoint + 1.25,
+                                             sidemove_setpoint=-0.03)
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(rospy.Duration(10))
+        self.fire_grabber(True)
+        rospy.loginfo("Fire grabber!")
+        rospy.loginfo("Going to sleep. Waiting for Grabber")
+        rospy.sleep(rospy.Duration(2))
+        return "grabbing_complete"
         if rospy.is_shutdown():
             return 'aborted'
         else:
@@ -267,19 +260,58 @@ class Manuoevre(smach.State):
         global dt
         global movement_client
         global locomotionGoal
-        global count
+        global counter
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=0,
                                                      sidemove_setpoint=0)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(2))
+        counter = counter + 1
         rospy.loginfo("Surfacing vehicle!")
         userdata.complete = True
         if rospy.is_shutdown():
             return 'aborted'
         return 'manuoevre_complete'
 
+class Release(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,outcomes=['release_complete', 'aborted', 'mission_abort'],
+                             output_keys=['complete'])
+    def fire_grabber(self, grab):
+        global mani_pub
+        _manipulator = manipulator()
+        _manipulator.servo1 = 0
+        _manipulator.servo2 = 0
+        _manipulator.servo3 = 0
+        _manipulator.servo4 = 0
+        if grab:
+            _manipulator.servo5 = 1
+        else:
+            _manipulator.servo5 = 0
+        _manipulator.servo6 = 0
+        _manipulator.servo7 = 0
+        mani_pub.publish(_manipulator)
+        
+    def execute(self, userdata):
+        global r
+        global dt
+        global movement_client
+        global locomotionGoal
+        global count
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
+                                                     heading_setpoint=locomotionGoal.heading_setpoint,
+                                                     depth_setpoint=1.5,
+                                                     sidemove_setpoint=0)
+        movement_client.send_goal(goal)
+        movement_client.wait_for_result(rospy.Duration(15))
+        self.fire_grabber(False)
+        counter = counter + 1
+        rospy.loginfo("Releasing Grabber.")
+        userdata.complete = True
+        if rospy.is_shutdown():
+            return 'aborted'
+        return 'release_complete'
 '''
 ###################################################################
 
@@ -293,6 +325,7 @@ def handle_srv(req):
     global isAbort
     global locomotionGoal
     global dt
+    print req._connection_header['callerid']
     if req.start_request:
         isStart = True
         isAbort = False
@@ -306,7 +339,7 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = False
+isTest = True
 movement_client = None
 locomotionGoal = None 
 isStart = False
@@ -316,6 +349,7 @@ count = 0
 dt = None     
 r = None
 mani_pub = None
+counter = 0
 drivethru_params = {'bin_area': 0,'shape_hu':0.0, 'firing_x':10, 'firing_y':0, 'centering_x':0, 'centering_y':0, 'aiming_x':0, 'aiming_y':0}
 
 if __name__ == '__main__':
@@ -332,6 +366,11 @@ if __name__ == '__main__':
         locomotionGoal = bbauv_msgs.msg.ControllerGoal()
         locomotionGoal.heading_setpoint = 130
         locomotionGoal.depth_setpoint = 0.6
+    else:
+        ### Initialize locomotion goal for for mission
+        locomotionGoal = bbauv_msgs.msg.ControllerGoal()
+        locomotionGoal.heading_setpoint = 0
+        locomotionGoal.depth_setpoint = 0.6
     vision_srv = rospy.Service('drivethru_srv', mission_to_vision, handle_srv)
     rospy.loginfo('drivethru_srv initialized!')
     
@@ -339,10 +378,10 @@ if __name__ == '__main__':
     if not isTest:
         rospy.loginfo('waiting for mission_srv...')
         rospy.wait_for_service('mission_srv')
-        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
+        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission,headers={'id':5})
         rospy.loginfo('connected to mission_srv!')
     
-    dt = Drive_thru()
+    dt = Drive_thru(False)
     rospy.loginfo("Drive Thru loaded!")
     # Set up param configuration window
     def drivethruCallback(config, level):
@@ -360,14 +399,15 @@ if __name__ == '__main__':
     with sm_top:
         smach.StateMachine.add('DISENGAGED',
                          Disengage(),
-                         transitions={'start_complete':'SEARCH', 'complete_outcome':'drivethru_complete', 'aborted':'aborted'}
+                         transitions={'start_complete':'SEARCH', 'complete_outcome':'drivethru_complete', 'aborted':'aborted',
+                                      'phase2_complete':'RELEASE'}
                          )
         smach.StateMachine.add('SEARCH',
                          Search(),
                          transitions={'search_complete':'CENTERING', 'aborted':'aborted', 'mission_abort':'DISENGAGED'})
         smach.StateMachine.add('CENTERING',
                          Centering(),
-                         transitions={'centering_complete': 'AIMING', 'aborted':'aborted',
+                         transitions={'centering_complete': 'AIMING','identification_failed':'DISENGAGED','aborted':'aborted',
                                       'mission_abort':'DISENGAGED'}
                          )
         smach.StateMachine.add('AIMING',
@@ -386,10 +426,15 @@ if __name__ == '__main__':
                          transitions={'manuoevre_complete': 'DISENGAGED', 'aborted':'aborted',
                                       'mission_abort':'DISENGAGED'}
                          )
-
+        smach.StateMachine.add('RELEASE',
+                         Release(),
+                         transitions={'release_complete': 'DISENGAGED', 'aborted':'aborted',
+                                      'mission_abort':'DISENGAGED'}
+                         )
+        
     sis = smach_ros.IntrospectionServer('server', sm_top, '/MISSION/DRIVE_THRU')
     sis.start()
-    sm_top.userdata.complete = False
+    sm_top.userdata.complete = 0
     # Execute SMACH plan
     outcome = sm_top.execute()
     try:

@@ -180,8 +180,8 @@ class LaneDetector:
 
             imgDebug = np.bitwise_xor(cv2.merge([debugTmp, debugTmp, debugTmp]), debugTmp2)
             cv2.circle(imgDebug, (int(centroid[0]),int(centroid[1])), 2, (255,0,0), 2)
-            self.camdebug.publishImage('hsv', imghsv)
-            self.camdebug.publishImage('thresh', debugThresh)
+            #self.camdebug.publishImage('hsv', imghsv)
+            #self.camdebug.publishImage('thresh', debugThresh)
             #self.camdebug.publishImage('bw', imgDebug)
             self.camdebug.publishImage('image_filter', imgDebug)
 

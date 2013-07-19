@@ -3,17 +3,18 @@
 import roslib; roslib.load_manifest('Vision')
 import rospy
 import actionlib
-
 import smach
 import smach_ros
+from dynamic_reconfigure.server import Server
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Point
 from std_msgs.msg import Float32
-from Queue import Queue
+from nav_msgs.msg import Odometry
 
+from Queue import Queue
 import math
 import numpy as np
 
@@ -51,6 +52,8 @@ class CollectTDOA(smach.State):
         new_data=False
         while (not tdoa_queue.empty()):
             tdoa_queue.get()
+        rospy.loginfo('Current Pose: x={0},y={1},z={2},yaw={3}'
+                    .format(search_position.x,search_position.y,search_depth,cur_heading))
         for i in range(self.samples):
             start_time = rospy.get_time()
             while (not new_data and not isAbort and not rospy.is_shutdown()
@@ -71,7 +74,7 @@ class CollectTDOA(smach.State):
 
         if isTest == False and self.initSearch == True:
             try:
-                resp = mission_srv_request(True, False, None)
+                resp = mission_srv_request(True, None, None)
                 rospy.loginfo(resp)
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" % e)
@@ -105,7 +108,7 @@ class CorrectHeading(smach.State):
         movement_client.wait_for_result(action_timeout)
         cur_heading = new_heading
              
-        if z < z_threshold:
+        if math.fabs(z) < z_threshold:
             # continue far field, go to move forward
             farfield = True
             return 'farfield'
@@ -137,8 +140,9 @@ class GoToXY(smach.State):
                 ctrl = controller()
                 ctrl.depth_setpoint = search_depth
                 ctrl.heading_setpoint = cur_heading
-                resp = mission_srv_request(False, True, ctrl)
-                rospy.loginfo(resp)
+                if not isStart:
+                    rospy.loginfo('Finish! Send srv_request: ',resp)
+                    resp = mission_srv_request(None, True, ctrl)
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" % e)
 
@@ -177,7 +181,8 @@ class Recover(smach.State):
                     ctrl = controller()
                     ctrl.depth_setpoint = search_depth
                     ctrl.heading_setpoint = cur_heading
-                    resp = mission_srv_request(False, False, ctrl)
+                    if not isAbort:
+                        resp = mission_srv_request(None, False, ctrl)
                     rospy.loginfo(resp)
                 except rospy.ServiceException, e:
                     rospy.loginfo("Service call failed: %s" % e)
@@ -252,7 +257,7 @@ def triangulate(data_queue, mode):
     queue_length = data_queue.qsize()
     if mode == "farfield":
         Ph = 200
-        Rh = 0.5
+        Rh = 3
         Pz = 40
         Rz = 0.1
         filter_heading = 0
@@ -263,8 +268,8 @@ def triangulate(data_queue, mode):
             x, y, z = far_field(d10,d20,d30)
             rel_heading = math.atan2(y,x) * 180 / math.pi
             #filter steps
-            Kh = Ph / (Ph + Rh)
-            Kz = Pz / (Pz + Rz)
+            Kh = Ph * 1.0 / (Ph + Rh)
+            Kz = Pz * 1.0 / (Pz + Rz)
             filter_heading = filter_heading + Kh * (rel_heading - filter_heading)
             filter_z = filter_z + Kz * (z - filter_z)
             Ph = (1 - Kh) * Ph
@@ -283,8 +288,8 @@ def triangulate(data_queue, mode):
         for i in range(queue_length):
             d10,d20,d30=data_queue.get()
             x, y, z = near_field(d10,d20,d30)
-            Kx = Px / (Px + Rx)
-            Ky = Py / (Py + Ry)
+            Kx = Px * 1.0 / (Px + Rx)
+            Ky = Py * 1.0 / (Py + Ry)
             filter_x = filter_x + Kx * (x - filter_x)
             filter_y = filter_y + Ky * (y - filter_y)
             Px = (1 - Kx) * Px
@@ -305,6 +310,11 @@ def get_heading(msg):
     global yaw
     global cur_heading
     yaw=msg.yaw
+    if (cur_heading==10000):
+        cur_heading=yaw
+def get_position(msg):
+    global search_position 
+    search_position=msg.pose.pose.position
 
 def get_altitude(msg):
     global altitude
@@ -374,17 +384,16 @@ altitude =0
 cur_heading=0
 #from hydrophones (TDOA)
 d10, d20, d30 = 0, 0, 0
-
 #whether new time diff values received
 new_data = False
 #calculated heading
 new_heading = 0
 #seach state parameters
 search_depth = 0.4
-search_distance = 2
-z_threshold = 0.6
+search_distance = 3
+z_threshold = 0.5
 ver_dist_to_pinger = 2.41 
-
+search_position = None
 if __name__ == '__main__':
     rospy.init_node('acoustic_navigation')
     loop_rate=rospy.Rate(0.5)
@@ -397,9 +406,6 @@ if __name__ == '__main__':
     #Setup movement client
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
-    #Setup acoustic service 
-    #pls rename mission-to-vision to mission-to-task!!!
-    #acoustic_srv = rospy.service('acoustic_srv',mission_to_vision,handle_srv)
 
     if isTest:
         isStart= True
@@ -408,8 +414,9 @@ if __name__ == '__main__':
         #setup client
         rospy.loginfo('waiting for mission_srv...')
         rospy.wait_for_service('mission_srv') #connecting to mission server
-        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
+        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':1})
         rospy.loginfo('connected to mission_srv!')
+        
         #setup server
         acoustic_srv = rospy.Service('acoustic_srv',mission_to_vision,handle_srv) 
         rospy.loginfo('acoustic_srv initialized')
@@ -418,6 +425,7 @@ if __name__ == '__main__':
     rospy.Subscriber("/hydrophone/time_diff",Twist,get_tdoa)
     rospy.Subscriber("/euler",compass_data,get_heading)
     rospy.Subscriber("/altitude",Float32,get_altitude)
+    rospy.Subscriber("/earth_odom",Odometry,get_position)
 
     #State Machines
     sm_top = smach.StateMachine(outcomes=['Task_completed','Task_failed'])
@@ -441,7 +449,7 @@ if __name__ == '__main__':
             transitions ={'succeeded':'GOTO_XY','failed':'RECOVER','aborted':'DISENGAGE'})
          
         smach.StateMachine.add('GOTO_XY',GoToXY(),
-            transitions ={'completed':'Task_completed','aborted':'DISENGAGE'})
+            transitions ={'completed':'DISENGAGE','aborted':'DISENGAGE'})
     
         smach.StateMachine.add('RECOVER',Recover(),
             transitions ={'completed':'FARSEARCH','aborted':'DISENGAGE'})

@@ -981,17 +981,17 @@ if __name__ == '__main__':
 
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(20,0.5,90),transitions={'succeeded':'HOVER'})
-        smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=90), transitions={'succeeded':'TASK', 'failed':'GOFWD'})
+        smach.StateMachine.add('START',Start(20,0.5,80),transitions={'succeeded':'HOVER'})
+        smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'GOFWD'})
 
         smach.StateMachine.add('GOFWD', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER2'})
-        smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=90), transitions={'succeeded':'TASK', 'failed':'GOFWD2'})
+        smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'GOFWD2'})
 
         smach.StateMachine.add('GOFWD2', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER3'})
-        smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=90), transitions={'succeeded':'TASK', 'failed':'GOFWD3'})
+        smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'GOFWD3'})
 
         smach.StateMachine.add('GOFWD3', GoToDistance(40, 2, 'fwd'), transitions={'succeeded':'HOVER4'})
-        smach.StateMachine.add('HOVER4', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=90), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('HOVER4', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
 
         smach.StateMachine.add('TASK', WaitOutAndSearch('acoustic','drivethru', 240), transitions={'task_succeeded':'HOVER5', 'search_succeeded':'TASK2','failed':'SURFACE_SADLY'})
 
