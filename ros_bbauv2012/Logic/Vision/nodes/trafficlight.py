@@ -29,6 +29,9 @@ from Vision.cfg import TrafficLightConfig
 import smach
 import smach_ros
 
+#TODO: Use competition colours
+TARGET_COLORS = ['redLed'] #NOTE: use 'redLed' for the red LED
+
 # GLOBALS
 TEST_MODE = False
 DEBUG = True
@@ -48,8 +51,11 @@ SIDEMOVE_SETPOINT = 3
 MAX_BUMPS = 2
 bumpCount = 0
 
-#TODO: Use competition colours
-TARGET_COLORS = ['redLed'] #NOTE: use 'redLed' for the red LED
+# For adjustments
+X_MIN = 270
+X_MAX = 370
+W_MIN = 120
+W_MAX = 300
 
 #HACK: use a lock to prevent race conditions
 lock = threading.Lock()
@@ -60,6 +66,7 @@ params = { 'minBuoyRadius': 0, 'contourMinArea': 0,
            'redLedHueLow': 0, 'redLedHueHigh': 0, 'redLedSatLow': 0, 'redLedSatHigh': 0, 'redLedValLow': 0, 'redLedValHigh': 0, 
            'yellowHueLow': 0, 'yellowHueHigh': 0, 'yellowSatLow': 0, 'yellowSatHigh': 0, 'yellowValLow': 0, 'yellowValHigh': 0,
            'greenHueLow': 0, 'greenHueHigh': 0, 'greenSatLow': 0, 'greenSatHigh': 0, 'greenValLow': 0, 'greenValHigh': 0,
+           'ledXMin': 0, 'ledXMax': 0, 'ledWMin': 0, 'ledWMax': 0,
            'bumpTime': 0, 'bumpK': 0,
            'farForwardK': 0, 'farSideK': 0,
            'nearForwardK': 0, 'nearSideK': 0
@@ -85,6 +92,22 @@ def initService():
         print 'waiting for action server...'
         actionClient.wait_for_server()
         print 'done'
+
+
+def getLedAdjustment():
+    if lightDetector and lightDetector.colorsFound:
+        centroid = lightDetector.colorsFound[0][1]
+        rect = lightDetector.colorsFound[0][2]
+
+        if X_MAX < centroid[0]:
+            return 'right'
+        elif centroid[0] < X_MIN:
+            return 'left'
+
+        if rect[3] < X_MIN:
+            return 'forward'
+        elif rect[3] > X_MAX:
+            return 'back'
 
 
 '''
@@ -349,7 +372,7 @@ Do a bump
 class BumpIt(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['bumped', 'aborted', 'killed'],
+                             outcomes=['bumped', 'done', 'aborted', 'killed'],
                              input_keys=['heading', 'targetColors'],
                              output_keys=['targetColors', 'sidemoveDir'])
 
@@ -375,10 +398,14 @@ class BumpIt(smach.State):
 
         userdata.sidemoveDir = 'right'
         #HACK: shift upwards to better hit LEDs
-        global depth_setpoint
-        depth_setpoint -= 0.2
 
-        return 'bumped'
+        if userdata.targetColors:
+#            global depth_setpoint
+#            depth_setpoint -= 0.2
+            return 'bumped'
+        else:
+            # Just want to hit the red buoy
+            return 'done'
 
 
 '''
@@ -433,7 +460,7 @@ class SidemoveToBuoy(smach.State):
 
             if lightDetector.colorsFound:
                 centroid = lightDetector.colorsFound[0][1]
-                if (userdata.sidemoveDir == 'right' and centroid[0] < 370) or (userdata.sidemoveDir == 'left' and centroid[0] > 270):
+                if (userdata.sidemoveDir == 'right' and centroid[0] < X_MAX) or (userdata.sidemoveDir == 'left' and centroid[0] > X_MIN):
                     actionClient.cancel_all_goals()
                     break
             rospy.sleep(0.05)
@@ -461,7 +488,6 @@ class BumpToColor(smach.State):
 
         BUMP_FORWARD = params['bumpK']
 
-        #TODO: centre buoy
         while True:
             if rospy.is_shutdown(): return 'killed'
             if isAborted: return 'aborted'
@@ -469,12 +495,9 @@ class BumpToColor(smach.State):
             if lightDetector.colorsFound:
                 centroid = lightDetector.colorsFound[0][1]
                 # If out of place, adjust
-                MID_X = 320
-                if 370 < centroid[0]:
-                    userdata.adjustment = 'right'
-                    return 'adjustment'
-                elif centroid[0] < 270:
-                    userdata.adjustment = 'left'
+                adjustment = getLedAdjustment()
+                if adjustment:
+                    userdata.adjustment = adjustment
                     return 'adjustment'
 
             bumpEnd = False
@@ -521,11 +544,19 @@ class CenterOnLED(smach.State):
                              output_keys=['heading', 'targetColors'])
 
     def execute(self, userdata):
-        sidemove_setpoint = SIDEMOVE_SETPOINT if userdata.adjustment == 'right' else -SIDEMOVE_SETPOINT
+        sidemove_setpoint = 0
+        if userdata.adjustment == 'right':
+            sidemove_setpoint = SIDEMOVE_SETPOINT
+        elif userdata.adjustment == 'left':
+            sidemove_setpoint = -SIDEMOVE_SETPOINT
+
+        forward_setpoint = 0
+
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.heading,
                 depth_setpoint = depth_setpoint,
-                sidemove_setpoint = sidemove_setpoint
+                sidemove_setpoint = sidemove_setpoint,
+                forward_setpoint = forward_setpoint
         )
         actionClient.send_goal(goal)
 
@@ -535,7 +566,13 @@ class CenterOnLED(smach.State):
 
             if lightDetector.colorsFound:
                 centroid = lightDetector.colorsFound[0][1]
-                if (userdata.adjustment == 'right' and centroid[0] < 370) or (userdata.adjustment == 'left' and centroid[0] > 270):
+                rect = lightDetector.colorsFound[0][2]
+
+                if (userdata.adjustment == 'right' and centroid[0] < X_MAX) or (userdata.adjustment == 'left' and centroid[0] > X_MIN):
+                    actionClient.cancel_all_goals()
+                    break
+
+                if (userdata.adjustment == 'forward' and rect[3] > W_MIN) or (userdata.adjustment == 'back' and rect[3] < W_MAX):
                     actionClient.cancel_all_goals()
                     break
             rospy.sleep(0.05)
@@ -577,8 +614,13 @@ if __name__ == '__main__':
 
     # Set up param configuration window
     def configCallback(config, level):
+        global X_MIN, X_MAX, W_MIN, W_MAX
         for param in params:
             params[param] = config[param]
+        X_MIN = params['ledXMin']
+        X_MAX = params['ledXMax']
+        W_MIN = params['ledWMin']
+        W_MIN = params['ledWMax']
         return config
     srv = Server(TrafficLightConfig, configCallback)
 
@@ -630,8 +672,8 @@ if __name__ == '__main__':
         smach.StateMachine.add(
                         'BUMP',
                         BumpIt(),
-#                        transitions={'bumped': 'DONE',
-                        transitions={'bumped': 'SIDEMOVE_TO_BUOY',
+                        transitions={'done': 'DONE',
+                                     'bumped': 'SIDEMOVE_TO_BUOY',
                                      'aborted': 'DISENGAGED',
                                      'killed': 'killed'}
         )
