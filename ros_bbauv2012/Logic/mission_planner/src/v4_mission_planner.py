@@ -829,11 +829,12 @@ class Nav(smach.State):
     
             #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
             try:
-                resp = set_ConPIDMode(True, True, True, True, False, False, True)
+                resp = set_ConPIDMode(True, True, True, True, True, False, False)
                 rospy.loginfo("PID and Mode is set")
             except rospy.ServiceException, e:
                 rospy.loginfo("PID and Mode NOT set: %s" % e)
-
+            
+            rospy.loginfo("Generated Start heading for nav")    
             self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
                 
             #Change Depth and Face Heading First
@@ -842,15 +843,25 @@ class Nav(smach.State):
             locomotion_client.send_goal(goal) 
             rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
             locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
-           
+
             self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
             self.distanceToCoord = self.distanceToGlobalCoord(self.x, self.y, global_x, global_y)
 
             #Navigating to global coord
-            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distanceToCoord,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
+            goal2 = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distanceToCoord,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
     
-            locomotion_client.send_goal(goal)
-            rospy.loginfo('Navigating to x=%s y=%s. Facing yaw=%s' % (str(self.x), str(self.y), str(self.start_heading)))
+            locomotion_client.send_goal(goal2)
+            rospy.loginfo('Navigating to x=%s y=%s.' % (str(self.x), str(self.y)))
+            locomotion_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
+
+            self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
+            self.distanceToCoord = self.distanceToGlobalCoord(self.x, self.y, global_x, global_y)
+
+            #Navigating to global coord
+            goal3 = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distanceToCoord,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
+    
+            locomotion_client.send_goal(goal3)
+            rospy.loginfo('Navigating to x=%s y=%s.' % (str(self.x), str(self.y)))
             locomotion_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
             
         if move_base_mode:
@@ -1050,14 +1061,28 @@ if __name__ == '__main__':
 
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(5,0.5,0),transitions={'succeeded':'WYPT1'})    
-#         smach.StateMachine.add('TURN_TO_GATE', GoToHeading(10, 70), transitions={'succeeded':'GO_TO_GATE'})
-#         smach.StateMachine.add('GO_TO_GATE', GoToDistance(30, 6, 'fwd'), transitions={'succeeded':'SURFACE_VICTORIOUSLY'})
-        smach.StateMachine.add('WYPT1', Nav(30,30,30, 1,3, 0.5,0.5,90), transitions={'succeeded':'WYPT2', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('WYPT2', Nav(30,30,30, 2,4, 0.5,0.5,90), transitions={'succeeded':'WYPT3', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('WYPT3', Nav(30,30,30, 1,3, 0.5,0.5,90), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})        
-        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.26), transitions={'succeeded':'mission_failed'})
-        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.26), transitions={'succeeded':'VICTORY_SPIN'})
+        smach.StateMachine.add('START',Start(10,0.5,70),transitions={'succeeded':'HOVER'})
+        smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD'})
+
+        smach.StateMachine.add('GOFWD', GoToDistance(40, 9, 'fwd'), transitions={'succeeded':'HOVER2'})
+        smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD2'})
+
+        smach.StateMachine.add('GOFWD2', GoToDistance(40, 2, 'fwd'), transitions={'succeeded':'HOVER3'})
+        smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD3'})
+
+        smach.StateMachine.add('GOFWD3', GoToDistance(40, 2, 'fwd'), transitions={'succeeded':'HOVER4'})
+        smach.StateMachine.add('HOVER4', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
+
+        smach.StateMachine.add('TASK', WaitOutAndSearch('acoustic','drivethru', 180), transitions={'task_succeeded':'HOVER5', 'search_succeeded':'TASK2','failed':'SURFACE_SADLY'})
+
+        smach.StateMachine.add('TASK2', WaitOut('drivethru', 180), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+
+        smach.StateMachine.add('HOVER5', HoverSearch('drivethru', 120), transitions={'succeeded':'TASK2', 'failed':'SEARCH_LEFT'})    
+        smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 30, -1, 'sway'), transitions={'succeeded':'TASK2', 'failed':'SEARCH_RIGHT'})
+        smach.StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 30, 2, 'sway'), transitions={'succeeded':'TASK2', 'failed':'SURFACE_SADLY'})
+       
+        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
+        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
         smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
  
 #    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
@@ -1089,3 +1114,6 @@ if __name__ == '__main__':
         print "Shutting down"
 
 ########################
+
+
+

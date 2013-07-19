@@ -1,4 +1,4 @@
-controller_frequency: 5.0
+controller_frequency: 10.0
 recovery_behavior_enabled: false
 clearing_rotation_allowed: false
 
@@ -18,14 +18,14 @@ TrajectoryPlannerROS:
   
   escape_vel: -0.001
 
-  holonomic_robot: true
+  holonomic_robot: false
   y_vels: [-0.3 -0.2 -0.1 0.1 0.2 0.3]
 
 #Goal Tolerance Params
 
-  yaw_goal_tolerance: 0.1 #tolerance in radians
-  xy_goal_tolerance: 0.3 # In meters. Will literally stop within a 0.5m dia circle centered at the goal point
-  latch_xy_goal_tolerance: True
+  yaw_goal_tolerance: 0.2 #tolerance in radians
+  xy_goal_tolerance: 0.2 # In meters. Will literally stop within a 0.5m dia circle centered at the goal point
+  latch_xy_goal_tolerance: true
 
 #Forward simulation Params
   sim_time: 10
@@ -41,9 +41,9 @@ TrajectoryPlannerROS:
   pdist_scale: 1
   gdist_scale: 5
   occdist_scale: 0.05
-  heading_lookahead: 10
-  heading_scoring: true
-  heading_scoring_timestep: 4
+  heading_lookahead: 5 #Last Val: 10
+  heading_scoring: false
+  heading_scoring_timestep: 1 #Last Val: 4
   dwa: false
   publish_cost_grid_pc: true
   global_frame_id: odom
