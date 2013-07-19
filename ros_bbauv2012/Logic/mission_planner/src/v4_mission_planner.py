@@ -9,8 +9,8 @@ from visualization_msgs.msg import Marker
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 import dynamic_reconfigure.client
-from math import pi
-from math import atan2
+from math import pi, atan2, sqrt
+
 import subprocess
 
 import actionlib
@@ -734,7 +734,7 @@ class WaitOutAndSearch(smach.State):
                 rospy.loginfo("Timed Out: Failed to abort: %s" % e)            
                 return 'failed'
 
-class NavMoveBase(smach.State):
+class Nav(smach.State):
     
     def __init__ (self, prep_timeout, nav_timeout, end_timeout, x=0, y=0, start_depth = 0.5, end_depth=0.5, end_heading=0, place= None): #yaw here is BBAUV's controller convention'
         smach.State.__init__(self, outcomes=['succeeded','failed'])
@@ -742,6 +742,7 @@ class NavMoveBase(smach.State):
         self.x = x
         self.y = y
         
+        self.distanceToCoord = 0
         self.start_depth = start_depth        
         self.start_heading = 0
         self.end_depth = end_depth
@@ -754,34 +755,60 @@ class NavMoveBase(smach.State):
 
     def start_heading_gen(self, x,y,global_x,global_y):
     
-            y_diff = abs(y - global_y)
-            x_diff = abs(x - global_x)
-            
-            if (x - global_x)>0 and (y - global_y)>0:
-                start_heading = 90 - atan2(y_diff,x_diff)*(180/pi)
-    
-            if (x - global_x)>0 and (y - global_y)<0:
-                start_heading = 90 + atan2(y_diff,x_diff)*(180/pi)
-                            
-            if (x - global_x)<0 and (y - global_y)<0:
-                start_heading = 180 + atan2(x_diff,y_diff)*(180/pi)
-                            
-            if (x - global_x)<0 and (y - global_y)>0:
-                start_heading = 270 + atan2(y_diff,x_diff)*(180/pi)
-                                        
+        y_diff = abs(y - global_y)
+        x_diff = abs(x - global_x)
+        
+        #Checking if both are the same
+        if y_diff == 0 and x_diff == 0:
+            print 'Destination and current location is the same!'
+            start_heading = 0
             return start_heading
+        
+        #Checking for case when moving along 1 of 4 cardinal points
+        if y_diff ==0:
+            if x - global_x < 0: start_heading = 0
+            if x - global_x > 0: start_heading = 180
+            return start_heading
+        if x_diff == 0:
+            if y - global_y > 0: start_heading = 90
+            if y - global_y < 0: start_heading = 270
+            return start_heading
+        
+        if (x - global_x)>0 and (y - global_y)>0:
+            start_heading = 90 - atan2(x_diff,y_diff)*(180/pi)
+    
+        if (x - global_x)<0 and (y - global_y)>0:
+            start_heading = 90 + atan2(x_diff,y_diff)*(180/pi)
+                        
+        if (x - global_x)<0 and (y - global_y)<0:
+            start_heading = 270 - atan2(x_diff,y_diff)*(180/pi)
+                        
+        if (x - global_x)>0 and (y - global_y)<0:
+            start_heading = 270 + atan2(x_diff,y_diff)*(180/pi)
+                                        
+        return start_heading
 
+    def distanceToGlobalCoord(self, x,y,global_x,global_y):
+        
+        y_diff = abs(y - global_y)
+        x_diff = abs(x - global_x)
+        
+        distance = sqrt(pow(y_diff,2)+pow(x_diff,2))
+        
+        return distance
+    
     def normalize_angle(self, angle):
         normalized = (angle%360+360)%360
         return normalized
         
     def execute (self, userdata):
-        global movebase_client
+        
         global locomotion_client
         global locomotionGoal
         global set_ConPIDMode
         
-        movebaseGoal = MoveBaseGoal()
+        move_base_mode = False
+        simple_nav_mode = True
         
         #Check is need to get cooridnate from param server; if place is not None but a string, use string to query param server for nav coords; if place is None, use x,y and yaw            
         if self.place != None:        
@@ -790,57 +817,98 @@ class NavMoveBase(smach.State):
             self.end_depth = rospy.get_param(self.place + '/depth')
             self.end_heading = rospy.get_param(self.place + '/heading')
 
+
+        if simple_nav_mode:
+
+            #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+            try:
+                resp = set_LocoMode(False, False)
+                rospy.loginfo("LocoMode set to Default by Navigation State")
+            except rospy.ServiceException, e:
+                rospy.loginfo("LocoMode Default NOT set: %s" % e) 
+    
+            #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+            try:
+                resp = set_ConPIDMode(True, True, True, True, False, False, True)
+                rospy.loginfo("PID and Mode is set")
+            except rospy.ServiceException, e:
+                rospy.loginfo("PID and Mode NOT set: %s" % e)
+
+            self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
+                
+            #Change Depth and Face Heading First
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
+    
+            locomotion_client.send_goal(goal)
+            rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
+            locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
+           
+            self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
+            self.distanceToCoord = self.distanceToGlobalCoord(self.x, self.y, global_x, global_y)
+
+            #Navigating to global coord
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distanceToCoord,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
+    
+            locomotion_client.send_goal(goal)
+            rospy.loginfo('Navigating to x=%s y=%s. Facing yaw=%s' % (str(self.x), str(self.y), str(self.start_heading)))
+            locomotion_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
+            
+        if move_base_mode:
+            global movebase_client
+            movebaseGoal = MoveBaseGoal()
+            
         #Generate Start_Heading to point vehicle in the direction of travel
         
-        self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
+            self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
+                
+            #Change Depth and Face Heading First
+            goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
+    
+            locomotion_client.send_goal(goal)
+            rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
+            locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
+                    
+            #convert yaw to move_base convention
+            ros_heading = self.normalize_angle((360-(self.start_heading))) * (pi/180) #self.start_heading * (pi/180) 
+            x,y,z,w = quaternion_from_euler(0,0,ros_heading) #input must be radians
+            rospy.logdebug('z= %s w= %s' % (str(z),str(w)))
+    
+            #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+            try:
+                resp = set_LocoMode(False, False)
+                rospy.loginfo("LocoMode set to Default")
+            except rospy.ServiceException, e:
+                rospy.loginfo("LocoMode Default NOT set: %s" % e) 
+    
+            #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+            try:
+                resp = set_ConPIDMode(True, True, True, True, False, False, True)
+                rospy.loginfo("PID and Mode is set")
+            except rospy.ServiceException, e:
+                rospy.loginfo("PID and Mode NOT set: %s" % e)
+                            
+            #Execute Nav
+            movebaseGoal.target_pose.header.frame_id = 'map'
+            movebaseGoal.target_pose.header.stamp = rospy.Time.now()
+            movebaseGoal.target_pose.pose.position.x = self.x
+            movebaseGoal.target_pose.pose.position.y = self.y * -1
+            movebaseGoal.target_pose.pose.orientation.x = 0
+            movebaseGoal.target_pose.pose.orientation.y = 0
+            movebaseGoal.target_pose.pose.orientation.z = z
+            movebaseGoal.target_pose.pose.orientation.w = w
             
-        #Change Depth and Face Heading First
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
-
-        locomotion_client.send_goal(goal)
-        rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
-        locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
-
-        #convert yaw to move_base convention
-        ros_heading = self.normalize_angle((360-(self.start_heading))) * (pi/180) #self.start_heading * (pi/180) 
-        x,y,z,w = quaternion_from_euler(0,0,ros_heading) #input must be radians
-        rospy.logdebug('z= %s w= %s' % (str(z),str(w)))
-
-        #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
-        try:
-            resp = set_LocoMode(False, False)
-            rospy.loginfo("LocoMode set to Default")
-        except rospy.ServiceException, e:
-            rospy.loginfo("LocoMode Default NOT set: %s" % e) 
-
-        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
-        try:
-            resp = set_ConPIDMode(True, True, True, True, False, False, True)
-            rospy.loginfo("PID and Mode is set")
-        except rospy.ServiceException, e:
-            rospy.loginfo("PID and Mode NOT set: %s" % e)
-                        
-        #Execute Nav
-        movebaseGoal.target_pose.header.frame_id = 'map'
-        movebaseGoal.target_pose.header.stamp = rospy.Time.now()
-        movebaseGoal.target_pose.pose.position.x = self.x
-        movebaseGoal.target_pose.pose.position.y = self.y * -1
-        movebaseGoal.target_pose.pose.orientation.x = 0
-        movebaseGoal.target_pose.pose.orientation.y = 0
-        movebaseGoal.target_pose.pose.orientation.z = z
-        movebaseGoal.target_pose.pose.orientation.w = w
+            movebase_client.send_goal(movebaseGoal)
+            rospy.loginfo('Navigating to x=%s y=%s. Facing yaw=%s' % (str(self.x), str(self.y), str(self.start_heading)))
+            movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
+    
+            #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+            try:
+                resp = set_ConPIDMode(True, True, True, True, False, False, False)
+                rospy.loginfo("PID and Mode is set")
+            except rospy.ServiceException, e:
+                rospy.loginfo("PID and Mode NOT set: %s" % e)
         
-        movebase_client.send_goal(movebaseGoal)
-        rospy.loginfo('Navigating to x=%s y=%s. Facing yaw=%s' % (str(self.x), str(self.y), str(self.start_heading)))
-        movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
-
-        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
-        try:
-            resp = set_ConPIDMode(True, True, True, True, False, False, False)
-            rospy.loginfo("PID and Mode is set")
-        except rospy.ServiceException, e:
-            rospy.loginfo("PID and Mode NOT set: %s" % e)
-            
+        #End Navigation with the following heading and depth    
         goal.depth_setpoint = self.end_depth
         goal.heading_setpoint = self.end_heading
         locomotion_client.send_goal(goal)
@@ -848,6 +916,7 @@ class NavMoveBase(smach.State):
         locomotion_client.wait_for_result(rospy.Duration(self.end_timeout,0))
         rospy.loginfo('Reached depth %s. Facing yaw=%s' % (str(self.end_depth), str(self.end_heading)))
         
+        #Update locomotionGoal
         locomotionGoal.depth_setpoint = self.end_depth
         locomotionGoal.heading_setpoint = self.end_heading
         return 'succeeded'
@@ -981,28 +1050,14 @@ if __name__ == '__main__':
 
     with sm_mission:
         smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(20,0.5,80),transitions={'succeeded':'HOVER'})
-        smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'GOFWD'})
-
-        smach.StateMachine.add('GOFWD', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER2'})
-        smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'GOFWD2'})
-
-        smach.StateMachine.add('GOFWD2', GoToDistance(40, 3, 'fwd'), transitions={'succeeded':'HOVER3'})
-        smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'GOFWD3'})
-
-        smach.StateMachine.add('GOFWD3', GoToDistance(40, 2, 'fwd'), transitions={'succeeded':'HOVER4'})
-        smach.StateMachine.add('HOVER4', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=80), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
-
-        smach.StateMachine.add('TASK', WaitOutAndSearch('acoustic','drivethru', 240), transitions={'task_succeeded':'HOVER5', 'search_succeeded':'TASK2','failed':'SURFACE_SADLY'})
-
-        smach.StateMachine.add('TASK2', WaitOut('drivethru', 180), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
-
-        smach.StateMachine.add('HOVER5', HoverSearch('drivethru', 120), transitions={'succeeded':'TASK2', 'failed':'SEARCH_LEFT'})    
-        smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 30, -1, 'sway'), transitions={'succeeded':'TASK2', 'failed':'SEARCH_RIGHT'})
-        smach.StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 30, 2, 'sway'), transitions={'succeeded':'TASK2', 'failed':'SURFACE_SADLY'})
-       
-        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
-        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
+        smach.StateMachine.add('START',Start(5,0.5,0),transitions={'succeeded':'WYPT1'})    
+#         smach.StateMachine.add('TURN_TO_GATE', GoToHeading(10, 70), transitions={'succeeded':'GO_TO_GATE'})
+#         smach.StateMachine.add('GO_TO_GATE', GoToDistance(30, 6, 'fwd'), transitions={'succeeded':'SURFACE_VICTORIOUSLY'})
+        smach.StateMachine.add('WYPT1', Nav(30,30,30, 1,3, 0.5,0.5,90), transitions={'succeeded':'WYPT2', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('WYPT2', Nav(30,30,30, 2,4, 0.5,0.5,90), transitions={'succeeded':'WYPT3', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('WYPT3', Nav(30,30,30, 1,3, 0.5,0.5,90), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})        
+        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.26), transitions={'succeeded':'mission_failed'})
+        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.26), transitions={'succeeded':'VICTORY_SPIN'})
         smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
  
 #    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
