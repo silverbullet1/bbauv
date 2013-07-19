@@ -839,7 +839,7 @@ class Nav(smach.State):
             #Change Depth and Face Heading First
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
     
-            locomotion_client.send_goal(goal)
+            locomotion_client.send_goal(goal) 
             rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
             locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
            
