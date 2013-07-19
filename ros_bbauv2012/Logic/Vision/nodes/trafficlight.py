@@ -46,6 +46,7 @@ depth_setpoint = 0.5
 cur_heading = 0
 
 SIDEMOVE_SETPOINT = 3
+FORWARD_SETPOINT = 0.5
 
 #HACK
 MAX_BUMPS = 2
@@ -551,6 +552,10 @@ class CenterOnLED(smach.State):
             sidemove_setpoint = -SIDEMOVE_SETPOINT
 
         forward_setpoint = 0
+        if userdata.adjustment == 'forward':
+            forward_setpoint = FORWARD_SETPOINT
+        elif userdata.adjustment == 'back':
+            forward_setpoint = -FORWARD_SETPOINT
 
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = userdata.heading,
