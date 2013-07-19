@@ -122,6 +122,7 @@ class Centering(smach.State):
         orientation_error = 0
         isOrientationDone = False
         center_complete = False
+        locomotionGoal.heading_setpoint = dt.yaw
         while(not center_complete and not rospy.is_shutdown()):
             if isAbort:
                 return 'mission_abort'
@@ -129,8 +130,8 @@ class Centering(smach.State):
                 side_error = drivethru_params['centering_y'] * (dt.centroid[0] - dt.cols / 2)
                 fwd_error = -drivethru_params['centering_x'] * (dt.centroid[1] - dt.rows / 2)
                 ###Conditional Checks for robust identification of target obstacles
-                if dt.find_times < -150:
-                    return "identification_failed"
+                #if dt.find_times < -250:
+                #    return "identification_failed"
                 if(dt.orientation != 0):
                     if isOrientationDone == False:
                         if(dt.orientation > 90):
@@ -235,7 +236,7 @@ class Grabbing(smach.State):
         if isAbort:
             return "mission_abort"
         rospy.loginfo("Pizza Box Target locked. Descending to pick up.")
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.01,
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=-0.10,
                                              heading_setpoint=locomotionGoal.heading_setpoint,
                                              depth_setpoint=locomotionGoal.depth_setpoint + 1.25,
                                              sidemove_setpoint=-0.03)
@@ -325,10 +326,13 @@ def handle_srv(req):
     global isAbort
     global locomotionGoal
     global dt
-    print req._connection_header['callerid']
+    
+    
     if req.start_request:
         isStart = True
         isAbort = False
+        print req.start_ctrl.depth_setpoint
+        print req.start_ctrl.heading_setpoint
         # Format for service: start_response, abort_response
         locomotionGoal = req.start_ctrl
     if req.abort_request:
