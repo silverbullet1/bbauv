@@ -104,9 +104,9 @@ def getLedAdjustment():
         elif centroid[0] < X_MIN:
             return 'left'
 
-        if rect[3] < X_MIN:
+        if rect[3] < W_MIN:
             return 'forward'
-        elif rect[3] > X_MAX:
+        elif rect[3] > W_MAX:
             return 'back'
 
 
