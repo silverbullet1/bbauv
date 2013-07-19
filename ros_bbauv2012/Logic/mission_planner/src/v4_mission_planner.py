@@ -834,7 +834,7 @@ class Nav(smach.State):
             except rospy.ServiceException, e:
                 rospy.loginfo("PID and Mode NOT set: %s" % e)
 
-            self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
+            self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
                 
             #Change Depth and Face Heading First
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
@@ -843,7 +843,7 @@ class Nav(smach.State):
             rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
             locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
            
-            self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
+            self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
             self.distanceToCoord = self.distanceToGlobalCoord(self.x, self.y, global_x, global_y)
 
             #Navigating to global coord
@@ -859,7 +859,7 @@ class Nav(smach.State):
             
         #Generate Start_Heading to point vehicle in the direction of travel
         
-            self.start_heading = self.start_heading(self.x, self.y, global_x, global_y)
+            self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
                 
             #Change Depth and Face Heading First
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
@@ -898,7 +898,7 @@ class Nav(smach.State):
             movebaseGoal.target_pose.pose.orientation.w = w
             
             movebase_client.send_goal(movebaseGoal)
-            rospy.loginfo('Navigating to x=%s y=%s. Facing yaw=%s' % (str(self.x), str(self.y), str(self.start_heading)))
+            rospy.loginfo('Navigating t_geno x=%s y=%s. Facing yaw=%s' % (str(self.x), str(self.y), str(self.start_heading)))
             movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
     
             #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
