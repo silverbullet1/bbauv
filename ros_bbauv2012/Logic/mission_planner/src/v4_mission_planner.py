@@ -133,6 +133,9 @@ class GoToDistance(smach.State):
         rospy.loginfo('Going %s distance %s' % (str(self.direction), str(self.distance)))                                            
         locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
+
+        locomotionGoal.depth_setpoint = goal.depth_setpoint 
+        locomotionGoal.heading_setpoint = goal.heading_setpoint
              
         return 'succeeded'
 
@@ -345,7 +348,7 @@ class HoverSearch(smach.State):
                 locomotion_client.send_goal(goal)
                 locomotion_client.wait_for_result(rospy.Duration(1,0))
                                     
-            if isSearchDone:                
+            if isSearchDone:
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
             
@@ -475,11 +478,15 @@ class LinearSearch(smach.State):
                     return 'failed'
                                     
             if isSearchDone:
+                locomotionGoal.depth_setpoint = goal.depth_setpoint 
+                locomotionGoal.heading_setpoint = goal.heading_setpoint
                 locomotion_client.cancel_all_goals()             
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
             
             if isSearchFailed:
+                locomotionGoal.depth_setpoint = goal.depth_setpoint 
+                locomotionGoal.heading_setpoint = goal.heading_setpoint
                 locomotion_client.cancel_all_goals()
                 rospy.loginfo("Failed to find %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'failed'            
@@ -535,10 +542,11 @@ class WaitOut(smach.State):
         start_time = rospy.get_time()
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
-            if isTaskComplete:
+            if isTaskComplete:               
                 rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
             if isTaskFailed:
+              
                 rospy.loginfo("Failed to complete %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'failed'
             r.sleep()
@@ -592,8 +600,11 @@ class WaitOutAndSearch(smach.State):
         isSearchFailed = False
         
         rospy.loginfo("Entering %s %s state; Searching for %s at the same time" % (self.waitout_task_name, self.name, self.search_task_name))  
-
-        #Connecting to task server;
+        
+        print 'testing sending non positive depth to Eng Wei'
+        locomotionGoal.depth_heading = 0.5
+        
+        #Connecting to Waiout and Search task server;
         if self.waitout_task_name != 'lane':
             rospy.wait_for_service(self.waitout_task_srv_name)
             self.waitout_task_srv = rospy.ServiceProxy(self.waitout_task_srv_name, mission_to_vision)
@@ -627,7 +638,7 @@ class WaitOutAndSearch(smach.State):
 
             if isSearchDone:
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
-
+                
                 #Aborting WaitOut task due to search task found
                 if self.waitout_task_name == 'lane':
                     try:
@@ -648,6 +659,7 @@ class WaitOutAndSearch(smach.State):
 
             if isTaskComplete:
                 rospy.loginfo("Task Completed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
+
 
                 #Aborting Search task due to waitout task complete
                 if self.search_task_name == 'lane':
@@ -671,6 +683,7 @@ class WaitOutAndSearch(smach.State):
             #As of 18th July2013, only the Acoustics task tell mission that Search has failed. 
             #All vision task will keep searching and have no fail condition
             if isSearchFailed:
+                
                 rospy.loginfo("Search Failed %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
                 return 'failed'
 
@@ -698,6 +711,7 @@ class WaitOutAndSearch(smach.State):
             r.sleep()
         
         #Aborting task due to timeout
+              
         if self.waitout_task_name == 'lane':
             try:
                 rospy.loginfo('Timed Out: Failed to complete %s' % self.waitout_task_name)
