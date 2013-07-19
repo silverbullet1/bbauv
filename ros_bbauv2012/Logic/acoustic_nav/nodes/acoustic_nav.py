@@ -57,10 +57,11 @@ class CollectTDOA(smach.State):
         new_data=False
         while (not tdoa_queue.empty()):
             tdoa_queue.get()
-        rospy.loginfo('Current Pose: x={0},y={1},z={2},yaw={3}'
+        rospy.loginfo('Current Pose: x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f}'
                     .format(search_position.x,search_position.y,search_depth,cur_heading))
         for i in range(self.samples):
             start_time = rospy.get_time()
+            rospy.loginfo('waiting for #{0} ping...'.format(i+1))
             while (not new_data and not isAbort and not rospy.is_shutdown()
                     and (rospy.get_time() - start_time) < self.timeout):
                 rospy.sleep(1)
@@ -102,10 +103,9 @@ class CorrectHeading(smach.State):
         
         tdoa_backup=tdoa_queue
 
-        rospy.loginfo('yaw = {0}, cur_heading = {1}'.format(yaw,cur_heading))
         (rel_heading, z) = triangulate(tdoa_queue, "farfield")
-        rospy.loginfo('yaw = {0}, cur_heading = {1}'.format(yaw,cur_heading))
-        rospy.loginfo('==>rel_heading={0}, z={1}'.format(rel_heading,z))
+        rospy.loginfo('yaw = {0:.3f}, cur_heading = {1:.3f}'.format(yaw,cur_heading))
+        rospy.loginfo('==>rel_heading={0:.3f}, z={1:.3f}'.format(rel_heading,z))
         rospy.loginfo("correcting heading....")
         new_heading = (cur_heading + rel_heading) % 360
 
@@ -134,7 +134,8 @@ class GoToXY(smach.State):
     def execute(self,userdata):
         global tdoa_queue
         global cur_heading
-
+        global isAbort
+        global isStart
         if isAbort:
             return 'aborted'
 
@@ -153,12 +154,13 @@ class GoToXY(smach.State):
                 ctrl = controller()
                 ctrl.depth_setpoint = search_depth
                 ctrl.heading_setpoint = cur_heading
-                if not isStart:
-                    rospy.loginfo('Finish! Send srv_request: ',resp)
+                if not isAbort:
                     resp = mission_srv_request(None, True, ctrl)
+                    rospy.loginfo('Finish! Send srv_request:',resp)
+                    isAbort = True
+                    isStart = False
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" % e)
-
         return 'completed'
 
 '''MoveForward state - Simply move forward =))))) 
@@ -186,7 +188,8 @@ class Recover(smach.State):
     def execute(self,userdata):
         global cur_heading
         global recover_time
-
+        global isAbort
+        global isStart
         if isAbort: 
             return 'aborted'
         if recover_time == 3:
@@ -198,7 +201,9 @@ class Recover(smach.State):
                     ctrl.heading_setpoint = cur_heading
                     if not isAbort:
                         resp = mission_srv_request(None, False, ctrl)
-                    rospy.loginfo(resp)
+                        isAbort = True
+                        isStart = False
+                        rospy.loginfo('Replying to mission: ',resp)
                 except rospy.ServiceException, e:
                     rospy.loginfo("Service call failed: %s" % e)
             return 'aborted'
@@ -304,7 +309,7 @@ def triangulate(data_queue, mode):
                 Ph = (1 - Kh) * Ph
                 Pz = (1 - Kz) * Pz
 
-                rospy.loginfo('(rel_heading,z)=({0},{1})'.format(rel_heading,z))
+                rospy.loginfo('(rel_heading,z)=({0:.3f},{1:.3f})-->(f_heading={2:.3f},f_z={3:.3f})'.format(rel_heading,z,filter_heading,filter_z))
             else:
                 rospy.loginfo("z smaller than 0")
         return filter_heading, filter_z
@@ -325,8 +330,8 @@ def triangulate(data_queue, mode):
             filter_y = filter_y + Ky * (y - filter_y)
             Px = (1 - Kx) * Px
             Py = (1 - Ky) * Py
-
-            rospy.loginfo('(x,y)=({0},{1})'.format(x,y))
+            
+            rospy.loginfo('(x,y)=({0:.3f},{1:.3f})-->(f_x,f_y)=({2:.3f},{3:.3f})'.format(x,y,filter_x,filter_y))
         return filter_x, filter_y
 
 def get_tdoa(msg):
@@ -407,10 +412,10 @@ new_data = False
 new_heading = 0
 
 #seach state parameters
-search_depth = 0.4
+search_depth = 0.5
 search_distance = 3
 z_threshold = 0.5
-ver_dist_to_pinger = 2.2 
+ver_dist_to_pinger = 1.73
 x_offset = 0.27
 y_offset = -0.065
 search_position = Point()
@@ -424,7 +429,7 @@ def dynamic_reconfigure_cb(config,level):
     global ver_dist_to_pinger
     global x_offset
     global y_offset
-    
+    print 'geting parameter from dynamic reconfigure...' 
     isTest = config['isTest']
     isAbort= config['isAbort']
     x_offset=config['x_offset']
@@ -432,7 +437,8 @@ def dynamic_reconfigure_cb(config,level):
     search_depth=config['search_depth']
     search_distance=config['search_distance']
     z_threshold =config['z_threshold']
-    ver_dist_to_pinger=config['pinger_z']
+    ver_dist_to_pinger=config['altitude_at_pinger']-0.5+0.13 
+    #1.13: dist from hydrophone to DVL, 0.5, height of pinger
     return config
 if __name__ == '__main__':
     rospy.init_node('acoustic_navigation')

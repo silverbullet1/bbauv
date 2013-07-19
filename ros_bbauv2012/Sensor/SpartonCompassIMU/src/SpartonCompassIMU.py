@@ -90,7 +90,7 @@ if __name__ == '__main__':
     #SpartonPose2D.x=float(0.0)
     #SpartonPose2D.y=float(0.0)
     #Init D_Compass port
-    D_Compassport = rospy.get_param('~port','/dev/ttyAHRS')
+    D_Compassport = rospy.get_param('~port','/dev/ttyUSB0')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
     D_Compassprintmodulus = rospy.get_param('~printmodulus',1)
@@ -190,7 +190,7 @@ if __name__ == '__main__':
             #print fields[0]+fields[2]+fields[6]+fields[10]+fields[12] #P:apgpytq
 
             try:
-                if len(fields)>16:
+                if len(fields) > 18:
                         if 'P:apgpytqT' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]):
 
                                 #      0  1 mSec 2  3Ax  4Ay     5Az     5  7Gx  8Gy  9G    10 11YawT 1213w  14x   15y  16z
