@@ -251,11 +251,13 @@ class Disengage(smach.State):
     def execute(self,userdata):
         global locomotionGoal
         global isStart
+        global isAbort
         global isEnd        
         global park
 
         isStart = False
-        
+        isAbort = False
+
         r = rospy.Rate(20)
         while (not rospy.is_shutdown()):
             if isEnd:
@@ -308,6 +310,7 @@ class MotionControlProcess(smach.State):
         global park
         global locomotionGoal
         global isEnd
+        global set_LocoMode
         
         rospy.loginfo("Executing state MOTION CONTROL")
         actionClient = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
@@ -358,6 +361,14 @@ class MotionControlProcess(smach.State):
             if park.area>=params['area_thresh']: 
 #                 rospy.loginfo("Target Near Enough; Executing Last Maneuver")
                 #Final State to change depth and move forward
+
+                #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+                try:
+                    resp = set_LocoMode(False, False)
+                    rospy.loginfo("LocoMode set to Default")
+                except rospy.ServiceException, e:
+                    rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
+
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
                 goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
@@ -365,12 +376,26 @@ class MotionControlProcess(smach.State):
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Final: Depth change! area=%d' % (park.area))
                 actionClient.wait_for_result(rospy.Duration(10,0))
+
+                #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+                try:
+                    resp = set_LocoMode(False, True)
+                    rospy.loginfo("LocoMode set to Sidemove")
+                except rospy.ServiceException, e:
+                    rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
                                 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = params['final_moonwalk']
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Final: Moonwalking!')
                 actionClient.wait_for_result(rospy.Duration(40,0))
+
+                #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+                try:
+                    resp = set_LocoMode(False, False)
+                    rospy.loginfo("LocoMode set to Default")
+                except rospy.ServiceException, e:
+                    rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
 
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
@@ -387,7 +412,7 @@ class MotionControlProcess(smach.State):
                 except rospy.ServiceException, e:
                    print "Service call failed: %s"%e
                 
-                isEnd = True   
+                isEnd = False   
                 return 'task_complete'                
 
             if isAbort:
@@ -433,6 +458,8 @@ mission_srv = None
 #vision server object; this is how mission comms with vision
 vision_srv = None
 
+set_LocoMode = None
+
 params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh':0, 
           'closeiter':0, 'openiter':0, 'conArea':0, 'conPeri':0, 'aspectRatio':0, 
           'targetLockHistoryThresh':0, 'XstdDevThresh':0, 'YstdDevThresh':0, 'debug_mode':0, 
@@ -460,6 +487,12 @@ if __name__ == '__main__':
     rospy.wait_for_service('mission_srv')
     mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
     rospy.loginfo('Park connected to mission_srv!')
+    
+    #Getting ready service to change locomotion mode
+    rospy.loginfo('Parking Waiting for Locomotion Modes Service to start up...')
+    rospy.wait_for_service('locomotion_mode_srv')
+    set_LocoMode = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+    rospy.loginfo('Parking Connected to Locomotion Mode Service')
       
     #Computer vision processing instantiation
     park = Parking_Proc()
@@ -482,7 +515,7 @@ if __name__ == '__main__':
         sis.stop()
         print "Shutting down"
 
-    rospy.signal_shutdown("Deactivating Park Node")
+#    rospy.signal_shutdown("Deactivating Park Node")
 #    park = Parking_Proc()
 #    park.register()
 #    rospy.spin()
