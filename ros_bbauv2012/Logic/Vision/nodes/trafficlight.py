@@ -30,7 +30,7 @@ import smach
 import smach_ros
 
 # GLOBALS
-TEST_MODE = True
+TEST_MODE = False
 DEBUG = True
 firstRun = True
 firstRunAction = True
@@ -573,6 +573,7 @@ if __name__ == '__main__':
     imageTopic = rospy.get_param('~image', '/stereo_camera/left/image_rect_color')
     depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
+    TEST_MODE = rospy.get_param('~testmode', False)
 
     # Set up param configuration window
     def configCallback(config, level):

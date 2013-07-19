@@ -35,7 +35,7 @@ SINGLE_BOARD_MODE = False # Set to True if just going for a single color
 COMPETITION_TARGETS = ['red','red'] if SINGLE_BOARD_MODE else ['red', 'blue']
 
 # GLOBALS
-TEST_MODE = True
+TEST_MODE = False
 DEBUG = True
 camdebug = None
 tollbooth = None
@@ -565,6 +565,7 @@ if __name__ == '__main__':
     imageRightTopic = rospy.get_param('~imageRight', '/stereo_camera/right/image_rect_color')
     depthTopic = rospy.get_param('~depth', '/depth')
     compassTopic = rospy.get_param('~compass', '/euler')
+    TEST_MODE = rospy.get_param('~testmode', False)
 
     manipulator_pub = rospy.Publisher('/manipulators', manipulator)
 
