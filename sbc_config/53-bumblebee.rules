@@ -12,8 +12,8 @@ ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0042", KERNEL=="ttyACM[0-9]", SYMLIN
 # DVL
 ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", KERNEL=="ttyUSB[0-9]", SYMLINK+="ttyDVL"
 
-# AHRF
-ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", KERNEL=="ttyUSB[0-9]", SYMLINK+="ttyAHRS"
+# AHRS
+ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", KERNEL=="ttyUSB[0-9]", ATTRS{serial}=="FTFUUY6A", SYMLINK+="ttyAHRS"
 
 # Microsoft Webcams
 KERNEL=="video[0-9]", ATTRS{idVendor}=="045e", ATTRS{idProduct}=="075d", KERNELS=="1-1.1", SYMLINK+="videoFront"
