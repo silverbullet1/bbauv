@@ -46,6 +46,8 @@ cur_heading = 0
 imageSub = None
 gunSide = 'left'
 
+MIN_DEPTH = 0.5
+
 isAborted = False
 mission_srv = None
 
@@ -210,7 +212,7 @@ class Correction:
         self.hole_offset = (0, -100)
 
     def correct(self):
-        hoverDepth = depth_setpoint
+        hoverDepth = min(MIN_DEPTH, depth_setpoint)
         hoverHeading = tollbooth.heading
         offsets = {}
         offsets['targetLostCount'] = 0
@@ -292,6 +294,7 @@ class Correction:
 
                 factor = 1 - h/float(H) # attenuation factor
                 hoverDepth = depth_setpoint + factor * self.DEPTH_K * offsets['y']
+                hoverDepth = min(MIN_DEPTH, hoverDepth)
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = hoverHeading,
                         depth_setpoint = hoverDepth
@@ -455,7 +458,7 @@ class Backoff(smach.State):
 
     def execute(self, userdata):
         hoverHeading = tollbooth.heading
-        hoverDepth = depth_setpoint
+        hoverDepth = min(MIN_DEPTH, depth_setpoint)
 
         # Switch eye
         global currentEye, imageSub
