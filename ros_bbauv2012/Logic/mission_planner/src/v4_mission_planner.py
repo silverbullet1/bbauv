@@ -101,6 +101,9 @@ class GoToDistance(smach.State):
         global locomotionGoal
         global locomotion_client
         global set_LocoMode
+
+        rospy.loginfo("Entering GoToDistance state; locomotionGoal currently at depth %s and heading %s" 
+                      % (str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
         
         if self.direction == 'fwd':
 
@@ -134,8 +137,8 @@ class GoToDistance(smach.State):
         locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
 
-        locomotionGoal.depth_setpoint = goal.depth_setpoint 
-        locomotionGoal.heading_setpoint = goal.heading_setpoint
+        locomotionGoal.forward_setpoint = 0
+        locomotionGoal.sidemove_setpoint = 0
              
         return 'succeeded'
 
@@ -149,6 +152,9 @@ class GoToDepth(smach.State):
     def execute(self,userdata):
         global locomotionGoal
         global locomotion_client
+
+        rospy.loginfo("Entering GoToDepth state; locomotionGoal currently at depth %s and heading %s" 
+                      % (str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
         if self.depth == None:
             if locomotionGoal.depth_setpoint > 0 :
@@ -170,7 +176,10 @@ class GoToDepth(smach.State):
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
         
         #Updating locomotionGoal
-        locomotionGoal.depth_setpoint = goal.depth_setpoint        
+        locomotionGoal.depth_setpoint = goal.depth_setpoint      
+        locomotionGoal.forward_setpoint = 0
+        locomotionGoal.sidemove_setpoint = 0
+        
         return 'succeeded'
 
 class GoToHeading(smach.State):
@@ -188,6 +197,9 @@ class GoToHeading(smach.State):
         global locomotionGoal
         global locomotion_client
         global set_LocoMode
+
+        rospy.loginfo("Entering GoToHeading state; locomotionGoal currently at depth %s and heading %s" 
+                      % (str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
         
         #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
         try:
@@ -212,7 +224,10 @@ class GoToHeading(smach.State):
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
         
         #Updating locomotionGoal
-        locomotionGoal.heading_setpoint = goal.heading_setpoint      
+        locomotionGoal.heading_setpoint = goal.heading_setpoint
+        locomotionGoal.forward_setpoint = 0
+        locomotionGoal.sidemove_setpoint = 0
+                     
         return 'succeeded'
 
     
@@ -290,7 +305,8 @@ class HoverSearch(smach.State):
         isSearchFailed = False
         isSearchDone = False
 
-        rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))
+        rospy.loginfo("Entering %s %s state; locomotionGoal currently at depth %s and heading %s" 
+                      % (self.task_name, self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
         #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
         try:
@@ -301,7 +317,7 @@ class HoverSearch(smach.State):
         
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
-            resp = set_ConPIDMode(True, True, True, True, False, False, False)
+            resp = set_ConPIDMode(True, True, True, True, True, False, False)
             rospy.loginfo("PID and Mode is set")
         except rospy.ServiceException, e:
             rospy.loginfo("PID and Mode NOT set: %s" % e)
@@ -317,10 +333,17 @@ class HoverSearch(smach.State):
         #Seeding goal
         goal = bbauv_msgs.msg.ControllerGoal()
         if self.start_heading == None: goal.heading_setpoint = locomotionGoal.heading_setpoint
-        if self.start_heading != None: goal.heading_setpoint = locomotionGoal.heading_setpoint = self.start_heading
+        
+        if self.start_heading != None: 
+            goal.heading_setpoint = self.start_heading
+            locomotionGoal.heading_setpoint = self.start_heading
+            
         if self.start_depth == None: goal.depth_setpoint = locomotionGoal.depth_setpoint
-        if self.start_depth != None: goal.depth_setpoint = locomotionGoal.depth_setpoint = self.start_depth
-        rospy.logdebug("start_heading = %s, start_depth = %s" % (str(goal.heading_setpoint), str(goal.depth_setpoint)))
+        
+        if self.start_depth != None: 
+            goal.depth_setpoint = self.start_depth
+            locomotionGoal.depth_setpoint = self.start_depth
+            
         goal.forward_setpoint = 0
         goal.sidemove_setpoint = 0
 
@@ -409,7 +432,8 @@ class LinearSearch(smach.State):
         isSearchFailed = False
         isSearchDone = False
         
-        rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
+        rospy.loginfo("Entering %s %s state; locomotionGoal currently at depth %s and heading %s" 
+                      % (self.task_name, self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
         
         #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
         try:
@@ -420,7 +444,7 @@ class LinearSearch(smach.State):
 
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
-            resp = set_ConPIDMode(True, True, True, True, False, False, False)
+            resp = set_ConPIDMode(True, True, True, True, True, False, False)
             rospy.loginfo("PID and Mode is set")
         except rospy.ServiceException, e:
             rospy.loginfo("PID and Mode NOT set: %s" % e)
@@ -437,10 +461,16 @@ class LinearSearch(smach.State):
         #Seeding goal
         goal = bbauv_msgs.msg.ControllerGoal()
         if self.start_heading == None: goal.heading_setpoint = locomotionGoal.heading_setpoint
-        if self.start_heading != None: goal.heading_setpoint = locomotionGoal.heading_setpoint = self.start_heading
+        
+        if self.start_heading != None: 
+            goal.heading_setpoint = self.start_heading
+            locomotionGoal.heading_setpoint = self.start_heading
+            
         if self.start_depth == None: goal.depth_setpoint = locomotionGoal.depth_setpoint
-        if self.start_depth != None: goal.depth_setpoint = locomotionGoal.depth_setpoint = self.start_depth
-        rospy.logdebug("start_heading = %s, start_depth = %s" % (str(goal.heading_setpoint), str(goal.depth_setpoint)))
+        
+        if self.start_depth != None: 
+            goal.depth_setpoint = self.start_depth
+            locomotionGoal.depth_setpoint = self.start_depth
                 
         #Begin Searching For Task
         if self.task_name == 'lane':
@@ -528,7 +558,8 @@ class WaitOut(smach.State):
         isTaskFailed = False
         isTaskComplete = False     
            
-        rospy.loginfo("Entering %s %s state" % (self.task_name, self.name))  
+        rospy.loginfo("Entering %s %s state; locomotionGoal currently at depth %s and heading %s" 
+                      % (self.task_name, self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
         #connecting to task server;      
         if self.task_name != 'lane':        
@@ -545,8 +576,7 @@ class WaitOut(smach.State):
             if isTaskComplete:               
                 rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
-            if isTaskFailed:
-              
+            if isTaskFailed:              
                 rospy.loginfo("Failed to complete %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'failed'
             r.sleep()
@@ -599,13 +629,15 @@ class WaitOutAndSearch(smach.State):
         isSearchDone = False
         isSearchFailed = False
         
-        rospy.loginfo("Entering %s %s state; Searching for %s at the same time" % (self.waitout_task_name, self.name, self.search_task_name))  
+        rospy.loginfo("Entering %s %s state; Searching for %s at the same time ; locomotionGoal currently at depth %s and heading %s"
+                      % (self.waitout_task_name, self.name, self.search_task_name, 
+                         str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint)))  
         
-        print 'testing sending positive depth to Eng Wei'
-        locomotionGoal.depth_setpoint = 0.5
+#         print 'testing sending positive depth to Eng Wei'
+#         locomotionGoal.depth_setpoint = 0.5
 #        print 'took out manually sending of positive depth to eng wei'
         
-        #Connecting to Waiout and Search task server;
+        #Connecting to Waitout and Search task server;
         if self.waitout_task_name != 'lane':
             rospy.wait_for_service(self.waitout_task_srv_name)
             self.waitout_task_srv = rospy.ServiceProxy(self.waitout_task_srv_name, mission_to_vision)
@@ -828,6 +860,9 @@ class Nav(smach.State):
         
         move_base_mode = False
         simple_nav_mode = True
+
+        rospy.loginfo("Entering %s state; locomotionGoal currently at depth %s and heading %s" 
+                      % (self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
         
         #Check is need to get cooridnate from param server; if place is not None but a string, use string to query param server for nav coords; if place is None, use x,y and yaw            
         if self.place != None:        
@@ -860,7 +895,7 @@ class Nav(smach.State):
             self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
 
             heading_goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
-            rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))
+            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))
             locomotion_client.send_goal(heading_goal) 
             rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
             locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
@@ -879,7 +914,7 @@ class Nav(smach.State):
             except rospy.ServiceException, e:
                 rospy.loginfo("LocoMode Default NOT set: %s" % e) 
 
-            rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
+            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
             locomotion_client.send_goal(nav_goal)
             rospy.loginfo('Navigating to x=%s y=%s.' % (str(self.x), str(self.y)))
             locomotion_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
@@ -896,7 +931,7 @@ class Nav(smach.State):
             except rospy.ServiceException, e:
                 rospy.loginfo("LocoMode Default NOT set: %s" % e) 
 
-            rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
+            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
             locomotion_client.send_goal(finalheading_goal)
             rospy.loginfo('Navigation Final Turn.')
             locomotion_client.wait_for_result(rospy.Duration(20,0))
@@ -906,7 +941,7 @@ class Nav(smach.State):
 
             finalnav_goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distanceToCoord,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
 
-            rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
+            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
             locomotion_client.send_goal(finalnav_goal)
             rospy.loginfo('Navigation Final Move.')
             locomotion_client.wait_for_result(rospy.Duration(20,0))
@@ -984,12 +1019,16 @@ def handle_srv(req):
     global isSearchFailed
     global isTaskComplete
     global isTaskFailed
+    global task_id
     
     search_call = False
     task_call = False
     
-    rospy.loginfo("Mission Server Received A Service Call")
-
+    if "id" in req._connection_header:
+        task_id = req._connection_header['id']
+        
+        rospy.loginfo('Service call made by task to mission server')
+    
     #Search completion request from Vision Node.
     if(req.search_request):
         isSearchDone = True
@@ -1055,6 +1094,7 @@ global_y = 0
 global_heading = 0
 global_depth = 0.3
 global_altitude = 0
+task_id = None
 marker_id = 1
 
 if __name__ == '__main__':
@@ -1106,29 +1146,68 @@ if __name__ == '__main__':
     sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
     with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(5,1,240),transitions={'succeeded':'HOVER'})
-        smach.StateMachine.add('HOVER', HoverSearch('park', 60), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('TASK', WaitOut('park', 60), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
-        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
-        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
- 
-#    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
+        smach.StateMachine.add('COUNTDOWN', Countdown(700), transitions={'succeeded':'START'})
+        smach.StateMachine.add('START',Start(5,0.5,90),
+                                transitions={'succeeded':'TOLL_TASK'})
 
-#    with sm_mission:
-#        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-#        smach.StateMachine.add('START',Start(10,0.26,70),transitions={'succeeded':'GO_FWD'})
-#        smach.StateMachine.add('GO_FWD', GoToDistance(80, 11, 'fwd'), transitions={'succeeded':'HOVER'})
-#        smach.StateMachine.add('HOVER', HoverSearch('tollbooth', 30), transitions={'succeeded':'TOLLBOOTH', 'failed':'MOVERIGHT'})
-#        smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 180), transitions={'succeeded':'RISE', 'failed': 'RISE'})
-#        smach.StateMachine.add('RISE', GoToDepth(10, 0.26), transitions={'succeeded':'FACEWALL'})
-#        smach.StateMachine.add('FACEWALL', GoToHeading(10, 90), transitions={'succeeded':'MOVERIGHT'})
-#        smach.StateMachine.add('MOVERIGHT', LinearSearch('speedtrap', 60, 4, 'sway'), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
-#        smach.StateMachine.add('TASK', WaitOut('speedtrap', 120), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
-#        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.26), transitions={'succeeded':'mission_failed'})
-#        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.26), transitions={'succeeded':'VICTORY_SPIN'})
-#        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
+        toll = smach.StateMachine(outcomes=['toll_complete', 'toll_failed'])
+        with toll:
+            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.8), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('SEARCH', LinearSearch('tollbooth', 30, 1, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('tollbooth', 30, -1, 'sway'), transitions={'succeeded':'STORE', 'failed':'toll_failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_toll'), transitions={'succeeded':'TOLLBOOTH'})            
+            smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 150), transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})
+        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'SPEED_TASK'})
+
+        speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
+        with speed:
+            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.5), transitions={'succeeded':'TURN'})
+            smach.StateMachine.add('TURN', GoToHeading(15,90), transitions={'succeeded':'GOFWD'})
+            smach.StateMachine.add('GOFWD', GoToDistance(15,1,'fwd'), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 3, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
+            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH4'})            
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_speed'), transitions={'succeeded':'SPEEDTRAP'})
+            smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 150), transitions={'succeeded':'speed_complete', 'failed':'speed_failed'})           
+        smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'PARK_TASK', 'speed_failed':'PARK_TASK'})
+
+        park = smach.StateMachine(outcomes=['park_complete', 'park_failed'])
+        with park:
+            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,1), transitions={'succeeded':'TURN'})
+            smach.StateMachine.add('TURN', GoToHeading(15,270), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('SEARCH', HoverSearch('park', 60), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('park', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'park_failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_park1'), transitions={'succeeded':'PARK'})            
+            smach.StateMachine.add('PARK', WaitOut('park', 180), transitions={'succeeded':'DEPTHCHANGE2', 'failed':'park_failed'})
+            smach.StateMachine.add('DEPTHCHANGE2', GoToDepth(10,0.5), transitions={'succeeded':'park_complete'})
+        smach.StateMachine.add('PARK_TASK', park, transitions={'park_complete':'DRIVE_THRU_TASK', 'park_failed':'DRIVE_THRU_TASK'})
+
+        drive_thru = smach.StateMachine(outcomes=['drive_complete', 'drive_failed'])
+        with drive_thru:
+            
+            #Searching for Pinger
+            smach.StateMachine.add('TURN', GoToHeading(15,20), transitions={'succeeded':'HOVER'})
+            smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30), transitions={'succeeded':'PINGER', 'failed':'GOFWD'})
+            smach.StateMachine.add('GOFWD', GoToDistance(40, 1, 'fwd'), transitions={'succeeded':'HOVER2'})
+            smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30), transitions={'succeeded':'PINGER', 'failed':'GOFWD2'})    
+            smach.StateMachine.add('GOFWD2', GoToDistance(40, 1, 'fwd'), transitions={'succeeded':'HOVER3'})
+            smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30), transitions={'succeeded':'PINGER', 'failed':'drive_failed'})
+    
+            smach.StateMachine.add('PINGER', WaitOutAndSearch('acoustic','drivethru', 180), transitions={'task_succeeded':'HOVER4', 'search_succeeded':'PICKUP','failed':'drive_failed'})
+    
+            smach.StateMachine.add('PICKUP', WaitOut('drivethru', 180), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
+    
+            smach.StateMachine.add('HOVER4', HoverSearch('drivethru', 120), transitions={'succeeded':'PICKUP' , 'failed':'SEARCH_LEFT'})    
+            smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 30, -1, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
+            smach.StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 30, 2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'drive_failed'})
+
+        smach.StateMachine.add('DRIVE_THRU_TASK', drive_thru, transitions={'drive_complete' : 'HOME' , 'drive_failed': 'SURFACE_SADLY' })
+        
+        smach.StateMachine.add('HOME', Nav(30,60,30,0,0,0.5,0.5,0), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
+        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.27), transitions={'succeeded':'mission_failed'})
+        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.27), transitions={'succeeded':'VICTORY_SPIN'})
+        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
+
 
 ### Mission Ends Here ###  
 
