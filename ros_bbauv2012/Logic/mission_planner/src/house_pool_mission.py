@@ -16,16 +16,18 @@ if __name__ == '__main__':
             smach.StateMachine.add('SEARCH2', LinearSearch('tollbooth', 30, -1, 'sway'), transitions={'succeeded':'STORE', 'failed':'toll_failed'})
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_toll'), transitions={'succeeded':'TOLLBOOTH'})            
             smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 150), transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})
-        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'SPEED_TASK'})
+        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'SPEED_TASK', 'toll_failed':'TOLLFAILMOVEFWD'})
+
+        smach.StateMachine.add('TOLLFAILMOVEFWD', GoToDistance(20,2,'fwd'), transitions={'succeeded':'SPEED_TASK'})
 
         speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
         with speed:
             smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.5), transitions={'succeeded':'TURN'})
             smach.StateMachine.add('TURN', GoToHeading(15,90), transitions={'succeeded':'GOFWD'})
-            smach.StateMachine.add('GOFWD', GoToDistance(15,1,'fwd'), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('GOFWD', GoToDistance(15,0.5,'fwd'), transitions={'succeeded':'SEARCH'})
             smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 3, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
             smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH4'})            
+            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3, 'sway'), transitions={'succeeded':'STORE', 'failed':'speed_failed'})    
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_speed'), transitions={'succeeded':'SPEEDTRAP'})
             smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 150), transitions={'succeeded':'speed_complete', 'failed':'speed_failed'})           
         smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'PARK_TASK', 'speed_failed':'PARK_TASK'})
@@ -37,7 +39,7 @@ if __name__ == '__main__':
             smach.StateMachine.add('SEARCH', HoverSearch('park', 60), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
             smach.StateMachine.add('SEARCH2', LinearSearch('park', 60, 2, 'sway'), transitions={'succeeded':'STORE', 'failed':'park_failed'})
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_park1'), transitions={'succeeded':'PARK'})            
-            smach.StateMachine.add('PARK', WaitOut('park', 180), transitions={'succeeded':'DEPTHCHANGE2', 'failed':'park_failed'})
+            smach.StateMachine.add('PARK', WaitOut('park', 120), transitions={'succeeded':'DEPTHCHANGE2', 'failed':'park_failed'})
             smach.StateMachine.add('DEPTHCHANGE2', GoToDepth(10,0.5), transitions={'succeeded':'park_complete'})
         smach.StateMachine.add('PARK_TASK', park, transitions={'park_complete':'DRIVE_THRU_TASK', 'park_failed':'DRIVE_THRU_TASK'})
 
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     
             smach.StateMachine.add('PINGER', WaitOutAndSearch('acoustic','drivethru', 180), transitions={'task_succeeded':'HOVER4', 'search_succeeded':'PICKUP','failed':'drive_failed'})
     
-            smach.StateMachine.add('PICKUP', WaitOut('drivethru', 180), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
+            smach.StateMachine.add('PICKUP', WaitOut('drivethru', 60), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
     
             smach.StateMachine.add('HOVER4', HoverSearch('drivethru', 120), transitions={'succeeded':'PICKUP' , 'failed':'SEARCH_LEFT'})    
             smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 30, -1, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
