@@ -30,7 +30,7 @@ import smach
 import smach_ros
 
 #TODO: Use competition colours
-TARGET_COLORS = ['redLed'] #NOTE: use 'redLed' for the red LED
+TARGET_COLORS = [] #NOTE: use 'redLed' for the red LED
 
 # GLOBALS
 TEST_MODE = False
