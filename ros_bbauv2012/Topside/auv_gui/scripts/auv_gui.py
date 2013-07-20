@@ -6,6 +6,7 @@ import os
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
+import pynotify 
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
@@ -44,7 +45,7 @@ class AUV_gui(QMainWindow):
     cvRGBImg_rfront = None
     cvRGBImg_bot = None
     isArmed = False
-    update_freq = 20
+    update_freq = 40
     vision_filter_frame = None
     q_orientation = Queue.Queue()
     q_depth = Queue.Queue() 
@@ -339,6 +340,12 @@ class AUV_gui(QMainWindow):
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
     
+        if not pynotify.init("Basics"):
+            sys.exit(1)
+ 
+        n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
+        if not n.show():
+            print "Failed to send notification"
     def on_timer(self):
         yaw = None
         depth = None
@@ -628,8 +635,11 @@ class AUV_gui(QMainWindow):
                                     "<br>DEP ERR: "+ str(round(self.data ['depth_error'],2)) + "</b>")
         
     def showDialog(self,ups):
-        QMessageBox.about(self,"Battery Low","OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
-    
+        #QMessageBox.about(self,"Battery Low",)
+        n = pynotify.Notification("Battery Low", "OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
+        if not n.show():
+            print "Failed to send notification"
+        
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
         rospy.loginfo("set_controller Service ready.")
