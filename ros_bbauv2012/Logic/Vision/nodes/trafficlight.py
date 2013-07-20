@@ -137,7 +137,7 @@ class Correction:
         self.hoverHeading = input_heading if not TEST_MODE else cur_heading
 
     def correct(self):
-        hoverDepth = min(MIN_DEPTH, depth_setpoint)
+        hoverDepth = max(MIN_DEPTH, depth_setpoint)
         offsets = {}
 
         def isOutOfPlace():
@@ -202,7 +202,7 @@ class Correction:
 
                 factor = clamp(1 - r/float(H), 0, 1) # attenuation factor
                 hoverDepth = depth_setpoint + factor * self.DEPTH_K * offsets['y']
-                hoverDepth = min(MIN_DEPTH, hoverDepth)
+                hoverDepth = max(MIN_DEPTH, hoverDepth)
                 goal = bbauv_msgs.msg.ControllerGoal(
                         heading_setpoint = self.hoverHeading,
                         depth_setpoint = hoverDepth
@@ -381,7 +381,7 @@ class BumpIt(smach.State):
                              output_keys=['targetColors', 'sidemoveDir'])
 
     def execute(self, userdata):
-        hoverDepth = min(MIN_DEPTH, depth_setpoint)
+        hoverDepth = max(MIN_DEPTH, depth_setpoint)
         hoverHeading = userdata.heading
 
         BUMP_FORWARD = params['bumpK']
@@ -487,7 +487,7 @@ class BumpToColor(smach.State):
     def execute(self, userdata):
         global bumpCount
 
-        hoverDepth = min(MIN_DEPTH, depth_setpoint)
+        hoverDepth = max(MIN_DEPTH, depth_setpoint)
         hoverHeading = userdata.heading
 
         BUMP_FORWARD = params['bumpK']
