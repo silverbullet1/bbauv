@@ -30,6 +30,7 @@ from std_msgs.msg._Int8 import Int8
 from com.vision.filter_chain import Vision_filter
 
 class AUV_gui(QMainWindow):
+    isLeak = False
     main_frame = None
     compass = None 
     heading_provider = None
@@ -62,7 +63,7 @@ class AUV_gui(QMainWindow):
     q_altitude = Queue.Queue()
     q_image_bot = Queue.Queue()
     q_image_front = None
-    q_image_rfront = Queue.Queue()
+    q_image_rfront = None
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups_stats(),
@@ -468,8 +469,9 @@ class AUV_gui(QMainWindow):
             self.data['depth_error'] =controller_feedback.feedback.depth_error
             self.data['goal_id'] = controller_feedback.status.goal_id.id
             self.data['status'] = controller_feedback.status.status
-        self.update_video_front(self.q_image_front)
-        if self.vision_filter_frame.isFront == 0:
+        if self.q_image_front != None:
+            self.update_video_front(self.q_image_front)
+        if self.vision_filter_frame.isFront == 0 and self.q_image_rfront!=None:
             self.update_video_rfront(self.q_image_rfront)
         if image_bot != None:
             self.update_video_bot(image_bot)
@@ -550,6 +552,16 @@ class AUV_gui(QMainWindow):
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
+        
+        if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB or self.data['hull_status'].WaterDetC) and not self.isLeak:
+            n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
+            if not n.show():
+                print "Failed to send notification"
+            print "leak"
+            self.isLeak = True
+        else:
+            self.isLeak = False
+        
         batt_state = list()
         if self.data['openups'].charge1== -1:
             batt_state.append("DISCON")
@@ -608,7 +620,6 @@ class AUV_gui(QMainWindow):
             self.isAlert[2] = False
         if self.data['openups'].charge4 > 10:
             self.isAlert[3] = False
-        
         
         self.oPanel1.setText("<b>OUPS1: " + str(batt_state[0]) + 
                               "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +

@@ -346,7 +346,7 @@ class Manuoevre(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=1)
+                                                     sidemove_setpoint=0.7)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(30))
         print st.centroidx_list
@@ -355,7 +355,7 @@ class Manuoevre(smach.State):
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=locomotionGoal.depth_setpoint,
-                                                     sidemove_setpoint=-2)
+                                                     sidemove_setpoint=-1.8)
             movement_client.send_goal(goal)
             movement_client.wait_for_result(rospy.Duration(30))
 	rospy.loginfo("sway movement to second bin complete!")
