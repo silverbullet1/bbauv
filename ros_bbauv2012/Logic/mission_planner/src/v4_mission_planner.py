@@ -1194,15 +1194,15 @@ if __name__ == '__main__':
 
         toll = smach.StateMachine(outcomes=['toll_complete', 'toll_failed'])
         with toll:
-#            smach.StateMachine.add('NAV', Nav(30,60,30,-2,4, 0.5,0.8, 100), transitions={'succeeded':'DEPTHCHANGE', 'failed':'toll_failed'})
+            smach.StateMachine.add('GOFWD', GoToDistance(10, 2, 'fwd'), transitions={'succeeded':'DEPTHCHANGE'})
             smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.8), transitions={'succeeded':'SEARCH'})
             smach.StateMachine.add('SEARCH', LinearSearch('tollbooth', 30, 1, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
             smach.StateMachine.add('SEARCH2', LinearSearch('tollbooth', 30, -1, 'sway'), transitions={'succeeded':'STORE', 'failed':'toll_failed'})
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_toll'), transitions={'succeeded':'TOLLBOOTH'})            
             smach.StateMachine.add('TOLLBOOTH', WaitOut('tollbooth', 150), transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})
-        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'GOFWD', 'toll_failed':'TOLLFAILMOVEFWD'})
+        smach.StateMachine.add('TOLL_TASK', toll, transitions={'toll_complete':'GOFWD', 'toll_failed':'TOLLFAILNAV'})
 
-        smach.StateMachine.add('TOLLFAILMOVEFWD', Nav(30,60,30,-4,4, 0.5,0.8, 100), transitions={'succeeded':'SPEED_TASK', 'failed':'mission_failed'})
+        smach.StateMachine.add('TOLLFAILNAV', Nav(30,60,30,-4,4, 0.5,0.8, 100), transitions={'succeeded':'SPEED_TASK', 'failed':'mission_failed'})
         smach.StateMachine.add('GOFWD', GoToDistance(15,1,'fwd'), transitions={'succeeded':'SPEED_TASK'})
 
         speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
@@ -1254,8 +1254,9 @@ if __name__ == '__main__':
         
         smach.StateMachine.add('HOME', Nav(30,60,30,-0.25,0.25,0.5,0.5,0), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'mission_failed'})
         smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.27), transitions={'succeeded':'VICTORY_SPIN'})
-        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
-
+        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'END'})
+        smach.StateMachine.add('END', End(), transitions={'succeeded':'mission_complete'})
+        
 ### Mission Ends Here ###  
 
     # Create and start the introspection server
