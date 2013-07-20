@@ -65,7 +65,7 @@ class Vision_filter(QWidget):
         channel_front_layout.addLayout(layout_arr[0])
         channel_front_layout.addLayout(layout_arr[1])
         channel_front_layout.addLayout(layout_arr[2])
-        channel_front_layout.addStretch(2)
+        channel_front_layout.addStretch(1)
         channel_front_box.setLayout(channel_front_layout)
         
         '''
@@ -119,20 +119,10 @@ class Vision_filter(QWidget):
         self.show()
     
     def createColor(self):
-        scene = QtGui.QGraphicsScene()
-        self.view = QtGui.QGraphicsView(scene)
-    
-        br = QtSvg.QGraphicsSvgItem(os.getcwd() + '/scripts/HueScale.svg').boundingRect()
-    
-        webview = QGraphicsWebView()
-        webview.load(QtCore.QUrl(os.getcwd() + '/scripts/HueScale.svg'))
-        webview.setFlags(QtGui.QGraphicsItem.ItemClipsToShape)
-        webview.setCacheMode(QtGui.QGraphicsItem.NoCache)
-        webview.resize(br.width()/4, br.height()/4)
-    
-        scene.addItem(webview)
-        self.view.resize(br.width(), br.height())
-        self.view.show()
+        self.view = QLabel()
+        #self.view.setGeometry(10, 10, , 100)
+        #use full ABSOLUTE path to the image, not relative
+        self.view.setPixmap(QtGui.QPixmap(os.getcwd() + "/scripts/huescale.png"))
     def initTimer(self,time):
         self.timer = QTimer()
         self.connect(self.timer, SIGNAL('timeout()'), self.updateParams)
