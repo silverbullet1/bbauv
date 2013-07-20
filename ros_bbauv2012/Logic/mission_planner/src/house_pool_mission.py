@@ -56,16 +56,19 @@ if __name__ == '__main__':
     
             smach.StateMachine.add('PINGER', WaitOutAndSearch('acoustic','drivethru', 180), transitions={'task_succeeded':'HOVER4', 'search_succeeded':'PICKUP','failed':'drive_failed'})
     
-            smach.StateMachine.add('PICKUP', WaitOut('drivethru', 60), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
+            smach.StateMachine.add('PICKUP', WaitOut('drivethru', 60), transitions={'succeeded':'NAV2', 'failed':'drive_failed'})
     
             smach.StateMachine.add('HOVER4', HoverSearch('drivethru', 120), transitions={'succeeded':'PICKUP' , 'failed':'SEARCH_LEFT'})    
             smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 30, -1, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
             smach.StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 30, 2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'drive_failed'})
-
-        smach.StateMachine.add('DRIVE_THRU_TASK', drive_thru, transitions={'drive_complete' : 'HOME' , 'drive_failed': 'SURFACE_SADLY' })
+            smach.StateMachine.add('NAV2', Nav(30,60,30,-2,2,0.5,0.5,70), transitions={'succeeded':'HOVER5', 'failed':'drive_failed'})
+            smach.StateMachine.add('HOVER5', HoverSearch('acoustic', 60), transitions={'succeeded':'PINGER2', 'failed':'drive_failed'})
+            smach.StateMachine.add('PINGER2', WaitOut('acoustic, 60'), transitions={'succeeded':'DROPIT', 'failed':'drive_failed'})
+            smach.StateMachine.add('DROPIT', WaitOut('drivethru, 60'), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
+            
+        smach.StateMachine.add('DRIVE_THRU_TASK', drive_thru, transitions={'drive_complete' : 'HOME' , 'drive_failed': 'HOME' })
         
-        smach.StateMachine.add('HOME', Nav(30,60,30,0,0,0.5,0.5,0), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
-        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.27), transitions={'succeeded':'mission_failed'})
+        smach.StateMachine.add('HOME', Nav(30,60,30,-0.25,0.25,0.5,0.5,0), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'mission_failed'})
         smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.27), transitions={'succeeded':'VICTORY_SPIN'})
         smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
         
