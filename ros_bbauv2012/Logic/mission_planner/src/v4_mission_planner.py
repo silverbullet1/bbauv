@@ -30,7 +30,7 @@ class Countdown(smach.State):
     def execute(self, userdata):
         
         #This is to allow enough time for ethernet cable to be removed
-        rospy.loginfo("Going for COUNTDOWN")        
+        rospy.loginfo("GOING FOR COUNTDOWN! Go BUMBLEBEE GO!")        
         r = rospy.Rate(10)
         start_time = rospy.get_time()
         while (rospy.get_time() - start_time) < self.sleep_time:
@@ -51,8 +51,7 @@ class Start(smach.State):
         global locomotionGoal
         global locomotion_client
         global set_ConPIDMode
-        global set_LocoMode
-        rospy.loginfo('Executing state START')
+        rospy.loginfo("ENTERING Start state")
         
         #Key in starting position here
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0, sidemove_setpoint=0,
@@ -69,17 +68,25 @@ class Start(smach.State):
       
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:
-            resp = set_ConPIDMode(True, True, True, True, False, False, False)
-            rospy.loginfo("PID and Mode is set")
+            resp = set_ConPIDMode(False, False, False, False, False, False, False)
+            rospy.logdebug("PID and Mode is set")
         except rospy.ServiceException, e:
-            rospy.loginfo("PID and Mode NOT set: %s" % e)
+            rospy.logdebug("PID and Mode NOT set: %s" % e)
 
         #Reset DVL and Earth Odom here
 #        drClient_DVL = dynamic_reconfigure.client.Client("WH_DVL")
 #        drClient_DVL.update_configuration({"zero_distance":True})
         drClient_Earth = dynamic_reconfigure.client.Client("earth_odom")
-        drClient_Earth.update_configuration({"zero_distance":True})        
+        drClient_Earth.update_configuration({"zero_distance":True})
 
+        locomotion_client.cancel_all_goals()
+        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+        try:
+            resp = set_ConPIDMode(True, True, True, True, True, False, False)
+            rospy.logdebug("PID and Mode is set")
+        except rospy.ServiceException, e:
+            rospy.logdebug("PID and Mode NOT set: %s" % e)
+        
         locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
         rospy.loginfo("Dive Dive Dive!")
@@ -88,6 +95,20 @@ class Start(smach.State):
         locomotionGoal.heading_setpoint = self.start_heading
         locomotionGoal.sidemove_setpoint = 0
         locomotionGoal.forward_setpoint = 0
+        return 'succeeded'
+
+class End(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded'])       
+                
+    def execute(self,userdata):
+        global set_ConPIDMode
+        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
+        try:
+            resp = set_ConPIDMode(False, False, False, False, False, False, False)
+            rospy.logdebug("PID and Mode is set")
+        except rospy.ServiceException, e:
+            rospy.logdebug("PID and Mode NOT set: %s" % e)
         return 'succeeded'
 
 class GoToDistance(smach.State):
@@ -102,7 +123,7 @@ class GoToDistance(smach.State):
         global locomotion_client
         global set_LocoMode
 
-        rospy.loginfo("Entering GoToDistance state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING GoToDistance state; locomotionGoal currently at depth %s and heading %s" 
                       % (str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
         
         if self.direction == 'fwd':
@@ -110,9 +131,9 @@ class GoToDistance(smach.State):
             #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
             try:
                 resp = set_LocoMode(True, False)
-                rospy.loginfo("LocoMode set to Fwd")
+                rospy.logdebug("LocoMode set to Fwd")
             except rospy.ServiceException, e:
-                rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
+                rospy.logdebug("LocoMode Fwd NOT set: %s" % e)
             
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distance,
                                                 sidemove_setpoint=0,
@@ -124,16 +145,16 @@ class GoToDistance(smach.State):
             #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
             try:
                 resp = set_LocoMode(False, True)
-                rospy.loginfo("LocoMode set to Sway")
+                rospy.logdebug("LocoMode set to Sway")
             except rospy.ServiceException, e:
-                rospy.loginfo("LocoMode Sway NOT set: %s" % e)
+                rospy.logdebug("LocoMode Sway NOT set: %s" % e)
                 
             goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                 sidemove_setpoint=self.distance,
                                                 depth_setpoint=locomotionGoal.depth_setpoint,
                                                 heading_setpoint=locomotionGoal.heading_setpoint)
 
-        rospy.loginfo('Going %s distance %s' % (str(self.direction), str(self.distance)))                                            
+        rospy.loginfo('Going %s distance for %s m' % (str(self.direction), str(self.distance)))                                            
         locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
 
@@ -153,13 +174,13 @@ class GoToDepth(smach.State):
         global locomotionGoal
         global locomotion_client
 
-        rospy.loginfo("Entering GoToDepth state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING GoToDepth state; locomotionGoal currently at depth %s and heading %s" 
                       % (str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
         if self.depth == None:
-            if locomotionGoal.depth_setpoint > 0.5 :
+            if locomotionGoal.depth_setpoint >= 0.5 :
                 self.depth = locomotionGoal.depth_setpoint
-            if locomotionGoal.depth_setpoint <=0.5:
+            if locomotionGoal.depth_setpoint <0.5:
                 if self.surface == True:
                     self.depth = locomotionGoal.depth_setpoint
                 if self.surface == False:
@@ -171,7 +192,7 @@ class GoToDepth(smach.State):
                                             sidemove_setpoint=0,
                                             depth_setpoint=self.depth,
                                             heading_setpoint=locomotionGoal.heading_setpoint)
-        rospy.loginfo('Going to depth %s' % str(self.depth))
+        rospy.loginfo('Going to depth %s m' % str(self.depth))
         locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
         
@@ -198,19 +219,19 @@ class GoToHeading(smach.State):
         global locomotion_client
         global set_LocoMode
 
-        rospy.loginfo("Entering GoToHeading state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING GoToHeading state; locomotionGoal currently at depth %s and heading %s" 
                       % (str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
-        if locomotionGoal.depth_setpoint <= 0.5:
+        if locomotionGoal.depth_setpoint < 0.5:
             locomotionGoal.depth_setpoint = 0.5
             rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
         
         #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
         try:
             resp = set_LocoMode(False, False)
-            rospy.loginfo("LocoMode set to Default")
+            rospy.logdebug("LocoMode set to Default")
         except rospy.ServiceException, e:
-            rospy.loginfo("LocoMode Default NOT set: %s" % e)        
+            rospy.logdebug("LocoMode Default NOT set: %s" % e)        
         
         if self.heading == None:
             self.heading = locomotionGoal.heading_setpoint
@@ -223,7 +244,7 @@ class GoToHeading(smach.State):
                                             depth_setpoint=locomotionGoal.depth_setpoint,
                                             heading_setpoint=self.heading)
 
-        rospy.loginfo('Going to heading %s' % str(self.heading))                                            
+        rospy.loginfo('Going to heading %s deg' % str(self.heading))                                            
         locomotion_client.send_goal(goal)
         locomotion_client.wait_for_result(rospy.Duration(self.timeout,0))
         
@@ -276,7 +297,7 @@ class StoreGlobalCoord(smach.State):
 #         task_marker.text = self.task_name
 #         task_marker_pub.publish(task_marker) #Needs to be published constantly
        
-        rospy.loginfo('x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
+        rospy.logdebug('Storing x=%s y=%s depth=%s heading=%s' % (str(global_x), str(global_y), str(global_depth), str(global_heading)))
         rospy.set_param(self.task_name+'/x', global_x)
         rospy.set_param(self.task_name+'/y', global_y)
         rospy.set_param(self.task_name+'/depth', global_depth)
@@ -309,10 +330,10 @@ class HoverSearch(smach.State):
         isSearchFailed = False
         isSearchDone = False
 
-        rospy.loginfo("Entering %s %s state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING %s %s state; locomotionGoal currently at depth %s and heading %s" 
                       % (self.task_name, self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
-        if locomotionGoal.depth_setpoint <= 0.5:
+        if locomotionGoal.depth_setpoint < 0.5:
             locomotionGoal.depth_setpoint = 0.5
             rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
 
@@ -321,15 +342,7 @@ class HoverSearch(smach.State):
             resp = set_LocoMode(False, False)
             rospy.loginfo("LocoMode set to Default")
         except rospy.ServiceException, e:
-            rospy.loginfo("LocoMode Default NOT set: %s" % e)
-        
-        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
-        try:
-            resp = set_ConPIDMode(True, True, True, True, True, False, False)
-            rospy.loginfo("PID and Mode is set")
-        except rospy.ServiceException, e:
-            rospy.loginfo("PID and Mode NOT set: %s" % e)
-            return 'failed'        
+            rospy.loginfo("LocoMode Default NOT set: %s" % e)   
 
         #connecting to task server
         if self.task_name != 'lane':
@@ -379,7 +392,7 @@ class HoverSearch(smach.State):
                 locomotion_client.send_goal(goal)
                 locomotion_client.wait_for_result(rospy.Duration(1,0))
                                     
-            if isSearchDone:
+            if isSearchDone and task_name = :
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
             
@@ -426,7 +439,7 @@ class LinearSearch(smach.State):
 
     def motion_callback(self,status,result):
         if status==actionlib.GoalStatus.SUCCEEDED:
-            rospy.loginfo("Search Motion Callback Complete")
+            rospy.logdebug("Search Motion Callback Complete")
             self.motionStatus = True
                    
     def execute(self, userdata):
@@ -440,27 +453,19 @@ class LinearSearch(smach.State):
         isSearchFailed = False
         isSearchDone = False
         
-        rospy.loginfo("Entering %s %s state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING %s %s state; locomotionGoal currently at depth %s and heading %s" 
                       % (self.task_name, self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
-        if locomotionGoal.depth_setpoint <= 0.5:
+        if locomotionGoal.depth_setpoint < 0.5:
             locomotionGoal.depth_setpoint = 0.5
             rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
         
         #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
         try:
             resp = set_LocoMode(False, False)
-            rospy.loginfo("LocoMode set to Default")
+            rospy.logdebug("LocoMode set to Default")
         except rospy.ServiceException, e:
-            rospy.loginfo("LocoMode Default NOT set: %s" % e)
-
-        #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
-        try:
-            resp = set_ConPIDMode(True, True, True, True, True, False, False)
-            rospy.loginfo("PID and Mode is set")
-        except rospy.ServiceException, e:
-            rospy.loginfo("PID and Mode NOT set: %s" % e)
-            return 'failed'
+            rospy.logdebug("LocoMode Default NOT set: %s" % e)
         
         #connecting to task server 
 
@@ -519,19 +524,19 @@ class LinearSearch(smach.State):
                 if self.motionStatus:
                     if self.task_name == 'lane':
                         try:
-                            rospy.loginfo('Timed Out: Failed to find %s' % self.task_name)
+                            rospy.loginfo('Search Motion Complete: Failed to find %s' % self.task_name)
                             resp = lane_srv(False, locomotionGoal, False, 1, True)            
 
                         except rospy.ServiceException, e:
-                            rospy.loginfo("Timed Out: Failed to abort: %s" % e)    
+                            rospy.loginfo("Search Motion Complete: Failed to abort: %s" % e)    
                             return 'failed'                         
                     if self.task_name != 'lane':
                         try:
-                            rospy.loginfo('Timed Out: Failed to find %s' % self.task_name)
+                            rospy.loginfo('Search Motion Complete: Failed to find %s' % self.task_name)
                             resp = self.task_srv(False, locomotionGoal, True)            
 
                         except rospy.ServiceException, e:
-                            rospy.loginfo("Timed Out: Failed to abort: %s" % e)
+                            rospy.loginfo("Search Motion Complete: Failed to abort: %s" % e)
                             return 'failed'  
                     return 'failed'
                                     
@@ -586,10 +591,10 @@ class WaitOut(smach.State):
         isTaskFailed = False
         isTaskComplete = False     
            
-        rospy.loginfo("Entering %s %s state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING %s %s state; locomotionGoal currently at depth %s and heading %s" 
                       % (self.task_name, self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
-        if locomotionGoal.depth_setpoint <= 0.5:
+        if locomotionGoal.depth_setpoint < 0.5:
             locomotionGoal.depth_setpoint = 0.5
             rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
 
@@ -605,10 +610,10 @@ class WaitOut(smach.State):
         start_time = rospy.get_time()
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
-            if isTaskComplete:               
+            if isTaskComplete and caller_name == self.task_name:               
                 rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'succeeded'
-            if isTaskFailed:              
+            if isTaskFailed  and caller_name == self.task_name:              
                 rospy.loginfo("Failed to complete %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 return 'failed'
             r.sleep()
@@ -661,11 +666,11 @@ class WaitOutAndSearch(smach.State):
         isSearchDone = False
         isSearchFailed = False
         
-        rospy.loginfo("Entering %s %s state; Searching for %s at the same time ; locomotionGoal currently at depth %s and heading %s"
+        rospy.loginfo("ENTERING %s %s state; Searching for %s at the same time ; locomotionGoal currently at depth %s and heading %s"
                       % (self.waitout_task_name, self.name, self.search_task_name, 
                          str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint)))  
 
-        if locomotionGoal.depth_setpoint <= 0.5:
+        if locomotionGoal.depth_setpoint < 0.5:
             locomotionGoal.depth_setpoint = 0.5
             rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
 
@@ -706,11 +711,11 @@ class WaitOutAndSearch(smach.State):
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.waitout_task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
 
-            if isSearchDone:
+            if isSearchDone and caller_name == self.search_task_name:
                 rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
                 
                 #Aborting WaitOut task due to search task found
-                if self.waitout_task_name == 'lane':
+                if self.waitout_caller_name == 'lane':
                     try:
                         rospy.loginfo('Found %s during Waitout, Aborting %s' % (self.search_task_name, self.waitout_task_name))
                         resp = lane_srv(False, locomotionGoal, False, 1, True)
@@ -727,7 +732,7 @@ class WaitOutAndSearch(smach.State):
                         return 'failed'
                 return 'search_succeeded'
 
-            if isTaskComplete:
+            if isTaskComplete and caller_name == self.waitout_task_name:
                 rospy.loginfo("Task Completed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
 
 
@@ -752,12 +757,12 @@ class WaitOutAndSearch(smach.State):
 
             #As of 18th July2013, only the Acoustics task tell mission that Search has failed. 
             #All vision task will keep searching and have no fail condition
-            if isSearchFailed:
+            if isSearchFailed and caller_name == self.search_task_name:
                 
                 rospy.loginfo("Search Failed %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
                 return 'failed'
 
-            if isTaskFailed:
+            if isTaskFailed  and caller_name == self.waitout_task_name:
                 rospy.loginfo("Task Failed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
 
                 #Aborting Search task due to waitout task failed
@@ -820,7 +825,7 @@ class WaitOutAndSearch(smach.State):
 
 class Nav(smach.State):
     
-    def __init__ (self, prep_timeout, nav_timeout, end_timeout, x=0, y=0, start_depth = 0.5, end_depth=0.5, end_heading=0, place= None): #yaw here is BBAUV's controller convention'
+    def __init__ (self, prep_timeout, nav_timeout, end_timeout, x=0, y=0, start_depth = 0.5, end_depth=0.5, end_heading=0, place= None): #yaw here is BBAUV's NED convention'
         smach.State.__init__(self, outcomes=['succeeded','failed'])
         self.name = self.__class__.__name__
         self.x = x
@@ -897,10 +902,10 @@ class Nav(smach.State):
         move_base_mode = False
         simple_nav_mode = True
 
-        rospy.loginfo("Entering %s state; locomotionGoal currently at depth %s and heading %s" 
+        rospy.loginfo("ENTERING %s state; locomotionGoal currently at depth %s and heading %s" 
                       % (self.name, str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint) ))
 
-        if locomotionGoal.depth_setpoint <= 0.5:
+        if locomotionGoal.depth_setpoint < 0.5:
             locomotionGoal.depth_setpoint = 0.5
             rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
         
@@ -917,9 +922,9 @@ class Nav(smach.State):
             #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
             try:
                 resp = set_LocoMode(False, False)
-                rospy.loginfo("LocoMode set to Default by Navigation State")
+                rospy.logdebug("LocoMode set to Default by Navigation State")
             except rospy.ServiceException, e:
-                rospy.loginfo("LocoMode Default NOT set: %s" % e) 
+                rospy.logdebug("LocoMode Default NOT set: %s" % e) 
     
             #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
             try:
@@ -931,18 +936,15 @@ class Nav(smach.State):
                 
             #Change Depth and Face Heading First
 
-            rospy.loginfo("Generated Start heading for nav")    
             self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
 
             heading_goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
-            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))
             locomotion_client.send_goal(heading_goal) 
             rospy.loginfo('Starting Navigation from depth %s m and facing yaw=%s deg' % (str(self.start_depth), str(self.start_heading)))
             locomotion_client.wait_for_result(rospy.Duration(self.prep_timeout,0))
             
             #Navigating to global coord       
             
-            #Generating heading again just in case we shifted; generating distance to coord here.     
             self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
             self.distanceToCoord = self.distanceToGlobalCoord(self.x, self.y, global_x, global_y)
 
@@ -971,9 +973,8 @@ class Nav(smach.State):
             except rospy.ServiceException, e:
                 rospy.loginfo("LocoMode Default NOT set: %s" % e) 
 
-            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
             locomotion_client.send_goal(finalheading_goal)
-            rospy.loginfo('Navigation Final Turn.')
+            rospy.logdebug('Navigation Final Turn.')
             locomotion_client.wait_for_result(rospy.Duration(20,0))
 
             self.start_heading = self.start_heading_gen(self.x, self.y, global_x, global_y)
@@ -981,9 +982,8 @@ class Nav(smach.State):
 
             finalnav_goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=self.distanceToCoord,sidemove_setpoint=0,depth_setpoint=self.start_depth,heading_setpoint=self.start_heading)
 
-            #rospy.loginfo('FOR HOANG: Heading Setpoint at %s', str(self.start_heading))    
             locomotion_client.send_goal(finalnav_goal)
-            rospy.loginfo('Navigation Final Move.')
+            rospy.logdebug('Navigation Final Move.')
             locomotion_client.wait_for_result(rospy.Duration(20,0))
             
         if move_base_mode:
@@ -1009,16 +1009,16 @@ class Nav(smach.State):
             #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
             try:
                 resp = set_LocoMode(False, False)
-                rospy.loginfo("LocoMode set to Default")
+                rospy.logdebug("LocoMode set to Default")
             except rospy.ServiceException, e:
-                rospy.loginfo("LocoMode Default NOT set: %s" % e) 
+                rospy.logdebug("LocoMode Default NOT set: %s" % e) 
     
             #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
             try:
                 resp = set_ConPIDMode(True, True, True, True, False, False, True)
-                rospy.loginfo("PID and Mode is set")
+                rospy.logdebug("PID and Mode is set")
             except rospy.ServiceException, e:
-                rospy.loginfo("PID and Mode NOT set: %s" % e)
+                rospy.logdebug("PID and Mode NOT set: %s" % e)
                             
             #Execute Nav
             movebaseGoal.target_pose.header.frame_id = 'map'
@@ -1066,8 +1066,10 @@ def handle_srv(req):
     
     if "id" in req._connection_header:
         task_id = req._connection_header['id']
-        
-        rospy.loginfo('Service call made by task to mission server')
+        rospy.loginfo('task_id = %d' % task_id)
+        task_list = {'0':'lane','1':'trafficlight', '2':'park','3':'speedtrap','4':'tollbooth','5':'drivethru','6':'acoustic'}
+        caller_name = task_list[task_id]
+        rospy.loginfo('Service call made by %s to mission server' % (caller_name +'_srv'))
     
     #Search completion request from Vision Node.
     if(req.search_request):
@@ -1091,7 +1093,7 @@ def handle_srv(req):
         isTaskFailed = True
         task_call = True
         rospy.logdebug("Task Failed To Complete")
-        locomotionGoal = req.task_complete_ctrl 
+        #locomotionGoal = req.task_complete_ctrl 
     
     if search_call:
         return vision_to_missionResponse(True,False) 
@@ -1134,7 +1136,7 @@ global_y = 0
 global_heading = 0
 global_depth = 0.3
 global_altitude = 0
-task_id = None
+caller_name = None
 marker_id = 1
 
 if __name__ == '__main__':
@@ -1183,27 +1185,7 @@ if __name__ == '__main__':
 
 ### Insert Mission Here ###
  
-    sm_mission = smach.StateMachine(outcomes=['mission_complete','mission_failed'])
 
-    with sm_mission:
-        smach.StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
-        smach.StateMachine.add('START',Start(10,0.5,70),transitions={'succeeded':'GOFWD'})
-#        smach.StateMachine.add('HOVER', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD'})
-
-        smach.StateMachine.add('GOFWD', GoToDistance(40, 1, 'fwd'), transitions={'succeeded':'HOVER2'})
-        smach.StateMachine.add('HOVER2', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD2'})
-
-        smach.StateMachine.add('GOFWD2', GoToDistance(40, 1, 'fwd'), transitions={'succeeded':'HOVER3'})
-        smach.StateMachine.add('HOVER3', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'GOFWD3'})
-
-        smach.StateMachine.add('GOFWD3', GoToDistance(40, 1, 'fwd'), transitions={'succeeded':'HOVER4'})
-        smach.StateMachine.add('HOVER4', HoverSearch('acoustic', 30, start_depth=0.5, start_heading=70), transitions={'succeeded':'TASK', 'failed':'SURFACE_SADLY'})
-        
-        smach.StateMachine.add('TASK', WaitOut('acoustic', 180), transitions={'succeeded':'SURFACE_VICTORIOUSLY', 'failed':'SURFACE_SADLY'})
-       
-        smach.StateMachine.add('SURFACE_SADLY', GoToDepth(20, 0.5), transitions={'succeeded':'mission_failed'})
-        smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.5), transitions={'succeeded':'VICTORY_SPIN'})
-        smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
 
 ### Mission Ends Here ###  
 
