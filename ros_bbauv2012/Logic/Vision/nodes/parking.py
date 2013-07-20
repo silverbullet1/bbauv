@@ -495,7 +495,7 @@ if __name__ == '__main__':
     #Service Client. This part is commented if testing Vision task state machine without mission planner
     rospy.loginfo('Park waiting for mission_srv...')
     rospy.wait_for_service('mission_srv')
-    mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission)
+    mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':2})
     rospy.loginfo('Park connected to mission_srv!')
     
     #Getting ready service to change locomotion mode
