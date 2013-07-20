@@ -333,6 +333,9 @@ class MotionControlProcess(smach.State):
         while(not rospy.is_shutdown()):
             
 
+            if not park.targetLockStatus:
+                actionClient.cancel_all_goals()
+
             if park.area < params['area_thresh']:
                 if park.area < params['approach_area_thresh']:
                     wait_time = params['approachWaitTime']
@@ -344,6 +347,11 @@ class MotionControlProcess(smach.State):
                     goal.forward_setpoint = 0
                     goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
                     goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
+                    
+                    if goal.depth_setpoint <= 0.5:
+                        goal.depth_setpoint = 0.5
+                        rospy.loginfo("Parking tried to bring vehicle to surface; setting depth to 0.5")
+
                     actionClient.send_goal(goal)                    
                     rospy.loginfo('Approach: ADJUST. errSide= %d, errDepth=%d area=%d' % (park.errorSide, park.errorDepth, park.area))       
                     #actionClient.wait_for_result(rospy.Duration(5,0))                      
@@ -373,6 +381,8 @@ class MotionControlProcess(smach.State):
                 goal.sidemove_setpoint = 0
                 goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
                 goal.depth_setpoint -= params['final_depthchange']
+                if goal.depth_setpoint <= 0.5:
+                    goal.depth_setpoint = 0.5                
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Final: Depth change! area=%d' % (park.area))
                 actionClient.wait_for_result(rospy.Duration(10,0))
