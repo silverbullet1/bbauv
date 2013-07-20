@@ -17,3 +17,11 @@ if __name__ == '__main__':
         smach.StateMachine.add('SURFACE_VICTORIOUSLY', GoToDepth(5, 0.26), transitions={'succeeded':'VICTORY_SPIN'})
         smach.StateMachine.add('VICTORY_SPIN', GoToHeading(60, 0, relative=True), transitions={'succeeded':'mission_complete'})
         
+#House Pool Coords
+Start from: white pipe
+
+2.4 1.3 rock
+
+4 2.8 piiza
+
+1.9 3.1 Number 10         
