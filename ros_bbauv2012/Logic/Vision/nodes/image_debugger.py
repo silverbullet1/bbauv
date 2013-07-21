@@ -196,7 +196,7 @@ if __name__ == '__main__':
     rospy.init_node('image_debugger', anonymous=True)
 
     scaleFactor = rospy.get_param('~factor', 0.5)
-    imageTopics = ['/stereo_camera/left/image_rect_color', '/stereo_camera/right/image_rect_color', '/bottomcam/camera/image_rect_color']
+    imageTopics = ['/stereo_camera/left/image_rect_color', '/stereo_camera/right/image_rect_color', '/bottomcam/camera/image_rect_color', '/Vision/image_filter']
 
     app = ImageDebugger(imageTopics, scaleFactor)
 
