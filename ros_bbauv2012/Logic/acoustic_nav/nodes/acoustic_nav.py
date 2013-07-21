@@ -41,7 +41,7 @@ class Disengage(smach.State):
 '''CollectTDOA state - collect a few signal to avoid random error, store data in a queue
 '''
 class CollectTDOA(smach.State):
-    def __init__(self,samples=5,timeout=30,initSearch=False):
+    def __init__(self,samples=5,timeout=20,initSearch=False):
         smach.State.__init__(self, outcomes=['succeeded','failed','aborted'])
         self.timeout=timeout
         self.samples=samples
@@ -57,7 +57,7 @@ class CollectTDOA(smach.State):
         new_data=False
         while (not tdoa_queue.empty()):
             tdoa_queue.get()
-        rospy.loginfo('Current Pose: x={0:.3f},y={1:.3f},z={2:.3f},yaw={3:.3f}'
+        rospy.loginfo('Current Pose: x={0:.2f},y={1:.2f},z={2:.2f},yaw={3:.2f}'
                     .format(search_position.x,search_position.y,search_depth,cur_heading))
         for i in range(self.samples):
             start_time = rospy.get_time()
@@ -75,18 +75,29 @@ class CollectTDOA(smach.State):
                 tdoa_queue.put(tdoa)              
             else:
                 isStart=False
-                rospy.loginfo('timed out! Cannot acquire any good ping')
-                return 'failed'
+                break   
+                        
+        else: #if for loop is not broken!
+            if isTest == False and self.initSearch == True:
+                try:
+                ###CHANGE HERE!!!!!!!!!!! Change what??!
+                    resp = mission_srv_request(True, None, None)
+                    rospy.loginfo('Found Good Ping! Grab control from mission. Send request: True None None')
+                except rospy.ServiceException, e:
+                    rospy.loginfo("Service call failed: %s" % e)
 
+            recover_time = 0
+            return 'succeeded'
+
+        #if for loop is broken!    
+        rospy.loginfo('timed out! Cannot acquire any good ping')
         if isTest == False and self.initSearch == True:
             try:
-                resp = mission_srv_request(True, None, None)
-                rospy.loginfo(resp)
+                resp = mission_srv_request(False, None, None)
+                rospy.loginfo('Faied to acquire Good Ping! Return control to mission. Send request: False None None')
             except rospy.ServiceException, e:
                 rospy.loginfo("Service call failed: %s" % e)
-
-        recover_time = 0
-        return 'succeeded'
+        return 'failed'
 
 ''' CorrectHeading state - correct the heading base on far field equation
 '''
@@ -97,6 +108,7 @@ class CorrectHeading(smach.State):
         global farfield
         global cur_heading
         global tdoa_queue
+        global new_data
         
         if isAbort:
             return 'aborted'
@@ -104,25 +116,24 @@ class CorrectHeading(smach.State):
         tdoa_backup=tdoa_queue
 
         (rel_heading, z) = triangulate(tdoa_queue, "farfield")
-        rospy.loginfo('yaw = {0:.3f}, cur_heading = {1:.3f}'.format(yaw,cur_heading))
-        rospy.loginfo('==>rel_heading={0:.3f}, z={1:.3f}'.format(rel_heading,z))
-        rospy.loginfo("correcting heading....")
+        rospy.loginfo('==> rel_heading= {0:.2f}, z= {1:.2f}'.format(rel_heading,z))
         new_heading = (cur_heading + rel_heading) % 360
 
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = new_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
-        print "-----------------------"
-        print goal
-        print "-----------------------"
+        rospy.loginfo(goal)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(action_timeout)
         cur_heading = new_heading
+        new_data = False
              
         if math.fabs(z) < z_threshold:
             # continue far field, go to move forward
             farfield = True
             return 'farfield'
         else:
-            # continue near field, go to collect TDOA 
+            # continue near field, go to collect TDOA
+            rospy.sleep(3) 
+            rospy.loginfo("Waiting 3s for clean signal")
             farfield = False
             return 'nearfield'
 
@@ -143,9 +154,7 @@ class GoToXY(smach.State):
         x+=x_offset
         y+=y_offset
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = x, heading_setpoint = cur_heading, depth_setpoint=search_depth, sidemove_setpoint=y)
-        print "-----------------------"
-        print goal
-        print "-----------------------"
+        rospy.loginfo(goal)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(action_timeout)
         
@@ -156,7 +165,8 @@ class GoToXY(smach.State):
                 ctrl.heading_setpoint = cur_heading
                 if not isAbort:
                     resp = mission_srv_request(None, True, ctrl)
-                    rospy.loginfo('Finish! Send srv_request:',resp)
+                    rospy.loginfo('Task completed! Finished MovetoXY. Send request: None True Ctrl')
+                    rospy.loginfo('Controller: %s'%ctrl)
                     isAbort = True
                     isStart = False
             except rospy.ServiceException, e:
@@ -173,11 +183,9 @@ class MoveForward(smach.State):
             return 'aborted'
 
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = search_distance, heading_setpoint = cur_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
-        print "-----------------------"
-        print goal
-        print "-----------------------"
+        rospy.loginfo(goal)
         movement_client.send_goal(goal)
-        movement_client.wait_for_result(action_timeout)
+        #movement_client.wait_for_result(action_timeout)
         return 'completed'
 
 '''Recover state - Try to recover when received bad signal
@@ -203,7 +211,8 @@ class Recover(smach.State):
                         resp = mission_srv_request(None, False, ctrl)
                         isAbort = True
                         isStart = False
-                        rospy.loginfo('Replying to mission: ',resp)
+                        rospy.loginfo('Task Completed! Failed at Recovering stage. Send request: None False Ctrl')
+                        rospy.loginfo('Controller: %s' %ctrl)
                 except rospy.ServiceException, e:
                     rospy.loginfo("Service call failed: %s" % e)
             return 'aborted'
@@ -219,9 +228,7 @@ class Recover(smach.State):
         rospy.loginfo("#{0} attempt to recover....".format(recover_time))
 
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint = 0, heading_setpoint = cur_heading, depth_setpoint=search_depth, sidemove_setpoint=0)
-        print "-----------------------"
-        print goal
-        print "-----------------------"
+        rospy.loginfo(goal)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(action_timeout)
          
@@ -261,6 +268,7 @@ def far_field(d10, d20, d30):
 '''
 def near_field(d10, d20, d30, z=2.4):   
     z=ver_dist_to_pinger
+    x,y=0,0
     if (d10!=0 and d20!=0 and d30!=0):
         A2 = 2 * (x_2 / d20 - x_1 / d10)
         B2 = 2 * (y_2 / d20 - y_1 / d10)
@@ -282,6 +290,8 @@ def near_field(d10, d20, d30, z=2.4):
         else:
             x = (C2 * B3 - C3 * B2) / (A2 * B3 - A3 * B2)
             y = (C3 * A2 - C2 * A3) / (B3 * A2 - B2 * A3)
+    else:
+        z=-1
     return (x,y,z)
 
 ''' triangulate state - get data from the queue, calculate position/ direction then apply filter
@@ -295,6 +305,7 @@ def triangulate(data_queue, mode):
         Rz = 0.1
         filter_heading = 0
         filter_z = 0
+        rel_heading = 0
         for i in range(queue_length):
             #compute new measurement
             d10,d20,d30=data_queue.get()
@@ -309,9 +320,9 @@ def triangulate(data_queue, mode):
                 Ph = (1 - Kh) * Ph
                 Pz = (1 - Kz) * Pz
 
-                rospy.loginfo('(rel_heading,z)=({0:.3f},{1:.3f})-->(f_heading={2:.3f},f_z={3:.3f})'.format(rel_heading,z,filter_heading,filter_z))
+                rospy.loginfo('(heading,z)=({0:.2f},{1:.2f})-->(f_heading={2:.2f},f_z={3:.2f})'.format(rel_heading,z,filter_heading,filter_z))
             else:
-                rospy.loginfo("z smaller than 0")
+                rospy.loginfo('(heading,z)=({0:.2f},{1:.2f})--> Invalid! z<0)'.format(rel_heading,z))
         return filter_heading, filter_z
 
     else:
@@ -324,14 +335,19 @@ def triangulate(data_queue, mode):
         for i in range(queue_length):
             d10,d20,d30=data_queue.get()
             x, y, z = near_field(d10,d20,d30)
-            Kx = Px * 1.0 / (Px + Rx)
-            Ky = Py * 1.0 / (Py + Ry)
-            filter_x = filter_x + Kx * (x - filter_x)
-            filter_y = filter_y + Ky * (y - filter_y)
-            Px = (1 - Kx) * Px
-            Py = (1 - Ky) * Py
+            #normalize z for filtering
+            z = z/math.sqrt(x**2 + y**2 + z**2)
+            if z > z_threshold: 
+                Kx = Px * 1.0 / (Px + Rx)
+                Ky = Py * 1.0 / (Py + Ry)
+                filter_x = filter_x + Kx * (x - filter_x)
+                filter_y = filter_y + Ky * (y - filter_y)
+                Px = (1 - Kx) * Px
+                Py = (1 - Ky) * Py
             
-            rospy.loginfo('(x,y)=({0:.3f},{1:.3f})-->(f_x,f_y)=({2:.3f},{3:.3f})'.format(x,y,filter_x,filter_y))
+                rospy.loginfo('(x,y,z)=({0:.2f},{1:.2f},{2:.2f})-->(f_x,f_y)=({3:.2f},{4:.2f})'.format(x,y,z,filter_x,filter_y))
+            else:
+                rospy.loginfo('(x,y,z)=({0:.2f},{1:.2f},{2:.2f}) --> Invalid! z>{3:.2f}'.format(x,y,z,z_threshold))
         return filter_x, filter_y
 
 def get_tdoa(msg):
@@ -341,6 +357,11 @@ def get_tdoa(msg):
     d10=msg.linear.x/1000000*speedOfSound
     d20=msg.linear.y/1000000*speedOfSound
     d30=msg.linear.z/1000000*speedOfSound
+    x,y,z=far_field(d10,d20,d30)
+    rel_heading = math.atan2(y,x) * 180 / math.pi
+    
+    rospy.loginfo('t10={0:.2f},t20={1:.2f},t30={2:.2f}'.format(msg.linear.x,msg.linear.y,msg.linear.z))
+    rospy.loginfo('(x,y,z)=({0:.2f},{1:.2f},{2:.2f}), rel_heading={3:.2f}'.format(x,y,z,rel_heading))
 
 def get_heading(msg):
     global yaw
@@ -369,10 +390,8 @@ def handle_srv(req):
         isAbort = False
         # Format for service: start_response, abort_response
         locomotionGoal = req.start_ctrl
-        if first_call:
-            first_call=False
-            cur_heading=locomotionGoal.heading_setpoint
-            search_depth=locomotionGoal.depth_setpoint
+        cur_heading=locomotionGoal.heading_setpoint
+        search_depth=locomotionGoal.depth_setpoint
 
     if req.abort_request:
         rospy.loginfo("Acoustic abort received")
@@ -397,7 +416,6 @@ isAbort = False
 isTest = False
 movement_client = None
 locomotionGoal = None 
-first_call = True
 action_timeout=rospy.Duration(30)
 #Current state of vehicle:
 #from Compass, DVL
@@ -446,9 +464,7 @@ if __name__ == '__main__':
 
     rospy.loginfo("AcousticNavigation activated!")
     rospy.wait_for_service('set_controller_srv')
-    set_controller_request=rospy.ServiceProxy('set_controller_srv',set_controller)
-    set_controller_request(True,True,True,True,False,False,False)
-     
+    
     #Setup dynamic reconfigure
 
     reconfigure_srv=Server(acoustic_navConfig, dynamic_reconfigure_cb)
@@ -460,11 +476,13 @@ if __name__ == '__main__':
     if isTest:
         isStart= True
         cur_heading=10000 #dummy val
+        set_controller_request=rospy.ServiceProxy('set_controller_srv',set_controller)
+        set_controller_request(True,True,True,True,False,False,False)
     else:
         #setup client
         rospy.loginfo('waiting for mission_srv...')
         rospy.wait_for_service('mission_srv') #connecting to mission server
-        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':1})
+        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':'6'})
         rospy.loginfo('connected to mission_srv!')
         
         #setup server
@@ -483,7 +501,7 @@ if __name__ == '__main__':
         smach.StateMachine.add('DISENGAGE',Disengage(),
             transitions ={'started':'INITIALSEARCH','completed':'Task_completed','aborted':'DISENGAGE'})
         
-        smach.StateMachine.add('INITIALSEARCH',CollectTDOA(samples=3,timeout=30,initSearch=True),
+        smach.StateMachine.add('INITIALSEARCH',CollectTDOA(samples=3,timeout=20,initSearch=True),
             transitions ={'succeeded':'CORRECTHEADING','failed':'DISENGAGE','aborted':'DISENGAGE'})
 
         smach.StateMachine.add('CORRECTHEADING',CorrectHeading(),
