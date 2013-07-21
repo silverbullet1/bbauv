@@ -66,7 +66,7 @@ class LaneDetector:
 
     # Function that gets called after conversion from ROS Image to OpenCV image
     def gotFrame(self, cvimg):
-        filteredImg = cv2.GaussianBlur(cvimg, (3,3), 0)
+        #filteredImg = cv2.GaussianBlur(cvimg, (3,3), 0)
 
         # Find the orange regions
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
