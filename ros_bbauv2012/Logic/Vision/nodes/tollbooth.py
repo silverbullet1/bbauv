@@ -53,6 +53,7 @@ mission_srv = None
 
 SWAP_EYE   = True    # Set this to False if you don't want to switch between eyes
 currentEye = 'left'
+fireWhenAborted = False
 
 #HACK: use a lock to prevent race conditions
 lock = threading.Lock()
@@ -129,6 +130,11 @@ class Disengage(smach.State):
         )
 
     def execute(self, userdata):
+        global fireWhenAborted
+
+        if fireWhenAborted:
+            fireTorpedo(['left', 'right'])
+
         global tollbooth
         tollbooth = None
 
@@ -140,6 +146,8 @@ class Disengage(smach.State):
             rospy.loginfo('tollbooth_srv initialized!')
 
         self.isStart = TEST_MODE
+
+        fireWhenAborted = False
 
         while not self.isStart:
             if rospy.is_shutdown(): return 'killed'
@@ -176,6 +184,8 @@ class Search(smach.State):
             if tollbooth.regionCount >= 1:
                 if not TEST_MODE:
                     mission_srv(search_request=True, task_complete_request=False, task_complete_ctrl=None)
+                    global fireWhenAborted
+                    fireWhenAborted = True
                 return 'search_complete'
 
             if isAborted:
@@ -445,7 +455,7 @@ class MoveToTarget(smach.State):
         #rospy.sleep(params['chargeWait'])
 
         rospy.loginfo("pew pew")
-        fireTorpedo(gunSide)
+        fireTorpedo([gunSide])
 
         rospy.sleep(params['fireWait'])
 
@@ -555,12 +565,12 @@ Torpedo functions
 - side: 'left' or 'right'
 '''
 manipulator_pub = None # Publisher
-def fireTorpedo(side):
+def fireTorpedo(sides):
     manip = manipulator()
     manip.servo1 = 0
     manip.servo2 = 0
-    manip.servo3 = int(side == 'left')
-    manip.servo4 = int(side == 'right')
+    manip.servo3 = int('left' in sides)
+    manip.servo4 = int('right' in sides)
     manip.servo5 = 0
     manip.servo6 = 0
     manip.servo7 = 0
