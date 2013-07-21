@@ -98,6 +98,16 @@ def initAction():
         actionClient.wait_for_server()
         print 'done'
 
+def gotRosFrame(rosImage):
+    if tollbooth: tollbooth.gotRosFrame(rosImage)
+def gotHeading(msg):
+    global cur_heading
+    cur_heading = msg.yaw
+    if tollbooth: tollbooth.gotHeading(msg)
+def gotDepth(msg):
+    global depth_setpoint
+    depth_setpoint = msg.depth
+
 
 # States
 class Disengage(smach.State):
@@ -154,7 +164,8 @@ class Disengage(smach.State):
             rosRate.sleep()
 
         global imageSub, gunSide, currentEye
-        imageSub.unregister()
+        if imageSub:
+            imageSub.unregister()
         gunSide = 'left'
         currentEye = 'left'
         imageSub = rospy.Subscriber(imageLeftTopic, Image, gotRosFrame)
@@ -612,17 +623,7 @@ if __name__ == '__main__':
     global rosRate
     rosRate = rospy.Rate(loopRateHz)
 
-    def gotRosFrame(rosImage):
-        if tollbooth: tollbooth.gotRosFrame(rosImage)
-    def gotHeading(msg):
-        global cur_heading
-        cur_heading = msg.yaw
-        if tollbooth: tollbooth.gotHeading(msg)
-    def gotDepth(msg):
-        global depth_setpoint
-        depth_setpoint = msg.depth
     currentEye = 'left'
-    imageSub = rospy.Subscriber(imageLeftTopic, Image, gotRosFrame)
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
     rospy.Subscriber(depthTopic, depth, gotDepth)
 

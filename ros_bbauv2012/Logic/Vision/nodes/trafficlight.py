@@ -45,6 +45,8 @@ input_heading = 0
 depth_setpoint = 0.5
 cur_heading = 0
 
+imageSub = None
+
 SIDEMOVE_SETPOINT = 3
 FORWARD_SETPOINT = 0.5
 
@@ -277,6 +279,10 @@ class Disengage(smach.State):
         global lightDetector
         lightDetector = None
 
+        global imageSub
+        if imageSub:
+            imageSub.unregister()
+
         global firstRun
         if firstRun:
             firstRun = False
@@ -289,6 +295,10 @@ class Disengage(smach.State):
         while not self.isStart:
             if rospy.is_shutdown(): return 'killed'
             rosRate.sleep()
+
+        def gotRosFrame(rosImage):
+            if lightDetector: lightDetector.gotRosFrame(rosImage)
+        imageSub = rospy.Subscriber(imageTopic, Image, gotRosFrame)
 
         lightDetector = TrafficLight(params, lock, camdebug)
         userdata.targetColors = TARGET_COLORS
@@ -633,15 +643,12 @@ if __name__ == '__main__':
 
     global rosRate
     rosRate = rospy.Rate(loopRateHz)
-    def gotRosFrame(rosImage):
-        if lightDetector: lightDetector.gotRosFrame(rosImage)
     def gotHeading(msg):
         global cur_heading
         cur_heading = msg.yaw
     def gotDepth(msg):
         global depth_setpoint
         depth_setpoint = msg.depth
-    rospy.Subscriber(imageTopic, Image, gotRosFrame)
     rospy.Subscriber(compassTopic, compass_data, gotHeading)
     rospy.Subscriber(depthTopic, depth, gotDepth)
 
