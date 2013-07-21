@@ -239,7 +239,7 @@ class Correction:
 
             sizeRatio = w*h/float(W*H)
             sizeMidPt = (self.MIN_SIZE + self.MAX_SIZE) * 0.5
-            if sizeRatio < self.MIN_SIZE or sizeRatio > self.MAX_SIZE:
+            if sizeRatio < self.MIN_SIZE: # or sizeRatio > self.MAX_SIZE: #HACK: ignore when sizeRatio > MAX_SIZE
                 offsets['size'] = sizeRatio - sizeMidPt
 
             rospy.logdebug('(' + self.target + ') vals: ' + str({ 'x': x, 'y': y, 'w': w, 'h': h, 'sizeRatio': sizeRatio }))
