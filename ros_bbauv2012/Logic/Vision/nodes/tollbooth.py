@@ -577,6 +577,8 @@ Torpedo functions
 '''
 manipulator_pub = None # Publisher
 def fireTorpedo(sides):
+    rospy.loginfo('Firing torpedo: ' + str(sides))
+
     manip = manipulator()
     manip.servo1 = 0
     manip.servo2 = 0
@@ -585,6 +587,10 @@ def fireTorpedo(sides):
     manip.servo5 = 0
     manip.servo6 = 0
     manip.servo7 = 0
+
+    manipulator_pub.publish(manip)
+    rospy.sleep(3)
+    # Just in case
     manipulator_pub.publish(manip)
 
 
