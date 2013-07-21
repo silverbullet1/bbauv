@@ -1339,10 +1339,7 @@ if __name__ == '__main__':
                 smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'))
                 smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3.5, 'sway'))
             smach.StateMachine.add('ZIGZAGSEARCH', zigzagSearch, transitions={'succeeded':'STORE', 'failed':'speed_failed'})
-
-#            smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 3.5, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-#            smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-#            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3.5, 'sway'), transitions={'succeeded':'STORE', 'failed':'speed_failed'})    
+              
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_speed'), transitions={'succeeded':'SPEEDTRAP'})
             smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 150), transitions={'succeeded':'speed_complete', 'failed':'speed_failed'})           
         smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'PARK_TASK', 'speed_failed':'PARK_TASK'})
@@ -1358,14 +1355,27 @@ if __name__ == '__main__':
             smach.StateMachine.add('DEPTHCHANGE2', GoToDepth(10,0.6), transitions={'succeeded':'park_complete'})
         smach.StateMachine.add('PARK_TASK', park, transitions={'park_complete':'GETOUT_OF_GATE', 'park_failed':'GETOUT_OF_GATE'})
 
-        smach.StateMachine.add('GETOUT_OF_GATE', Nav(30,60,30,-2,-2, 0.5,0.7,70),transitions={'succeeded':'DRIVE_THRU_TASK', 'failed':'DRIVE_THRU_TASK'})
+        smach.StateMachine.add('GETOUT_OF_GATE', Nav(30,60,30,-2,2, 0.5,1,270),transitions={'succeeded':'PARK2_TASK', 'failed':'PARK2_TASK'})
+
+        park2 = smach.StateMachine(outcomes=['park_complete', 'park_failed'])
+        with park2:
+            smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,1), transitions={'succeeded':'TURN'})
+            smach.StateMachine.add('TURN', GoToHeading(10,270), transitions={'succeeded':'SEARCH'})
+            smach.StateMachine.add('SEARCH', HoverSearch('park', 20), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+            smach.StateMachine.add('SEARCH2', LinearSearch('park', 60, -3, 'sway'), transitions={'succeeded':'STORE', 'failed':'park_failed'})
+            smach.StateMachine.add('STORE', StoreGlobalCoord('mission_park1'), transitions={'succeeded':'PARK'})            
+            smach.StateMachine.add('PARK', WaitOut('park', 90), transitions={'succeeded':'DEPTHCHANGE2', 'failed':'park_failed'})
+            smach.StateMachine.add('DEPTHCHANGE2', GoToDepth(10,0.6), transitions={'succeeded':'park_complete'})
+        smach.StateMachine.add('PARK2_TASK', park2, transitions={'park_complete':'GETOUT_OF_GATE2', 'park_failed':'GETOUT_OF_GATE2'})
+
+        smach.StateMachine.add('GETOUT_OF_GATE2', Nav(30,60,30,-2,2, 0.5,1,270),transitions={'succeeded':'DRIVE_THRU_TASK', 'failed':'DRIVE_THRU_TASK'})
 
         drive_thru = smach.StateMachine(outcomes=['drive_complete', 'drive_failed'])
         with drive_thru:
             
             #Searching for Pinger
             smach.StateMachine.add('DEPTHCHANGE_PINGER', GoToDepth(10,0.7), transitions={'succeeded':'TURN'})
-            smach.StateMachine.add('TURN', GoToHeading(15,70), transitions={'succeeded':'HOVER'})
+            smach.StateMachine.add('TURN', GoToHeading(15,270), transitions={'succeeded':'HOVER'})
             
             #Creep Search
             smach.StateMachine.add('HOVER', HoverSearch('acoustic', 60), transitions={'succeeded':'PINGER', 'failed':'GOFWD'})
