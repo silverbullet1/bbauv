@@ -381,7 +381,7 @@ class BumpIt(smach.State):
                              output_keys=['targetColors', 'sidemoveDir'])
 
     def execute(self, userdata):
-        hoverDepth = max(MIN_DEPTH, depth_setpoint)
+        hoverDepth = max(MIN_DEPTH, depth_setpoint-0.1)
         hoverHeading = userdata.heading
 
         BUMP_FORWARD = params['bumpK']
@@ -401,11 +401,8 @@ class BumpIt(smach.State):
         actionClient.cancel_all_goals()
 
         userdata.sidemoveDir = 'right'
-        #HACK: shift upwards to better hit LEDs
 
         if userdata.targetColors:
-#            global depth_setpoint
-#            depth_setpoint -= 0.2
             return 'bumped'
         else:
             # Just want to hit the red buoy
