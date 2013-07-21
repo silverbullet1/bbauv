@@ -16,6 +16,7 @@ import subprocess
 import actionlib
 import smach
 import smach_ros
+from smach import Sequence
 import bbauv_msgs
 import bbauv_msgs.msg
 from nav_msgs.msg import Odometry
@@ -652,6 +653,10 @@ class WaitOut(smach.State):
         start_time = rospy.get_time()
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
+            if self.isOutofBound:
+                rospy.loginfo("Vehicle moving out of bounding box of %s")
+                return 'failed'
+
             if isTaskComplete and caller_name == self.task_name:               
                 rospy.loginfo("Completed %s. %d of %d secs elapsed" % (self.task_name, rospy.get_time()-start_time, self.timeout))
                 if self.task_srv != None:
@@ -664,6 +669,7 @@ class WaitOut(smach.State):
                     rospy.logdebug('Closing connection to %s' % self.task_srv_name)
                     self.task_srv.close()
                 return 'failed'
+            self.boundingBoxCheck(self.firstX, self.firstY)
             r.sleep()
         
         #Aborting task due to timeout
@@ -1280,9 +1286,17 @@ if __name__ == '__main__':
 
         lane_gate = smach.StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
-            smach.StateMachine.add('SEARCH', LinearSearch('lane', 30, 2, 'fwd', False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-            smach.StateMachine.add('SEARCH2', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('lane', 20, 1, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'lane_failed'})
+
+            zigzagSearch = Sequence(outcomes=['succeeded', 'failed'], connector_outcome= 'failed')
+            with zigzagSearch:
+                smach.StateMachine.add('SEARCH', LinearSearch('lane', 30, 2, 'fwd', False, 1))
+                smach.StateMachine.add('SEARCH2', LinearSearch('lane', 30, -1, 'sway', False, 1))
+                smach.StateMachine.add('SEARCH3', LinearSearch('lane', 30, 1, 'sway', False, 1))
+            smach.StateMachine.add('ZIGZAGSEARCH', zigzagSearch, transitions={'succeeded':'STORE', 'failed':'lane_failed'})
+
+#            smach.StateMachine.add('SEARCH', LinearSearch('lane', 30, 2, 'fwd', False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+#            smach.StateMachine.add('SEARCH2', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
+#            smach.StateMachine.add('SEARCH3', LinearSearch('lane', 20, 1, 'sway', False, 1), transitions={'succeeded':'STORE', 'failed':'lane_failed'})
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_lane_gate'), transitions={'succeeded':'LANE_GATE'})
             smach.StateMachine.add('LANE_GATE', WaitOut('lane', 60), transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
             smach.StateMachine.add('HEADINGCHANGE', GoToHeading(10), transitions={'succeeded':'lane_complete'})
@@ -1291,12 +1305,13 @@ if __name__ == '__main__':
         smach.StateMachine.add('ABOUTURN', GoToHeading(10, 180, relative=True), transitions={'succeeded':'TRAFFIC_TASK'})
         smach.StateMachine.add('TURNTOTOLL', GoToHeading(10, 90), transitions={'succeeded':'TOLL_TASK'})
 
+    	trafficTaskTimeOut = 180
         traffic = smach.StateMachine(outcomes=['traffic_complete', 'traffic_failed'])
         with traffic:
             smach.StateMachine.add('DEPTHCHANGE', GoToDepth(15,1), transitions={'succeeded':'SEARCH'})
             smach.StateMachine.add('SEARCH', HoverSearch('traffic', 60), transitions={'succeeded':'STORE', 'failed':'traffic_failed'})
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_traffic'), transitions={'succeeded':'TRAFFIC'})
-            smach.StateMachine.add('TRAFFIC', WaitOut('traffic', 180), transitions={'succeeded':'DEPTHCHANGE2', 'failed':'traffic_failed'})
+            smach.StateMachine.add('TRAFFIC', WaitOut('traffic', trafficTaskTimeOut), transitions={'succeeded':'DEPTHCHANGE2', 'failed':'traffic_failed'})
             smach.StateMachine.add('DEPTHCHANGE2', GoToDepth(15,0.6), transitions={'succeeded':'traffic_complete'})
         smach.StateMachine.add('TRAFFIC_TASK', traffic, transitions={'traffic_complete':'TURNTOTOLL', 'traffic_failed':'TURNTOTOLL'})
 
@@ -1316,10 +1331,18 @@ if __name__ == '__main__':
         speed = smach.StateMachine(outcomes=['speed_complete', 'speed_failed'])
         with speed:
             smach.StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.6), transitions={'succeeded':'TURN'})
-            smach.StateMachine.add('TURN', GoToHeading(15,90), transitions={'succeeded':'SEARCH'})
-            smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 3.5, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
-            smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
-            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3.5, 'sway'), transitions={'succeeded':'STORE', 'failed':'speed_failed'})    
+            smach.StateMachine.add('TURN', GoToHeading(15,90), transitions={'succeeded':'ZIGZAGSEARCH'})
+
+            zigzagSearch = Sequence(outcomes=['succeeded', 'failed'], connector_outcome= 'failed')
+            with zigzagSearch:
+                smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 3.5, 'sway'))
+                smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'))
+                smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3.5, 'sway'))
+            smach.StateMachine.add('ZIGZAGSEARCH', zigzagSearch, transitions={'succeeded':'STORE', 'failed':'speed_failed'})
+
+#            smach.StateMachine.add('SEARCH', LinearSearch('speedtrap', 60, 3.5, 'sway'), transitions={'succeeded':'STORE', 'failed':'SEARCH2'})
+#            smach.StateMachine.add('SEARCH2', LinearSearch('speedtrap', 30, 1, 'fwd'), transitions={'succeeded':'STORE', 'failed':'SEARCH3'})
+#            smach.StateMachine.add('SEARCH3', LinearSearch('speedtrap', 60, -3.5, 'sway'), transitions={'succeeded':'STORE', 'failed':'speed_failed'})    
             smach.StateMachine.add('STORE', StoreGlobalCoord('mission_speed'), transitions={'succeeded':'SPEEDTRAP'})
             smach.StateMachine.add('SPEEDTRAP', WaitOut('speedtrap', 150), transitions={'succeeded':'speed_complete', 'failed':'speed_failed'})           
         smach.StateMachine.add('SPEED_TASK', speed, transitions={'speed_complete':'PARK_TASK', 'speed_failed':'PARK_TASK'})
