@@ -291,6 +291,7 @@ class Search(smach.State):
                 return 'search_complete' 
             
             if isAbort:
+                park.unregister()
                 return 'aborted'               
             r.sleep()
 
@@ -332,7 +333,6 @@ class MotionControlProcess(smach.State):
         r = rospy.Rate(40)
         while(not rospy.is_shutdown()):
             
-
             if not park.targetLockStatus:
                 actionClient.cancel_all_goals()
 
@@ -343,7 +343,15 @@ class MotionControlProcess(smach.State):
                     wait_time = params['finalWaitTime']
                     
                 #Adjust first if error is too large
-                if  abs(park.errorSide) > params['side_thresh'] or abs(park.errorDepth) > params['depth_thresh']:                    
+                if  abs(park.errorSide) > params['side_thresh'] or abs(park.errorDepth) > params['depth_thresh']:     
+
+                    #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+                    try:
+                        resp = set_LocoMode(False, True)
+                        rospy.loginfo("LocoMode set to Sidemove")
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
+          
                     goal.forward_setpoint = 0
                     goal.sidemove_setpoint = park.errorSide * params['side_Kp'] * -1
                     goal.depth_setpoint += park.errorDepth * params['depth_Kp'] * -1
@@ -358,6 +366,13 @@ class MotionControlProcess(smach.State):
                     actionClient.wait_for_result(rospy.Duration(wait_time,0))                      
                 #Ok, now move forward
                 if abs(park.errorSide) <= params['side_thresh'] and abs(park.errorDepth) <= params['depth_thresh']:
+
+                    #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
+                    try:
+                        resp = set_LocoMode(True, False)
+                        rospy.loginfo("LocoMode set to Forward")
+                    except rospy.ServiceException, e:
+                        rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
                 
                     goal.forward_setpoint = params['approachFwdDist']
                     goal.sidemove_setpoint = 0
@@ -380,8 +395,16 @@ class MotionControlProcess(smach.State):
                 goal.forward_setpoint = 0
                 goal.sidemove_setpoint = 0
                 goal.heading_setpoint = ((goal.heading_setpoint-90)%360+360)%360
-                goal.depth_setpoint -= params['final_depthchange']
                 if goal.depth_setpoint <= 0.5:
+                    goal.depth_setpoint = 0.5                
+                actionClient.send_goal(goal)                                                
+                rospy.loginfo('Final: Heading change! area=%d' % (park.area))
+                actionClient.wait_for_result(rospy.Duration(10,0))
+
+                goal.forward_setpoint = 0.2
+                goal.sidemove_setpoint = 0
+                goal.depth_setpoint -= params['final_depthchange']
+                if goal.depth_setpoint < 0.5:
                     goal.depth_setpoint = 0.5                
                 actionClient.send_goal(goal)                                                
                 rospy.loginfo('Final: Depth change! area=%d' % (park.area))
@@ -423,9 +446,11 @@ class MotionControlProcess(smach.State):
                    print "Service call failed: %s"%e
                 
                 isEnd = False   
+                park.unregister()
                 return 'task_complete'                
 
             if isAbort:
+                park.unregister()
                 return 'aborted'
             r.sleep()
 
