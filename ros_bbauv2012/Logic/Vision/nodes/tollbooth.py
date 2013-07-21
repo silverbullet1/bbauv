@@ -209,7 +209,7 @@ class Correction:
 
         self.timeout = timeout
 
-        self.hole_offset = (0, -90)
+        self.hole_offset = (0, -80)
 
     def correct(self):
         hoverDepth = max(MIN_DEPTH, depth_setpoint)
@@ -436,10 +436,10 @@ class MoveToTarget(smach.State):
         goal = bbauv_msgs.msg.ControllerGoal(
                 heading_setpoint = tollbooth.heading,
                 depth_setpoint = depth_setpoint,
-                forward_setpoint = 0.15
+                forward_setpoint = 0.3
         )
         actionClient.send_goal(goal)
-        actionClient.wait_for_result(rospy.Duration(2))
+        actionClient.wait_for_result(rospy.Duration(3))
         actionClient.cancel_all_goals()
 
         #rospy.sleep(params['chargeWait'])
