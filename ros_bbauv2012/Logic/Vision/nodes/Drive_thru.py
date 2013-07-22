@@ -54,7 +54,9 @@ class Disengage(smach.State):
         global counter
         if userdata.complete:
              isStart = False
-             isEnd = True   
+             if counter == 2:
+                rospy.signal_shutdown("Deactivating Gate Node")
+                return 'complete_outcome'
              try:
                  if isTest == False:
                      resp = mission_srv_request(False, True, locomotionGoal)
@@ -63,15 +65,11 @@ class Disengage(smach.State):
             
 
         while not rospy.is_shutdown():
-            if isEnd:
-                rospy.signal_shutdown("Deactivating Gate Node")
-                return 'complete_outcome'
             if isStart:
                 isStart = False
-                if counter == 2:
-                    dt.register()
+                if counter == 1:
                     return 'phase2_complete'
-                else:
+                elif counter == 0:
                     dt.register()
                     return 'start_complete'
             r.sleep()
@@ -229,7 +227,6 @@ class Grabbing(smach.State):
         global dt
         global movement_client
         global locomotionGoal
-        global count
         global speedtrap_params
         x_error = 0
         y_error = 0
@@ -268,9 +265,10 @@ class Manuoevre(smach.State):
                                                      sidemove_setpoint=0)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(2))
-        counter = counter + 1
+        counter = 1
         rospy.loginfo("Surfacing vehicle!")
         userdata.complete = True
+        dt.unregister()
         if rospy.is_shutdown():
             return 'aborted'
         return 'manuoevre_complete'
@@ -299,7 +297,7 @@ class Release(smach.State):
         global dt
         global movement_client
         global locomotionGoal
-        global count
+        global counter
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
                                                      depth_setpoint=1.5,
@@ -307,7 +305,7 @@ class Release(smach.State):
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(15))
         self.fire_grabber(False)
-        counter = counter + 1
+        counter = 2
         rospy.loginfo("Releasing Grabber.")
         userdata.complete = True
         if rospy.is_shutdown():
@@ -336,7 +334,7 @@ def handle_srv(req):
         # Format for service: start_response, abort_response
         locomotionGoal = req.start_ctrl
     if req.abort_request:
-        rospy.loginfo("SpeedTrap abort received")
+        rospy.loginfo("Drive_thru abort received")
         isAbort = True
         isStart = False
         dt.unregister()
@@ -349,7 +347,6 @@ locomotionGoal = None
 isStart = False
 isAbort = False  
 isEnd = False
-count = 0
 dt = None     
 r = None
 mani_pub = None
@@ -378,13 +375,6 @@ if __name__ == '__main__':
     vision_srv = rospy.Service('drivethru_srv', mission_to_vision, handle_srv)
     rospy.loginfo('drivethru_srv initialized!')
     
-    # Service Client
-    if not isTest:
-        rospy.loginfo('waiting for mission_srv...')
-        rospy.wait_for_service('mission_srv')
-        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission,headers={'id':5})
-        rospy.loginfo('connected to mission_srv!')
-    
     dt = Drive_thru(False)
     rospy.loginfo("Drive Thru loaded!")
     # Set up param configuration window
@@ -398,6 +388,13 @@ if __name__ == '__main__':
         return config
     srv = Server(DrivethruConfig, drivethruCallback)
    
+   # Service Client
+    if not isTest:
+        rospy.loginfo('waiting for mission_srv...')
+        rospy.wait_for_service('mission_srv')
+        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission,headers={'id':'5'})
+        rospy.loginfo('connected to mission_srv!')
+        
     sm_top = smach.StateMachine(outcomes=['drivethru_complete', 'aborted'])
     # Add overall States to State Machine for Gate Task 
     with sm_top:

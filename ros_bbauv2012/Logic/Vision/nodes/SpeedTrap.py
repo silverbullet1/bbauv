@@ -72,8 +72,9 @@ class Disengage(smach.State):
                 rospy.signal_shutdown("Deactivating Gate Node")
                 return 'complete_outcome'
             if isStart:
+                isStart = False
                 st.register()
-                print "starting..."
+                rospy.loginfo("Registering Topics.")
                 return 'start_complete'
             r.sleep()
         return 'aborted'
@@ -92,7 +93,8 @@ class Search(smach.State):
        global isTest
        while len(st.angleList) == 0 and not rospy.is_shutdown():
            if isAbort:
-                return "mission_abort"
+               rospy.loginfo("Aborted by Mission_planner.")
+               return "mission_abort"
            r.sleep()
        if rospy.is_shutdown():
            return 'aborted'
@@ -121,6 +123,7 @@ class Centering(smach.State):
         center_complete = False
         while(not center_complete and not rospy.is_shutdown()):
             if isAbort:
+                rospy.loginfo("Aborted by Mission_planner.")
                 return 'mission_abort'
             if(st.centroidx != 0):
                 side_error = speedtrap_params['centering_y'] * (st.centroidx - st.cols / 2)
@@ -166,6 +169,7 @@ class Aiming(smach.State):
         depth_offset = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
             if isAbort:
+                rospy.loginfo("Aborted by Mission_planner.")
                 return "mission_abort"
             '''Selection Algorithm for the top left and top right speed trap bins'''
             final_coord = None
@@ -270,6 +274,9 @@ class Firing(smach.State):
         y_error = 0
         while(len(st.centroidx_list) > 0 and not rospy.is_shutdown()):
             if isAbort:
+                rospy.loginfo("Firing Mission timeout. Releasing ammo now!")
+                self.fire_dropper(True)
+                self.fire_dropper(False)
                 return "mission_abort"
             
             '''Selection Algorithm for the top left and top right speed trap bins'''
@@ -440,7 +447,7 @@ if __name__ == '__main__':
     if not isTest:
         rospy.loginfo('waiting for mission_srv...')
         rospy.wait_for_service('mission_srv')
-        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission)
+        mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission,headers={'id':'3'})
         rospy.loginfo('connected to mission_srv!')
    
     sm_top = smach.StateMachine(outcomes=['speedtrap_complete', 'aborted'])

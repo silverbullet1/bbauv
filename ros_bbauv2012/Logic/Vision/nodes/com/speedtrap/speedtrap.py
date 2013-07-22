@@ -233,6 +233,7 @@ class SpeedTrap:
                             temp = longest_pt2
                             longest_pt2 = longest_pt1
                             longest_pt1 = temp 
+                        cv2.line(contourImg, longest_pt1, longest_pt2, (0,0,255), 2)
                         rect_y = longest_pt2[1] - longest_pt1[1]
                         rect_x = longest_pt2[0] - longest_pt1[0]
                         angle_hor = math.degrees(math.atan2(rect_y,(rect_x))) 

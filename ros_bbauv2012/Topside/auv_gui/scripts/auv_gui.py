@@ -48,6 +48,7 @@ class AUV_gui(QMainWindow):
     isArmed = False
     update_freq = 40
     vision_filter_frame = None
+    filter_image = None
     q_orientation = Queue.Queue()
     q_depth = Queue.Queue() 
     q_earth_pos = Queue.Queue()
@@ -328,7 +329,7 @@ class AUV_gui(QMainWindow):
         
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
-        self.setGeometry(300, 300, 1090, 710)
+        self.setGeometry(300, 300, 1090, 760)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/scripts/icons/field.png'))
         self.setCentralWidget(self.main_tab)
@@ -475,6 +476,10 @@ class AUV_gui(QMainWindow):
             self.update_video_rfront(self.q_image_rfront)
         if image_bot != None:
             self.update_video_bot(image_bot)
+        if self.filter_image != None:
+            self.vision_filter_frame.update_image_filterchain(self.filter_image)
+            
+            
             
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
@@ -665,7 +670,8 @@ class AUV_gui(QMainWindow):
         frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/debug/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
         frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/debug/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
         botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/debug/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
-    
+        filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
+        
     def initSub(self):
         thruster_sub = rospy.Subscriber("/thruster_speed",thruster, self.thruster_callback)
         depth_sub = rospy.Subscriber("/depth", depth ,self.depth_callback)
@@ -833,7 +839,7 @@ class AUV_gui(QMainWindow):
         self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
         self.status_text.setText("Waiting for Action Server to connect.")
-        self.client.wait_for_server()
+        #self.client.wait_for_server()
         rospy.loginfo("Action Server connected.")
         self.status_text.setText("Action Server connected.")
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
@@ -883,38 +889,25 @@ class AUV_gui(QMainWindow):
         self.video_top.setPixmap(qpm)
     
     def update_video_rfront(self,image):
-        #convert numpy mat to pixmap image
-        cvRGBImg_top = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
-        try:
-            bbLock.acquire()
-            qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
-        finally:
-            bbLock.release()
-        qpm = QPixmap.fromImage(qimg)
-        self.vision_filter_frame.video_top.setPixmap(qpm)
-        thres_image = self.vision_filter_frame.threshold_image(self.rosimg2cv(image))
-        thres_image =  cv2.cvtColor(thres_image, cv2.cv.CV_GRAY2RGB)
-        thres_qimg = QImage(thres_image.data,thres_image.shape[1], thres_image.shape[0], QImage.Format_RGB888)
-        thres_qpm = QPixmap.fromImage(thres_qimg)
-        self.vision_filter_frame.video_thres.setPixmap(thres_qpm)
-        self.vision_filter_frame.hist.updateHist(self.rosimg2cv(image))
+#        try:
+#            bbLock.acquire()
+#            qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
+#        finally:
+#            bbLock.release()
+        self.vision_filter_frame.update_image_visual(image)
+        self.vision_filter_frame.update_image_filter(image)
         
     def update_video_bot(self,image):
         cvRGBImg_bot = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
-        
+        ####
         qimg = QImage(cvRGBImg_bot.data,cvRGBImg_bot.shape[1], cvRGBImg_bot.shape[0], QImage.Format_RGB888)
         qpm = QPixmap.fromImage(qimg)
         self.video_bot.setPixmap(qpm)
+        
         if self.vision_filter_frame.isFront == 1:
-            self.vision_filter_frame.video_top.setPixmap(qpm)
-            thres_image = self.vision_filter_frame.threshold_image(self.rosimg2cv(image))
-            
-            thres_image =  cv2.cvtColor(thres_image, cv2.cv.CV_GRAY2RGB)
-            thres_qimg = QImage(thres_image.data,thres_image.shape[1], thres_image.shape[0], QImage.Format_RGB888)
-            thres_qpm = QPixmap.fromImage(thres_qimg)
-            self.vision_filter_frame.video_thres.setPixmap(thres_qpm)
-            self.vision_filter_frame.hist.updateHist(self.rosimg2cv(image))
+            self.vision_filter_frame.update_image_visual(image)
+            self.vision_filter_frame.update_image_filter(image)
     
     def front_rcallback(self,image):
         try:
@@ -935,6 +928,13 @@ class AUV_gui(QMainWindow):
         except CvBridgeError, e:
             print e
     
+    def filter_callback(self,image):
+        try:
+            self.fi
+        except CvBridgeError, e:
+            print e
+            
+            
     def mode_callback(self,mode):
         self.q_mode.put(mode)
     def thruster_callback(self,thruster):
@@ -957,6 +957,8 @@ class AUV_gui(QMainWindow):
     def earth_pos_callback(self,earth):
         self.q_earth_pos.put(earth)
     
+    def filter_callback(self,image):
+        self.filter_image = image
     def hull_status_callback(self,hull):
         self.q_hull_status.put(hull)
         
