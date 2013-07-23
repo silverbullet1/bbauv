@@ -17,7 +17,10 @@
 
     <!-- Launching cameras and image reducer -->
     <include file="$(find launch)/cameras.launch" />
-    <include file="$(find launch)/image_reducer.launch" />
+    <!-- <include file="$(find launch)/image_reducer.launch" /> -->
     <include file="$(find launch)/navigation.launch" />
+    
+    <!-- Launching acoustics -->
+   <!-- <include file="$(find launch)/acoustic.launch" />-->
 
 </launch> 

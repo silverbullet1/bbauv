@@ -3,11 +3,11 @@
     <node
         pkg="Vision" name="Task_lane_marker_detector" type="lane_marker_detector.py" >
     </node>
-<!--
+
     <node
         pkg="Vision" name="Task_trafficlight" type="trafficlight.py" >
     </node>
--->
+
     <node
         pkg="Vision" name="Task_parking" type="parking.py" >
     </node>
@@ -16,9 +16,16 @@
         pkg="Vision" name="Task_tollbooth" type="tollbooth.py" >
     </node>
 
-
     <node
         pkg="Vision" name="Task_speedtrap" type="SpeedTrap.py" >
+    </node>
+
+    <node
+        pkg="Vision" name="Task_DriveThru" type="Drive_thru.py" >
+    </node>
+
+    <node
+        pkg="acoustic_nav" name="Task_Acoustic" type="acoustic_nav.py" >
     </node>
 
 

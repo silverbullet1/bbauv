@@ -434,7 +434,7 @@ search_depth = 0.5
 search_distance = 3
 z_threshold = 0.5
 ver_dist_to_pinger = 1.73
-x_offset = 0.27
+x_offset = 0.27 #position of hydrophones
 y_offset = -0.065
 search_position = Point()
 

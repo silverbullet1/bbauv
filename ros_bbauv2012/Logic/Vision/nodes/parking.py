@@ -59,16 +59,15 @@ class Parking_Proc():
         self.errorSide = 0
         self.errorDepth = 0
         self.area = 0        
+        self.image_pub = rospy.Publisher('/Vision/image_filter', Image)
         
     def register(self):
-        self.image_sub = rospy.Subscriber('stereo_camera/left/image_rect_color', Image, self.image_callback)
-        self.image_pub = rospy.Publisher('/Vision/image_filter', Image)
-        #rospy.logdebug('Registered')
+        self.image_sub = rospy.Subscriber('/stereo_camera/left/image_rect_color', Image, self.image_callback)
+        rospy.logdebug('Registered')
         
     def unregister(self):
         self.image_sub.unregister()
-#        self.image_pub.unregister()
-        #rospy.logdebug('Unregistered')
+        rospy.logdebug('Unregistered')
     
     def image_callback(self, data):
         frame = self.convert_image(data)
@@ -96,7 +95,7 @@ class Parking_Proc():
         horizontal_green = cv2.morphologyEx(horizontal_green, cv2.MORPH_CLOSE, kernel,iterations=params['closeiter'])
         
         #making a copy because contour analysis alteres the image
-        contourFrame = horizontal_green.copy()
+        contourFrame = horizontal_green
         #finding and drawing contours
         target_contour = self.contour_analysis(contourFrame, frame, conArea=params['conArea'], conPeri=params['conPeri'], conAspRatio=params['aspectRatio'])
         
@@ -123,13 +122,7 @@ class Parking_Proc():
             else:
                 self.targetLockStatus = False
         else:
-            self.targetLockStatus = False
-        
-        #Draw target circle for visual debuggin
-        cv2.circle(horizontal_green, (320,240), 12, (255,0,0), 2)     
-        debug_frame = cv2.cv.fromarray(horizontal_green)   
-
-        self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame))
+            self.targetLockStatus = False   
 
 ########################################################################
 
@@ -151,13 +144,18 @@ class Parking_Proc():
               
         cv.WaitKey(1)
 
+#        debug_frame = cv2.cv.fromarray(horizontal_green)
+#        self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame)) #, encoding="bgr8"
+
         return frame
 
 ########################################################################
 
     def contour_analysis(self, contour_frame, input_frame, conArea=120, conPeri=50, conAspRatio=7):
     
-        contours , hierarchy = cv2.findContours(contour_frame, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        contour_frame_2 = contour_frame.copy() #Change this shit out later
+
+        contours , hierarchy = cv2.findContours(contour_frame_2, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
         #selecting the right contour based on area, perimeter and aspect ratio
         #asepct ratio seems good to get horizontal rectangular contours
@@ -176,10 +174,23 @@ class Parking_Proc():
             targetCoord = 'x = %d y = %d' % (target_x, target_y) 
             #rospy.loginfo(targetCoord)
 
-            #draw contour on input_frame    
-            cv2.drawContours(input_frame, [approx], 0, (0,0,255), 2)
-            #drawing tracking point
-            cv2.circle(input_frame, (target_x,target_y), 5, (0,255,255),-1)
+#            #draw contour on input_frame    
+#            cv2.drawContours(input_frame, [approx], 0, (0,0,255), 2)
+#            #drawing tracking point
+#            cv2.circle(input_frame, (target_x,target_y), 5, (0,255,255),-1)
+            
+            #Prepare Debug Frame for publishing
+            debug_frame = np.zeros((480,640,3), dtype=np.uint8) #blank image
+            trip_input_frame = cv2.merge([input_frame, input_frame, input_frame])
+            debug_frame += trip_input_frame
+            cv2.drawContours(debug_frame, [approx], 0, (0,0,255), 2)
+#            #drawing tracking point
+            cv2.circle(debug_frame, (target_x,target_y), 5, (0,255,255),-1)
+#            #Draw target circle for visual debuggin
+            cv2.circle(debug_frame, (320,240), 12, (255,0,0), 2)
+            debug_frame= cv2.cv.fromarray(debug_frame)
+            self.image_pub.publish(self.bridge.cv_to_imgmsg(debug_frame, encoding="bgr8"))
+
             output.append(cnt)
             output.append(target_x)
             output.append(target_y)
@@ -197,11 +208,11 @@ class Parking_Proc():
 #            test for the correct contour in list of contours
             if area >= conArea and perimeter >= conPeri and aspect_ratio >= conAspRatio:
                 contourDescrip = 'area=%d peri=%d aspectRatio=%d' % (area, perimeter, aspect_ratio)
-                #rospy.logdebug(contourDescrip)
+                rospy.logdebug(contourDescrip)
                 
                 cnt = contour
                 self.last_cnt = cnt
-                contourAnalysisOutput = approxAndDrawContour(input_frame, cnt)
+                contourAnalysisOutput = approxAndDrawContour(contour_frame, cnt)
                 self.area = area
                 break
             
@@ -232,7 +243,7 @@ class Parking_Proc():
         
         #Execute Thresholding
         hsv_threshed = cv2.inRange(hsv_equalized, COLOR_MIN, COLOR_MAX) #equalization removed
-        
+
         return hsv_threshed
 
 '''
@@ -369,8 +380,8 @@ class MotionControlProcess(smach.State):
 
                     #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
                     try:
-                        resp = set_LocoMode(True, False)
-                        rospy.loginfo("LocoMode set to Forward")
+                        resp = set_LocoMode(False, False)
+                        rospy.loginfo("LocoMode set to Default")
                     except rospy.ServiceException, e:
                         rospy.loginfo("LocoMode Fwd NOT set: %s" % e)
                 
@@ -501,6 +512,7 @@ params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh'
           'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 
           'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0, 'final_depthchange': 0, 'final_moonwalk': 0}
 
+test_mode = False
 
 # To test just the vision code, comment everything, uncomment the last 2 lines
 # To test without mission, uncomment "Service Client" and all mission_srv calls
@@ -516,43 +528,46 @@ if __name__ == '__main__':
     
     vision_srv = rospy.Service('park_srv', mission_to_vision, handle_srv)
     rospy.loginfo('park_srv initialized!')
-      
-    #Service Client. This part is commented if testing Vision task state machine without mission planner
-    rospy.loginfo('Park waiting for mission_srv...')
-    rospy.wait_for_service('mission_srv')
-    mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':2})
-    rospy.loginfo('Park connected to mission_srv!')
     
-    #Getting ready service to change locomotion mode
-    rospy.loginfo('Parking Waiting for Locomotion Modes Service to start up...')
-    rospy.wait_for_service('locomotion_mode_srv')
-    set_LocoMode = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
-    rospy.loginfo('Parking Connected to Locomotion Mode Service')
+    if not test_mode:      
+        #Service Client. This part is commented if testing Vision task state machine without mission planner
+        rospy.loginfo('Park waiting for mission_srv...')
+        rospy.wait_for_service('mission_srv')
+        mission_srv = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':2})
+        rospy.loginfo('Park connected to mission_srv!')
+        
+        #Getting ready service to change locomotion mode
+        rospy.loginfo('Parking Waiting for Locomotion Modes Service to start up...')
+        rospy.wait_for_service('locomotion_mode_srv')
+        set_LocoMode = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
+        rospy.loginfo('Parking Connected to Locomotion Mode Service')
+          
+        #Computer vision processing instantiation
+        park = Parking_Proc()
+          
+        sm_top = smach.StateMachine(outcomes=['park_complete','park_failed'])
+        #Add overall States to State Machine for Gate Task 
+        with sm_top:
+            smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH', 'completed':'park_complete'})
+            smach.StateMachine.add('SEARCH', Search(), transitions={'search_complete':'MOTION_CONTROL','aborted':'DISENGAGED'})    
+            smach.StateMachine.add('MOTION_CONTROL', MotionControlProcess(), transitions={'task_complete': 'DISENGAGED','aborted':'DISENGAGED'})
       
-    #Computer vision processing instantiation
-    park = Parking_Proc()
+        # Create and start the introspection server
+        sis = smach_ros.IntrospectionServer('park_server', sm_top, '/MISSION/PARK')
+        sis.start()
       
-    sm_top = smach.StateMachine(outcomes=['park_complete','park_failed'])
-    #Add overall States to State Machine for Gate Task 
-    with sm_top:
-        smach.StateMachine.add('DISENGAGED', Disengage(), transitions={'start_complete':'SEARCH', 'completed':'park_complete'})
-        smach.StateMachine.add('SEARCH', Search(), transitions={'search_complete':'MOTION_CONTROL','aborted':'DISENGAGED'})    
-        smach.StateMachine.add('MOTION_CONTROL', MotionControlProcess(), transitions={'task_complete': 'DISENGAGED','aborted':'DISENGAGED'})
-  
-    # Create and start the introspection server
-    sis = smach_ros.IntrospectionServer('park_server', sm_top, '/MISSION/PARK')
-    sis.start()
-  
-    try:
-        outcome = sm_top.execute()
-#        rospy.spin()
-    except KeyboardInterrupt:
-        sis.stop()
-        print "Shutting down"
+        try:
+            outcome = sm_top.execute()
+    #        rospy.spin()
+        except KeyboardInterrupt:
+            sis.stop()
+            print "Shutting down"
 
-#    rospy.signal_shutdown("Deactivating Park Node")
-#    park = Parking_Proc()
-#    park.register()
-#    rospy.spin()
+        rospy.signal_shutdown("Deactivating Park Node")
+
+    if test_mode:
+        park = Parking_Proc()
+        park.register()
+        rospy.spin()
     
 
