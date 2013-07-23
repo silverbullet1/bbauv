@@ -156,14 +156,14 @@ class Vision_filter(QWidget):
         
         qpm = QPixmap.fromImage(qimg)
         self.hist.updateHist(self.rosimg2cv(image))
-        self.video_top.setPixmap(qpm)
+        self.video_top.setPixmap(qpm.scaledToHeight(250))
     ### Update Vision Filter filter video
     def update_image_filter(self,image):
         thres_image = self.thresholder.threshold_image(self.rosimg2cv(image))
         thres_image =  cv2.cvtColor(thres_image, cv2.cv.CV_GRAY2RGB)
         thres_qimg = QImage(thres_image.data,thres_image.shape[1], thres_image.shape[0], QImage.Format_RGB888)
         thres_qpm = QPixmap.fromImage(thres_qimg)
-        self.video_thres.setPixmap(thres_qpm)
+        self.video_thres.setPixmap(thres_qpm.scaledToHeight(250))
         
     def onQleChanged_C(self,text):
         self.thresholder.params["C"] = int(text)

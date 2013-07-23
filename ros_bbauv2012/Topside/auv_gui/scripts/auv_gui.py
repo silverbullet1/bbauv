@@ -472,14 +472,12 @@ class AUV_gui(QMainWindow):
             self.data['status'] = controller_feedback.status.status
         if self.q_image_front != None:
             self.update_video_front(self.q_image_front)
-        if self.vision_filter_frame.isFront == 0 and self.q_image_rfront!=None:
-            self.update_video_rfront(self.q_image_rfront)
+        if self.vision_filter_frame.isFront == 0 and self.q_image_front!=None:
+            self.update_video_rfront(self.q_image_front)
         if image_bot != None:
             self.update_video_bot(image_bot)
         if self.filter_image != None:
             self.vision_filter_frame.update_image_filterchain(self.filter_image)
-            
-            
             
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
@@ -490,7 +488,6 @@ class AUV_gui(QMainWindow):
             self.l_mode.setText("Forward")
         elif self.data['mode'] == 2:
             self.l_mode.setText("Sidemove")
-        
         
         self.attitudePanel1.setText("<b>YAW: " + str(round(self.data['yaw'],2)) + 
                                     "<br> PIT: " + str(round(self.data['pitch'],2)) +
@@ -667,9 +664,9 @@ class AUV_gui(QMainWindow):
         
     def initImage(self):
         self.bridge = CvBridge()
-        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/debug/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
-        frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/debug/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
-        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/debug/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
+        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
+        #frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
+        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
         filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
     def initSub(self):
@@ -756,7 +753,6 @@ class AUV_gui(QMainWindow):
             resp = self.locomotion_mode_request(False,True)
             self.modeButton.setText("Sidemove")
             #Enable Sidemove Mode
-            
             self.counter = self.counter + 1
         elif(self.counter == 2):
             resp = self.locomotion_mode_request(False,False)
@@ -879,14 +875,15 @@ class AUV_gui(QMainWindow):
     
     def update_video_front(self,image):
         #convert numpy mat to pixmap image
+        cvRGBImg_front = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
-            qimg = QImage(image.data,image.shape[1], image.shape[0], QImage.Format_RGB888)
+            qimg = QImage(cvRGBImg_front.data,cvRGBImg_front.shape[1], cvRGBImg_front.shape[0], QImage.Format_RGB888)
         finally:
             bbLock.release()
         qpm = QPixmap.fromImage(qimg)
-        self.video_top.setPixmap(qpm)
+        self.video_top.setPixmap(qpm.scaledToHeight(250))
     
     def update_video_rfront(self,image):
         bbLock = threading.Lock()
@@ -903,7 +900,7 @@ class AUV_gui(QMainWindow):
         ####
         qimg = QImage(cvRGBImg_bot.data,cvRGBImg_bot.shape[1], cvRGBImg_bot.shape[0], QImage.Format_RGB888)
         qpm = QPixmap.fromImage(qimg)
-        self.video_bot.setPixmap(qpm)
+        self.video_bot.setPixmap(qpm.scaledToHeight(250))
         
         if self.vision_filter_frame.isFront == 1:
             self.vision_filter_frame.update_image_visual(image)
@@ -916,9 +913,8 @@ class AUV_gui(QMainWindow):
             print e
             
     def front_callback(self,image):
-        cvRGBImg_front = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
         try:
-            self.q_image_front = cvRGBImg_front
+            self.q_image_front = image
         except CvBridgeError, e:
             print e
         

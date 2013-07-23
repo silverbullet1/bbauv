@@ -236,8 +236,9 @@ class SpeedTrap:
                         cv2.line(contourImg, longest_pt1, longest_pt2, (0,0,255), 2)
                         rect_y = longest_pt2[1] - longest_pt1[1]
                         rect_x = longest_pt2[0] - longest_pt1[0]
-                        angle_hor = math.degrees(math.atan2(rect_y,(rect_x))) 
-                        #print angle_hor
+                        angle_hor = math.degrees(math.atan2(rect_y,(rect_x)))
+                        if angle_hor == 0.0:
+                            angle_hor = 90 
                         self.angleList.append(angle_hor)
                         cv2.putText(contourImg,str(np.round(angle_hor,1)), (int(points[0][0]),int(points[0][1])), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                     colorTxt = (0,0,255)
