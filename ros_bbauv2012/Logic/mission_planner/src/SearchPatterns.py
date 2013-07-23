@@ -29,10 +29,10 @@ if __name__ == '__main__':
           'isL':False , 'nL': '1'}
     squareSearch = Sequence(outcomes=['succeeded', 'failed'], connector_outcome= 'failed')
     with squareSearch:
-        Sequence.add('FWD', LinearSearch(zP['tN'], zP['fTo'], zP['sqL']/float(2) , 'fwd', zP['isL'], zP['nL']))
-        Sequence.add('RIGHT', LinearSearch(zP['tN'], zP['sTo'], zP['sqL']/float(2) , 'sway', zP['isL'], zP['nL']))
-        Sequence.add('BACK', LinearSearch(zP['tN'], zP['fTo'], -1*zP['sqL'] , 'fwd', zP['isL'], zP['nL']))
-        Sequence.add('LEFT', LinearSearch(zP['tN'], zP['sTo'], -1*zP['sqL'] , 'sway', zP['isL'], zP['nL']))
-        Sequence.add('FWD2', LinearSearch(zP['tN'], zP['fTo'], zP['sqL'] , 'fwd', zP['isL'], zP['nL']))
-        Sequence.add('RIGHT2', LinearSearch(zP['tN'], zP['sTo'], zP['sqL']/float(2) , 'sway', zP['isL'], zP['nL']))
+        Sequence.add('FWD', LinearSearch(sP['tN'], sP['fTo'], sP['sqL']/float(2) , 'fwd', sP['isL'], sP['nL']))
+        Sequence.add('RIGHT', LinearSearch(sP['tN'], sP['sTo'], sP['sqL']/float(2) , 'sway', sP['isL'], sP['nL']))
+        Sequence.add('BACK', LinearSearch(sP['tN'], sP['fTo'], -1*sP['sqL'] , 'fwd', sP['isL'], sP['nL']))
+        Sequence.add('LEFT', LinearSearch(sP['tN'], sP['sTo'], -1*sP['sqL'] , 'sway', sP['isL'], sP['nL']))
+        Sequence.add('FWD2', LinearSearch(sP['tN'], sP['fTo'], sP['sqL'] , 'fwd', sP['isL'], sP['nL']))
+        Sequence.add('RIGHT2', LinearSearch(sP['tN'], sP['sTo'], sP['sqL']/float(2) , 'sway', sP['isL'], sP['nL']))
     smach.StateMachine.add('SQSEARCH', squareSearch, transitions={'succeeded':'', 'failed':''})

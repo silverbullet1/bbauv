@@ -17,6 +17,7 @@ import actionlib
 import smach
 import smach_ros
 from smach import Sequence
+from smach import StateMachine
 import bbauv_msgs
 import bbauv_msgs.msg
 from nav_msgs.msg import Odometry
@@ -259,7 +260,7 @@ class GoToHeading(smach.State):
     
 class StoreGlobalCoord(smach.State):
     def __init__(self, task_name):
-        smach.State.__init__(self, outcomes=['succeeded'])
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
         self.name = self.__class__.__name__ 
         self.task_name = task_name
             
@@ -1412,7 +1413,7 @@ if __name__ == '__main__':
             smach.StateMachine.add('HOVER4', HoverSearch('drivethru', 10), transitions={'succeeded':'PICKUP' , 'failed':'SEARCH_LEFT'})
             
             #Star Search Pattern
-            smach.StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 15, -1.5, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
+            smach.StateMachine.add('SEARCH_LEFT',   ('drivethru', 15, -1.5, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
             smach.StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 15, 3, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT2'})
             smach.StateMachine.add('SEARCH_LEFT2', LinearSearch('drivethru', 15, -1.5, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_FRONT'})
             smach.StateMachine.add('SEARCH_FRONT', LinearSearch('drivethru', 15, 1.5, 'fwd'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_REAR'})
