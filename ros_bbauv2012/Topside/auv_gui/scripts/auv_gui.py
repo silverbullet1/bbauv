@@ -46,7 +46,7 @@ class AUV_gui(QMainWindow):
     cvRGBImg_rfront = None
     cvRGBImg_bot = None
     isArmed = False
-    update_freq = 40
+    update_freq = 20
     vision_filter_frame = None
     filter_image = None
     q_orientation = Queue.Queue()
@@ -62,7 +62,7 @@ class AUV_gui(QMainWindow):
     q_openups = Queue.Queue()
     q_temp = Queue.Queue()
     q_altitude = Queue.Queue()
-    q_image_bot = Queue.Queue()
+    q_image_bot = None
     q_image_front = None
     q_image_rfront = None
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
@@ -369,54 +369,67 @@ class AUV_gui(QMainWindow):
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
+            self.q_orientation = Queue.Queue()
         except Exception,e:
             pass
         try:
             temp = self.q_temp.get(False,0)
+            self.q_temp = Queue.Queue()
         except Exception,e:
             pass   
         try:
             altitude = self.q_altitude.get(False,0)
+            self.q_altitude = Queue.Queue()
         except Exception,e:
             pass
         try:
             mode = self.q_mode.get(False,0)
+            self.q_mode = Queue.Queue()
         except Exception,e:
             pass
         try:
             openups = self.q_openups.get(False,0)
+            self.q_openups = Queue.Queue()
         except Exception,e:
             pass
         try:
             depth = self.q_depth.get(False,0)
+            self.q_depth = Queue.Queue()
         except Exception,e:
             pass
         try:
             controller_setpoints = self.q_controller.get(False,0)
+            self.q_controller = Queue.Queue()
         except Exception,e:
             pass
         try:
             controller_feedback = self.q_controller_feedback.get(False, 0)
+            self.q_controller_feedback = Queue.Queue()
         except Exception,e:
             pass
         try:
             thrusters = self.q_thruster.get(False,0)
+            self.q_thruster = Queue.Queue()
         except Exception,e:
             pass
         try:
             manipulators = self.q_mani.get(False,0)
+            self.q_mani = Queue.Queue()
         except Exception,e:
             pass
         try:
             hull_statuses = self.q_hull_status.get(False,0)
+            self.q_hull_status = Queue.Queue()
         except Exception,e:
             pass
         try:
             rel_pos = self.q_rel_pos.get(False,0)
+            self.q_rel_pos = Queue.Queue()
         except Exception,e:
             pass
         try:
             earth_pos = self.q_earth_pos.get(False,0)
+            self.q_earth_pos = Queue.Queue()
         except Exception,e:
             pass
 #        try:
@@ -428,7 +441,7 @@ class AUV_gui(QMainWindow):
 #        except Exception,e:
 #            pass
         try:
-            image_bot = self.q_image_bot.get(False,0)
+            image_bot = self.q_image_bot
         except Exception,e:
             pass
         '''If data in queue is available store it into data'''
@@ -920,16 +933,9 @@ class AUV_gui(QMainWindow):
         
     def bottom_callback(self,image):
         try:
-            self.q_image_bot.put(image)
+            self.q_image_bot = image
         except CvBridgeError, e:
             print e
-    
-    def filter_callback(self,image):
-        try:
-            self.fi
-        except CvBridgeError, e:
-            print e
-            
             
     def mode_callback(self,mode):
         self.q_mode.put(mode)
