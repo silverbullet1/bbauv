@@ -1234,6 +1234,7 @@ if __name__ == '__main__':
 
     Launch : Eng Wei
     Depth Offset : Eng Wei
+    Camera Settings : Jon
     Telemetry Check : Eng Wei
     Load Ammo : Thomas
     Acoustics : Louis
