@@ -7,10 +7,10 @@ sleep 5
 tmux start-server
 tmux new-session -d -s bbauv
 tmux rename-window 'MISSION CONTROL'
-tmux new-window -tbbauv:1
 tmux split-window -h
-tmux split-window -v
-tmux rename-window 'Scripts 2'
+tmux new-window -tbbauv:1
+tmux rename-window 'rosbag playback'
+tmux split-window -h
 tmux new-window -tbbauv:2
 tmux rename-window 'roscore'
 tmux send-keys 'roscore' C-m
@@ -26,7 +26,8 @@ tmux new-window -tbbauv:5
 tmux rename-window 'iptraf'
 #tmux send-keys 'rostopic pub -1 /lcd_commands std_msgs/Int8 -- 1' C-m
 tmux new-window -tbbauv:6
-tmux rename-window 'top'
+tmux rename-window 'rosbridge'
+tmux send-keys 'rosrun rosbridge rosbridge.py' C-m
 
 tmux set-option -s mouse-resize-pane on
 tmux set-option -s mouse-select-pane on
