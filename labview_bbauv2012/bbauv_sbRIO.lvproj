@@ -13,7 +13,6 @@
 		<Property Name="specify.custom.address" Type="Bool">false</Property>
 		<Item Name="recording.vi" Type="VI" URL="../sbRIO/recording.vi"/>
 		<Item Name="playback.vi" Type="VI" URL="../sbRIO/playback.vi"/>
-		<Item Name="real-time recording.vi" Type="VI" URL="../sbRIO/real-time recording.vi"/>
 		<Item Name="playback_choose_freq.vi" Type="VI" URL="../sbRIO/playback_choose_freq.vi"/>
 		<Item Name="array_portion (SubVI).vi" Type="VI" URL="../sbRIO/array_portion (SubVI).vi"/>
 		<Item Name="select frequency (subVI).vi" Type="VI" URL="../sbRIO/select frequency (subVI).vi"/>
@@ -315,6 +314,7 @@
 		<Property Name="target.FPProtocolGlobals_ControlTimeLimit" Type="Int">300</Property>
 		<Property Name="target.getDefault-&gt;WebServer.Port" Type="Int">80</Property>
 		<Property Name="target.getDefault-&gt;WebServer.Timeout" Type="Int">60</Property>
+		<Property Name="target.IOScan.Enabled" Type="Bool">true</Property>
 		<Property Name="target.IOScan.Faults" Type="Str">1.0,0;</Property>
 		<Property Name="target.IOScan.NetVarPeriod" Type="UInt">100</Property>
 		<Property Name="target.IOScan.NetWatchdogEnabled" Type="Bool">false</Property>
