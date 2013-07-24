@@ -1317,7 +1317,7 @@ if __name__ == '__main__':
         StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
         
         #Competition Side
-        StateMachine.add('START',Start(10,0.5,40), transitions={'succeeded':'LANE_GATE'})
+        StateMachine.add('START',Start(10,0.5,295), transitions={'succeeded':'LANE_GATE'})
         StateMachine.add('TURN_TO_GATE', GoToHeading(10, 40), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
         StateMachine.add('GO_TO_GATE', GoToDistance(70, 7, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
