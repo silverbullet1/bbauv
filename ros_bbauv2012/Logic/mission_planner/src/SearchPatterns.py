@@ -36,3 +36,6 @@ if __name__ == '__main__':
         Sequence.add('FWD2', LinearSearch(sP['tN'], sP['fTo'], sP['sqL'] , 'fwd', sP['isL'], sP['nL']))
         Sequence.add('RIGHT2', LinearSearch(sP['tN'], sP['sTo'], sP['sqL']/float(2) , 'sway', sP['isL'], sP['nL']))
     smach.StateMachine.add('SQSEARCH', squareSearch, transitions={'succeeded':'', 'failed':''})
+    
+    #Stop Go Search
+    
