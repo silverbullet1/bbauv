@@ -58,7 +58,7 @@ class Start(smach.State):
         #Key in starting position here
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0, sidemove_setpoint=0,
                                             depth_setpoint= self.start_depth, 
-                                            heading_setpoint = self.start_heading                                            
+                                            heading_setpoint = self.start_heading
                                             )
 
         #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
@@ -631,7 +631,7 @@ class WaitOut(smach.State):
 
     def boundingBoxCheck(self, firstX, firstY):
         #checks if the AUV has maneuvered out of a box of size
-        ropsy.logdebug('Checking Bounding Box while waiting for task to complete')
+        rospy.logdebug('Checking Bounding Box while waiting for task to complete')
         if global_x > (firstX+self.boundLength) or global_x < (firstX-self.boundLength) or global_y > (firstY+self.boundLength) or global_y < (firstY-self.boundLength):
             self.isOutofBound = True
         
@@ -1266,16 +1266,16 @@ if __name__ == '__main__':
         Altitude_sub = rospy.Subscriber('/altitude', Float32, AltitudeCallback)
          
          # Testing Task services
-         task_list = {'0':'lane','1':'traffic', '2':'park','3':'speedtrap','4':'tollbooth','5':'drivethru','6':'acoustic'}
-         for key,value in task_list.iteritems():
-             test_srv = value + '_srv'
-             rospy.logdebug('Mission Waiting for %s to start up...' % test_srv)
-             rospy.wait_for_service(test_srv)
-             testing_srv = rospy.ServiceProxy(test_srv , mission_to_lane)
-             rospy.loginfo('Mission Connected to %s' % test_srv)
-             testing_srv.close()
+        task_list = {'0':'lane','1':'traffic', '2':'park','3':'speedtrap','4':'tollbooth','5':'drivethru','6':'acoustic'}
+        for key,value in task_list.iteritems():
+            test_srv = value + '_srv'
+            rospy.logdebug('Mission Waiting for %s to start up...' % test_srv)
+            rospy.wait_for_service(test_srv)
+            testing_srv = rospy.ServiceProxy(test_srv , mission_to_lane)
+            rospy.loginfo('Mission Connected to %s' % test_srv)
+            testing_srv.close()
 
-        Service Client for Lane; Lane task is the only task that will not be shutdown
+        
         rospy.loginfo('Mission Waiting for LaneServer to start up...')
         rospy.wait_for_service('lane_srv')
         lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
@@ -1317,9 +1317,9 @@ if __name__ == '__main__':
         StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
         
         #Competition Side
-        StateMachine.add('START',Start(5,0.5,40), transitions={'succeeded':'TURN_TO_GATE'})
+        StateMachine.add('START',Start(2,0.5,40), transitions={'succeeded':'TRAFFIC'})
         StateMachine.add('TURN_TO_GATE', GoToHeading(5, 40), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
-        StateMachine.add('GO_TO_GATE', GoToDistance(70, 13, 'fwd'), transitions={'succeeded':'LANE_GATE'})
+        StateMachine.add('GO_TO_GATE', GoToDistance(70, 11, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
 ###################################################################        
         lane_gate = StateMachine(outcomes=['lane_complete', 'lane_failed'])
@@ -1478,8 +1478,9 @@ if __name__ == '__main__':
             StateMachine.add('HOVER', HoverSearch('lane', 5, False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
             StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
             StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 2, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_FWD'})                       
-            StatteMachine.add('LOOK_FWD', LinearSearch('lane', 20, 1, 'fwd', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2')
-StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
+            StateMachine.add('LOOK_FWD', LinearSearch('lane', 20, 1, 'fwd', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
+	    StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -1, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
+            
             task = {'tN':'lane', 'tOut':60, 'bL':5}
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
             with task_execution:
