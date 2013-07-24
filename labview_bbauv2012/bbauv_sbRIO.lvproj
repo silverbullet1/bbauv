@@ -14,6 +14,10 @@
 		<Item Name="recording.vi" Type="VI" URL="../sbRIO/recording.vi"/>
 		<Item Name="playback.vi" Type="VI" URL="../sbRIO/playback.vi"/>
 		<Item Name="real-time recording.vi" Type="VI" URL="../sbRIO/real-time recording.vi"/>
+		<Item Name="playback_choose_freq.vi" Type="VI" URL="../sbRIO/playback_choose_freq.vi"/>
+		<Item Name="array_portion (SubVI).vi" Type="VI" URL="../sbRIO/array_portion (SubVI).vi"/>
+		<Item Name="select frequency (subVI).vi" Type="VI" URL="../sbRIO/select frequency (subVI).vi"/>
+		<Item Name="find_peak_frequency (SubVI).vi" Type="VI" URL="../sbRIO/find_peak_frequency (SubVI).vi"/>
 		<Item Name="Dependencies" Type="Dependencies">
 			<Item Name="vi.lib" Type="Folder">
 				<Item Name="Error Cluster From Error Code.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Error Cluster From Error Code.vi"/>
@@ -311,7 +315,6 @@
 		<Property Name="target.FPProtocolGlobals_ControlTimeLimit" Type="Int">300</Property>
 		<Property Name="target.getDefault-&gt;WebServer.Port" Type="Int">80</Property>
 		<Property Name="target.getDefault-&gt;WebServer.Timeout" Type="Int">60</Property>
-		<Property Name="target.IOScan.Enabled" Type="Bool">true</Property>
 		<Property Name="target.IOScan.Faults" Type="Str">1.0,0;</Property>
 		<Property Name="target.IOScan.NetVarPeriod" Type="UInt">100</Property>
 		<Property Name="target.IOScan.NetWatchdogEnabled" Type="Bool">false</Property>
@@ -3926,6 +3929,7 @@ KeepAliveTimeout 60
 		</Item>
 		<Item Name="bbauv_acoustic_sbRIO_v1.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v1.vi"/>
 		<Item Name="bbauv_acoustic_sbRIO_v2.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v2.vi"/>
+		<Item Name="bbauv_acoustic_sbRIO_v3.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v3.vi"/>
 		<Item Name="Dependencies" Type="Dependencies">
 			<Item Name="vi.lib" Type="Folder">
 				<Item Name="Error Cluster From Error Code.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Error Cluster From Error Code.vi"/>
@@ -3933,8 +3937,6 @@ KeepAliveTimeout 60
 				<Item Name="NI_AALPro.lvlib" Type="Library" URL="/&lt;vilib&gt;/Analysis/NI_AALPro.lvlib"/>
 				<Item Name="NI_AAL_SigProc.lvlib" Type="Library" URL="/&lt;vilib&gt;/Analysis/NI_AAL_SigProc.lvlib"/>
 				<Item Name="ros_toolkit.lvlib" Type="Library" URL="/&lt;vilib&gt;/Clearpath Robotics/ROS Toolkit/ros_toolkit.lvlib"/>
-				<Item Name="whitespace.ctl" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/whitespace.ctl"/>
-				<Item Name="Trim Whitespace.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Trim Whitespace.vi"/>
 			</Item>
 			<Item Name="amplitude threshold input (SubVI).vi" Type="VI" URL="../sbRIO/amplitude threshold input (SubVI).vi"/>
 			<Item Name="lvanlys.dll" Type="Document" URL="/&lt;resource&gt;/lvanlys.dll"/>
@@ -3944,19 +3946,7 @@ KeepAliveTimeout 60
 			<Item Name="Send to ROS (SubVI).vi" Type="VI" URL="../sbRIO/Send to ROS (SubVI).vi"/>
 			<Item Name="find first peak - amplitude (SubVI).vi" Type="VI" URL="../sbRIO/find first peak - amplitude (SubVI).vi"/>
 			<Item Name="find first peak - percentage (SubVI).vi" Type="VI" URL="../sbRIO/find first peak - percentage (SubVI).vi"/>
-			<Item Name="niLvFpga_Close_Dynamic.vi" Type="VI" URL="/&lt;vilib&gt;/FPGAPlugInAG/Dynamic/niLvFpga_Close_Dynamic.vi"/>
-			<Item Name="niLvFpgaFormatErrorSource.vi" Type="VI" URL="/&lt;vilib&gt;/rvi/errors/niLvFpgaFormatErrorSource.vi"/>
-			<Item Name="niLvFpgaErrorClusterFromErrorCode.vi" Type="VI" URL="/&lt;vilib&gt;/rvi/errors/niLvFpgaErrorClusterFromErrorCode.vi"/>
-			<Item Name="nirviErrorClusterFromErrorCode.vi" Type="VI" URL="/&lt;vilib&gt;/RVI Host/nirviSupport.llb/nirviErrorClusterFromErrorCode.vi"/>
-			<Item Name="niLvFpgaWhatHappensToTopLevelVI.ctl" Type="VI" URL="/&lt;vilib&gt;/rvi/errors/niLvFpgaWhatHappensToTopLevelVI.ctl"/>
-			<Item Name="niFpgaNodeNameForErrorReporting.ctl" Type="VI" URL="/&lt;vilib&gt;/rvi/interface/common/niFpgaNodeNameForErrorReporting.ctl"/>
-			<Item Name="niLvFpgaAdjustHostInterfaceError.vi" Type="VI" URL="/&lt;vilib&gt;/rvi/errors/niLvFpgaAdjustHostInterfaceError.vi"/>
-			<Item Name="niLvFpga_Run_Dynamic.vi" Type="VI" URL="/&lt;vilib&gt;/FPGAPlugInAG/Dynamic/niLvFpga_Run_Dynamic.vi"/>
-			<Item Name="niFpgaHostInterfaceSession.ctl" Type="VI" URL="../../../../../../Program Files (x86)/National Instruments/LabVIEW 2012/Targets/NI/FPGA/StockFPGA_IntfPrivate/ScriptTemplates/niFpgaHostInterfaceSession.ctl"/>
-			<Item Name="niFpgaDynamicAddResources.vi" Type="VI" URL="/&lt;vilib&gt;/rvi/interface/common/dynamic/niFpgaDynamicAddResources.vi"/>
-			<Item Name="nirviWhatTheDeviceIsDoing.ctl" Type="VI" URL="/&lt;vilib&gt;/rvi/ClientSDK/nirviWhatTheDeviceIsDoing.ctl"/>
-			<Item Name="nirio_resource_hc.ctl" Type="VI" URL="/&lt;vilib&gt;/userdefined/High Color/nirio_resource_hc.ctl"/>
-			<Item Name="niLvFpga_Open_sbRIO-9612.vi" Type="VI" URL="/&lt;vilib&gt;/FPGAPlugInAG/sbRIO-9612/niLvFpga_Open_sbRIO-9612.vi"/>
+			<Item Name="find_peak_frequency (SubVI).vi" Type="VI" URL="../sbRIO/find_peak_frequency (SubVI).vi"/>
 		</Item>
 		<Item Name="Build Specifications" Type="Build"/>
 	</Item>
