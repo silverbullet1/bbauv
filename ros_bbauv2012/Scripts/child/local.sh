@@ -35,22 +35,11 @@ tmux rename-window 'scripts'
 tmux send-keys 'sshfs -o idmap=user -o gid=`id --group` bbauvsbc1@bbauv:bbauv_workspace/bbauv/ros_bbauv2012/Logic/Vision/nodes /home/gohew/fuerte_workspace/bbauv/ros_bbauv2012/Logic/Vision/mnt' C-m
 tmux select-window -tPool:0
 tmux split-window -h
-tmux split-window -h
-tmux select-pane -L
 tmux select-pane -L
 tmux split-window -h
 tmux split-window -v
 tmux select-pane -L
 tmux split-window -v
-tmux select-pane -R
-tmux select-pane -R
-tmux split-window -v
-tmux select-pane -R
-tmux split-window -v
-tmux select-pane -t5
-tmux split-window -h
-tmux select-pane -D
-tmux split-window -h
 tmux select-pane -t0
 #tmux send-keys 'rostopic echo /AHRS8_data_e' C-m
 tmux select-pane -t1
@@ -70,18 +59,6 @@ tmux select-pane -t7
 
 tmux select-window -tPool:1
 tmux split-window -h
-tmux split-window -h
-tmux select-pane -L
-tmux select-pane -L
-tmux split-window -h
-tmux split-window -v
-tmux select-pane -L
-tmux split-window -v
-tmux select-pane -R
-tmux select-pane -R
-tmux split-window -v
-tmux select-pane -R
-tmux split-window -v
 
 tmux select-pane -t0
 #tmux send-keys 'rostopic echo /hull_status' C-m

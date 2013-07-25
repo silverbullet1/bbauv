@@ -46,7 +46,7 @@ class AUV_gui(QMainWindow):
     cvRGBImg_rfront = None
     cvRGBImg_bot = None
     isArmed = False
-    update_freq = 20
+    update_freq = 40
     vision_filter_frame = None
     filter_image = None
     q_orientation = Queue.Queue()
@@ -572,7 +572,6 @@ class AUV_gui(QMainWindow):
             n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
             if not n.show():
                 print "Failed to send notification"
-            print "leak"
             self.isLeak = True
         else:
             self.isLeak = False
