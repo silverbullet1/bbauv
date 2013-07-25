@@ -1324,7 +1324,8 @@ if __name__ == '__main__':
 #        StateMachine.add('START',Start(10,0.6,40), transitions={'succeeded':'TURN_TO_GATE'})
         #Practice Side
 #        StateMachine.add('START',Start(10,0.6,295), transitions={'succeeded':'TURN_TO_GATE'})
-        StateMachine.add('START',Start(5,3,295), transitions={'succeeded':'SPEEDTRAP'})
+        StateMachine.add('START',Start(0.5,3,295), transitions={'succeeded':'DRIVE_THRU'})
+        
         StateMachine.add('TURN_TO_GATE', GoToHeading(10, 295), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
         StateMachine.add('GO_TO_GATE', GoToDistance(70, 7, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
@@ -1335,20 +1336,18 @@ if __name__ == '__main__':
             StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 4, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 3, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
             StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
-            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'SQSEARCH'})
-                        
+            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
+            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'SQSEARCH'})                        
             #Square Search
             sP = {'tN':'lane', 'fTo':20, 'sTo': 30,
                   'sqL': 2,
                   'isL': False , 'nL': 1}
             squareSearch = Sequence(outcomes=['succeeded', 'failed'], connector_outcome= 'failed')
             with squareSearch:
-                Sequence.add('FWD', LinearSearch(sP['tN'], sP['fTo'], sP['sqL']/float(2) , 'fwd', sP['isL'], sP['nL']))
-                Sequence.add('RIGHT', LinearSearch(sP['tN'], sP['sTo'], sP['sqL']/float(2) , 'sway', sP['isL'], sP['nL']))
+                Sequence.add('FWD', LinearSearch(sP['tN'], sP['fTo'], sP['sqL'] , 'fwd', sP['isL'], sP['nL']))
+                Sequence.add('RIGHT', LinearSearch(sP['tN'], sP['sTo'], sP['sqL'] , 'sway', sP['isL'], sP['nL']))
                 Sequence.add('BACK', LinearSearch(sP['tN'], sP['fTo'], -1*sP['sqL'] , 'fwd', sP['isL'], sP['nL']))
                 Sequence.add('LEFT', LinearSearch(sP['tN'], sP['sTo'], -1*sP['sqL'] , 'sway', sP['isL'], sP['nL']))
-                Sequence.add('FWD2', LinearSearch(sP['tN'], sP['fTo'], sP['sqL'] , 'fwd', sP['isL'], sP['nL']))
-                Sequence.add('RIGHT2', LinearSearch(sP['tN'], sP['sTo'], sP['sqL']/float(2) , 'sway', sP['isL'], sP['nL']))
             StateMachine.add('SQSEARCH', squareSearch, transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
             
             task = {'tN':'lane', 'tOut':60, 'bL':5}
@@ -1367,12 +1366,12 @@ if __name__ == '__main__':
         traffic = StateMachine(outcomes=['traffic_complete', 'traffic_failed'])
         with traffic:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(30,2,'fwd'), transitions={'succeeded':'HOVER'})
+            StateMachine.add('GOFWD', GoToDistance(30,3,'fwd'), transitions={'succeeded':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('traffic', 5, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'traffic', 'fTo':15, 'sTo': 15, 
-                  'fD':2, 'sD': 1, 
+                  'fD':2, 'sD': 2, 
                   'isL':False , 'nL': 1}
             zigzagSearch = Sequence(outcomes=['succeeded', 'failed'], connector_outcome= 'failed')
             with zigzagSearch:
@@ -1403,9 +1402,9 @@ if __name__ == '__main__':
 ###################################################################
         lane_traffic = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_traffic:
-            StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'HOVER'})
-#            StateMachine.add('GOFWD', GoToDistance(20, 1.5, 'fwd'), transitions={'succeeded':'GOLEFT'})
-#            StateMachine.add('GOLEFT', GoToDistance(30, -2, 'sway'), transitions={'succeeded':'HOVER'})
+            StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'GOLEFT'})
+            StateMachine.add('GOLEFT', GoToDistance(30, -2, 'sway'), transitions={'succeeded':'GOFWD'})
+            StateMachine.add('GOFWD', GoToDistance(20, 2.5, 'fwd'), transitions={'succeeded':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})            
             
             #Zig Zag Search
@@ -1445,7 +1444,7 @@ if __name__ == '__main__':
         park = StateMachine(outcomes=['park_complete', 'park_failed'])
         with park:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20, 1, 'fwd'), transitions={'succeeded':'SEARCHFWD'})
+            StateMachine.add('GOFWD', GoToDistance(20, 3, 'fwd'), transitions={'succeeded':'SEARCHFWD'})
             StateMachine.add('SEARCHFWD', LinearSearch('park', 30, 2, 'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
             
             #Zig Zag Search
@@ -1484,10 +1483,10 @@ if __name__ == '__main__':
         with lane_park:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 5, False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
-            StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
-            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 2, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_FWD'})
-            StateMachine.add('LOOK_FWD', LinearSearch('lane', 20, 1, 'fwd', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
-    	    StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -1, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
+            StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -2, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
+            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 4, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
+    	    StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -2, 'sway', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_FWD'})     
+            StateMachine.add('LOOK_FWD', LinearSearch('lane', 20, 1, 'fwd', False, 2), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
             
             task = {'tN':'lane', 'tOut':60, 'bL':5}
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
@@ -1507,7 +1506,7 @@ if __name__ == '__main__':
         with tollbooth:
 
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20,2,'fwd'), transitions={'succeeded':'ZIGZAGSEARCH'})
+            StateMachine.add('GOFWD', GoToDistance(20,4,'fwd'), transitions={'succeeded':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'tollbooth', 'fTo':20, 'sTo': 60, 
@@ -1612,7 +1611,7 @@ if __name__ == '__main__':
 
             StateMachine.add('NAVTO_PING1', Nav(30,60,30,1, place = 'mission_pinger_done'), transitions={'succeeded':'SHORTHOVER', 'failed':'SHORTHOVER'})
             StateMachine.add('SHORTHOVER', HoverSearch('drivethru', 0.5), transitions={'succeeded':'DROPIT', 'failed':'DROPIT'})    
-            StateMachine.add('DROPIT', WaitOut('drivethru', 5, 20), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
+            StateMachine.add('DROPIT', WaitOut('drivethru', 30, 20), transitions={'succeeded':'drive_complete', 'failed':'drive_failed'})
 
         StateMachine.add('DRIVE_THRU', drive, transitions = {'drive_complete':'SURFACE_HAPPY', 'drive_failed':'SURFACE_SAD'})
 
