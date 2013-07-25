@@ -1149,6 +1149,7 @@ def handle_srv(req):
     global isTaskFailed
     global task_id
     global caller_name
+    global task_list
     
     search_call = False
     task_call = False
@@ -1157,7 +1158,6 @@ def handle_srv(req):
         task_id = str(req._connection_header['id'])
         rospy.logdebug('task_id = %s' % task_id)
 
-        task_list = {'0':'lane','1':'trafficlight', '2':'park','3':'speedtrap','4':'tollbooth','5':'drivethru','6':'acoustic'}
         caller_name = task_list[task_id]
         rospy.loginfo('Service call made by %s to mission server with search: %s task: %s' 
             % (caller_name +'_srv', req.search_request, req.task_complete_request))
@@ -1229,6 +1229,7 @@ global_depth = 0.3
 global_altitude = 0
 caller_name = None
 marker_id = 1
+task_list = {'0':'lane','1':'traffic', '2':'park','3':'speedtrap','4':'tollbooth','5':'drivethru','6':'acoustic'}
 
 if __name__ == '__main__':
 
@@ -1266,7 +1267,7 @@ if __name__ == '__main__':
         Altitude_sub = rospy.Subscriber('/altitude', Float32, AltitudeCallback)
          
          # Testing Task services
-        task_list = {'0':'lane','1':'traffic', '2':'park','3':'speedtrap','4':'tollbooth','5':'drivethru','6':'acoustic'}
+
         for key,value in task_list.iteritems():
             test_srv = value + '_srv'
             rospy.logdebug('Mission Waiting for %s to start up...' % test_srv)
@@ -1317,8 +1318,8 @@ if __name__ == '__main__':
         StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})
         
         #Competition Side
-        StateMachine.add('START',Start(10,0.5,295), transitions={'succeeded':'LANE_GATE'})
-        StateMachine.add('TURN_TO_GATE', GoToHeading(10, 40), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
+        StateMachine.add('START',Start(5,0.6,20), transitions={'succeeded':'SPEEDTRAP'})
+        StateMachine.add('TURN_TO_GATE', GoToHeading(10, 295), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
         StateMachine.add('GO_TO_GATE', GoToDistance(70, 7, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
 ###################################################################        
@@ -1396,10 +1397,10 @@ if __name__ == '__main__':
 ###################################################################
         lane_traffic = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_traffic:
-            StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.6), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20, 1.5, 'fwd'), transitions={'succeeded':'GOLEFT'})
-            StateMachine.add('GOLEFT', GoToDistance(20, 2, 'sway'), transitions={'succeeded':'HOVER'})
-            StateMachine.add('HOVER', HoverSearch('lane', 3, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})            
+            StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.6), transitions={'succeeded':'HOVER'})
+#            StateMachine.add('GOFWD', GoToDistance(20, 1.5, 'fwd'), transitions={'succeeded':'GOLEFT'})
+#            StateMachine.add('GOLEFT', GoToDistance(20, 2, 'sway'), transitions={'succeeded':'HOVER'})
+            StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})            
             
             #Zig Zag Search
             zP = {'tN':'lane', 'fTo':10, 'sTo': 45, 
@@ -1499,8 +1500,8 @@ if __name__ == '__main__':
         tollbooth = StateMachine(outcomes=['toll_complete', 'toll_failed'])
         with tollbooth:
 
-            StateMachine.add('DEPTHCHANGE', GoToDepth(10,3), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20,2,'fwd'), transitions={'succeeded':'ZIGZAGSEARCH'})
+            StateMachine.add('DEPTHCHANGE', GoToDepth(20,3), transitions={'succeeded':'ZIGZAGSEARCH'})
+#            StateMachine.add('GOFWD', GoToDistance(20,2,'fwd'), transitions={'succeeded':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'tollbooth', 'fTo':20, 'sTo': 60, 
@@ -1536,7 +1537,7 @@ if __name__ == '__main__':
 
         speed = StateMachine(outcomes=['speed_complete', 'speed_failed'])
         with speed:
-            StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.6), transitions={'succeeded':'ZIGZAGSEARCH'})
+            StateMachine.add('DEPTHCHANGE', GoToDepth(5,0.6), transitions={'succeeded':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'speedtrap', 'fTo':20, 'sTo': 60, 
