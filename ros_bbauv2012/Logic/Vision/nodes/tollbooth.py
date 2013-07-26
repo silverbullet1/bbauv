@@ -32,7 +32,7 @@ import smach_ros
 
 #TODO: use actual competition IDs
 SINGLE_BOARD_MODE = False # Set to True if just going for a single color
-COMPETITION_TARGETS = ['red','red'] if SINGLE_BOARD_MODE else ['red', 'blue']
+COMPETITION_TARGETS = ['red','red'] if SINGLE_BOARD_MODE else ['blue', 'red']
 
 # GLOBALS
 TEST_MODE = False
