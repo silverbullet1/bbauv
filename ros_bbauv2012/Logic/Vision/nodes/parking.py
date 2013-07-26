@@ -518,14 +518,14 @@ params = {'hueLow':0, 'hueHigh':0, 'satLow':0, 'satHigh':0,'valLow':0, 'valHigh'
           'side_thresh': 0, 'depth_thresh': 0, 'area_thresh': 0, 'approach_area_thresh': 0, 'side_Kp': 0, 'depth_Kp':0, 
           'approachFwdDist':0, 'approachWaitTime':0, 'finalWaitTime':0, 'final_depthchange': 0, 'final_moonwalk': 0}
 
-test_mode = False
-
 # To test just the vision code, comment everything, uncomment the last 2 lines
 # To test without mission, uncomment "Service Client" and all mission_srv calls
 
 if __name__ == '__main__':
     rospy.init_node('Park', log_level=rospy.INFO, anonymous=False)
+    
     test_mode = rospy.get_param('~testmode',False)
+    
     def configCallback(config, level):
         for param in params:
             params[param] = config[param]

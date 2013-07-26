@@ -41,7 +41,7 @@ class Countdown(smach.State):
         return 'succeeded'        
 
 class Start(smach.State):
-    def __init__(self, timeout, start_depth, start_heading):
+    def __init__(self, timeout, start_depth, start_heading=None):
         smach.State.__init__(self, outcomes=['succeeded'])
         self.name = self.__class__.__name__
         self.timeout = timeout                
@@ -53,8 +53,14 @@ class Start(smach.State):
         global locomotionGoal
         global locomotion_client
         global set_ConPIDMode
+        global global_heading
+        
         rospy.loginfo("ENTERING Start state")
         
+        if self.start_heading == None:
+            self.start_heading = global_heading
+            rospy.loginfo('No start heading provided; Taking current heading %s as start' % str(self.start_heading))
+            
         #Key in starting position here
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0, sidemove_setpoint=0,
                                             depth_setpoint= self.start_depth, 
@@ -101,7 +107,7 @@ class Start(smach.State):
 
 class End(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'])       
+        smach.State.__init__(self, outcomes=['succeeded'])
                 
     def execute(self,userdata):
         global set_ConPIDMode
@@ -112,6 +118,25 @@ class End(smach.State):
         except rospy.ServiceException, e:
             rospy.logdebug("PID and Mode NOT set: %s" % e)
         return 'succeeded'
+
+class HeadingCheck(smach.State):
+    def __init__(self, min_head, max_head):
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
+
+        self.min_head = min_head
+        self.max_head = max_head
+        
+    def execute(self,userdata):
+
+        global global_heading
+        self.currHead = global_heading
+        
+        if self.currHead > self.max_head or self.currHead < self.min_head:
+            rospy.loginfo('Currrent Heading is %s; NOT within %s to %s' % (str(self.currHead), str(self.min_head), str(self.max_head)))
+            return 'failed'
+        if self.currHead < self.max_head and self.currHead > self.min_head:
+            rospy.loginfo('Currrent Heading is %s; WITHIn %s to %s' % (str(self.currHead), str(self.min_head), str(self.max_head)))
+            return 'succeeded'                            
 
 class GoToDistance(smach.State):
     def __init__(self, timeout, distance, direction):
@@ -617,24 +642,36 @@ class LinearSearch(smach.State):
 
 
 class WaitOut(smach.State):
-    def __init__(self, task_name, timeout, boundLength=20):
+    def __init__(self, task_name, timeout, boundLength=999, depth_limit=15):
+                
         smach.State.__init__(self, outcomes=['succeeded','failed'])
         self.name = self.__class__.__name__ 
         self.task_name = task_name
         self.task_srv_name = task_name + '_srv'
         self.task_srv = None
         self.timeout = timeout
-        self.firstX = global_x
-        self.firstY = global_y
+
+        self.depth_limit = depth_limit        
+        self.firstX = None
+        self.firstY = None
+                
         self.boundLength = boundLength
         self.isOutofBound = False
 
-    def boundingBoxCheck(self, firstX, firstY):
+    def boundingBoxCheck(self, firstX, firstY, depth_limit):
+        global global_x
+        global global_y
+        global global_depth
+        
         #checks if the AUV has maneuvered out of a box of size
 #        rospy.logdebug('Checking Bounding Box while waiting for task to complete')
         if global_x > (firstX+self.boundLength) or global_x < (firstX-self.boundLength) or global_y > (firstY+self.boundLength) or global_y < (firstY-self.boundLength):
             self.isOutofBound = True
-        
+            rospy.loginfo("Vehicle moving out of bounding box length %s centered at x=%s y=%s" % (str(self.boundLength), str(firstX), str(firstY)))
+        if global_depth > depth_limit:
+            self.isOutofBound = True
+            rospy.loginfo("Vehicle tried to dive to %s when limit is %s" % (str(global_depth), str(depth_limit)))
+                
     def execute(self, userdata):
         global lane_srv
         global locomotion_client
@@ -659,14 +696,18 @@ class WaitOut(smach.State):
             self.task_srv = rospy.ServiceProxy(self.task_srv_name, mission_to_vision)
             rospy.loginfo('Mission Connected to %s Server' % self.task_name)        
         
+        #Storing Task found coordinates        
+        self.firstX = global_x
+        self.firstY = global_y
+        
         #Waiting Out
         r = rospy.Rate(30)
         start_time = rospy.get_time()
         rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.task_name))
         while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
-            self.boundingBoxCheck(self.firstX, self.firstX)
+            self.boundingBoxCheck(self.firstX, self.firstY, self.depth_limit)
+#            rospy.loginfo('global_x = %s global_depth = %s' % (str(global_x), str(global_depth)))
             if self.isOutofBound:
-                rospy.loginfo("Vehicle moving out of bounding box of length %s")
                 return 'failed'
 
             if isTaskComplete and caller_name == self.task_name:               
@@ -681,7 +722,6 @@ class WaitOut(smach.State):
                     rospy.logdebug('Closing connection to %s' % self.task_srv_name)
                     self.task_srv.close()
                 return 'failed'
-            self.boundingBoxCheck(self.firstX, self.firstY)
             r.sleep()
         
         #Aborting task due to timeout
@@ -707,208 +747,6 @@ class WaitOut(smach.State):
                 if self.task_srv != None:
                     rospy.logdebug('Closing connection to %s' % self.task_srv_name)
                     self.task_srv.close()     
-                return 'failed'
-
-class WaitOutAndSearch(smach.State):
-
-#Service Closing not implemented here yet
-#WaitOutAndSearch is buggy
-
-    def __init__(self, waitout_task_name, search_task_name, timeout):
-        smach.State.__init__(self, outcomes=['task_succeeded','search_succeeded', 'failed'])
-        self.name = self.__class__.__name__ 
-
-        self.waitout_task_name = waitout_task_name
-        self.waitout_task_srv_name = waitout_task_name + '_srv'
-        self.waitout_task_srv = None
-
-        self.search_task_name = search_task_name
-        self.search_task_srv_name = search_task_name + '_srv'
-        self.search_task_srv = None
-
-        self.timeout = timeout    
-
-    def boundingBoxCheck(self, firstX, firstY):
-        #checks if the AUV has maneuvered out of a box of size
-        if global_x > (firstX+boundLength) or global_x < (firstX-boundLength) or global_y > (firstY+boundLength) or global_y < (firstY-boundLength):
-            self.isOutofBound = True
-        
-    def execute(self, userdata):
-        global lane_srv
-        global locomotion_client
-        global locomotionGoal
-        
-        global isSearchDone
-        global isSearchFailed
-        global isTaskComplete
-        global isTaskFailed
-        isTaskFailed = False
-        isTaskComplete = False     
-        isSearchDone = False
-        isSearchFailed = False
-        
-        rospy.loginfo("ENTERING %s %s state; Searching for %s at the same time ; locomotionGoal currently at depth %s and heading %s"
-                      % (self.waitout_task_name, self.name, self.search_task_name, 
-                         str(locomotionGoal.depth_setpoint), str(locomotionGoal.heading_setpoint)))  
-
-        if locomotionGoal.depth_setpoint < 0.5:
-            locomotionGoal.depth_setpoint = 0.5
-            rospy.loginfo("Task tried to bring vehicle to surface; setting depth to 0.5")
-
-#         print 'testing sending positive depth to Eng Wei'
-#         locomotionGoal.depth_setpoint = 0.5
-#        print 'took out manually sending of positive depth to eng wei'
-        
-        #Connecting to Waitout and Search task server;
-        if self.waitout_task_name != 'lane':
-            rospy.wait_for_service(self.waitout_task_srv_name)
-            rospy.loginfo('Mission Attempt to Connect to %s Server' % self.waitout_task_srv_name)        
-            self.waitout_task_srv = rospy.ServiceProxy(self.waitout_task_srv_name, mission_to_vision)
-            rospy.loginfo('Mission Connected to %s Server' % self.waitout_task_name)
-
-        if self.search_task_name != 'lane':
-            rospy.wait_for_service(self.search_task_srv_name)   
-            rospy.loginfo('Mission Attempt to Connect to %s Server' % self.search_task_srv_name)
-            self.search_task_srv = rospy.ServiceProxy(self.search_task_srv_name, mission_to_vision)
-            rospy.loginfo('Mission Connected to %s Server' % self.search_task_name)      
-
-        #Begin Searching For Task
-        if self.search_task_name == 'lane':
-            try:
-                resp = lane_srv(True,locomotionGoal,self.use_left,self.num_lanes,False)
-            except rospy.ServiceException, e:
-                rospy.loginfo("Failed to start Search" % e)
-                return 'failed'  
-        if self.search_task_name != 'lane':
-            try:
-                rospy.loginfo('Sending depth of %s meters and heading %s degress to %s' % (str(locomotionGoal.depth_setpoint),str(locomotionGoal.heading_setpoint), self.search_task_srv_name))
-                resp = self.search_task_srv(True, locomotionGoal, False)
-                rospy.loginfo("Searching for %s" % self.search_task_name)
-            except rospy.ServiceException, e:
-                rospy.loginfo("Failed to start Search" % e)
-
-                if self.search_task_srv != None:
-                    rospy.logdebug('Closing connection to %s' % self.search_task_srv_name)
-                    self.search_task_srv.close()
-
-                return 'failed'
-        
-        #Waiting Out
-        r = rospy.Rate(30)
-        start_time = rospy.get_time()
-        rospy.loginfo("%s: Found. Task Controlling Vehicle" % (self.waitout_task_name))
-        while (not rospy.is_shutdown()) and ((rospy.get_time()-start_time) <= self.timeout):
-
-            if isSearchDone and caller_name == self.search_task_name:
-                rospy.loginfo("Found %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
-                
-                #Aborting WaitOut task due to search task found
-                if self.waitout_task_name == 'lane':
-                    try:
-                        rospy.loginfo('Found %s during Waitout, Aborting %s' % (self.search_task_name, self.waitout_task_name))
-                        resp = lane_srv(False, locomotionGoal, False, 1, True)
-                    except rospy.ServiceException, e:
-                        rospy.loginfo("Timed Out: Failed to abort: %s" % e)
-                        return 'failed'                              
-             
-                if self.waitout_task_name != 'lane':
-                    try:
-                        rospy.loginfo('Found %s during Waitout, Aborting %s' % (self.search_task_name, self.waitout_task_name))
-                        resp = self.waitout_task_srv(False, locomotionGoal, True)            
-                    except rospy.ServiceException, e:
-                        rospy.loginfo("Failed to abort: %s" % e)            
-                        return 'failed'
-                return 'search_succeeded'
-
-            if isTaskComplete and caller_name == self.waitout_task_name:
-                rospy.loginfo("Task Completed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
-
-
-                #Aborting Search task due to waitout task complete
-                if self.search_task_name == 'lane':
-                    try:
-                        rospy.loginfo('Task Complete, Failed to find %s' % self.search_task_name)
-                        resp = lane_srv(False, locomotionGoal, False, 1, True)            
-                    except rospy.ServiceException, e:
-                        rospy.loginfo("Timed Out: Failed to abort: %s" % e)
-                        return 'failed'                              
-             
-                if self.search_task_name != 'lane':
-                    try:
-                        rospy.loginfo('Task Complete, Failed to find %s' % self.search_task_name)
-                        resp = self.search_task_srv(False, locomotionGoal, True)            
-                    except rospy.ServiceException, e:
-                        rospy.loginfo("Failed to abort: %s" % e)            
-                        return 'failed'
-
-                return 'task_succeeded'
-
-            #As of 18th July2013, only the Acoustics task tell mission that Search has failed. 
-            #All vision task will keep searching and have no fail condition
-            if isSearchFailed and caller_name == self.search_task_name:
-                
-                rospy.loginfo("Search Failed %s. %d of %d secs elapsed" % (self.search_task_name, rospy.get_time()-start_time, self.timeout))
-                return 'failed'
-
-            if isTaskFailed  and caller_name == self.waitout_task_name:
-                rospy.loginfo("Task Failed %s. %d of %d secs elapsed" % (self.waitout_task_name, rospy.get_time()-start_time, self.timeout))
-
-                #Aborting Search task due to waitout task failed
-                if self.search_task_name == 'lane':
-                    try:
-                        rospy.loginfo('Task Failed, Failed to find %s' % self.search_task_name)
-                        resp = lane_srv(False, locomotionGoal, False, 1, True)            
-                    except rospy.ServiceException, e:
-                        rospy.loginfo("Timed Out: Failed to abort: %s" % e)
-                        return 'failed'                              
-             
-                if self.search_task_name != 'lane':
-                    try:
-                        rospy.loginfo('Task Failed, Failed to find %s' % self.search_task_name)
-                        resp = self.search_task_srv(False, locomotionGoal, True)            
-                    except rospy.ServiceException, e:
-                        rospy.loginfo("Failed to abort: %s" % e)            
-                        return 'failed'
-
-                return 'failed'
-            r.sleep()
-        
-        #Aborting task due to timeout
-              
-        if self.waitout_task_name == 'lane':
-            try:
-                rospy.loginfo('Timed Out: Failed to complete %s' % self.waitout_task_name)
-                resp = lane_srv(False, locomotionGoal, False, 1, True)            
-                return 'failed'              
-            except rospy.ServiceException, e:
-                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
-                return 'failed'                              
-     
-        if self.waitout_task_name != 'lane':
-            try:
-                rospy.loginfo('Timed Out: Failed to complete %s' % self.waitout_task_name)
-                resp = self.waitout_task_srv(False, locomotionGoal, True)            
-                return 'failed'              
-            except rospy.ServiceException, e:
-                rospy.loginfo("Timed Out: Failed to abort: %s" % e)            
-                return 'failed'
-
-        if self.search_task_name == 'lane':
-            try:
-                rospy.loginfo('Timed Out: Failed to find %s' % self.search_task_name)
-                resp = lane_srv(False, locomotionGoal, False, 1, True)            
-                return 'failed'              
-            except rospy.ServiceException, e:
-                rospy.loginfo("Timed Out: Failed to abort: %s" % e)
-                return 'failed'                              
-     
-        if self.search_task_name != 'lane':
-            try:
-                rospy.loginfo('Timed Out: Failed to find %s' % self.search_task_name)
-                resp = self.search_task_srv(False, locomotionGoal, True)            
-                return 'failed'              
-            except rospy.ServiceException, e:
-                rospy.loginfo("Timed Out: Failed to abort: %s" % e)            
                 return 'failed'
 
 class Nav(smach.State):
@@ -1233,8 +1071,8 @@ task_list = {'0':'lane','1':'traffic', '2':'park','3':'speedtrap','4':'tollbooth
 
 if __name__ == '__main__':
 
-    rospy.init_node('Mission_planner', log_level=rospy.INFO, anonymous=True)
-#    rospy.init_node('Mission_planner', log_level=rospy.DEBUG, anonymous=True)
+#    rospy.init_node('Mission_planner', log_level=rospy.INFO, anonymous=True)
+    rospy.init_node('Mission_planner', log_level=rospy.DEBUG, anonymous=True)
 
     test_mode = False
     
@@ -1325,7 +1163,7 @@ if __name__ == '__main__':
         #Practice Side
 #        StateMachine.add('START',Start(10,0.6,295), transitions={'succeeded':'TURN_TO_GATE'})
         #Debug
-#        StateMachine.add('START',Start(0.5,0.6,311), transitions={'succeeded':'SPEEDTRAP'}) #320 good for ping
+        StateMachine.add('START',Start(0.5,0.6, 295), transitions={'succeeded':'LANE_PARK'}) #320 good for ping
         
         StateMachine.add('TURN_TO_GATE', GoToHeading(10, 295), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
         StateMachine.add('GO_TO_GATE', GoToDistance(70, 9, 'fwd'), transitions={'succeeded':'LANE_GATE'})
@@ -1334,11 +1172,11 @@ if __name__ == '__main__':
         lane_gate = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
 
-            StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 6, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
+            StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 5, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 3, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
-            StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
-            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
-            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'SQSEARCH'})                        
+            StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
+            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
+            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'SQSEARCH'})                        
             #Square Search
             sP = {'tN':'lane', 'fTo':20, 'sTo': 30,
                   'sqL': 2,
@@ -1404,8 +1242,8 @@ if __name__ == '__main__':
         lane_traffic = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_traffic:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'HOVER'})
-#            StateMachine.add('GOLEFT', GoToDistance(30, -2, 'sway'), transitions={'succeeded':'GOFWD'})
-#            StateMachine.add('GOFWD', GoToDistance(20, 2.5, 'fwd'), transitions={'succeeded':'HOVER'})
+            StateMachine.add('GOLEFT', GoToDistance(30, -1, 'sway'), transitions={'succeeded':'GOFWD'})
+            StateMachine.add('GOFWD', GoToDistance(20, 3.5, 'fwd'), transitions={'succeeded':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})            
             
             #Zig Zag Search
@@ -1446,7 +1284,7 @@ if __name__ == '__main__':
         with park:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'})
             StateMachine.add('GOFWD', GoToDistance(20, 3, 'fwd'), transitions={'succeeded':'SEARCHFWD'})
-            StateMachine.add('SEARCHFWD', LinearSearch('park', 30, 2, 'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
+            StateMachine.add('SEARCHFWD', LinearSearch('park', 30, 5, 'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
             
             #Zig Zag Search
             zP = {'tN':'park', 'fTo':10, 'sTo': 45,
@@ -1472,7 +1310,7 @@ if __name__ == '__main__':
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
             with task_execution:
                 Sequence.add('STORE_FOUND', StoreGlobalCoord('mission_park1_found'))
-                Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL']))
+                Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL'], 4.5))
                 Sequence.add('STORE_DONE', StoreGlobalCoord('mission_park1_done'))                               
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'park_complete', 'failed':'park_failed'})
                         
@@ -1497,7 +1335,9 @@ if __name__ == '__main__':
                 StateMachine.add('STORE_DONE', StoreGlobalCoord('mission_lanePark_done'))                               
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
 
-            StateMachine.add('HEADINGCHANGE', GoToHeading(20), transitions={'succeeded':'lane_complete'})
+            StateMachine.add('HEADINGCHANGE', GoToHeading(20), transitions={'succeeded':'CHECK_HEADING'})
+            StateMachine.add('CHECK_HEADING', HeadingCheck(240,280), transitions = {'succeeded':'lane_complete', 'failed':'HEADINGCHANGE2'})
+            StateMachine.add('HEADINGCHANGE2', GoToHeading(20, 45, relative=True), transitions={'succeeded':'lane_complete'})
             
         StateMachine.add('LANE_PARK', lane_park, transitions={'lane_complete':'TOLLBOOTH', 'lane_failed':'DRIVE_THRU'})
 
@@ -1506,8 +1346,8 @@ if __name__ == '__main__':
         tollbooth = StateMachine(outcomes=['toll_complete', 'toll_failed'])
         with tollbooth:
 
-            StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20,4,'fwd'), transitions={'succeeded':'ZIGZAGSEARCH'})
+            StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'SEARCHFWD'}) 
+            StateMachine.add('SEARCHFWD', LinearSearch('tollbooth', 30 ,4,'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'tollbooth', 'fTo':20, 'sTo': 60, 
@@ -1594,8 +1434,8 @@ if __name__ == '__main__':
             StateMachine.add('HOVER4', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'drive_failed'})
 
             StateMachine.add('STORE_FOUND', StoreGlobalCoord('mission_pinger_found'), transitions={'succeeded':'PINGER', 'failed':'PINGER'})            
-            StateMachine.add('PINGER', WaitOut('acoustic', 240, 200), transitions={'succeeded':'STORE_DONE', 'failed':'drive_failed'})
-            StateMachine.add('STORE_DONE', StoreGlobalCoord('mission_pinger_done'), transitions={'succeeded':'HOVER5', 'failed':'PINGER'})            
+            StateMachine.add('PINGER', WaitOut('acoustic', 240, 200), transitions={'succeeded':'STORE_DONE', 'failed':'STORE_DONE'})
+            StateMachine.add('STORE_DONE', StoreGlobalCoord('mission_pinger_done'), transitions={'succeeded':'HOVER5', 'failed':'HOVER5'})
             
             StateMachine.add('HOVER5', HoverSearch('drivethru', 10), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT'})    
             StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 20, -2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
