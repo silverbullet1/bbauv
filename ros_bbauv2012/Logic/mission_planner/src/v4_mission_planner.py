@@ -1162,26 +1162,26 @@ if __name__ == '__main__':
         StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'START'})        
 
         #Competition Side
-#        StateMachine.add('START',Start(10,0.6), transitions={'succeeded':'TURN_TO_GATE'})
-        #Practice Side
-#        StateMachine.add('START',Start(10,0.6), transitions={'succeeded':'TURN_TO_GATE'})
+        StateMachine.add('START',Start(10,0.6), transitions={'succeeded':'TURN_TO_GATE'})
+
         #Debug
 #        StateMachine.add('START',Start(0.5,0.6,320), transitions={'succeeded':'LANE_PARK'}) #320 good for ping
         
-        StateMachine.add('TURN_TO_GATE', GoToHeading(10, 295), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
+        StateMachine.add('TURN_TO_GATE', GoToHeading(10), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
         StateMachine.add('GO_TO_GATE', GoToDistance(70, 9, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
 ###################################################################        
         lane_gate = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
 
-            StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 5, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
-            StateMachine.add('HOVER', HoverSearch('lane', 5, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
-            StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
-            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
-            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -1, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_FWD'}
-            StateMachine.add('LOOK_FWD', LinearSearch('lane', 20, 1, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_BEHIND'})
-            StateMachine.add('LOOK_BEHIND', LinearSearch('lane', 20, -1, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
+            StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 5, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
+            StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1.5, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
+            StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 3, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
+            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -1.5, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_BEHIND'})
+            StateMachine.add('LOOK_BEHIND', LinearSearch('lane', 20, -2.5, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT3'})
+            StateMachine.add('LOOK_LEFT3', LinearSearch('lane', 20, -1.5, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT2'})
+            StateMachine.add('LOOK_RIGHT2', LinearSearch('lane', 40, 3, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT4'})
+            StateMachine.add('LOOK_LEFT4', LinearSearch('lane', 20, -1.5, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
 
             task = {'tN':'lane', 'tOut':60, 'bL':5}
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
@@ -1195,14 +1195,14 @@ if __name__ == '__main__':
                                         
         StateMachine.add('LANE_GATE', lane_gate, transitions={'lane_complete':'TRAFFIC', 'lane_failed':'FAIL_LANEGATE_HEADING'})
 
-        StateMachine.add('FAIL_LANEGATE_HEADING', GoToHeading(20, 30), transitions={'succeeded':'TRAFFIC'})
+        StateMachine.add('FAIL_LANEGATE_HEADING', GoToHeading(20, 300), transitions={'succeeded':'TRAFFIC'})
         
 ###################################################################        
         traffic = StateMachine(outcomes=['traffic_complete', 'traffic_failed'])
         with traffic:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(30,4,'fwd'), transitions={'succeeded':'HOVER'})
-            StateMachine.add('HOVER', HoverSearch('traffic', 5, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
+            StateMachine.add('GOFWD', GoToDistance(30,3,'fwd'), transitions={'succeeded':'LOOKFWD'})
+            StateMachine.add('LOOKFWD', LinearSearch('traffic', 30, 3, 'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'traffic', 'fTo':15, 'sTo': 15, 
@@ -1230,7 +1230,7 @@ if __name__ == '__main__':
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'traffic_complete', 'failed':'traffic_failed'})
             
         StateMachine.add('TRAFFIC', traffic, transitions={'traffic_complete':'LANE_TRAFFIC', 'traffic_failed':'FAIL_TRAFFIC_HEADING'})  
-        StateMachine.add('FAIL_TRAFFIC_HEADING', GoToHeading(20, 330), transitions={'succeeded':'PARK'})
+        StateMachine.add('FAIL_TRAFFIC_HEADING', GoToHeading(20, 310), transitions={'succeeded':'PARK'})
                   
 ###################################################################
         lane_traffic = StateMachine(outcomes=['lane_complete', 'lane_failed'])
@@ -1251,8 +1251,8 @@ if __name__ == '__main__':
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
 
             StateMachine.add('HEADINGCHANGE', GoToHeading(20), transitions={'succeeded':'CHECK_HEADING'})    
-            StateMachine.add('CHECK_HEADING', HeadingCheck(300,360), transitions = {'succeeded':'lane_complete', 'failed':'HEADINGCHANGE2'})
-            StateMachine.add('HEADINGCHANGE2', GoToHeading(20, 330), transitions={'succeeded':'lane_complete'})
+            StateMachine.add('CHECK_HEADING', HeadingCheck(290,360), transitions = {'succeeded':'lane_complete', 'failed':'HEADINGCHANGE2'})
+            StateMachine.add('HEADINGCHANGE2', GoToHeading(20, 310), transitions={'succeeded':'lane_complete'})
 
         StateMachine.add('LANE_TRAFFIC', lane_traffic, transitions = {'lane_complete':'PARK', 'lane_failed':'DRIVE_THRU'})  
                     
@@ -1280,11 +1280,11 @@ if __name__ == '__main__':
                 Sequence.add('RIGHT_FINAL', LinearSearch(zP['tN'], zP['sTo'], zP['sD']/float(2) , 'sway', zP['isL'], zP['nL']))
             StateMachine.add('ZIGZAGSEARCH', zigzagSearch, transitions={'succeeded':'TASK_EXECUTION', 'failed':'park_failed'})
             
-            task = {'tN':'park', 'tOut': 100, 'bL':10}
+            task = {'tN':'park', 'tOut': 60, 'bL':10}
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
             with task_execution:
                 Sequence.add('STORE_FOUND', StoreGlobalCoord('mission_park1_found'))
-                Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL'], 4))
+                Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL'], 4.5))
                 Sequence.add('STORE_DONE', StoreGlobalCoord('mission_park1_done'))                               
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'park_complete', 'failed':'park_failed'})
                         
@@ -1314,8 +1314,8 @@ if __name__ == '__main__':
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
 
             StateMachine.add('HEADINGCHANGE', GoToHeading(20), transitions={'succeeded':'CHECK_HEADING'})
-            StateMachine.add('CHECK_HEADING', HeadingCheck(300,360), transitions = {'succeeded':'lane_complete', 'failed':'HEADINGCHANGE2'})
-            StateMachine.add('HEADINGCHANGE2', GoToHeading(20, 330), transitions={'succeeded':'lane_complete'})
+            StateMachine.add('CHECK_HEADING', HeadingCheck(290,360), transitions = {'succeeded':'lane_complete', 'failed':'HEADINGCHANGE2'})
+            StateMachine.add('HEADINGCHANGE2', GoToHeading(20, 350), transitions={'succeeded':'lane_complete'})
             
         StateMachine.add('LANE_PARK', lane_park, transitions={'lane_complete':'TOLLBOOTH', 'lane_failed':'DRIVE_THRU'})
 
