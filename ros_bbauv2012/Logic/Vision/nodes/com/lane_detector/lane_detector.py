@@ -76,7 +76,7 @@ class LaneDetector:
         imgBW = np.array(cv2.inRange(imghsv,
                     np.array([self.params['hueLow'], self.params['satLow'], self.params['valLow']], np.uint8),
                     np.array([self.params['hueHigh'], self.params['satHigh'], self.params['valHigh']], np.uint8)))
-        imgBW = np.invert(imgBW)
+#        imgBW = np.invert(imgBW)
 
         # Close up the gaps in the detected regions
         structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3), (-1,-1))
