@@ -32,6 +32,16 @@ from rospy.timer import sleep
 '''
 ###################################################################
 
+               TEST MODE TRIGGER
+        
+###################################################################
+
+'''
+isTest = False
+
+'''
+###################################################################
+
                SMACH STATE MACHINE CLASS DECLARATION
         
 ###################################################################
@@ -401,7 +411,6 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = False
 movement_client = None
 locomotionGoal = None 
 isStart = False
@@ -415,6 +424,7 @@ speedtrap_params = {'bin_area': 0, 'firing_x':10, 'firing_y':0, 'centering_x':0,
 
 if __name__ == '__main__':
     rospy.init_node('SpeedTrap', anonymous=False)
+    isTest = rospy.get_param('~testmode',False)
     r = rospy.Rate(20)
     st = SpeedTrap(False)
     rospy.loginfo("SpeedTrap loaded!")

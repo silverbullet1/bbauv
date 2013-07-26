@@ -62,7 +62,13 @@ class Parking_Proc():
         self.image_pub = rospy.Publisher('/Vision/image_filter', Image)
         
     def register(self):
+        global test_mode
+
+#        if not test_mode:
         self.image_sub = rospy.Subscriber('/stereo_camera/left/image_rect_color', Image, self.image_callback)
+#        if test_mode:
+#        self.image_sub = rospy.Subscriber('/stereo_camera/left/image_rect_color_opt_tc', Image, self.image_callback)
+
         rospy.logdebug('Registered')
         
     def unregister(self):
@@ -519,7 +525,7 @@ test_mode = False
 
 if __name__ == '__main__':
     rospy.init_node('Park', log_level=rospy.INFO, anonymous=False)
-
+    test_mode = rospy.get_param('~testmode',False)
     def configCallback(config, level):
         for param in params:
             params[param] = config[param]

@@ -442,20 +442,16 @@ def dynamic_reconfigure_cb(config,level):
     global search_depth
     global search_distance
     global z_threshold
-    global isTest
+    global isStart
     global isAbort
     global ver_dist_to_pinger
-    global x_offset
-    global y_offset
     print 'geting parameter from dynamic reconfigure...' 
-    isTest = config['isTest']
+    isStart = config['isStart']
     isAbort= config['isAbort']
-    x_offset=config['x_offset']
-    y_offset=config['y_offset']
     search_depth=config['search_depth']
     search_distance=config['search_distance']
     z_threshold =config['z_threshold']
-    ver_dist_to_pinger=config['altitude_at_pinger']-0.5+0.13 
+    ver_dist_to_pinger=config['altitude_at_pinger']-0.6+0.13 
     #1.13: dist from hydrophone to DVL, 0.5, height of pinger
     return config
 if __name__ == '__main__':
@@ -464,6 +460,7 @@ if __name__ == '__main__':
 
     rospy.loginfo("AcousticNavigation activated!")
     rospy.wait_for_service('set_controller_srv')
+    isTest = rospy.get_param('~testmode',False)
     
     #Setup dynamic reconfigure
 

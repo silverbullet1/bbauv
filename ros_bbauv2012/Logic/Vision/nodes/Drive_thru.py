@@ -32,6 +32,16 @@ from rospy.timer import sleep
 '''
 ###################################################################
 
+               TEST MODE TRIGGER
+        
+###################################################################
+
+'''
+isTest = False
+
+'''
+###################################################################
+
                SMACH STATE MACHINE CLASS DECLARATION
         
 ###################################################################
@@ -341,7 +351,6 @@ def handle_srv(req):
     return mission_to_visionResponse(isStart, isAbort)
 
 # Global Variables
-isTest = True
 movement_client = None
 locomotionGoal = None 
 isStart = False
@@ -355,6 +364,7 @@ drivethru_params = {'bin_area': 0,'shape_hu':0.0, 'firing_x':10, 'firing_y':0, '
 
 if __name__ == '__main__':
     rospy.init_node('Drivethru', anonymous=False)
+    isTest = rospy.get_param('~testmode',False)
     if isTest:
         isStart = True
     else:

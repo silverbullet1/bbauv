@@ -631,7 +631,7 @@ class WaitOut(smach.State):
 
     def boundingBoxCheck(self, firstX, firstY):
         #checks if the AUV has maneuvered out of a box of size
-        rospy.logdebug('Checking Bounding Box while waiting for task to complete')
+#        rospy.logdebug('Checking Bounding Box while waiting for task to complete')
         if global_x > (firstX+self.boundLength) or global_x < (firstX-self.boundLength) or global_y > (firstY+self.boundLength) or global_y < (firstY-self.boundLength):
             self.isOutofBound = True
         
@@ -1324,16 +1324,17 @@ if __name__ == '__main__':
 #        StateMachine.add('START',Start(10,0.6,40), transitions={'succeeded':'TURN_TO_GATE'})
         #Practice Side
 #        StateMachine.add('START',Start(10,0.6,295), transitions={'succeeded':'TURN_TO_GATE'})
-        StateMachine.add('START',Start(0.5,3,295), transitions={'succeeded':'DRIVE_THRU'})
+        #Debug
+#        StateMachine.add('START',Start(0.5,0.6,311), transitions={'succeeded':'SPEEDTRAP'}) #320 good for ping
         
         StateMachine.add('TURN_TO_GATE', GoToHeading(10, 295), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
-        StateMachine.add('GO_TO_GATE', GoToDistance(70, 7, 'fwd'), transitions={'succeeded':'LANE_GATE'})
+        StateMachine.add('GO_TO_GATE', GoToDistance(70, 9, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
 ###################################################################        
         lane_gate = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_gate:
 
-            StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 4, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
+            StateMachine.add('LOOKFWD', LinearSearch('lane', 30, 6, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 3, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
             StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
             StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 40, 4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
@@ -1402,9 +1403,9 @@ if __name__ == '__main__':
 ###################################################################
         lane_traffic = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         with lane_traffic:
-            StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'GOLEFT'})
-            StateMachine.add('GOLEFT', GoToDistance(30, -2, 'sway'), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20, 2.5, 'fwd'), transitions={'succeeded':'HOVER'})
+            StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'HOVER'})
+#            StateMachine.add('GOLEFT', GoToDistance(30, -2, 'sway'), transitions={'succeeded':'GOFWD'})
+#            StateMachine.add('GOFWD', GoToDistance(20, 2.5, 'fwd'), transitions={'succeeded':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})            
             
             #Zig Zag Search
@@ -1583,7 +1584,7 @@ if __name__ == '__main__':
         drive = StateMachine(outcomes=['drive_complete', 'drive_failed'])
         with drive:            
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,1), transitions={'succeeded':'HEADINGCHANGE'})
-            StateMachine.add('HEADINGCHANGE', GoToHeading(20,340), transitions={'succeeded':'HOVER'})
+            StateMachine.add('HEADINGCHANGE', GoToHeading(20,320), transitions={'succeeded':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'GOFWD'})
             StateMachine.add('GOFWD', GoToDistance(60, 10, 'fwd'), transitions={'succeeded':'HOVER2'})
             StateMachine.add('HOVER2', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'GOFWD2'})
@@ -1593,10 +1594,10 @@ if __name__ == '__main__':
             StateMachine.add('HOVER4', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'drive_failed'})
 
             StateMachine.add('STORE_FOUND', StoreGlobalCoord('mission_pinger_found'), transitions={'succeeded':'PINGER', 'failed':'PINGER'})            
-            StateMachine.add('PINGER', WaitOut('acoustic', 240, 50), transitions={'succeeded':'STORE_DONE', 'failed':'drive_failed'})
+            StateMachine.add('PINGER', WaitOut('acoustic', 240, 200), transitions={'succeeded':'STORE_DONE', 'failed':'drive_failed'})
             StateMachine.add('STORE_DONE', StoreGlobalCoord('mission_pinger_done'), transitions={'succeeded':'HOVER5', 'failed':'PINGER'})            
             
-            StateMachine.add('HOVER5', HoverSearch('drivethru', 3), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT'})    
+            StateMachine.add('HOVER5', HoverSearch('drivethru', 10), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT'})    
             StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 20, -2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
             StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 40, 4, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT2'})
             StateMachine.add('SEARCH_LEFT2', LinearSearch('drivethru', 20, -2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_FRONT'})
