@@ -21,7 +21,7 @@
     <param name="~auto_gain" value="3" />
     <param name="~gain" value="64" />
     <param name="~auto_shutter" value="3" />
-    <param name="~shutter" value="0.006" />
+    <param name="~shutter" value="0.0006" />
     <!--<param name="~shutter" value="7" />-->
     <!--<param name="~shutter" value="0.00087488" />-->
     <!--<param name="~shutter" value="0.02312261" />-->
