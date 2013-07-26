@@ -17,6 +17,7 @@
 		<Item Name="array_portion (SubVI).vi" Type="VI" URL="../sbRIO/array_portion (SubVI).vi"/>
 		<Item Name="select frequency (subVI).vi" Type="VI" URL="../sbRIO/select frequency (subVI).vi"/>
 		<Item Name="find_peak_frequency (SubVI).vi" Type="VI" URL="../sbRIO/find_peak_frequency (SubVI).vi"/>
+		<Item Name="bbauv_acoustic_sbRIO_v3.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v3.vi"/>
 		<Item Name="Dependencies" Type="Dependencies">
 			<Item Name="vi.lib" Type="Folder">
 				<Item Name="Error Cluster From Error Code.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Error Cluster From Error Code.vi"/>
