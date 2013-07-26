@@ -350,7 +350,7 @@ class Stabilize(smach.State):
         initService()
 
         correction = Correction(FORWARD_K=-params['farForwardK'], SIDE_K=params['farSideK'],
-                                MIN_SIZE=0.111, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
+                                MIN_SIZE=0.111, MAX_SIZE=0.4, timeout=rospy.Duration(60,0))
         result = correction.correct()
         if result in ['aborted', 'killed']:
             return result
@@ -371,7 +371,7 @@ class MoveToBuoy(smach.State):
 
     def execute(self, userdata):
         correction = Correction(FORWARD_K=-params['nearForwardK'], SIDE_K=params['nearSideK'],
-                                MIN_SIZE=0.19, MAX_SIZE=0.3, timeout=rospy.Duration(60,0))
+                                MIN_SIZE=0.19, MAX_SIZE=0.6, timeout=rospy.Duration(60,0))
         correction.hoverHeading = userdata.heading
         result = correction.correct()
         if result in ['aborted', 'killed']:
