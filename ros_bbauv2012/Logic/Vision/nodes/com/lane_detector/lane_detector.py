@@ -70,8 +70,8 @@ class LaneDetector:
 
         # Find the orange regions
         imghsv = cv2.cvtColor(cvimg, cv2.cv.CV_BGR2HSV)
-        imghue, imgsat, imgval = cv2.split(imghsv)
-        imghsv = cv2.merge([imghue, cv2.equalizeHist(imgsat), imgval])
+#        imghue, imgsat, imgval = cv2.split(imghsv)
+#        imghsv = cv2.merge([imghue, cv2.equalizeHist(imgsat), imgval])
 
         imgBW = np.array(cv2.inRange(imghsv,
                     np.array([self.params['hueLow'], self.params['satLow'], self.params['valLow']], np.uint8),
