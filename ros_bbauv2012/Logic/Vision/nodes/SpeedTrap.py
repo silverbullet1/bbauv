@@ -160,6 +160,7 @@ class Centering(smach.State):
                 movement_client.wait_for_result(rospy.Duration(2))
             r.sleep()
         if rospy.is_shutdown():
+            movement_client.cancel_all_goals()
             return 'aborted'
        
 class Aiming(smach.State):
@@ -347,6 +348,7 @@ class Firing(smach.State):
             movement_client.wait_for_result(rospy.Duration(1))
             r.sleep()
         if rospy.is_shutdown():
+            movement_client.cancel_all_goals()
             return 'aborted'
         else:
             return 'firing_complete'
@@ -378,6 +380,7 @@ class Manuoevre(smach.State):
 	rospy.loginfo("sway movement to second bin complete!")
         return "manuoevre_complete"
         if rospy.is_shutdown():
+            movement_client.cancel_all_goals()
             return 'aborted'
         else:
             return 'firing_complete'
