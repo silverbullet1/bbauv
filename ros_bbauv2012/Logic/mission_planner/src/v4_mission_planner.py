@@ -1247,8 +1247,7 @@ if __name__ == '__main__':
             StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
             StateMachine.add('LOOK_RIGHT', LinearSearch('lane', 20, 4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_BEHIND'})
             StateMachine.add('LOOK_BEHIND', LinearSearch('lane', 20, -2, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT2'})
-            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT2'})
-            StateMachine.add('LOOK_RIGHT2', LinearSearch('lane', 20, 4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
+            StateMachine.add('LOOK_LEFT2', LinearSearch('lane', 20, -4, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'lane_failed'})
 
             task = {'tN':'lane', 'tOut':60, 'bL':3}
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
@@ -1271,7 +1270,7 @@ if __name__ == '__main__':
                    
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'GOFWD'}) 
             StateMachine.add('GOFWD', GoToDistance(60, 10, 'fwd'), transitions={'succeeded':'SEARCHFWD'})
-            StateMachine.add('SEARCHFWD', LinearSearch('tollbooth', 30 ,5,'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
+            StateMachine.add('SEARCHFWD', LinearSearch('tollbooth', 30 ,10,'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
             zP = {'tN':'tollbooth', 'fTo':20, 'sTo': 60, 
