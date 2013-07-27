@@ -145,6 +145,7 @@ class Correction:
         def isOutOfPlace():
             offsets['x'] = offsets['y'] = 0
             offsets['size'] = offsets['angle'] = 0
+            offsets['area'] = 0
             if not lightDetector.buoyDetected:
                 return True
 
@@ -166,6 +167,7 @@ class Correction:
 
             offsets['x'] = clamp(x/float(W) - 0.5, -1, 1)
             offsets['y'] = clamp(y/float(H) - 0.5, -1, 1)
+            offsets['rad'] = rad
 
             if abs(offsets['x']) > self.EPSILON_X or abs(offsets['y']) > self.EPSILON_Y:
                 return True
@@ -197,7 +199,20 @@ class Correction:
             goal = None
             waitTime = None
 
-            if abs(offsets['y']) > self.EPSILON_Y:
+            if abs(offsets['x']) > self.EPSILON_X:
+                print("Correcting horizontal")
+                x,y = lightDetector.redCentre
+                r = lightDetector.redRadius
+
+                factor = clamp(1 - r/float(W), 0, 1)
+                goal = bbauv_msgs.msg.ControllerGoal(
+                        heading_setpoint = self.hoverHeading,
+                        depth_setpoint = hoverDepth,
+                        sidemove_setpoint = factor * self.SIDE_K * offsets['x']
+                )
+                waitTime = rospy.Duration(2,0)
+
+            elif abs(offsets['y']) > self.EPSILON_Y and offsets['rad'] > 30:
                 print("Correcting vertical")
                 x,y = lightDetector.redCentre
                 r = lightDetector.redRadius
@@ -210,18 +225,7 @@ class Correction:
                         depth_setpoint = hoverDepth
                 )
                 waitTime = rospy.Duration(1,0)
-            elif abs(offsets['x']) > self.EPSILON_X:
-                print("Correcting horizontal")
-                x,y = lightDetector.redCentre
-                r = lightDetector.redRadius
 
-                factor = clamp(1 - r/float(W), 0, 1)
-                goal = bbauv_msgs.msg.ControllerGoal(
-                        heading_setpoint = self.hoverHeading,
-                        depth_setpoint = hoverDepth,
-                        sidemove_setpoint = factor * self.SIDE_K * offsets['x']
-                )
-                waitTime = rospy.Duration(2,0)
             elif offsets['size']:
                 print ("Correcting distance")
                 goal = bbauv_msgs.msg.ControllerGoal(
@@ -230,7 +234,6 @@ class Correction:
                         forward_setpoint = self.FORWARD_K * offsets['size']
                 )
                 waitTime = rospy.Duration(2,0)
-
             lock.release() #HACK
 
             if goal is not None:

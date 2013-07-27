@@ -141,11 +141,11 @@ class TrafficLight:
             if self.buoyDetected:
                 ctr = (int(self.redCentre[0]), int(self.redCentre[1]))
                 cv2.circle(imgDebug, ctr, 1, (0,0,255), 1)
-                cv2.circle(imgDebug, ctr, int(self.redRadius), (0,0,255), 1)
+                cv2.circle(imgDebug, ctr, int(self.redRadius), (0,0,255), 2)
 
-            for (color, centroid, rect) in self.colorsFound:
-                ctr = (int(centroid[0]), int(centroid[1]))
-                cv2.circle(imgDebug, ctr, 4, DEBUG_COLORS[color], -1)
+#            for (color, centroid, rect) in self.colorsFound:
+#                ctr = (int(centroid[0]), int(centroid[1]))
+#                cv2.circle(imgDebug, ctr, 4, DEBUG_COLORS[color], -1)
 
             self.camdebug.publishImage('image_filter', imgDebug)
 
