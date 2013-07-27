@@ -360,8 +360,8 @@ def get_tdoa(msg):
     x,y,z=far_field(d10,d20,d30)
     rel_heading = math.atan2(y,x) * 180 / math.pi
     
-    rospy.loginfo('t10={0:.2f},t20={1:.2f},t30={2:.2f}'.format(msg.linear.x,msg.linear.y,msg.linear.z))
-    rospy.loginfo('(x,y,z)=({0:.2f},{1:.2f},{2:.2f}), rel_heading={3:.2f}'.format(x,y,z,rel_heading))
+    rospy.logdebug('t10={0:.2f},t20={1:.2f},t30={2:.2f}'.format(msg.linear.x,msg.linear.y,msg.linear.z))
+    rospy.logdebug('(x,y,z)=({0:.2f},{1:.2f},{2:.2f}), rel_heading={3:.2f}'.format(x,y,z,rel_heading))
 
 def get_heading(msg):
     global yaw
@@ -455,7 +455,7 @@ def dynamic_reconfigure_cb(config,level):
     #1.13: dist from hydrophone to DVL, 0.5, height of pinger
     return config
 if __name__ == '__main__':
-    rospy.init_node('acoustic_navigation')
+    rospy.init_node('acoustic_navigation',log_level=rospy.DEBUG)
     loop_rate=rospy.Rate(0.5)
 
     rospy.loginfo("AcousticNavigation activated!")
