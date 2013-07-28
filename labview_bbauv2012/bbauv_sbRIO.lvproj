@@ -3931,6 +3931,7 @@ KeepAliveTimeout 60
 		<Item Name="bbauv_acoustic_sbRIO_v1.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v1.vi"/>
 		<Item Name="bbauv_acoustic_sbRIO_v2.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v2.vi"/>
 		<Item Name="bbauv_acoustic_sbRIO_v3.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v3.vi"/>
+		<Item Name="bbauv_acoustic_sbRIO_v3.1.vi" Type="VI" URL="../sbRIO/bbauv_acoustic_sbRIO_v3.1.vi"/>
 		<Item Name="Dependencies" Type="Dependencies">
 			<Item Name="vi.lib" Type="Folder">
 				<Item Name="Error Cluster From Error Code.vi" Type="VI" URL="/&lt;vilib&gt;/Utility/error.llb/Error Cluster From Error Code.vi"/>
