@@ -190,7 +190,7 @@ class Search(smach.State):
 
     def execute(self, userdata):
         #HACK: search for single board instead now
-        tollbooth.changeTarget('red')
+        tollbooth.changeTarget('blue')
         while not rospy.is_shutdown():
             if tollbooth.regionCount >= 1:
                 if not TEST_MODE:
