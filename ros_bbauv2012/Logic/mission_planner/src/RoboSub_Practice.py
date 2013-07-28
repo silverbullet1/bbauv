@@ -267,7 +267,8 @@ StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -1, 'sway', False, 2), tr
 
         drive = StateMachine(outcomes=['drive_complete', 'drive_failed'])
         with drive:            
-            StateMachine.add('DEPTHCHANGE', GoToDepth(5,1), transitions={'succeeded':'HOVER'})     
+            StateMachine.add('DEPTHCHANGE', GoToDepth(5,1), transitions={'succeeded':'HOVER'}) 
+                
             StateMachine.add('HOVER', HoverSearch('acoustic', 60), transitions={'succeeded':'PINGER', 'failed':'GOFWD'})
             StateMachine.add('GOFWD', GoToDistance(30, 3, 'fwd'), transitions={'succeeded':'HOVER2'})
             StateMachine.add('HOVER2', HoverSearch('acoustic', 60), transitions={'succeeded':'PINGER', 'failed':'GOFWD2'})

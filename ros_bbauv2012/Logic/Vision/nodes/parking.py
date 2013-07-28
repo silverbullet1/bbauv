@@ -124,7 +124,7 @@ class Parking_Proc():
                 self.errorDepth = 240 - target_contour[2]
                 self.errorSide = 320 - target_contour[1]
                 error = 'Lock Status True: errDep = %d errSide = %d' % (self.errorDepth, self.errorSide) 
-#                rospy.logdebug(error)
+                rospy.logdebug(error)
             else:
                 self.targetLockStatus = False
         else:
