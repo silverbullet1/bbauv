@@ -3,7 +3,7 @@ import roslib; roslib.load_manifest('auv_gui')
 import rospy
 import os
 import subprocess
-hello world!
+
 
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
