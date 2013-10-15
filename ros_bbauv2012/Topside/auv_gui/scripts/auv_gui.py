@@ -2,6 +2,7 @@
 import roslib; roslib.load_manifest('auv_gui')
 import rospy
 import os
+import subprocess
 
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
@@ -30,6 +31,7 @@ from std_msgs.msg._Int8 import Int8
 from com.vision.filter_chain import Vision_filter
 
 class AUV_gui(QMainWindow):
+    isPublish = True
     isLeak = False
     main_frame = None
     compass = None 
@@ -101,6 +103,34 @@ class AUV_gui(QMainWindow):
         goal_layout.addLayout(goal_heading_layout)
         goal_layout.addLayout(goal_depth_layout)
         
+        #Menu Bar
+        closeAction = QAction('Close', self)
+        closeAction.setShortcut('Ctrl+Q')
+        closeAction.setStatusTip('Close AUV_GUI')
+        closeAction.triggered.connect(self.close)
+
+        saveAction = QAction('Save', self)
+        saveAction.setShortcut('Ctrl+W')
+        saveAction.setStatusTip('Save current settings')
+        saveAction.triggered.connect(self.saveFile)
+
+        openAction = QAction('Open Bag File', self)
+        openAction.setShortcut('Ctrl+O')
+        openAction.setStatusTip('Open a .bag file')
+        openAction.triggered.connect(self.openFile)
+
+        openFileAction = QAction('Load Parameters File', self)
+        openFileAction.setShortcut('Ctrl+L')
+        openFileAction.setStatusTip('Load Parameters')
+        openFileAction.triggered.connect(self.loadParams)
+
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(openAction)
+        fileMenu.addAction(openFileAction)
+        fileMenu.addAction(saveAction)
+        fileMenu.addAction(closeAction)
+
         # Buttons Layout
         okButton = QPushButton("&Start Goal")
         cancelButton = QPushButton("&End Goal")
@@ -108,6 +138,7 @@ class AUV_gui(QMainWindow):
         hoverButton = QPushButton("&Hover")
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
+        self.publishButton = QCommandLinkButton("Subscribing...")
         self.modeButton = QPushButton("Default")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
@@ -144,6 +175,7 @@ class AUV_gui(QMainWindow):
         hoverButton.clicked.connect(self.hoverBtnHandler)
         homeButton.clicked.connect(self.homeBtnHandler)
         self.modeButton.clicked.connect(self.modeBtnHandler)
+        self.publishButton.clicked.connect(self.publishBtnHandler)
         vbox = QVBoxLayout()
         #hbox.addStretch(1)
         vbox.addWidget(okButton)
@@ -159,6 +191,7 @@ class AUV_gui(QMainWindow):
         #hbox.addStretch(1)
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
+        vbox3.addWidget(self.publishButton)
         
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
@@ -348,6 +381,40 @@ class AUV_gui(QMainWindow):
         n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
         if not n.show():
             print "Failed to send notification"
+    
+    def saveFile(self):
+        filename=QFileDialog.getSaveFileName(self, 'Save File', self.tr("Params.txt"))
+        try:
+            with open(filename, 'w') as f:
+                for (key,data) in Vision_filter.params.iteritems():
+                    f.write(key + " " + `data` + "\n")
+                for (key, data) in self.data.iteritems():
+                    f.write(key + " " + `data` + "\n")
+            f.close()
+            rospy.loginfo("Data saved to " + filename)
+        except IOError:
+            pass
+
+    def openFile(self):
+        filename=QFileDialog.getOpenFileName(self, 'Open Bag File', self.tr(".bag"))
+        rosopen = "rosbag play " + filename
+        subprocess.call("roscore")
+        subprocess.call(rosopen)
+
+    def loadParams(self):
+        filename=QFileDialog.getOpenFileName(self, 'Open Parameters File', self.tr(".txt"))
+        count = 0
+        with open(filename, 'r') as f:
+            for line in f:
+                items = line.split()
+                if count < 8:
+                    if items[0] in Vision_filter.params:
+                        Vision_filter.params[items[0]] = items[1]
+                count = count + 1
+        vf = Vision_filter()
+        #vf.initUI()
+        self.on_timer();
+
     def on_timer(self):
         yaw = None
         depth = None
@@ -832,6 +899,42 @@ class AUV_gui(QMainWindow):
             self.armButton.setText("ARMED")
             self.isArmed = True
             
+    def publishBtnHandler(self):
+        if(self.isPublish):
+            self.isPublish = False
+            self.publishButton.setText("Stop Subscribing")
+            thruster_sub.unsubscribe()
+            depth_sub.unsubscribe()
+            orientation_sub.unsubscribe()
+            position_sub.unsubscribe()
+            controller_sub.unsubscribe()
+            self.mani_pub.unadvertise()
+            self.mani_sub.unsubscribe()
+            self.earth_sub.unsubscribe()
+            feedback_sub.unsubscribe()
+            self.hull_status_sub.unsubscribe()
+            openups_sub.unsubscribe()
+            temp_sub.unsubscribe()
+            altitude_sub.unsubscribe()
+            mode_sub.unsubscribe()
+
+        else:
+            self.publishButton.setText("Subscribing...")
+            thruster_sub.uubscribe()
+            depth_sub.subscribe()
+            orientation_sub.subscribe()
+            position_sub.subscribe()
+            controller_sub.subscribe()
+            self.mani_pub.advertise()
+            self.mani_sub.subscribe()
+            self.earth_sub.subscribe()
+            feedback_sub.subscribe()
+            self.hull_status_sub.uubscribe()
+            openups_sub.subscribe()
+            temp_sub.subscribe()
+            altitude_sub.subscribe()
+            mode_sub.subscribe()
+
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
         #resp = self.set_controller_request(False, False, False, False, False, True)
