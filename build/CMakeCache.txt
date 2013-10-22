@@ -17,6 +17,12 @@
 //Build shared libraries (DLLs).
 BUILD_SHARED_LIBS:BOOL=ON
 
+//Value Computed by CMake
+Brain_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Brain
+
+//Value Computed by CMake
+Brain_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Brain
+
 //List of ';' separated packages to exclude
 CATKIN_BLACKLIST_PACKAGES:STRING=
 
@@ -178,6 +184,42 @@ DOXYGEN_FOUND:BOOL=TRUE
 //Path to a program.
 EMPY_EXECUTABLE:FILEPATH=/usr/bin/empy
 
+//Value Computed by CMake
+Filter_AdaptiveThreshold_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_AdaptiveThreshold
+
+//Value Computed by CMake
+Filter_AdaptiveThreshold_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Filter_AdaptiveThreshold
+
+//Value Computed by CMake
+Filter_Color_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_Color
+
+//Value Computed by CMake
+Filter_Color_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Filter_Color
+
+//Value Computed by CMake
+Filter_HoughTransform_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_HoughTransform
+
+//Value Computed by CMake
+Filter_HoughTransform_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Filter_HoughTransform
+
+//Value Computed by CMake
+Filter_OCR_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_OCR
+
+//Value Computed by CMake
+Filter_OCR_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Filter_OCR
+
+//Value Computed by CMake
+Filter_Shape_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_Shape
+
+//Value Computed by CMake
+Filter_Shape_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Filter_Shape
+
+//Value Computed by CMake
+Filter_Size_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_Size
+
+//Value Computed by CMake
+Filter_Size_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Filter_Size
+
 //Path to a file.
 GTEST_INCLUDE_DIR:PATH=/usr/include
 
@@ -193,11 +235,29 @@ GTEST_MAIN_LIBRARY:FILEPATH=GTEST_MAIN_LIBRARY-NOTFOUND
 //Path to a library.
 GTEST_MAIN_LIBRARY_DEBUG:FILEPATH=GTEST_MAIN_LIBRARY_DEBUG-NOTFOUND
 
+//Value Computed by CMake
+GUI_AUV_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/GUI_AUV
+
+//Value Computed by CMake
+GUI_AUV_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/GUI_AUV
+
+//Value Computed by CMake
+GUI_Simulator_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/GUI_Simulator
+
+//Value Computed by CMake
+GUI_Simulator_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/GUI_Simulator
+
 //lsb_release executable was found
 LSB_FOUND:BOOL=TRUE
 
 //Path to a program.
 LSB_RELEASE_EXECUTABLE:FILEPATH=/usr/bin/lsb_release
+
+//Value Computed by CMake
+MissionPlanner_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/MissionPlanner
+
+//Value Computed by CMake
+MissionPlanner_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/MissionPlanner
 
 //Path to a program.
 NOSETESTS:FILEPATH=/usr/bin/nosetests
@@ -226,6 +286,30 @@ UBUNTU:BOOL=TRUE
 //LSB Distrib - codename tag
 UBUNTU_PRECISE:BOOL=TRUE
 
+//Value Computed by CMake
+Vision_Bucket_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_Bucket
+
+//Value Computed by CMake
+Vision_Bucket_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Vision_Bucket
+
+//Value Computed by CMake
+Vision_Flare_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_Flare
+
+//Value Computed by CMake
+Vision_Flare_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Vision_Flare
+
+//Value Computed by CMake
+Vision_Gate_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_Gate
+
+//Value Computed by CMake
+Vision_Gate_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Vision_Gate
+
+//Value Computed by CMake
+Vision_LineFollower_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_LineFollower
+
+//Value Computed by CMake
+Vision_LineFollower_SOURCE_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/src/Vision_LineFollower
+
 //Path to a file.
 _CATKIN_GTEST_INCLUDE:FILEPATH=_CATKIN_GTEST_INCLUDE-NOTFOUND
 
@@ -234,6 +318,9 @@ _CATKIN_GTEST_SRC:FILEPATH=/usr/src/gtest/src/gtest.cc
 
 //The directory containing a CMake configuration file for catkin.
 catkin_DIR:PATH=/opt/ros/hydro/share/catkin/cmake
+
+//The directory containing a CMake configuration file for cpp_common.
+cpp_common_DIR:PATH=/opt/ros/hydro/share/cpp_common/cmake
 
 //Value Computed by CMake
 gtest_BINARY_DIR:STATIC=/home/jason/eclipseWorkspace/SAUVC2014/build/gtest
@@ -259,6 +346,39 @@ gtest_force_shared_crt:BOOL=OFF
 
 //Dependencies for the target
 gtest_main_LIB_DEPENDS:STATIC=general;-lpthread;general;gtest;
+
+//Path to a library.
+lib:FILEPATH=/opt/ros/hydro/lib/libxmlrpcpp.so
+
+//The directory containing a CMake configuration file for message_runtime.
+message_runtime_DIR:PATH=/opt/ros/hydro/share/message_runtime/cmake
+
+//The directory containing a CMake configuration file for rosconsole.
+rosconsole_DIR:PATH=/opt/ros/hydro/share/rosconsole/cmake
+
+//The directory containing a CMake configuration file for roscpp.
+roscpp_DIR:PATH=/opt/ros/hydro/share/roscpp/cmake
+
+//The directory containing a CMake configuration file for roscpp_serialization.
+roscpp_serialization_DIR:PATH=/opt/ros/hydro/share/roscpp_serialization/cmake
+
+//The directory containing a CMake configuration file for roscpp_traits.
+roscpp_traits_DIR:PATH=/opt/ros/hydro/share/roscpp_traits/cmake
+
+//The directory containing a CMake configuration file for rosgraph_msgs.
+rosgraph_msgs_DIR:PATH=/opt/ros/hydro/share/rosgraph_msgs/cmake
+
+//The directory containing a CMake configuration file for rospy.
+rospy_DIR:PATH=/opt/ros/hydro/share/rospy/cmake
+
+//The directory containing a CMake configuration file for rostime.
+rostime_DIR:PATH=/opt/ros/hydro/share/rostime/cmake
+
+//The directory containing a CMake configuration file for std_msgs.
+std_msgs_DIR:PATH=/opt/ros/hydro/share/std_msgs/cmake
+
+//The directory containing a CMake configuration file for xmlrpcpp.
+xmlrpcpp_DIR:PATH=/opt/ros/hydro/share/xmlrpcpp/cmake
 
 
 ########################
@@ -364,7 +484,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_LOCAL_GENERATORS:INTERNAL=2
+CMAKE_NUMBER_OF_LOCAL_GENERATORS:INTERNAL=16
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

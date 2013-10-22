@@ -85,6 +85,20 @@ ENDIF(NOT CMAKE_INSTALL_COMPONENT OR "${CMAKE_INSTALL_COMPONENT}" STREQUAL "Unsp
 IF(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/gtest/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Brain/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_AdaptiveThreshold/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_Color/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_HoughTransform/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_OCR/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_Shape/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Filter_Size/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/GUI_AUV/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/GUI_Simulator/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/MissionPlanner/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_Bucket/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_Flare/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_Gate/cmake_install.cmake")
+  INCLUDE("/home/jason/eclipseWorkspace/SAUVC2014/build/Vision_LineFollower/cmake_install.cmake")
 
 ENDIF(NOT CMAKE_INSTALL_LOCAL_ONLY)
 
