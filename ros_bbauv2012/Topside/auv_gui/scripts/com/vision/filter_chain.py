@@ -30,7 +30,7 @@ class Vision_filter(QWidget):
     hist = None
     thresholder = None
     isFront = 0
-    params = {'C':0,'block':0, 'satLow': 0, 'satHigh': 255, 'hueLow': 0, 'hueHigh':255,'valLow':0,'valHigh':255}
+    params = {'C':0,'block':0, 'satLow': 30, 'satHigh': 255, 'hueLow': 0, 'hueHigh':255,'valLow':0,'valHigh':255}
    
     #slider_arr = [QSlider]
     def __init__(self):

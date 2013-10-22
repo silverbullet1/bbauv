@@ -3,7 +3,7 @@ import roslib; roslib.load_manifest('auv_gui')
 import rospy
 import os
 import subprocess
-
+import re
 
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
@@ -30,6 +30,18 @@ from bbauv_msgs.msg._thruster import thruster
 from std_msgs.msg._Float32 import Float32
 from std_msgs.msg._Int8 import Int8
 from com.vision.filter_chain import Vision_filter
+
+#Globals for publishers and subscribers
+global thruster_sub
+global depth_sub
+global orientation_sub
+global position_sub
+global controller_sub
+global feedback_sub
+global openups_sub
+global temp_sub
+global altitude_sub
+global mode_sub
 
 class AUV_gui(QMainWindow):
     isPublish = True
@@ -110,7 +122,7 @@ class AUV_gui(QMainWindow):
         closeAction.setStatusTip('Close AUV_GUI')
         closeAction.triggered.connect(self.close)
 
-        saveAction = QAction('Save', self)
+        saveAction = QAction('Save current settings as text file', self)
         saveAction.setShortcut('Ctrl+W')
         saveAction.setStatusTip('Save current settings')
         saveAction.triggered.connect(self.saveFile)
@@ -120,10 +132,10 @@ class AUV_gui(QMainWindow):
         openAction.setStatusTip('Open a .bag file')
         openAction.triggered.connect(self.openFile)
 
-        openFileAction = QAction('Load Parameters File', self)
-        openFileAction.setShortcut('Ctrl+L')
-        openFileAction.setStatusTip('Load Parameters')
-        openFileAction.triggered.connect(self.loadParams)
+        openFileAction = QAction('Generate conf files for parameters', self)
+        openFileAction.setShortcut('Ctrl+G')
+        openFileAction.setStatusTip('Save parameters into conf files')
+        openFileAction.triggered.connect(self.saveParams)
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -398,23 +410,43 @@ class AUV_gui(QMainWindow):
 
     def openFile(self):
         filename=QFileDialog.getOpenFileName(self, 'Open Bag File', self.tr(".bag"))
-        rosopen = "rosbag play " + filename
-        subprocess.call("roscore")
-        subprocess.call(rosopen)
+        rosbagplay = str("rosbag play " + filename)
+        print rosbagplay
+        stringofFile = "\"" + rosbagplay + "; exec bash\""
+        playfile = "gnome-terminal -e 'bash -c " + stringofFile + "'"
+        #subprocess.call("roscore")
+        #os.system("gnome-terminal -e 'bash -c \"roscore; exec bash\"'")
+        #os.system("gnome-terminal -e 'bash -c \"rosrun auv_gui auv_gui; exec bash\"'")
+        #subprocess.call(rosopen)
+        os.system(playfile)
 
-    def loadParams(self):
-        filename=QFileDialog.getOpenFileName(self, 'Open Parameters File', self.tr(".txt"))
-        count = 0
-        with open(filename, 'r') as f:
+    def saveParams(self):
+        params2 = ["Sat Low", "Sat High", "Hue Low", "Hue High", "Val Low", "Val High"]
+        dirname = os.chdir("../../../Logic/Vision/cfg")
+        currentDirectory = os.getcwd()
+        filestring = []
+        for filename in os.listdir(currentDirectory):
+            f = open(filename, "r")
             for line in f:
-                items = line.split()
-                if count < 8:
-                    if items[0] in Vision_filter.params:
-                        Vision_filter.params[items[0]] = items[1]
-                count = count + 1
-        vf = Vision_filter()
-        #vf.initUI()
-        self.on_timer();
+                for p in params2:
+                    if re.search(p, line, re.IGNORECASE):
+                        s = re.split(',', line)
+                        parameter =re.split(" ", p)
+                        key = "" + parameter[0].lower() + parameter[1]
+                        #print key
+                        value = Vision_filter.params.get(key)
+                        s[4] = " " + str(value)
+                        line = ','.join(s)
+                        #print s
+                filestring.append(line)
+            f.close()
+
+            f = open(filename, "w")
+            f.write(" ".join(filestring))
+            f.close()
+
+        os.chdir("../")
+        subprocess.call("rosmake")
 
     def on_timer(self):
         yaw = None
@@ -904,20 +936,20 @@ class AUV_gui(QMainWindow):
         if(self.isPublish):
             self.isPublish = False
             self.publishButton.setText("Stop Subscribing")
-            thruster_sub.unsubscribe()
+            thruster_sub.unregister()
             depth_sub.unsubscribe()
-            orientation_sub.unsubscribe()
-            position_sub.unsubscribe()
-            controller_sub.unsubscribe()
+            orientation_sub.unregister()
+            position_sub.unregister()
+            controller_sub.unregister()
             self.mani_pub.unadvertise()
-            self.mani_sub.unsubscribe()
-            self.earth_sub.unsubscribe()
-            feedback_sub.unsubscribe()
-            self.hull_status_sub.unsubscribe()
-            openups_sub.unsubscribe()
-            temp_sub.unsubscribe()
-            altitude_sub.unsubscribe()
-            mode_sub.unsubscribe()
+            self.mani_sub.unregister()
+            self.earth_sub.unregister()
+            feedback_sub.unregister()
+            self.hull_status_sub.unregister()
+            openups_sub.unregister()
+            temp_sub.unregister()
+            altitude_sub.unregister()
+            mode_sub.unregister()
 
         else:
             self.publishButton.setText("Subscribing...")
