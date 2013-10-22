@@ -1,8 +1,0 @@
-prefix=/home/jason/eclipseWorkspace/SAUVC2014/devel
-
-Name: GUI_AUV
-Description: Description of GUI_AUV
-Version: 0.0.0
-Cflags: 
-Libs: -L/home/jason/eclipseWorkspace/SAUVC2014/devel/lib 
-Requires: 
