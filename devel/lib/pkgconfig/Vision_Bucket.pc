@@ -1,0 +1,8 @@
+prefix=/home/jason/eclipseWorkspace/SAUVC2014/devel
+
+Name: Vision_Bucket
+Description: Description of Vision_Bucket
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/jason/eclipseWorkspace/SAUVC2014/devel/lib 
+Requires: 
