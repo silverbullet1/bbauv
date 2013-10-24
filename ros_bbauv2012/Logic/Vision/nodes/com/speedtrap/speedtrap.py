@@ -44,6 +44,7 @@ class SpeedTrap:
     orientation = None
     #params = { 'satLow': 50, 'satHigh': 255, 'hueLow': 36, 'hueHigh':48,'valLow':0,'valHigh':255,'Kp':10,'Vmax':40 }
     bridge = None
+    image_speed = None
     position = None
     centroidx_list = None
     centroidy_list = None
@@ -91,6 +92,7 @@ class SpeedTrap:
         #imageTopic = rospy.get_param('~image', '/bottomcam/camera/image_rect_color')
         #yawTopic = rospy.get_param('~compass', '/euler')
         self.debug = debug_state
+        self.image_speed = rospy.get_param('~image','/bottomcam/camera/image_rect_color')
         if self.debug:
             yellow_hist = bbHistogram("yellow",Hist_constants.TRIPLE_CHANNEL)
             red_hist = bbHistogram("red",Hist_constants.TRIPLE_CHANNEL)
@@ -101,12 +103,11 @@ class SpeedTrap:
  
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter",Image)
-        self.image_sub = rospy.Subscriber(rospy.get_param('~image','/bottomcam/camera/image_rect_color'), Image,self.processImage)
+        self.image_sub = rospy.Subscriber(self.image_speed, Image,self.processImage)
         self.yaw_sub = rospy.Subscriber('/euler',compass_data,self.collectYaw)
         rospy.loginfo("Topics registered")
     def unregister(self):
         self.image_sub.unregister()
-        self.image_pub.unregister()
         self.yaw_sub.unregister()
         rospy.loginfo("Topics unregistered")
         

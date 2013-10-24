@@ -1179,17 +1179,17 @@ if __name__ == '__main__':
     
 #DEBUGS
 #        StateMachine.add('DEPTHCHANGE', GoToDepth(15,3), transitions={'succeeded':'TASK_EXECUTION'})
-        StateMachine.add('COUNTDOWN', Countdown(10), transitions={'succeeded':'START'})
-#        StateMachine.add('COUNTDOWN', Countdown(0), transitions={'succeeded':'DRIVE_THRU'})        
+#        StateMachine.add('COUNTDOWN', Countdown(10), transitions={'succeeded':'START'})
+        StateMachine.add('COUNTDOWN', Countdown(15), transitions={'succeeded':'START'})        
 
         #Competition Side
-        StateMachine.add('START',Start(3,0.6, 55), transitions={'succeeded':'TURN_TO_GATE'})
+        StateMachine.add('START',Start(7,0.6,42.5), transitions={'succeeded':'TURN_TO_GATE'})
 
         #Debug
 #        StateMachine.add('START',Start(0.5,0.6,320), transitions={'succeeded':'LANE_PARK'}) #320 good for ping
         
         StateMachine.add('TURN_TO_GATE', GoToHeading(3), transitions={'succeeded':'GO_TO_GATE'}) #practice side is 295, comp side is 40
-        StateMachine.add('GO_TO_GATE', GoToDistance(70, 7, 'fwd'), transitions={'succeeded':'LANE_GATE'})
+        StateMachine.add('GO_TO_GATE', GoToDistance(60, 7, 'fwd'), transitions={'succeeded':'LANE_GATE'})
         
 ###################################################################        
         lane_gate = StateMachine(outcomes=['lane_complete', 'lane_failed'])
@@ -1215,7 +1215,7 @@ if __name__ == '__main__':
                                         
         StateMachine.add('LANE_GATE', lane_gate, transitions={'lane_complete':'TRAFFIC', 'lane_failed':'FAIL_LANEGATE_HEADING'})
 
-        StateMachine.add('FAIL_LANEGATE_HEADING', GoToHeading(5, 55), transitions={'succeeded':'TRAFFIC'})
+        StateMachine.add('FAIL_LANEGATE_HEADING', GoToHeading(5, 45), transitions={'succeeded':'TRAFFIC'})
         
 ###################################################################        
         traffic = StateMachine(outcomes=['traffic_complete', 'traffic_failed'])
@@ -1224,7 +1224,7 @@ if __name__ == '__main__':
         
             StateMachine.add('DEPTHCHANGE', GoToDepth(10,2.5), transitions={'succeeded':'GOFWD'})
             StateMachine.add('GOFWD', GoToDistance(10, 1.5, 'fwd'), transitions={'succeeded':'GORIGHT'})
-            StateMachine.add('GORIGHT', GoToDistance(10, 1, 'sway'), transitions={'succeeded':'LOOKFWD'})
+            StateMachine.add('GORIGHT', GoToDistance(10, -1, 'sway'), transitions={'succeeded':'LOOKFWD'})
             StateMachine.add('LOOKFWD', LinearSearch('traffic', 20, 3, 'fwd'), transitions={'succeeded':'TASK_EXECUTION', 'failed':'ZIGZAGSEARCH'})
 
             #Zig Zag Search
@@ -1251,16 +1251,17 @@ if __name__ == '__main__':
                 Sequence.add('STORE_DONE', StoreGlobalCoord('mission_traffic_done'))                         
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'traffic_complete', 'failed':'traffic_failed'})
             
-        StateMachine.add('TRAFFIC', traffic, transitions={'traffic_complete':'LANE_TRAFFIC', 'traffic_failed':'NAVTO_PARK'})  
+        StateMachine.add('TRAFFIC', traffic, transitions={'traffic_complete':'LANE_TRAFFIC', 'traffic_failed':'TOLLBOOTH'})  
                   
 ###################################################################
         lane_traffic = StateMachine(outcomes=['lane_complete', 'lane_failed'])
         
         with lane_traffic:
-            
-            StateMachine.add('GOLEFT', GoToDistance(30, -1, 'sway'), transitions={'succeeded':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(20, 2, 'fwd'), transitions={'succeeded':'DEPTHCHANGE'})
-            StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.6), transitions={'succeeded':'HOVER'})
+
+            StateMachine.add('DEPTHCHANGE', GoToDepth(10,0.6), transitions={'succeeded':'GOLEFT'})            
+            StateMachine.add('GOLEFT', GoToDistance(30, 1, 'sway'), transitions={'succeeded':'GOFWD'})
+            StateMachine.add('GOFWD', GoToDistance(20, 2, 'fwd'), transitions={'succeeded':'HOVER'})
+
             StateMachine.add('HOVER', HoverSearch('lane', 10, False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_FWD'})
             StateMachine.add('LOOK_FWD', LinearSearch('lane', 10, 1, 'fwd', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_LEFT'})
             StateMachine.add('LOOK_LEFT', LinearSearch('lane', 20, -2, 'sway', False, 1), transitions={'succeeded':'TASK_EXECUTION', 'failed':'LOOK_RIGHT'})
@@ -1274,15 +1275,16 @@ if __name__ == '__main__':
             with task_execution:
                 Sequence.add('STORE_FOUND', StoreGlobalCoord('mission_laneTraffic_found'))
                 Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL']))
-                Sequence.add('STORE_DONE', StoreGlobalCoord('mission_laneTraffic_done'))                               
+                Sequence.add('STORE_DONE', StoreGlobalCoord('mission_laneTraffic_done'))
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'HEADINGCHANGE', 'failed':'lane_failed'})
 
             StateMachine.add('HEADINGCHANGE', GoToHeading(10), transitions={'succeeded':'lane_complete'})
 
-        StateMachine.add('LANE_TRAFFIC', lane_traffic, transitions = {'lane_complete':'NAVTO_PARK', 'lane_failed':'NAVTO_PARK'})        
+        StateMachine.add('LANE_TRAFFIC', lane_traffic, transitions = {'lane_complete':'TOLLBOOTH', 'lane_failed':'TOLLBOOTH'})        
+
 
 #        StateMachine.add('NAVTO_PARK', Nav(20,60,20,21.5,-24.41,2.2,2.2,311), transitions={'succeeded':'TOLLBOOTH', 'failed':'TOLLBOOTH'})
-        StateMachine.add('NAVTO_PARK', Nav(20,60,20,16,19.8,2.2,2.2,311), transitions={'succeeded':'TOLLBOOTH', 'failed':'TOLLBOOTH'})
+#        StateMachine.add('NAVTO_PARK', Nav(20,60,20,16,19.8,2.2,2.2,345), transitions={'succeeded':'TOLLBOOTH', 'failed':'TOLLBOOTH'})
         
 ###################################################################
         
@@ -1291,23 +1293,23 @@ if __name__ == '__main__':
 
             StateMachine.add('DEPTHCHANGE', GoToDepth(5,3), transitions={'succeeded':'NAVTO_SPEEDTOLL'})
                         
-            st = {'x': 24.5, 'y': 19.2}
-            StateMachine.add('NAVTO_SPEEDTOLL', Nav(20,90,20, st['x'], st['y'], 3,3,358), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
-            StateMachine.add('HOVER', HoverSearch('tollbooth', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV1'})
-            StateMachine.add('NAV1', Nav(10,30,10, st['x']+1, st['y']+1, 3,3,358) , transitions = {'succeeded':'HOVER1', 'failed':'HOVER1'})
-            StateMachine.add('HOVER1', HoverSearch('tollbooth', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV2'}) 
-            StateMachine.add('NAV2', Nav(10,30,10, st['x']-1, st['y']+1, 3,3,358) , transitions = {'succeeded':'HOVER2', 'failed':'HOVER2'})
-            StateMachine.add('HOVER2', HoverSearch('tollbooth', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV3'})
-            StateMachine.add('NAV3', Nav(10,30,10, st['x']-1, st['y']-1, 3,3,358) , transitions = {'succeeded':'HOVER3', 'failed':'HOVER3'})
-            StateMachine.add('HOVER3', HoverSearch('tollbooth', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV4'})
-            StateMachine.add('NAV4', Nav(10,30,10, st['x']+1, st['y']-1, 3,3,358) , transitions = {'succeeded':'HOVER4', 'failed':'HOVER4'})
-            StateMachine.add('HOVER4', HoverSearch('tollbooth', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'toll_failed'})   
+            st = {'x': 23.7, 'y': 19.8}
+            StateMachine.add('NAVTO_SPEEDTOLL', Nav(20,90,20, st['x'], st['y'], 3,3,30), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
+            StateMachine.add('HOVER', HoverSearch('tollbooth', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV1'})
+            StateMachine.add('NAV1', Nav(10,30,10, st['x']-1, st['y']+1, 3,3,30) , transitions = {'succeeded':'HOVER1', 'failed':'HOVER1'})
+            StateMachine.add('HOVER1', HoverSearch('tollbooth', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV2'}) 
+            StateMachine.add('NAV2', Nav(10,30,10, st['x']-1, st['y']-1, 3,3,30) , transitions = {'succeeded':'HOVER2', 'failed':'HOVER2'})
+            StateMachine.add('HOVER2', HoverSearch('tollbooth', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV3'})
+            StateMachine.add('NAV3', Nav(10,30,10, st['x']+1, st['y']-1, 3,3,30) , transitions = {'succeeded':'HOVER3', 'failed':'HOVER3'})
+            StateMachine.add('HOVER3', HoverSearch('tollbooth', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV4'})
+            StateMachine.add('NAV4', Nav(10,30,10, st['x']+1, st['y']+1, 3,3,30) , transitions = {'succeeded':'HOVER4', 'failed':'HOVER4'})
+            StateMachine.add('HOVER4', HoverSearch('tollbooth', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'toll_failed'})   
 
             task = {'tN':'tollbooth', 'tOut':100, 'bL':5}
             task_execution = Sequence(outcomes=['succeeded', 'failed'], connector_outcome = 'succeeded')
             with task_execution:
                 Sequence.add('STORE_FOUND', StoreGlobalCoord('mission_toll_found'))
-                Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL']))
+                Sequence.add(task['tN'], WaitOut(task['tN'], task['tOut'], task['bL'], 4.6))
                 Sequence.add('STORE_DONE', StoreGlobalCoord('mission_toll_done'))                             
             StateMachine.add('TASK_EXECUTION', task_execution, transitions={'succeeded':'toll_complete', 'failed':'toll_failed'})            
             
@@ -1319,17 +1321,17 @@ if __name__ == '__main__':
         with speed:
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,0.6), transitions={'succeeded':'NAVTO_SPEEDTOLL'})
 
-            st = {'x': 24.5, 'y': 19.2}
-            StateMachine.add('NAVTO_SPEEDTOLL', Nav(20,90,20, st['x'], st['y'], 3,3,358), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
-            StateMachine.add('HOVER', HoverSearch('speedtrap', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV1'})
-            StateMachine.add('NAV1', Nav(10,30,10, st['x']+1, st['y']+1, 0.6,0.6,358), transitions = {'succeeded':'HOVER1', 'failed':'HOVER1'})
-            StateMachine.add('HOVER1', HoverSearch('speedtrap', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV2'}) 
-            StateMachine.add('NAV2', Nav(10,30,10, st['x']-1, st['y']+1, 0.6,0.6,358), transitions = {'succeeded':'HOVER2', 'failed':'HOVER2'})
-            StateMachine.add('HOVER2', HoverSearch('speedtrap', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV3'})
-            StateMachine.add('NAV3', Nav(10,30,10, st['x']-1, st['y']-1, 0.6,0.6,358), transitions = {'succeeded':'HOVER3', 'failed':'HOVER3'})
-            StateMachine.add('HOVER3', HoverSearch('speedtrap', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV4'})
-            StateMachine.add('NAV4', Nav(10,30,10, st['x']+1, st['y']-1, 0.6,0.6,358), transitions = {'succeeded':'HOVER4', 'failed':'HOVER4'})
-            StateMachine.add('HOVER4', HoverSearch('speedtrap', 5), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'speed_failed'})                        
+            st = {'x': 23.7, 'y': 19.8}
+            StateMachine.add('NAVTO_SPEEDTOLL', Nav(20,90,20, st['x'], st['y'], 3,3,30), transitions={'succeeded':'TASK_EXECUTION', 'failed':'HOVER'})
+            StateMachine.add('HOVER', HoverSearch('speedtrap', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV1'})
+            StateMachine.add('NAV1', Nav(5,30,5, st['x']-1, st['y']+1, 0.6,0.6,30), transitions = {'succeeded':'HOVER1', 'failed':'HOVER1'})
+            StateMachine.add('HOVER1', HoverSearch('speedtrap', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV2'}) 
+            StateMachine.add('NAV2', Nav(5,30,5, st['x']-1, st['y']-1, 0.6,0.6,30), transitions = {'succeeded':'HOVER2', 'failed':'HOVER2'})
+            StateMachine.add('HOVER2', HoverSearch('speedtrap', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV3'})
+            StateMachine.add('NAV3', Nav(5,30,5, st['x']+1, st['y']-1, 0.6,0.6,30), transitions = {'succeeded':'HOVER3', 'failed':'HOVER3'})
+            StateMachine.add('HOVER3', HoverSearch('speedtrap', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'NAV4'})
+            StateMachine.add('NAV4', Nav(5,30,5, st['x']+1, st['y']+1, 0.6,0.6,30), transitions = {'succeeded':'HOVER4', 'failed':'HOVER4'})
+            StateMachine.add('HOVER4', HoverSearch('speedtrap', 7), transitions = {'succeeded':'TASK_EXECUTION', 'failed':'speed_failed'})                        
 
 #            #Zig Zag Search
 #            zP = {'tN':'speedtrap', 'fTo':15, 'sTo': 40, 
@@ -1370,19 +1372,21 @@ if __name__ == '__main__':
         with drive:            
         
             StateMachine.add('DEPTHCHANGE', GoToDepth(15,1), transitions={'succeeded':'NAVTO_POST'})
-            StateMachine.add('NAVTO_POST', Nav(30,60,30, 41.9, 12,1,1,309), transitions={'succeeded':'HOVER', 'failed':'HOVER'})
+            StateMachine.add('NAVTO_POST', Nav(30,90,30, 38.9, 12,1,1,311), transitions={'succeeded':'HOVER', 'failed':'HOVER'})
             StateMachine.add('HOVER', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'GOFWD'})
-            StateMachine.add('GOFWD', GoToDistance(60, 15, 'fwd', True), transitions={'succeeded':'HOVER2'})
+            StateMachine.add('GOFWD', GoToDistance(60, 7, 'fwd', True), transitions={'succeeded':'HOVER2'})
             StateMachine.add('HOVER2', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'GOFWD2'})
-            StateMachine.add('GOFWD2', GoToDistance(60, 10, 'fwd', True), transitions={'succeeded':'HOVER3'})
+            StateMachine.add('GOFWD2', GoToDistance(60, 5, 'fwd', True), transitions={'succeeded':'HOVER3'})
             StateMachine.add('HOVER3', HoverSearch('acoustic', 60), transitions={'succeeded':'STORE_FOUND', 'failed':'drive_failed'})
 
             StateMachine.add('STORE_FOUND', StoreGlobalCoord('mission_pinger_found'), transitions={'succeeded':'PINGER', 'failed':'PINGER'})            
             StateMachine.add('PINGER', WaitOut('acoustic', 240, 200), transitions={'succeeded':'STORE_DONE', 'failed':'STORE_DONE'})
             StateMachine.add('STORE_DONE', StoreGlobalCoord('mission_pinger_done'), transitions={'succeeded':'HOVER5', 'failed':'HOVER5'})
-            
-            StateMachine.add('HOVER5', HoverSearch('drivethru', 10), transitions={'succeeded':'PICKUP', 'failed':'DEPTHCHANGE2'})    
-            StateMachine.add('DEPTHCHANGE2', GoToDepth(15,0.6), transitions={'succeeded':'SEARCH_LEFT'})            
+
+#            StateMachine.add('SURFACE_FIRST', GoToDepth(10,0.1,surface=True), transitions={'succeeded':'DEPTHCHANGE2'})
+#            StateMachine.add('DEPTHCHANGE2', GoToDepth(10,0.6), transitions={'succeeded':'HOVER5'})
+                        
+            StateMachine.add('HOVER5', HoverSearch('drivethru', 10), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT'})    
             StateMachine.add('SEARCH_LEFT', LinearSearch('drivethru', 20, -2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_RIGHT'})
             StateMachine.add('SEARCH_RIGHT', LinearSearch('drivethru', 40, 4, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_LEFT2'})
             StateMachine.add('SEARCH_LEFT2', LinearSearch('drivethru', 20, -2, 'sway'), transitions={'succeeded':'PICKUP', 'failed':'SEARCH_FRONT'})
@@ -1391,9 +1395,9 @@ if __name__ == '__main__':
             StateMachine.add('SEARCH_FRONT2', LinearSearch('drivethru', 20, 2, 'fwd'), transitions={'succeeded':'PICKUP', 'failed':'drive_failed'})
 
             StateMachine.add('PICKUP', WaitOut('drivethru', 120, 50), transitions={'succeeded':'SURFACE', 'failed':'drive_failed'})
-            StateMachine.add('SURFACE', GoToDepth(15, 0.1, surface = True), transitions={'succeeded':'DIVE_AGAIN'})
+            StateMachine.add('SURFACE', GoToDepth(10, 0.1, surface = True), transitions={'succeeded':'DIVE_AGAIN'})
             StateMachine.add('DIVE_AGAIN', GoToDepth(15, 1), transitions={'succeeded':'FACE_FRONT'})
-            StateMachine.add('FACE_FRONT', GoToHeading(10, 358), transitions={'succeeded':'BACKOUT'})
+            StateMachine.add('FACE_FRONT', GoToHeading(10, 311), transitions={'succeeded':'BACKOUT'})
             StateMachine.add('BACKOUT', GoToDistance(10, -3, 'fwd'), transitions={'succeeded':'HOVER6'})
             StateMachine.add('HOVER6', HoverSearch('acoustic', 60), transitions={'succeeded':'PINGER2', 'failed':'NAVTO_PING1'})
             StateMachine.add('PINGER2', WaitOut('acoustic', 120, 50), transitions={'succeeded':'SHORTHOVER', 'failed':'NAVTO_PING1'})

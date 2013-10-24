@@ -310,14 +310,15 @@ class Release(smach.State):
         global counter
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=0,
                                                      heading_setpoint=locomotionGoal.heading_setpoint,
-                                                     depth_setpoint=1.5,
+                                                     depth_setpoint=2.5,
                                                      sidemove_setpoint=0)
         movement_client.send_goal(goal)
         movement_client.wait_for_result(rospy.Duration(15))
         self.fire_grabber(False)
         counter = 2
         rospy.loginfo("Releasing Grabber.")
-        userdata.complete = True
+        rospy.sleep(rospy.Duration(10))
+	userdata.complete = True
         if rospy.is_shutdown():
             return 'aborted'
         return 'release_complete'
