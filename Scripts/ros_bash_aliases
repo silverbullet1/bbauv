@@ -1,0 +1,9 @@
+#!/bin/bash
+install_ros_package()
+{
+	sudo apt-get install ros-hydro-$1
+}
+alias s='roscore'
+alias dl='sudo apt-get install '
+alias dl_hydro=install_ros_package
+alias rp='echo $ROS_PACKAGE_PATH'
