@@ -3,7 +3,18 @@ install_ros_package()
 {
 	sudo apt-get install ros-hydro-$1
 }
+ros_service_list_params()
+{
+	rosservice type $1 | rossrv show
+}
 alias s='roscore'
 alias dl='sudo apt-get install '
 alias dl_hydro=install_ros_package
 alias rp='echo $ROS_PACKAGE_PATH'
+alias update='sudo apt-get update'
+alias root='sudo su'
+alias nodes='rosnode list'
+alias topics='rostopic list'
+alias svcs='rosservice list'
+alias sparams=ros_service_list_params
+alias params='rosparam get /'
