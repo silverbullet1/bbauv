@@ -7,6 +7,8 @@ ros_service_list_params()
 {
 	rosservice type $1 | rossrv show
 }
+
+#ROS/UBUNTU ALIASES
 alias s='roscore'
 alias dl='sudo apt-get install '
 alias dl_hydro=install_ros_package
@@ -19,3 +21,8 @@ alias svcs='rosservice list'
 alias sparams=ros_service_list_params
 alias params='rosparam get /'
 alias rec='rosbag record -a'
+
+#MINI SCRIPTS/CONFIG
+
+#SETS 'terminator' as Default Terminal
+alias set_terminator_as_default='gconftool --type string --set /desktop/gnome/applications/terminal/exec terminator'
