@@ -26,6 +26,7 @@ alias sparams=ros_service_list_params
 alias params='rosparam get /'
 alias rec='rosbag record -a'
 alias sshbb='sshpass -p bb ssh bbauvsbc1@bbauv'
+alias qt='designer &'
 
 #MINI SCRIPTS/CONFIG
 
