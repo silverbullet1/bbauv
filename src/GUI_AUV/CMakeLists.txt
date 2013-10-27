@@ -8,8 +8,14 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  qt_gui
 )
+
+##Required for QT4
+find_package(Qt4 REQUIRED COMPONENTS 
+	 QtCore
+	 QtGui
+)
+include(${QT_USE_FILE})
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -99,21 +105,22 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(GUI_AUV
-#   src/${PROJECT_NAME}/GUI_AUV.cpp
-# )
+add_library(GUI_AUV
+  src/auv_gui.cpp
+)
 
 ## Declare a cpp executable
-# add_executable(GUI_AUV_node src/GUI_AUV_node.cpp)
+add_executable(GUI_AUV_node src/auv_gui.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(GUI_AUV_node GUI_AUV_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(GUI_AUV_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(GUI_AUV_node
+  ${catkin_LIBRARIES}
+  ${QT_LIBRARIES}
+)
 
 #############
 ## Install ##

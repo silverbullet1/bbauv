@@ -4,3 +4,5 @@
 
 pyuic4 -x vision.ui -o src/vision.py
 chmod +x src/vision.py
+uic -o src/auv_gui.h vision.ui
+chmod +x src/auv_gui.h
