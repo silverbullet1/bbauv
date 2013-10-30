@@ -244,7 +244,7 @@
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>&amp;File</string>
     </property>
     <addaction name="actionOpen"/>
     <addaction name="separator"/>
@@ -259,8 +259,11 @@
    <property name="text">
     <string>&amp;Open</string>
    </property>
+   <property name="toolTip">
+    <string>Open a .bag file</string>
+   </property>
    <property name="shortcut">
-    <string/>
+    <string>Ctrl+O</string>
    </property>
    <property name="softKeyRole">
     <enum>QAction::NoSoftKey</enum>
@@ -270,13 +273,39 @@
    <property name="text">
     <string>&amp;Save</string>
    </property>
+   <property name="toolTip">
+    <string>Save a filtered image</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
   </action>
   <action name="actionQuit">
    <property name="text">
     <string>&amp;Quit</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
   </action>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>Vision</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>68</x>
+     <y>64</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>397</x>
+     <y>306</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

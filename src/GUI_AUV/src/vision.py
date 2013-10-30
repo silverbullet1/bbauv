@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'vision.ui'
 #
-# Created: Sun Oct 27 22:08:27 2013
+# Created: Tue Oct 29 09:38:19 2013
 #      by: PyQt4 UI code generator 4.9.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -118,7 +118,6 @@ class Ui_Vision(object):
         self.statusbar.setObjectName(_fromUtf8("statusbar"))
         Vision.setStatusBar(self.statusbar)
         self.actionOpen = QtGui.QAction(Vision)
-        self.actionOpen.setShortcut(_fromUtf8(""))
         self.actionOpen.setSoftKeyRole(QtGui.QAction.NoSoftKey)
         self.actionOpen.setObjectName(_fromUtf8("actionOpen"))
         self.actionSave = QtGui.QAction(Vision)
@@ -133,6 +132,7 @@ class Ui_Vision(object):
         self.menubar.addAction(self.menuFile.menuAction())
 
         self.retranslateUi(Vision)
+        QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL(_fromUtf8("triggered()")), Vision.close)
         QtCore.QMetaObject.connectSlotsByName(Vision)
 
     def retranslateUi(self, Vision):
@@ -145,10 +145,15 @@ class Ui_Vision(object):
         self.bottomfilter.setItemText(2, QtGui.QApplication.translate("Vision", "Filter 3", None, QtGui.QApplication.UnicodeUTF8))
         self.bottomcam.setText(QtGui.QApplication.translate("Vision", "Bottom Camera", None, QtGui.QApplication.UnicodeUTF8))
         self.frontcam.setText(QtGui.QApplication.translate("Vision", "Front Camera", None, QtGui.QApplication.UnicodeUTF8))
-        self.menuFile.setTitle(QtGui.QApplication.translate("Vision", "File", None, QtGui.QApplication.UnicodeUTF8))
+        self.menuFile.setTitle(QtGui.QApplication.translate("Vision", "&File", None, QtGui.QApplication.UnicodeUTF8))
         self.actionOpen.setText(QtGui.QApplication.translate("Vision", "&Open", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionOpen.setToolTip(QtGui.QApplication.translate("Vision", "Open a .bag file", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionOpen.setShortcut(QtGui.QApplication.translate("Vision", "Ctrl+O", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSave.setText(QtGui.QApplication.translate("Vision", "&Save", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionSave.setToolTip(QtGui.QApplication.translate("Vision", "Save a filtered image", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionSave.setShortcut(QtGui.QApplication.translate("Vision", "Ctrl+S", None, QtGui.QApplication.UnicodeUTF8))
         self.actionQuit.setText(QtGui.QApplication.translate("Vision", "&Quit", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionQuit.setShortcut(QtGui.QApplication.translate("Vision", "Ctrl+Q", None, QtGui.QApplication.UnicodeUTF8))
 
 
 if __name__ == "__main__":

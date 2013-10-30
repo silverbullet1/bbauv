@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'vision.ui'
 **
-** Created: Sun Oct 27 22:08:27 2013
+** Created: Tue Oct 29 09:38:19 2013
 **      by: Qt User Interface Compiler version 4.8.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
@@ -175,6 +175,7 @@ public:
         menuFile->addAction(actionQuit);
 
         retranslateUi(Vision);
+        QObject::connect(actionQuit, SIGNAL(triggered()), Vision, SLOT(close()));
 
         QMetaObject::connectSlotsByName(Vision);
     } // setupUi
@@ -183,9 +184,17 @@ public:
     {
         Vision->setWindowTitle(QApplication::translate("Vision", "Vision", 0, QApplication::UnicodeUTF8));
         actionOpen->setText(QApplication::translate("Vision", "&Open", 0, QApplication::UnicodeUTF8));
-        actionOpen->setShortcut(QString());
+#ifndef QT_NO_TOOLTIP
+        actionOpen->setToolTip(QApplication::translate("Vision", "Open a .bag file", 0, QApplication::UnicodeUTF8));
+#endif // QT_NO_TOOLTIP
+        actionOpen->setShortcut(QApplication::translate("Vision", "Ctrl+O", 0, QApplication::UnicodeUTF8));
         actionSave->setText(QApplication::translate("Vision", "&Save", 0, QApplication::UnicodeUTF8));
+#ifndef QT_NO_TOOLTIP
+        actionSave->setToolTip(QApplication::translate("Vision", "Save a filtered image", 0, QApplication::UnicodeUTF8));
+#endif // QT_NO_TOOLTIP
+        actionSave->setShortcut(QApplication::translate("Vision", "Ctrl+S", 0, QApplication::UnicodeUTF8));
         actionQuit->setText(QApplication::translate("Vision", "&Quit", 0, QApplication::UnicodeUTF8));
+        actionQuit->setShortcut(QApplication::translate("Vision", "Ctrl+Q", 0, QApplication::UnicodeUTF8));
         frontfilter->clear();
         frontfilter->insertItems(0, QStringList()
          << QApplication::translate("Vision", "Filter 1", 0, QApplication::UnicodeUTF8)
@@ -200,7 +209,7 @@ public:
         );
         bottomcam->setText(QApplication::translate("Vision", "Bottom Camera", 0, QApplication::UnicodeUTF8));
         frontcam->setText(QApplication::translate("Vision", "Front Camera", 0, QApplication::UnicodeUTF8));
-        menuFile->setTitle(QApplication::translate("Vision", "File", 0, QApplication::UnicodeUTF8));
+        menuFile->setTitle(QApplication::translate("Vision", "&File", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };

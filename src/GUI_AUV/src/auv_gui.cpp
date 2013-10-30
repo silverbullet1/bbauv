@@ -3,9 +3,15 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
+Ui::Vision ui;
+
 void chatterCallback(const std_msgs::String::ConstPtr& msg)
 {
   ROS_INFO("I heard: [%s]", msg->data.c_str());
+}
+
+void openFile(){
+	ui.bottomfilter->setText("Hello");
 }
 
 int main(int argc, char **argv)
@@ -17,6 +23,7 @@ int main(int argc, char **argv)
 	Ui::Vision ui;
 	QMainWindow *window = new QMainWindow;
 	ui.setupUi(window);
+	connect(ui->bottomfilter, SIGNAL(textChanged(QString)), this, SLOT(openFile));
 	window->show();
 
 	
