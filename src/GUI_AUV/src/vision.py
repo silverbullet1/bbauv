@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'vision.ui'
 #
-# Created: Tue Oct 29 09:38:19 2013
+# Created: Wed Oct 30 21:18:41 2013
 #      by: PyQt4 UI code generator 4.9.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -76,7 +76,7 @@ class Ui_Vision(object):
         self.frontfilter.addItem(_fromUtf8(""))
         self.frontfilter.addItem(_fromUtf8(""))
         self.bottomfilter = QtGui.QComboBox(self.centralwidget)
-        self.bottomfilter.setGeometry(QtCore.QRect(200, 290, 291, 27))
+        self.bottomfilter.setGeometry(QtCore.QRect(200, 280, 291, 27))
         self.bottomfilter.setObjectName(_fromUtf8("bottomfilter"))
         self.bottomfilter.addItem(_fromUtf8(""))
         self.bottomfilter.addItem(_fromUtf8(""))
@@ -133,6 +133,7 @@ class Ui_Vision(object):
 
         self.retranslateUi(Vision)
         QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL(_fromUtf8("triggered()")), Vision.close)
+        QtCore.QObject.connect(self.bottomfilter, QtCore.SIGNAL(_fromUtf8("currentIndexChanged(int)")), Vision.openFIle)
         QtCore.QMetaObject.connectSlotsByName(Vision)
 
     def retranslateUi(self, Vision):

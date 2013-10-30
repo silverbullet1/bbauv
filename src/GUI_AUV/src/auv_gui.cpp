@@ -1,6 +1,7 @@
 #include <QApplication>
 #include "auv_gui.h"
 #include "ros/ros.h"
+#include "mywindow.h"
 #include "std_msgs/String.h"
 
 Ui::Vision ui;
@@ -10,8 +11,9 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg)
   ROS_INFO("I heard: [%s]", msg->data.c_str());
 }
 
-void openFile(){
-	ui.bottomfilter->setText("Hello");
+void openFIle(int a){
+	ui.bottomfilter->setItemText(a,"Hello");
+	exit(2);
 }
 
 int main(int argc, char **argv)
@@ -21,9 +23,10 @@ int main(int argc, char **argv)
 	//Initiate QAppication and UI
 	QApplication app(argc, argv);
 	Ui::Vision ui;
-	QMainWindow *window = new QMainWindow;
+	QMainWindow *window = new MainWindow;
 	ui.setupUi(window);
-	connect(ui->bottomfilter, SIGNAL(textChanged(QString)), this, SLOT(openFile));
+	//connect(ui.bottomfilter, SIGNAL(textChanged(QString)), this, SLOT(*openFile));
+	//QObject::connect(ui.bottomfilter, SIGNAL(currentIndexChanged(int)), ui.bottomfilter, SLOT(openFile(int)));
 	window->show();
 
 	

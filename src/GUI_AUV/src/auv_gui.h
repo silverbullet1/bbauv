@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'vision.ui'
 **
-** Created: Tue Oct 29 09:38:19 2013
+** Created: Wed Oct 30 21:18:41 2013
 **      by: Qt User Interface Compiler version 4.8.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
@@ -29,6 +29,9 @@ QT_BEGIN_NAMESPACE
 
 class Ui_Vision
 {
+public slots:
+    void openFIle(int a);
+
 public:
     QAction *actionOpen;
     QAction *actionSave;
@@ -133,7 +136,7 @@ public:
         frontfilter->setGeometry(QRect(190, 10, 291, 27));
         bottomfilter = new QComboBox(centralwidget);
         bottomfilter->setObjectName(QString::fromUtf8("bottomfilter"));
-        bottomfilter->setGeometry(QRect(200, 290, 291, 27));
+        bottomfilter->setGeometry(QRect(200, 280, 291, 27));
         bottomcam = new QLabel(centralwidget);
         bottomcam->setObjectName(QString::fromUtf8("bottomcam"));
         bottomcam->setGeometry(QRect(20, 290, 131, 17));
@@ -176,6 +179,7 @@ public:
 
         retranslateUi(Vision);
         QObject::connect(actionQuit, SIGNAL(triggered()), Vision, SLOT(close()));
+        QObject::connect(bottomfilter, SIGNAL(currentIndexChanged(int)), Vision, SLOT(openFIle(int)));
 
         QMetaObject::connectSlotsByName(Vision);
     } // setupUi

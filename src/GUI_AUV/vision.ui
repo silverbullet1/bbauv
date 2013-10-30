@@ -145,7 +145,7 @@
     <property name="geometry">
      <rect>
       <x>200</x>
-      <y>290</y>
+      <y>280</y>
       <width>291</width>
       <height>27</height>
      </rect>
@@ -298,8 +298,8 @@
    <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>68</x>
-     <y>64</y>
+     <x>-1</x>
+     <y>-1</y>
     </hint>
     <hint type="destinationlabel">
      <x>397</x>
@@ -307,5 +307,24 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>bottomfilter</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>Vision</receiver>
+   <slot>openFIle(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>241</x>
+     <y>316</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>167</x>
+     <y>-13</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
+ <slots>
+  <slot>openFIle(int)</slot>
+ </slots>
 </ui>
