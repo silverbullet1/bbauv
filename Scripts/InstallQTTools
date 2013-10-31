@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
-#Install the QT development tools on Ubuntu
+#Install the QT 5 development tools on Ubuntu
+sudo add-apt-repository ppa:ubuntu-sdk-team/ppa 
+sudo apt-get update
 
-sudo apt-get install qt4-dev-tools qt4-designer
+sudo apt-get install qttools5-dev
