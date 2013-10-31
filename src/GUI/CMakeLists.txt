@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(Filter_AdaptiveThreshold)
+project(GUI)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -9,6 +9,9 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
 )
+
+##Required for QT5
+find_package(Qt5Widgets)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -80,8 +83,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES Filter_AdaptiveThreshold
+  INCLUDE_DIRS include
+#  LIBRARIES GUI
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
@@ -95,24 +98,33 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${Qt5Widgets_INCLUDE_DIRS}
 )
 
+##Required for QT5
+add_definitions(${Qt5Widgets_DEFINITIONS})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+
+
 ## Declare a cpp library
-# add_library(Filter_AdaptiveThreshold
-#   src/${PROJECT_NAME}/Filter_AdaptiveThreshold.cpp
-# )
+add_library(GUI
+  src/auv_gui.cpp
+)
 
 ## Declare a cpp executable
-# add_executable(Filter_AdaptiveThreshold_node src/Filter_AdaptiveThreshold_node.cpp)
+add_executable(GUI_node src/auv_gui.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(Filter_AdaptiveThreshold_node Filter_AdaptiveThreshold_generate_messages_cpp)
+# add_dependencies(GUI_node GUI_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(Filter_AdaptiveThreshold_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(GUI_node
+  ${catkin_LIBRARIES}
+  Qt5::Widgets
+)
+##Required for QT5
+qt5_use_modules( GUI_node Widgets )
 
 #############
 ## Install ##
@@ -129,7 +141,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS Filter_AdaptiveThreshold Filter_AdaptiveThreshold_node
+# install(TARGETS GUI GUI_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -154,7 +166,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_Filter_AdaptiveThreshold.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_GUI.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

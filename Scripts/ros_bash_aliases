@@ -21,10 +21,9 @@ alias svcs='rosservice list'
 alias services='rosrun rqt_service_caller rqt_service_caller &'
 alias bag='rqt_bag &'
 alias sparams=ros_service_list_params
-alias params='rosparam get /'
+alias params='rosparam get /' 	 	 	
 alias rec='rosbag record -a'
 alias sshbb='sshpass -p bb ssh bbauvsbc1@bbauv'
-alias qt='designer &'
 alias catm='catkin_make'
 
 #MINI SCRIPTS/CONFIG

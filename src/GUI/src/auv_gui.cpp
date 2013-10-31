@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 	QApplication app(argc, argv);
 	QMainWindow *window = new QMainWindow;
 	ui.setupUi(window);
-
+	
 	QObject::connect(ui.bottomfilter, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), openFile);
 
 	window->show();
