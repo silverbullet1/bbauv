@@ -10,12 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
 )
 
-##Required for QT4
-find_package(Qt4 REQUIRED COMPONENTS 
-	 QtCore
-	 QtGui
-)
-include(${QT_USE_FILE})
+##Required for QT5
+find_package(Qt5Widgets)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -87,7 +83,7 @@ include(${QT_USE_FILE})
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES GUI_AUV
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
@@ -102,7 +98,13 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${Qt5Widgets_INCLUDE_DIRS}
 )
+
+##Required for QT5
+add_definitions(${Qt5Widgets_DEFINITIONS})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+
 
 ## Declare a cpp library
 add_library(GUI_AUV
@@ -119,8 +121,10 @@ add_executable(GUI_AUV_node src/auv_gui.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(GUI_AUV_node
   ${catkin_LIBRARIES}
-  ${QT_LIBRARIES}
+  Qt5::Widgets
 )
+##Required for QT5
+qt5_use_modules( GUI_AUV_node Widgets )
 
 #############
 ## Install ##

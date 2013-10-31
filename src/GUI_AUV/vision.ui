@@ -265,9 +265,6 @@
    <property name="shortcut">
     <string>Ctrl+O</string>
    </property>
-   <property name="softKeyRole">
-    <enum>QAction::NoSoftKey</enum>
-   </property>
   </action>
   <action name="actionSave">
    <property name="text">
