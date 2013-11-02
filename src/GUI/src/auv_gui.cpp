@@ -17,9 +17,8 @@ static void selectBottomFilter(int selectedIndex){
 
 static void openFile(){
 	//QFileDialog to open file
-	QString filename = QFileDialog::getOpenFileName(this, tr("Open bag file"), QDir::currentPath(), 
-		tr("Bag files (*.bag);; All files (*.*)")
-		0, QFileDialog::DontUseNativeDialog);
+	QString filename = QFileDialog::getOpenFileName(ui, QString("Open bag file"), QDir::currentPath(), 
+		QString("Bag files (*.bag);; All files (*.*)"), QFileDialog::DontUseNativeDialog);
 	if (!filename.isNull()) { qDebug.toAscii(); }
 	//Try to run the bag file from a new terminal in rosrun
 	char command[500];
