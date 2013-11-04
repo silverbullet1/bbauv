@@ -3,6 +3,9 @@
 #include "auv_gui.h"
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include <stdio.h>
+#include <cstdlib>
+#include <string.h>
 
 static Ui::Vision ui;
 
@@ -15,15 +18,17 @@ static void selectBottomFilter(int selectedIndex){
 	ui.bottomfilter->setItemText(selectedIndex,"Hello");
 }
 
-static void openFile(){
+static void openFile(bool open){
+	//Apparently QMainWIndow needs to be casted to a QWidget? 
 	//QFileDialog to open file
-	QString filename = QFileDialog::getOpenFileName(ui, QString("Open bag file"), QDir::currentPath(), 
-		QString("Bag files (*.bag);; All files (*.*)"), QFileDialog::DontUseNativeDialog);
-	if (!filename.isNull()) { qDebug.toAscii(); }
-	//Try to run the bag file from a new terminal in rosrun
-	char command[500];
-	strcpy(command, "gnome-terminal -e 'bash -c " + "\"" + "rosbag play "  + filename + "; exec bash\"" + "'");
-	system(command);
+	QWidget *widget = new QWidget;
+	QString selfilter = QString("BAG(*.bag)");
+	QString filename = QFileDialog::getOpenFileName(static_cast<QWidget *>(ui), QString("Open bag file"), QDir::currentPath(), 
+	 	QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
+	// if (!filename.isNull()) { qDebug.toAscii(); }
+	// //Try to run the bag file from a new terminal in rosrun
+	// char command[500];
+	// strcpy(command, "gnome-terminal -e 'bash -c " + "\"" + "rosbag play "  + filename + "; exec bash\"" + "'");
 }
 
 int main(int argc, char **argv)
