@@ -213,7 +213,9 @@ public:
 };
 
 namespace Ui {
-    class Vision: public Ui_Vision {};
+    class Vision: public Ui_Vision {
+
+    };
 } // namespace Ui
 
 QT_END_NAMESPACE

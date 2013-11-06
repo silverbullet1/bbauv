@@ -21,10 +21,12 @@ static void selectBottomFilter(int selectedIndex){
 static void openFile(bool open){
 	//Apparently QMainWIndow needs to be casted to a QWidget? 
 	//QFileDialog to open file
+	//exit(2);//didnt even come in this method..
 	QWidget *widget = new QWidget;
 	QString selfilter = QString("BAG(*.bag)");
-	QString filename = QFileDialog::getOpenFileName(static_cast<QWidget *>(ui), QString("Open bag file"), QDir::currentPath(), 
+	QString filename = QFileDialog::getOpenFileName(ui.centralwidget, QString("Open bag file"), QDir::currentPath(), 
 	 	QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
+	
 	// if (!filename.isNull()) { qDebug.toAscii(); }
 	// //Try to run the bag file from a new terminal in rosrun
 	// char command[500];
@@ -41,7 +43,7 @@ int main(int argc, char **argv)
 	ui.setupUi(window);
 	
 	QObject::connect(ui.bottomfilter, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), selectBottomFilter);
-	QObject::connect(ui.actionOpen, static_cast<void(QAction::*)(bool)>(&QAction::triggered), openFile);
+	QObject::connect(ui.actionOpen, &QAction::triggered, openFile);
 
 	window->show();
 
