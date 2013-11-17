@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot name="bumblebee">
+  <link name="base_link">
+    <visual>
+      <geometry>
+	<box size="0.6 0.9 0.2" />
+      </geometry>
+      <material name="white">
+	<color rgba="0.8 0.8 0.8 1" />
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+	<box size="0.6 0.9 0.2" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="body_link">
+    <visual>
+      <geometry>
+	<cylinder length="0.8" radius="0.2" />
+      </geometry>
+      <origin xyz="0 0 0.2" rpy="1.57075 0 0" />
+      <material name="gray">
+	<color rgba="0.4 0.4 0.4 1" />
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+	<cylinder length="0.8" radius="0.2" />
+      </geometry>
+      <origin xyz="0 0 0.2" rpy="1.57075 0 0" />
+    </collision>
+  </link>
+
+  <joint name="body_to_base" type="fixed">
+    <parent link="base_link" />
+    <child link="body_link" />
+    <origin xyz="0 0 0.1" />
+  </joint>
+</robot>
