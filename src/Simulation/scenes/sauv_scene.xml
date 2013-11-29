@@ -154,18 +154,18 @@
       <vehicleName> bumblebee </vehicleName>
     </ROSOdomToPAT>
     <PATToROSOdom>
-      <topic> /uwsim/bumblebee_odom </topic>
+      <topic> /bumblebee/bumblebee_odom </topic>
       <vehicleName> bumblebee </vehicleName>
     </PATToROSOdom>
     <VirtualCameraToROSImage> 
       <cameraName>bowtech1</cameraName>
-      <imageTopic> /uwsim/camera1 </imageTopic>
-      <infoTopic> /uwsim/camera1_info </infoTopic>
+      <imageTopic> /bumblebee/camera1 </imageTopic>
+      <infoTopic> /bumblebee/camera1_info </infoTopic>
     </VirtualCameraToROSImage>
     <VirtualCameraToROSImage> 
       <cameraName>bowtech2</cameraName>
-      <imageTopic> /uwsim/camera2 </imageTopic>
-      <infoTopic> /uwsim/camera2_info </infoTopic>
+      <imageTopic> /bumblebee/camera2 </imageTopic>
+      <infoTopic> /bumblebee/camera2_info </infoTopic>
     </VirtualCameraToROSImage>
   </rosInterfaces>
 </UWSimScene>
