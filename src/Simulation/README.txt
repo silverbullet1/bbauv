@@ -1,9 +1,10 @@
 ** Install uwsim:
 - apt-get install ros-hydro-uwsim
+- Use catkin_make to make the workspace
 
 ** Running uwsim for bumblebee:
 - roscore
-- cd into this directory
+- cd into this directory (roscd Simulation)
 - rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
 - disableShaders are enabled by default in the scene graph (modify by changing the <disableShaders> tag)
 
@@ -19,6 +20,7 @@
 - Used to control the vehicle velocities using arrow and WASDQE keys
 - In the root dir: source ./devel/setup.bash
 - rosrun Simulation keyboard_control
-- UP: move forward; DOWN: move backward; LEFT & RIGHT: yaw; A & D: roll; W & S: pitch; Q: sink down; E: float up
+- If the node is not found, under Simulation, create two empty folders called include and simulation
+- UP: move forward; DOWN: move backward; LEFT & RIGHT: yaw; A & D: roll; W & S: pitch; Q: sink down; E: float up (Run when the terminal is active!)
 - view front camera image: rosrun image_view image_view image:=bumblebee/camera1
 - view bottom camera image: rosrun image_view image_view image:=bumblebee/camera2

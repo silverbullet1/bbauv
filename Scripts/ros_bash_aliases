@@ -25,6 +25,21 @@ alias params='rosparam get /'
 alias rec='rosbag record -a'
 alias sshbb='sshpass -p bb ssh bbauvsbc1@bbauv'
 alias catm='catkin_make'
+alias sim=runSim
+
+
+
+#MINI Functions 
+check_process() {
+  echo "checking $1"
+  [ "$1" = "" ]  && return 0
+  [ `pgrep $1` ] && return 1 || return 0
+}
+runSim() {
+	check_process "roscore"
+	[ $? -eq 0 ] && echo "roscore not running" &&  roscd Simulation && (roscore &) && rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
+	[ $? -eq 1 ] && echo "roscore running..." && roscd Simulation && rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
+}
 
 #MINI SCRIPTS/CONFIG
 
