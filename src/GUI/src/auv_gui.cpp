@@ -20,8 +20,7 @@ static void selectBottomFilter(int selectedIndex){
 
 static void openFile(bool open){
 	//Apparently QMainWIndow needs to be casted to a QWidget? 
-	//QFileDialog to open file
-	//exit(2);//didnt even come in this method..
+
 	QWidget *widget = new QWidget;
 	QString selfilter = QString("BAG(*.bag)");
 	QString filename = QFileDialog::getOpenFileName(ui.centralwidget, QString("Open bag file"), QDir::currentPath(), 

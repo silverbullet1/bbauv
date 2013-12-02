@@ -26,7 +26,7 @@ alias rec='rosbag record -a'
 alias sshbb='sshpass -p bb ssh bbauvsbc1@bbauv'
 alias catm='catkin_make'
 alias sim=runSim
-
+alias vision=runVisionUI
 
 
 #MINI Functions 
@@ -37,8 +37,16 @@ check_process() {
 }
 runSim() {
 	check_process "roscore"
-	[ $? -eq 0 ] && echo "roscore not running" &&  roscd Simulation && (roscore &) && rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
-	[ $? -eq 1 ] && echo "roscore running..." && roscd Simulation && rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
+	[ $? -eq 0 ] && echo "roscore not running" &&  roscd Simulation && (roscore &) 
+	[ $? -eq 1 ] && echo "roscore running..." && roscd Simulation 
+	rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
+}
+
+runVisionUI(){
+	check_process "roscore"
+	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
+	[ $? -eq 1 ] && echo "roscore running..."
+	./s-eh-you-vee-see-twentie-one-for/build/GUI/GUI_node
 }
 
 #MINI SCRIPTS/CONFIG

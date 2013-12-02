@@ -107,9 +107,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 
 
 ## Declare a cpp library
-add_library(GUI
-  src/auv_gui.cpp
-)
+#add_library(GUI
+#  src/auv_gui.cpp
+#)
 
 ## Declare a cpp executable
 add_executable(GUI_node src/auv_gui.cpp)
