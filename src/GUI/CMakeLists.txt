@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(GUI)
 
+## In the event that rosrun GUI GUI_node doesn't work and you're looking at this,
+## Just create two empty folders under src/GUI called include and GUI_node
+## Then run catkin_make or catm if you installed our aliases. And it'll work
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -82,12 +86,12 @@ find_package(Qt5Widgets)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-# catkin_package(
-#   INCLUDE_DIRS include
-#  LIBRARIES GUI
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
-# )
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES GUI
+  CATKIN_DEPENDS roscpp rospy std_msgs
+  DEPENDS system_lib
+ )
 
 ###########
 ## Build ##
@@ -97,6 +101,7 @@ find_package(Qt5Widgets)
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
 )
