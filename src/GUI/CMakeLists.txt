@@ -12,10 +12,16 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  image_transport
+  cv_bridge
 )
 
 ##Required for QT5
+##set (Qt5Widgets_DIR "/home/ndt/Softwares/Qt/5.1.1/gcc_64/lib/cmake/Qt5Widgets") ## for Thien's case only
 find_package(Qt5Widgets)
+
+##Required for OpenCV
+find_package(OpenCV)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -104,6 +110,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ##Required for QT5
@@ -127,6 +134,7 @@ add_executable(GUI_node src/auv_gui.cpp)
 target_link_libraries(GUI_node
   ${catkin_LIBRARIES}
   Qt5::Widgets
+  ${OpenCV_LIBRARIES}
 )
 ##Required for QT5
 qt5_use_modules( GUI_node Widgets )
