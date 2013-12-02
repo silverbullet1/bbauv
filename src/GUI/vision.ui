@@ -33,6 +33,19 @@
        <property name="frameShadow">
         <enum>QFrame::Raised</enum>
        </property>
+       <widget class="QLabel" name="labelFront">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>10</y>
+          <width>311</width>
+          <height>191</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Front Camera</string>
+        </property>
+       </widget>
       </widget>
      </item>
     </layout>
@@ -239,7 +252,7 @@
      <x>0</x>
      <y>0</y>
      <width>796</width>
-     <height>25</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

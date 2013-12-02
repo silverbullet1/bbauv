@@ -1,13 +1,13 @@
 /********************************************************************************
 ** Form generated from reading UI file 'vision.ui'
 **
-** Created by: Qt User Interface Compiler version 5.0.2
+** Created by: Qt User Interface Compiler version 5.1.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
 
-#ifndef AUV_GUI_H
-#define AUV_GUI_H
+#ifndef AUV_UI_H
+#define AUV_UI_H
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
@@ -36,6 +36,7 @@ public:
     QWidget *verticalLayoutWidget;
     QVBoxLayout *vboxLayout;
     QFrame *frontcam_2;
+    QLabel *labelFront;
     QWidget *verticalLayoutWidget_2;
     QVBoxLayout *_2;
     QFrame *frontcamfiltered;
@@ -79,6 +80,9 @@ public:
         frontcam_2->setObjectName(QStringLiteral("frontcam_2"));
         frontcam_2->setFrameShape(QFrame::StyledPanel);
         frontcam_2->setFrameShadow(QFrame::Raised);
+        labelFront = new QLabel(frontcam_2);
+        labelFront->setObjectName(QStringLiteral("labelFront"));
+        labelFront->setGeometry(QRect(10, 10, 311, 191));
 
         vboxLayout->addWidget(frontcam_2);
 
@@ -157,7 +161,7 @@ public:
         Vision->setCentralWidget(centralwidget);
         menubar = new QMenuBar(Vision);
         menubar->setObjectName(QStringLiteral("menubar"));
-        menubar->setGeometry(QRect(0, 0, 796, 25));
+        menubar->setGeometry(QRect(0, 0, 796, 20));
         menuFile = new QMenu(menubar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         Vision->setMenuBar(menubar);
@@ -174,6 +178,7 @@ public:
 
         retranslateUi(Vision);
         QObject::connect(actionQuit, SIGNAL(triggered()), Vision, SLOT(close()));
+        QObject::connect(bottomfilter, SIGNAL(currentIndexChanged(int)), Vision, SLOT(openFIle(int)));
 
         QMetaObject::connectSlotsByName(Vision);
     } // setupUi
@@ -193,6 +198,7 @@ public:
         actionSave->setShortcut(QApplication::translate("Vision", "Ctrl+S", 0));
         actionQuit->setText(QApplication::translate("Vision", "&Quit", 0));
         actionQuit->setShortcut(QApplication::translate("Vision", "Ctrl+Q", 0));
+        labelFront->setText(QApplication::translate("Vision", "Front Camera", 0));
         frontfilter->clear();
         frontfilter->insertItems(0, QStringList()
          << QApplication::translate("Vision", "Filter 1", 0)
@@ -213,11 +219,9 @@ public:
 };
 
 namespace Ui {
-    class Vision: public Ui_Vision {
-
-    };
+    class Vision: public Ui_Vision {};
 } // namespace Ui
 
 QT_END_NAMESPACE
 
-#endif // AUV_GUI_H
+#endif // AUV_UI_H
