@@ -90,7 +90,7 @@
       <resh> 240 </resh>
       <position>
         <x>0.0</x>
-        <y>0.4</y>
+        <y>0.6</y>
         <z> 0 </z>
       </position>
       <orientation>
@@ -98,9 +98,10 @@
         <p>0</p>
         <y>0 </y>
       </orientation>
+   </virtualCamera>
+
       <!-- draws the FOV of the camera projected on the scene each 2 seconds
       <showpath>2</showpath> -->
-    </virtualCamera>
     <virtualCamera>
       <name>bowtech2</name>
       <relativeTo>base_link</relativeTo>
@@ -117,7 +118,105 @@
         <y>0</y>
       </orientation>
     </virtualCamera>
-  </vehicle>
+     <rangeSensor>
+        <name> sonarleft </name>
+        <relativeTo>body_link</relativeTo>
+        <range>5</range>
+        <visible>1</visible>
+        <position>
+          <x>0.0</x>
+          <y>0.3</y>
+          <z> 0 </z>
+        </position>
+        <orientation>
+          <r>0</r>
+          <p>0</p>
+          <y>3.145</y>
+        </orientation>
+      </rangeSensor>
+           <rangeSensor>
+        <name> sonarright </name>
+        <relativeTo>body_link</relativeTo>
+        <range>5</range>
+        <visible>1</visible>
+        <position>
+          <x>0.0</x>
+          <y>0.3</y>
+          <z> 0 </z>
+        </position>
+        <orientation>
+          <r>0.0</r>
+          <p>15.8</p>
+          <y>3.145</y>
+        </orientation>
+      </rangeSensor>
+
+        <imu>
+      <name>imu</name>
+      <relativeTo>base_link</relativeTo>
+      <position>
+        <x>0</x>
+        <y>0</y>
+        <z>0</z>
+      </position>  
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>3.1415</y>
+      </orientation>
+      <std>0.00000001</std>
+    </imu>
+
+    <pressureSensor>
+      <name>pressureSensor</name>
+      <relativeTo>base_link</relativeTo>
+      <position>
+        <x>0</x>
+        <y>0</y>
+        <z>0.2</z>
+      </position>  
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>0</y>
+      </orientation>
+      <std>0.02</std>
+    </pressureSensor>
+    
+    <gpsSensor>
+      <name>GPSSensor</name>
+      <relativeTo>base_link</relativeTo>
+      <position>
+        <x>0</x>
+        <y>0</y>
+        <z>0</z>
+      </position>  
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>0</y>
+      </orientation>
+      <std>0.00005</std>
+    </gpsSensor>
+
+    <dvlSensor>
+      <name>DVLSensor</name>
+      <relativeTo>base_link</relativeTo>
+      <position>
+        <x>-0.75</x>
+        <y>0</y>
+        <z>0</z>
+      </position>  
+      <orientation>
+        <r>0</r>
+        <p>0</p>
+        <y>3.926</y>
+      </orientation>
+      <std>0.0015</std>
+    </dvlSensor>
+
+
+    </vehicle> 
 
    <object>
     <name>terrain</name>
@@ -148,6 +247,23 @@
     </physics>
   </object>
 
+  <!-- Tried to add flare object but there's problem with the path :( 
+  <object>
+    <name>flare</name>
+    <file>data/scenes/flare.xml</file>
+     <position>
+      <x> 0</x>
+      <y> 0 </y>
+      <z> 0 </z>
+    </position>
+    <orientation>
+      <r>0</r>
+      <p>0</p>
+      <y>0</y>
+    </orientation>
+  </object>
+--> 
+
  <rosInterfaces>
     <ROSOdomToPAT>
       <topic> /dataNavigator </topic>
@@ -167,5 +283,35 @@
       <imageTopic> /bumblebee/camera2 </imageTopic>
       <infoTopic> /bumblebee/camera2_info </infoTopic>
     </VirtualCameraToROSImage>
+    <RangeSensorToROSRange>
+      <name>sonarleft</name>
+      <topic> /bumblebee/sonarleft </topic>
+      <rate> 10 </rate>
+    </RangeSensorToROSRange>
+       <RangeSensorToROSRange>
+      <name>sonarright</name>
+      <topic> /bumblebee/sonarleft </topic>
+      <rate> 10 </rate>
+    </RangeSensorToROSRange>
+     <ImuToROSImu>
+      <name>imu</name>
+      <topic>bumblebee/imu</topic>
+      <rate>20</rate>
+    </ImuToROSImu>
+    <PressureSensorToROS>
+      <name>pressureSensor</name>
+      <topic>bumblebee/pressure</topic>
+      <rate>5</rate>
+    </PressureSensorToROS>
+    <GPSSensorToROS>
+      <name>GPSSensor</name>
+      <topic>bumblebee/gps</topic>
+      <rate>1</rate>
+    </GPSSensorToROS>
+    <DVLSensorToROS>
+      <name>DVLSensor</name>
+      <topic>bumblebee/dvl</topic>
+      <rate>5</rate>
+    </DVLSensorToROS>
   </rosInterfaces>
 </UWSimScene>
