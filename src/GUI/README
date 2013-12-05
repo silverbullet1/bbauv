@@ -1,0 +1,7 @@
+Vision GUI 
+- Can run using alias: vision
+- Can also run using: rosrun GUI GUI_node
+
+Need to be able to subscribe to topics from .bag file and simulation (bottom camera)
+Also output the filtered image :p
+Apply vision filters :) 

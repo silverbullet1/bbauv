@@ -46,7 +46,7 @@ runVisionUI(){
 	check_process "roscore"
 	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
 	[ $? -eq 1 ] && echo "roscore running..."
-	./s-eh-you-vee-see-twentie-one-for/build/GUI/GUI_node
+	rosrun GUI GUI_node
 }
 
 #MINI SCRIPTS/CONFIG
