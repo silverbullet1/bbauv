@@ -6,8 +6,8 @@
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
 
-#ifndef AUV_UI_H
-#define AUV_UI_H
+#ifndef AUV_GUI_H
+#define AUV_GUI_H
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
@@ -43,6 +43,7 @@ public:
     QWidget *verticalLayoutWidget_3;
     QVBoxLayout *_4;
     QFrame *bottomcam_2;
+    QLabel *labelbottom;
     QWidget *verticalLayoutWidget_4;
     QVBoxLayout *_3;
     QFrame *bottomcamfiltered;
@@ -53,6 +54,7 @@ public:
     QLabel *frontcam;
     QFrame *line_2;
     QFrame *line_3;
+    QComboBox *source_ddm;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -109,6 +111,9 @@ public:
         bottomcam_2->setObjectName(QStringLiteral("bottomcam_2"));
         bottomcam_2->setFrameShape(QFrame::StyledPanel);
         bottomcam_2->setFrameShadow(QFrame::Raised);
+        labelbottom = new QLabel(bottomcam_2);
+        labelbottom->setObjectName(QStringLiteral("labelbottom"));
+        labelbottom->setGeometry(QRect(10, 0, 311, 191));
 
         _4->addWidget(bottomcam_2);
 
@@ -158,10 +163,13 @@ public:
         line_3->setGeometry(QRect(370, 320, 20, 251));
         line_3->setFrameShape(QFrame::VLine);
         line_3->setFrameShadow(QFrame::Sunken);
+        source_ddm = new QComboBox(centralwidget);
+        source_ddm->setObjectName(QStringLiteral("source_ddm"));
+        source_ddm->setGeometry(QRect(610, 10, 141, 27));
         Vision->setCentralWidget(centralwidget);
         menubar = new QMenuBar(Vision);
         menubar->setObjectName(QStringLiteral("menubar"));
-        menubar->setGeometry(QRect(0, 0, 796, 20));
+        menubar->setGeometry(QRect(0, 0, 796, 25));
         menuFile = new QMenu(menubar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         Vision->setMenuBar(menubar);
@@ -178,7 +186,7 @@ public:
 
         retranslateUi(Vision);
         QObject::connect(actionQuit, SIGNAL(triggered()), Vision, SLOT(close()));
-        QObject::connect(bottomfilter, SIGNAL(currentIndexChanged(int)), Vision, SLOT(openFIle(int)));
+        QObject::connect(bottomfilter, SIGNAL(currentIndexChanged(int)), Vision, SLOT(openFile(int)));
 
         QMetaObject::connectSlotsByName(Vision);
     } // setupUi
@@ -188,17 +196,13 @@ public:
         Vision->setWindowTitle(QApplication::translate("Vision", "Vision", 0));
         actionOpen->setText(QApplication::translate("Vision", "&Open", 0));
 #ifndef QT_NO_TOOLTIP
-        actionOpen->setToolTip(QApplication::translate("Vision", "Open a .bag file", 0));
-#endif // QT_NO_TOOLTIP
-        actionOpen->setShortcut(QApplication::translate("Vision", "Ctrl+O", 0));
-        actionSave->setText(QApplication::translate("Vision", "&Save", 0));
-#ifndef QT_NO_TOOLTIP
         actionSave->setToolTip(QApplication::translate("Vision", "Save a filtered image", 0));
 #endif // QT_NO_TOOLTIP
         actionSave->setShortcut(QApplication::translate("Vision", "Ctrl+S", 0));
         actionQuit->setText(QApplication::translate("Vision", "&Quit", 0));
         actionQuit->setShortcut(QApplication::translate("Vision", "Ctrl+Q", 0));
         labelFront->setText(QApplication::translate("Vision", "Front Camera", 0));
+        labelbottom->setText(QApplication::translate("Vision", "Bottom Camera", 0));
         frontfilter->clear();
         frontfilter->insertItems(0, QStringList()
          << QApplication::translate("Vision", "Filter 1", 0)
@@ -213,6 +217,11 @@ public:
         );
         bottomcam->setText(QApplication::translate("Vision", "Bottom Camera", 0));
         frontcam->setText(QApplication::translate("Vision", "Front Camera", 0));
+        source_ddm->clear();
+        source_ddm->insertItems(0, QStringList()
+         << QApplication::translate("Vision", "Simulation", 0)
+         << QApplication::translate("Vision", "Bag data", 0)
+        );
         menuFile->setTitle(QApplication::translate("Vision", "&File", 0));
     } // retranslateUi
 
@@ -224,4 +233,4 @@ namespace Ui {
 
 QT_END_NAMESPACE
 
-#endif // AUV_UI_H
+#endif // AUV_GUI_H

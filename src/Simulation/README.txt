@@ -1,5 +1,6 @@
 **Running simulator
 - If you have our aliases installed, can run using sim
+- Can run vision (alias) to see published camera feed
 
 ** Install uwsim:
 - apt-get install ros-hydro-uwsim

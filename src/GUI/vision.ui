@@ -90,6 +90,19 @@
        <property name="frameShadow">
         <enum>QFrame::Raised</enum>
        </property>
+       <widget class="QLabel" name="labelbottom">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>0</y>
+          <width>311</width>
+          <height>191</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Bottom Camera</string>
+        </property>
+       </widget>
       </widget>
      </item>
     </layout>
@@ -245,6 +258,26 @@
      <enum>Qt::Vertical</enum>
     </property>
    </widget>
+   <widget class="QComboBox" name="source_ddm">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>10</y>
+      <width>141</width>
+      <height>27</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>Simulation</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Bag data</string>
+     </property>
+    </item>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -252,7 +285,7 @@
      <x>0</x>
      <y>0</y>
      <width>796</width>
-     <height>20</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

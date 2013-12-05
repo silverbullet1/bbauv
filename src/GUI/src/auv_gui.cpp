@@ -32,18 +32,11 @@ static void selectBottomFilter(int selectedIndex) {
 }
 
 static void openFile(bool open){
-	//Apparently QMainWIndow needs to be casted to a QWidget? 
-	//QFileDialog to open file
-	//exit(2);//didnt even come in this method..
-        //QWidget *widget = new QWidget;
+
 	QString selfilter = QString("BAG(*.bag)");
 	QString filename = QFileDialog::getOpenFileName(window, QString("Open bag file"), QDir::currentPath(), 
 	 	QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
 	
-	// if (!filename.isNull()) { qDebug.toAscii(); }
-	// //Try to run the bag file from a new terminal in rosrun
-	// char command[500];
-	// strcpy(command, "gnome-terminal -e 'bash -c " + "\"" + "rosbag play "  + filename + "; exec bash\"" + "'");
 	if (filename.isEmpty()) {
 	  QMessageBox::critical(ui.centralwidget, "Error", "Could not open file");
           return;
@@ -93,6 +86,17 @@ static void frontCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
   ui.labelFront->setPixmap(QPixmap::fromImage(CvMatToQImage(cv_ptr->image)));
 }
 
+static void backCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
+  cv_bridge::CvImagePtr cv_ptr;
+  try {
+    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
+  } catch (cv_bridge::Exception& e) {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+    return;
+  }
+  ui.labelbottom->setPixmap(QPixmap::fromImage(CvMatToQImage(cv_ptr->image)));
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "auv_gui");
 
@@ -110,6 +114,7 @@ int main(int argc, char **argv) {
 
 	image_transport::ImageTransport it1(node);
 	image_transport::Subscriber sub1 = it1.subscribe("/bumblebee/camera1", 1, frontCameraCallback);
+	image_transport::Subscriber sub2 = it1.subscribe("/bumblebee/camera2", 2, backCameraCallback);
 	
 	ros::AsyncSpinner spinner(4);
 	spinner.start();
