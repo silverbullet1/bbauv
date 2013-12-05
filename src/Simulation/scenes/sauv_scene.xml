@@ -4,18 +4,18 @@
 
 <UWSimScene>
   <oceanState>
-    <windx> 0.04 </windx>
-    <windy> 0.04 </windy>
-    <windSpeed> 12 </windSpeed>
+    <windx> 0 </windx>
+    <windy> 0 </windy>
+    <windSpeed> 0 </windSpeed>
     <depth> 1000 </depth>
     <reflectionDamping> 0.35 </reflectionDamping>
-    <waveScale> 1e-7 </waveScale>
+    <waveScale> 0 </waveScale>
     <isNotChoppy> 0 </isNotChoppy>
-    <choppyFactor> 2.5 </choppyFactor>
-    <crestFoamHeight> 2.2 </crestFoamHeight>
+    <choppyFactor> 0 </choppyFactor>
+    <crestFoamHeight> 0 </crestFoamHeight>
     <oceanSurfaceHeight> 0 </oceanSurfaceHeight>
     <fog>
-      <density> 0.1</density>
+      <density> 0</density>
       <color>
 	<r>0</r>
 	<g>0.05</g>
@@ -36,8 +36,8 @@
 
   <simParams>
     <disableShaders> 1 </disableShaders>
-    <resw> 800 </resw>
-    <resh> 600 </resh>
+    <resw> 1024 </resw>
+    <resh> 760 </resh>
     <!-- <offsetp>
       <x>0</x>
       <y>0</y>
@@ -86,8 +86,8 @@
     <virtualCamera>
       <name>bowtech1</name>
       <relativeTo>body_link</relativeTo>
-      <resw> 320 </resw>
-      <resh> 240 </resh>
+      <resw> 780 </resw>
+      <resh> 582 </resh>
       <position>
         <x>0.0</x>
         <y>0.6</y>
@@ -105,8 +105,8 @@
     <virtualCamera>
       <name>bowtech2</name>
       <relativeTo>base_link</relativeTo>
-      <resw> 320</resw>
-      <resh> 240 </resh>
+      <resw> 780</resw>
+      <resh> 582 </resh>
       <position>
         <x>0.0</x>
         <y>0.0 </y>
@@ -130,7 +130,7 @@
         </position>
         <orientation>
           <r>0</r>
-          <p>0</p>
+          <p>-13.5</p>
           <y>3.145</y>
         </orientation>
       </rangeSensor>
@@ -146,7 +146,7 @@
         </position>
         <orientation>
           <r>0.0</r>
-          <p>15.8</p>
+          <p>16.5</p>
           <y>3.145</y>
         </orientation>
       </rangeSensor>
@@ -290,27 +290,27 @@
     </RangeSensorToROSRange>
        <RangeSensorToROSRange>
       <name>sonarright</name>
-      <topic> /bumblebee/sonarleft </topic>
+      <topic> /bumblebee/sonarright </topic>
       <rate> 10 </rate>
     </RangeSensorToROSRange>
      <ImuToROSImu>
       <name>imu</name>
-      <topic>bumblebee/imu</topic>
+      <topic>/bumblebee/imu</topic>
       <rate>20</rate>
     </ImuToROSImu>
     <PressureSensorToROS>
       <name>pressureSensor</name>
-      <topic>bumblebee/pressure</topic>
+      <topic>/bumblebee/pressure</topic>
       <rate>5</rate>
     </PressureSensorToROS>
     <GPSSensorToROS>
       <name>GPSSensor</name>
-      <topic>bumblebee/gps</topic>
+      <topic>/bumblebee/gps</topic>
       <rate>1</rate>
     </GPSSensorToROS>
     <DVLSensorToROS>
       <name>DVLSensor</name>
-      <topic>bumblebee/dvl</topic>
+      <topic>/bumblebee/dvl</topic>
       <rate>5</rate>
     </DVLSensorToROS>
   </rosInterfaces>

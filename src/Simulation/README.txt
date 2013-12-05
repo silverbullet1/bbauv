@@ -1,6 +1,10 @@
+**Running simulator
+- If you have our aliases installed, can run using sim
+
 ** Install uwsim:
 - apt-get install ros-hydro-uwsim
 - Use catkin_make to make the workspace
+- Or run the script InstallUWSim.sh in the scrpits folder
 
 ** Running uwsim for bumblebee:
 - roscore
@@ -12,6 +16,12 @@
 - /bumblebee/bumblebee_odom: position of a vehicle on a ROS nav_msgs/Odometry topic
 - /bumblebee/camera1: image from front camera
 - /bumblebee/camera2: image from bottom camera
+- /bumblebee/imu: imu data
+- /bumblebee/pressure : pressure data
+- /bumblebee/gps : gps data
+- /bumblebee/dvl : dvl data
+- /ubmblebee/sonarleft: range sensor data on left (simulate sonar)
+- /bumblebee/sonarright: range sensor data on right (simulate sonar)
 
 ** Subscribed topics:
 - /dataNavigator: listens on a ROS nav_msgs/Odometry topic and applies the position/velocity to the vehicle
