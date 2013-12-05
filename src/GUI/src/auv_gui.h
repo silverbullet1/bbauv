@@ -169,7 +169,7 @@ public:
         Vision->setCentralWidget(centralwidget);
         menubar = new QMenuBar(Vision);
         menubar->setObjectName(QStringLiteral("menubar"));
-        menubar->setGeometry(QRect(0, 0, 796, 25));
+        menubar->setGeometry(QRect(0, 0, 796, 20));
         menuFile = new QMenu(menubar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         Vision->setMenuBar(menubar);
@@ -186,7 +186,7 @@ public:
 
         retranslateUi(Vision);
         QObject::connect(actionQuit, SIGNAL(triggered()), Vision, SLOT(close()));
-        QObject::connect(bottomfilter, SIGNAL(currentIndexChanged(int)), Vision, SLOT(openFile(int)));
+        QObject::connect(bottomfilter, SIGNAL(currentIndexChanged(int)), Vision, SLOT(openFIle(int)));
 
         QMetaObject::connectSlotsByName(Vision);
     } // setupUi
@@ -195,6 +195,11 @@ public:
     {
         Vision->setWindowTitle(QApplication::translate("Vision", "Vision", 0));
         actionOpen->setText(QApplication::translate("Vision", "&Open", 0));
+#ifndef QT_NO_TOOLTIP
+        actionOpen->setToolTip(QApplication::translate("Vision", "Open a .bag file", 0));
+#endif // QT_NO_TOOLTIP
+        actionOpen->setShortcut(QApplication::translate("Vision", "Ctrl+O", 0));
+        actionSave->setText(QApplication::translate("Vision", "&Save", 0));
 #ifndef QT_NO_TOOLTIP
         actionSave->setToolTip(QApplication::translate("Vision", "Save a filtered image", 0));
 #endif // QT_NO_TOOLTIP

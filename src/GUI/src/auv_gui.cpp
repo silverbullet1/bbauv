@@ -20,19 +20,25 @@
 #include <string.h>
 #include <stdlib.h>
 
+//Macro to change subscriber's topic during run time
+#define CHANGE_TOPIC(sub, topic, callback)	\
+  (sub = it->subscribe(topic, 1, callback))
+
 static Ui::Vision ui;
 static QMainWindow *window;
+static image_transport::Subscriber sub1, sub2;
+//global ImageTransport to change subscribed topic
+static image_transport::ImageTransport *it;
 
 static void chatterCallback(const std_msgs::String::ConstPtr& msg) {
 	ROS_INFO("I heard: [%s]", msg->data.c_str());
 }
 
 static void selectBottomFilter(int selectedIndex) {
-	ui.bottomfilter->setItemText(selectedIndex,"Hello");
+	ui.bottomfilter->setItemText(selectedIndex, "Hello");
 }
 
 static void openFile(bool open){
-
 	QString selfilter = QString("BAG(*.bag)");
 	QString filename = QFileDialog::getOpenFileName(window, QString("Open bag file"), QDir::currentPath(), 
 	 	QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
@@ -45,7 +51,6 @@ static void openFile(bool open){
 	  sprintf(command, "gnome-terminal -e 'bash -c \"rosbag play %s; exec bash\" '", filename.toUtf8().constData());
 	  system(command);
 	}
-	  
 }
 
 static QImage CvMatToQImage(const cv::Mat& mat) {
@@ -97,6 +102,18 @@ static void backCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
   ui.labelbottom->setPixmap(QPixmap::fromImage(CvMatToQImage(cv_ptr->image)));
 }
 
+//Callback when data input source is changed from selection
+static void source_selected(int index) {
+  switch(index) {
+  case 0: //Simulation
+    CHANGE_TOPIC(sub1, "/bumblebee/camera1", frontCameraCallback);
+    CHANGE_TOPIC(sub2, "/bumblebee/camera2", backCameraCallback);
+    break;
+  case 1: //Bag file
+    break;
+  }
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "auv_gui");
 
@@ -105,16 +122,19 @@ int main(int argc, char **argv) {
 	window = new QMainWindow;
 	ui.setupUi(window);
 	
+	//Events Handler
 	QObject::connect(ui.bottomfilter, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), selectBottomFilter);
 	QObject::connect(ui.actionOpen, &QAction::triggered, openFile);
+	QObject::connect(ui.source_ddm, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), source_selected);
 
 	window->show();
 
 	ros::NodeHandle node;
-
 	image_transport::ImageTransport it1(node);
-	image_transport::Subscriber sub1 = it1.subscribe("/bumblebee/camera1", 1, frontCameraCallback);
-	image_transport::Subscriber sub2 = it1.subscribe("/bumblebee/camera2", 2, backCameraCallback);
+	it = &it1;
+
+	sub1 = it1.subscribe("/bumblebee/camera1", 1, frontCameraCallback);
+	sub2 = it1.subscribe("/bumblebee/camera2", 1, backCameraCallback);
 	
 	ros::AsyncSpinner spinner(4);
 	spinner.start();
