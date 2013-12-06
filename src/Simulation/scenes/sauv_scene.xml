@@ -215,8 +215,7 @@
       <std>0.0015</std>
     </dvlSensor>
 
-
-    </vehicle> 
+  </vehicle> 
 
    <object>
     <name>terrain</name>
@@ -247,6 +246,24 @@
     </physics>
   </object>
 
+  <object>
+    <name>gate</name>
+    <file>models/gate.osg</file>
+    <position>
+      <x> 0</x>
+      <y> 0 </y>
+      <z> 0 </z>
+    </position>
+    <orientation>
+      <r>0</r>
+      <p>0</p>
+      <y>0</y>
+    </orientation>
+    <physics>
+      <mass> 0 </mass>
+      <collisionShapeType> trimesh </collisionShapeType>
+    </physics>
+  </object>
   <!-- Tried to add flare object but there's problem with the path :( 
   <object>
     <name>flare</name>
