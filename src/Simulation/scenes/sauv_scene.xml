@@ -7,7 +7,7 @@
     <windx> 0 </windx>
     <windy> 0 </windy>
     <windSpeed> 0 </windSpeed>
-    <depth> 1000 </depth>
+    <depth> 10 </depth>
     <reflectionDamping> 0.35 </reflectionDamping>
     <waveScale> 0 </waveScale>
     <isNotChoppy> 0 </isNotChoppy>
@@ -39,15 +39,15 @@
     <resw> 1024 </resw>
     <resh> 760 </resh>
     <!-- <offsetp>
-      <x>0</x>
-      <y>0</y>
-      <z>0</z>
-    </offsetp>
-    <offsetr>
-      <x> 3.14</x>
-      <y> 0</y>
-      <z> -1.57 </z>
-    </offsetr> -->
+	 <x>0</x>
+	 <y>0</y>
+	 <z>0</z>
+	 </offsetp>
+	 <offsetr>
+	 <x> 3.14</x>
+	 <y> 0</y>
+	 <z> -1.57 </z>
+	 </offsetr> -->
     <enablePhysics> 1 </enablePhysics>
   </simParams>
 
@@ -59,9 +59,9 @@
     <near> 1 </near>
     <far> 10000 </far>
     <position>
-      <x>-5</x>
-      <y>-5 </y>
-      <z>8 </z>
+      <x>-6</x>
+      <y>-6</y>
+      <z>8</z>
     </position> 
     <lookAt>
       <x>0</x>
@@ -74,8 +74,8 @@
     <name>bumblebee</name>
     <file>models/robot.urdf</file>
     <position>
-      <x> 0.0 </x>
-      <y> 0.0 </y>
+      <x> 2.0 </x>
+      <y> 2.0 </y>
       <z> 0.0 </z>
     </position>
     <orientation>
@@ -98,10 +98,10 @@
         <p>0</p>
         <y>0 </y>
       </orientation>
-   </virtualCamera>
+    </virtualCamera>
 
-      <!-- draws the FOV of the camera projected on the scene each 2 seconds
-      <showpath>2</showpath> -->
+    <!-- draws the FOV of the camera projected on the scene each 2 seconds
+	 <showpath>2</showpath> -->
     <virtualCamera>
       <name>bowtech2</name>
       <relativeTo>base_link</relativeTo>
@@ -118,55 +118,55 @@
         <y>0</y>
       </orientation>
     </virtualCamera>
-     <rangeSensor>
-        <name> sonarleft </name>
-        <relativeTo>body_link</relativeTo>
-        <range>5</range>
-        <visible>1</visible>
-        <position>
-          <x>0.0</x>
-          <y>0.3</y>
-          <z> 0 </z>
-        </position>
-        <orientation>
-          <r>0</r>
-          <p>-13.5</p>
-          <y>3.145</y>
-        </orientation>
-      </rangeSensor>
-           <rangeSensor>
-        <name> sonarright </name>
-        <relativeTo>body_link</relativeTo>
-        <range>5</range>
-        <visible>1</visible>
-        <position>
-          <x>0.0</x>
-          <y>0.3</y>
-          <z> 0 </z>
-        </position>
-        <orientation>
-          <r>0.0</r>
-          <p>16.5</p>
-          <y>3.145</y>
-        </orientation>
-      </rangeSensor>
+    <rangeSensor>
+      <name> sonarleft </name>
+      <relativeTo>body_link</relativeTo>
+      <range>5</range>
+      <visible>1</visible>
+      <position>
+	<x>0.0</x>
+	<y>0.3</y>
+	<z> 0 </z>
+      </position>
+      <orientation>
+	<r>0</r>
+	<p>-13.5</p>
+	<y>3.145</y>
+      </orientation>
+    </rangeSensor>
+    <rangeSensor>
+      <name> sonarright </name>
+      <relativeTo>body_link</relativeTo>
+      <range>5</range>
+      <visible>1</visible>
+      <position>
+	<x>0.0</x>
+	<y>0.3</y>
+	<z> 0 </z>
+      </position>
+      <orientation>
+	<r>0.0</r>
+	<p>16.5</p>
+	<y>3.145</y>
+      </orientation>
+    </rangeSensor>
 
-        <imu>
+    <imu>
       <name>imu</name>
       <relativeTo>base_link</relativeTo>
       <position>
-        <x>0</x>
-        <y>0</y>
-        <z>0</z>
+	<x>0</x>
+	<y>0</y>
+	<z>0</z>
       </position>  
       <orientation>
-        <r>0</r>
-        <p>0</p>
-        <y>3.1415</y>
+	<r>0</r>
+	<p>0</p>
+	<y>3.1415</y>
       </orientation>
       <std>0.00000001</std>
     </imu>
-
+    
     <pressureSensor>
       <name>pressureSensor</name>
       <relativeTo>base_link</relativeTo>
@@ -218,12 +218,12 @@
   </vehicle> 
 
    <object>
-    <name>terrain</name>
-    <file>terrain/CIRS/cirs_trident.osg</file>
+    <name>pool</name>
+    <file>models/pool.osg</file>
     <position>
       <x> 0</x>
       <y> 0 </y>
-      <z> 0 </z>
+      <z> -3.5 </z>
     </position>
     <orientation>
       <r>0</r>
@@ -231,15 +231,15 @@
       <y>0</y>
     </orientation>
     <!-- <offsetp>
-      <x>-1.5</x>
-      <y>-3.0</y>
-      <z>0</z>
-    </offsetp> -->
+	 <x>-1.5</x>
+	 <y>-3.0</y>
+	 <z>0</z>
+	 </offsetp> -->
     <!-- <offsetr>
-      <x> 3.1415</x>
-      <y> 0</y>
-      <z> -1.57 </z> 
-    </offsetr> -->
+	 <x> 3.1415</x>
+	 <y> 0</y>
+	 <z> -1.57 </z> 
+	 </offsetr> -->
     <physics>
       <mass> 0 </mass>
       <collisionShapeType> trimesh </collisionShapeType>
@@ -250,9 +250,9 @@
     <name>gate</name>
     <file>models/gate.osg</file>
     <position>
-      <x> 0</x>
-      <y> 0 </y>
-      <z> 0 </z>
+      <x> 1 </x>
+      <y> 9 </y>
+      <z> -3.8 </z>
     </position>
     <orientation>
       <r>0</r>
@@ -265,23 +265,23 @@
     </physics>
   </object>
   <!-- Tried to add flare object but there's problem with the path :( 
-  <object>
-    <name>flare</name>
-    <file>data/scenes/flare.xml</file>
-     <position>
-      <x> 0</x>
-      <y> 0 </y>
-      <z> 0 </z>
-    </position>
-    <orientation>
-      <r>0</r>
-      <p>0</p>
-      <y>0</y>
-    </orientation>
-  </object>
---> 
+       <object>
+       <name>flare</name>
+       <file>data/scenes/flare.xml</file>
+       <position>
+       <x> 0</x>
+       <y> 0 </y>
+       <z> 0 </z>
+       </position>
+       <orientation>
+       <r>0</r>
+       <p>0</p>
+       <y>0</y>
+       </orientation>
+       </object>
+  --> 
 
- <rosInterfaces>
+  <rosInterfaces>
     <ROSOdomToPAT>
       <topic> /dataNavigator </topic>
       <vehicleName> bumblebee </vehicleName>
@@ -305,12 +305,12 @@
       <topic> /bumblebee/sonarleft </topic>
       <rate> 10 </rate>
     </RangeSensorToROSRange>
-       <RangeSensorToROSRange>
+    <RangeSensorToROSRange>
       <name>sonarright</name>
       <topic> /bumblebee/sonarright </topic>
       <rate> 10 </rate>
     </RangeSensorToROSRange>
-     <ImuToROSImu>
+    <ImuToROSImu>
       <name>imu</name>
       <topic>/bumblebee/imu</topic>
       <rate>20</rate>
