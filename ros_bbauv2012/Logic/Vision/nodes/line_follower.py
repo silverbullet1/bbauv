@@ -15,6 +15,7 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 from collections import deque
 
+
 # CONSTANTS
 DEPTH_POINT = 1.1
 secondsToRun = 2.25 * 60
@@ -52,6 +53,7 @@ def get_hist_img(cv_img):
 
 	return histImg
 
+
 # Every class for the various states should have the following format:
 #	class FollowerState:
 #		# Callback when an image frame is received
@@ -70,7 +72,7 @@ class LookForLineState:
 		# Keep spinning right
 		msg = controller_input()
 		msg.depth_setpoint = DEPTH_POINT
-#		msg.heading_settpoint = rectData['heading'] + 10
+#		msg.heading_setpoint = rectData['heading'] + 10
 		publishMovement(msg)
 		return self
 
@@ -91,20 +93,7 @@ class TemporaryState:
 		msg.forward_setpoint = self.speed
 		publishMovement(msg)
 		return self
-	
-class Gate:
-	#speed = speed
 
-	def gotFrame(self, cvimg, rectData):
-		if rospy.get_time() > self.transitionTime:
-			return self.nextState()
-		# Keep reversing
-		msg = controller_input()
-		msg.depth_setpoint = DEPTH_POINT
-		msg.heading_setpoint = rectData['heading']
-		msg.forward_setpoint = self.speed
-		publishMovement(msg)
-		return self
 
 class DiveState:
 	def __init__(self, secondsToDive, nextState):
@@ -198,6 +187,7 @@ class StraightLineState:
 		publishMovement(msg)
 		return self
 
+
 # Actual line-following class
 class LineFollower:
 	# Convert a ROS Image to the Numpy matrix used by cv2 functions
@@ -256,7 +246,8 @@ class LineFollower:
 
 		imgBW = cv2.inRange(imgGray, np.array(self.params['grayLow']), np.array(self.params['grayHigh']))
 
-		structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3), (1,1))
+		structuringElt = cv2.getStructuringElement(cv2.MORPH_RECT,
+					(3,3), (1,1))
 		imgBW = cv2.dilate(imgBW, structuringElt)
 		imgBW = cv2.erode(imgBW, structuringElt)
 
@@ -286,7 +277,7 @@ class LineFollower:
 				# The line function doesn't accept floating point values
 				pt1 = (int(points[i][0]), int(points[i][1]))
 				pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-				cv2.line(imgBW, pt1, pt2, 255, 1),
+				cv2.line(imgBW, pt1, pt2, 255, 1)
 
 			# Prepare other data about the bounding rect for the state machine
 			rectData['points'] = points

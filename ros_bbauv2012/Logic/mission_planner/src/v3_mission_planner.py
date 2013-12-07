@@ -13,10 +13,11 @@ import subprocess
 import actionlib
 import smach
 import smach_ros
+import bbauv_msgs
+import bbauv_msgs.msg
 from nav_msgs.msg import Odometry
 from bbauv_msgs.msg import depth
 from bbauv_msgs.msg import imu_data
-
 
 class Countdown(smach.State):
     def __init__(self, sleep=1.0):
@@ -368,13 +369,12 @@ class NavMoveBase(smach.State):
         self.depth = depth
         self.place = place
         self.prep_timeout = prep_timeout    
-        self.nav_timeout = nav_timeout
-            
-    def normalize_angle(self,angle):
-        # Inspiration: http://www.ros.org/doc/api/angles/html/angles_8h_source.html; Normalizes the angle to be 0 to 360 It takes and returns degrees.
+        self.nav_timeout = nav_timeout    
+
+    def normalize_angle(self, angle):
         normalized = (angle%360+360)%360
         return normalized
-            
+        
     def execute (self, userdata):
         global movebase_client
         global locomotion_client
@@ -500,10 +500,10 @@ if __name__ == '__main__':
     AHRS_sub = rospy.Subscriber('/AHRS8_data_e', imu_data, AHRSCallback)
     
     #Service Client for Lane; Lane task is the only task that will not be shutdown
-#     rospy.loginfo('Waiting for LaneServer to start up...')
-#     rospy.wait_for_service('lane_srv')
-#     lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
-#     rospy.loginfo('Mission Connected to LaneServer')
+    rospy.loginfo('Waiting for LaneServer to start up...')
+    rospy.wait_for_service('lane_srv')
+    lane_srv = rospy.ServiceProxy('lane_srv', mission_to_lane)
+    rospy.loginfo('Mission Connected to LaneServer')
     
     # Action Client for PIDs
     locomotion_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)

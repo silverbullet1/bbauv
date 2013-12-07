@@ -60,7 +60,6 @@ class Disengage(smach.State):
         global movement_client
         global st
         global isTest
-        global r
         if userdata.complete == True:
              isStart = False
              isEnd = True
@@ -86,7 +85,6 @@ class Disengage(smach.State):
                 st.register()
                 rospy.loginfo("Registering Topics.")
                 return 'start_complete'
-            r.sleep()
         return 'aborted'
     
 class Search(smach.State):

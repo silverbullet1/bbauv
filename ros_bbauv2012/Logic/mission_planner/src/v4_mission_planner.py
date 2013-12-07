@@ -66,13 +66,6 @@ class Start(smach.State):
                                             depth_setpoint= self.start_depth, 
                                             heading_setpoint = self.start_heading
                                             )
-
-        #Setting Locomotion Mode (Forward, Sidemove) ; For Default, put both to False
-        try:
-            resp = set_LocoMode(False, False)
-            rospy.loginfo("LocoMode set to Default")
-        except rospy.ServiceException, e:
-            rospy.loginfo("LocoMode Fwd Default set: %s" % e)
       
         #Setting PID (Fwd? Side? Head? Depth? Pitch?) and modes (Topside? Nav?)
         try:

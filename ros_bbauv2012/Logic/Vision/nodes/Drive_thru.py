@@ -72,8 +72,6 @@ class Disengage(smach.State):
                      resp = mission_srv_request(False, True, locomotionGoal)
              except rospy.ServiceException, e:
                  print "Service call failed: %s" % e
-            
-
         while not rospy.is_shutdown():
             if isStart:
                 isStart = False

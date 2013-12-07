@@ -978,7 +978,7 @@ class AUV_gui(QMainWindow):
         self.client.cancel_all_goals()
         self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        #resp = self.set_controller_request(False, False, False, False, False, True, False)
+        #resp = self.set_controller_request(False, False, False, False, False, True)
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")

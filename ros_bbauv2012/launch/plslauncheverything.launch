@@ -1,7 +1,7 @@
 <launch>
 
 	<!-- Launching Joystick Control -->
-<!--  	<include file="$(find launch)/teleop.launch" /> -->
+  	<include file="$(find launch)/teleop.launch" />
 
   	<!-- Launch PID Controller -->
 	<include file="$(find launch)/controller.launch" />  	

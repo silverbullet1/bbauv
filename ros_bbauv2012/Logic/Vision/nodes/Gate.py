@@ -9,6 +9,7 @@ import smach
 import smach_ros
 from smach import StateMachine
 from smach_ros import SimpleActionState
+import PID_Controller.msg
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 import sys
@@ -40,7 +41,7 @@ class Gate:
     velocity = 0
     params = { 'satLow': 50, 'satHigh': 255, 'hueLow': 13, 'hueHigh':38,'valLow':0,'valHigh':255,'Kp':10,'Vmax':40 }
     client = None;
-    histClass = bbHistogram(Hist_constants.TRIPLE_CHANNEL)
+    histClass = None
     centroidx = list()
     centroidy = list()
     bridge = None
@@ -59,6 +60,7 @@ class Gate:
         cv2.namedWindow("Gate Settings",cv2.CV_WINDOW_AUTOSIZE)
         image_sub = rospy.Subscriber(imageTopic, Image,self.computeImageCallback)
         self.image_pub2 = rospy.Publisher("/Vision/image_filter",Image)
+        self.histClass = bbHistogram()
         self.histClass.setParams(self.params)
         def paramSetter(key):
             def setter(val):
@@ -166,6 +168,7 @@ class Search(smach.State):
     def execute(self,userdata):
         rospy.loginfo('Executing state SEARCH')
         while(len(gate.centroidx) != 2 and not rospy.is_shutdown()):
+            #print len(gate.centroidx)
             r.sleep()
         if rospy.is_shutdown():
             return 'aborted'
@@ -180,7 +183,7 @@ class MotionControlProcess(smach.State):
     global gate
     global r
     isCorrection = False
-    Kp = 0.0001
+    Kp = 0.001
     client = None
     sidemove = 0
     def __init__(self):
@@ -227,7 +230,10 @@ class MotionControlProcess(smach.State):
                rospy.logdebug("target:" + str(target) + "sidemove:" + str(self.sidemove))
                if(not self.isCorrection):
                    rospy.loginfo("vision action issued!")
-                   goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=2,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=self.sidemove)
+                   goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=1,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=self.sidemove)
+                   
+                   goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=1,heading_setpoint=locomotionGoal.heading_setpoint,depth_setpoint=locomotionGoal.depth_setpoint,sidemove_setpoint=self.sidemove)
+                   
                    self.client.send_goal(goal)
                    self.client.wait_for_result(rospy.Duration(2))
                    self.isCorrection = True
@@ -299,7 +305,7 @@ mission_srv_request = None
 vision_srv = None
 movement_client = None
 if __name__ == '__main__':
-    rospy.init_node('Gate', anonymous=False)
+    rospy.init_node('Gate', anonymous=True)
     r = rospy.Rate(30)
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
