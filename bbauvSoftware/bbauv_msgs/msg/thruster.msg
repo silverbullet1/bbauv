@@ -1,8 +1,3 @@
-bool d1
-bool d2
-bool d3
-bool d4
-bool d5
 int16 speed1
 int16 speed2
 int16 speed3
