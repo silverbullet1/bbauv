@@ -1,0 +1,14 @@
+<package>
+  <description brief="thruster_control">
+
+     thruster_control
+
+  </description>
+  <author>Thanh Quang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/thruster_control</url>
+
+</package>
+
+
