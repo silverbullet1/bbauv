@@ -1,0 +1,14 @@
+*.cmake
+*.o
+*.internal
+*.make
+*.out
+*.pyc
+*.orig
+*~
+*.cfgc
+*.swp
+*/bin/
+*/build/
+*/msg_gen/
+*/srv_gen/
