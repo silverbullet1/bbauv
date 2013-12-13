@@ -109,7 +109,7 @@
       <resh> 582 </resh>
       <position>
         <x>0.0</x>
-        <y>0.0 </y>
+        <y>0.4 </y>
         <z>-0.1</z>
       </position>  
       <orientation>
@@ -223,7 +223,7 @@
     <position>
       <x> 0</x>
       <y> 0 </y>
-      <z> -3.5 </z>
+      <z> -2.0 </z>
     </position>
     <orientation>
       <r>0</r>
@@ -252,7 +252,7 @@
     <position>
       <x> 1 </x>
       <y> 9 </y>
-      <z> -3.8 </z>
+      <z> -1.8 </z>
     </position>
     <orientation>
       <r>0</r>
