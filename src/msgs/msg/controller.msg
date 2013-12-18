@@ -1,0 +1,10 @@
+float32 depth_input
+float32 depth_setpoint
+float32 heading_input
+float32 heading_setpoint
+float32 forward_input
+float32 forward_setpoint
+float32 sidemove_input
+float32 sidemove_setpoint
+float32 pitch_input
+float32 pitch_setpoint

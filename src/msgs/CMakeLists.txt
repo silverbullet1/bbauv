@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   actionlib_msgs
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -49,12 +50,35 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   TimeElapsed.msg
+  ##Old msg files start
+  acoustic_control.msg
+  circles.msg
+  compass_data.msg
+  controller.msg
+  depth.msg
+  hull_status.msg
+  imu_data.msg
+  log.msg
+  manipulator.msg
+  openups.msg
+  openups_stats.msg
+  pipe_pose.msg
+  thruster.msg
+  wheel_task_pose.msg
+  ##Old msg files end
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-
+  ##Old srv files start
+  locomotion_mode.srv
+  mission_to_lane.srv
+  mission_to_vision.srv
+  PID.srv
+  set_controller.srv
+  vision_to_mission.srv
+  ##Old srv files end
 )
 
 ## Generate actions in the 'action' folder
@@ -68,6 +92,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   actionlib_msgs
+  geometry_msgs
 )
 
 ###################################
