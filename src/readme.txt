@@ -1,0 +1,1 @@
+This folder should only contain catkin packages which are used by the system.
