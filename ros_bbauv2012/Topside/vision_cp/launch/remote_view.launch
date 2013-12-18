@@ -1,6 +1,0 @@
-<launch>
-    <node name="republish" pkg="image_transport" type="republish" args="compressed in:=/camera/image_raw raw out:=/camera/rgb/image_color">
-    </node>
-    <node name="image_recorder" pkg="vision_cp" type="image_recorder.py">
-    </node>
-</launch>

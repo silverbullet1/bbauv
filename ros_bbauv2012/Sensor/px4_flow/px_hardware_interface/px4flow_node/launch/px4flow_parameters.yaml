@@ -1,4 +1,0 @@
-serial_port: /dev/ttyACM3
-baudrate:    921600
-Max_Depth: 2.0
-Magnifying_Factor: 1

@@ -1,6 +1,0 @@
-int32 topleft_x
-int32 topleft_y
-int32 rect_width
-int32 rect_height
----
-float64 roi_dist

@@ -1,4 +1,0 @@
-<launch>
-    <node pkg="teleop_controller" name="teleopController" type="teleopController"/>
-
-</launch>

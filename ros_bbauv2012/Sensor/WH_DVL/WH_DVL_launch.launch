@@ -1,5 +1,0 @@
-<launch>
-	<node name="WH_DVL" pkg="WH_DVL" type="WH_DVL">
-		<remap from="WH_DVL_data" to="vo"/>
-	</node>
-</launch>

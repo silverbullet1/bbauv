@@ -1,9 +1,0 @@
-\subsubsection usage Usage
-\verbatim
-<node name="Vision" pkg="Vision" type="Vision">
-  <param name="mode_param" type="int" value="0" />
-  <param name="color_param" type="int" value="0" />
-  <param name="reference_image" type="str" value="sword.png" />
-</node>
-\endverbatim
-
