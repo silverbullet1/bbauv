@@ -1,0 +1,28 @@
+<launch>
+
+    <arg name="device" default="/dev/videoFront" />
+
+    <node name="uvc_cam_node_ptam" pkg="uvc_cam" type="uvc_cam_node" output="screen">
+    	<remap from="/camera" to="/camera/bottom" />
+        <param name="device" value="$(arg device)" />
+        <param name="width" value="640" />
+        <param name="height" value="480" />
+        <param name="frame_rate" value="30" />
+	<param name="brightness" value="66" />
+	<param name="contrast" value="10" />
+	<param name="saturation" value="50" />
+	<param name="sharpness" value="0" />
+        <param name="frame" value="mono" />
+        <param name="exposure" value="20" />
+        <!-- <param name="gain" value="100" />  -->
+    </node>
+
+    <node name="color2mono" pkg="VisionTools" type="color2mono" output="screen">
+        <remap from="/color_in" to="/camera/bottom/image_raw" />
+    </node>
+    <node name="ptam" pkg="ptam" type="ptam" clear_params="true" output="screen">
+        <remap from="image" to="/mono_out" />
+        <remap from="pose" to="pose"/>
+        <rosparam file="$(find ptam)/PtamFixParams.yaml"/>
+    </node>
+</launch>

@@ -1,0 +1,22 @@
+<launch>
+
+    <arg name="device" default="/dev/videoFront" />
+
+    <node name="uvc_cam_node_ptam" pkg="uvc_cam" type="uvc_cam_node" output="screen">
+    	<remap from="/camera" to="/camera/bottom" />
+        <param name="device" value="$(arg device)" />
+        <param name="width" value="640" />
+        <param name="height" value="480" />
+        <param name="frame_rate" value="20" />
+        <param name="frame" value="mono" />
+        <param name="exposure" value="0" />
+        <param name="gain" value="0" />  
+    </node>
+
+    <node name="color2mono" pkg="VisionTools" type="color2mono" output="screen">
+        <remap from="/color_in" to="/camera/bottom/image_raw" />
+    </node>
+    <node name="cameracalibrator" pkg="ptam" type="cameracalibrator" output="screen">
+        <remap from="image" to="/mono_out" />
+    </node>
+</launch>

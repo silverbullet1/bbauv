@@ -1,0 +1,93 @@
+// War games
+forget signon
+
+: signon
+cr
+."  _          _ _       " cr
+." | |__   ___| | | ___  " cr
+." | '_ \ / _ \ | |/ _ \ " cr
+." | | | |  __/ | | (_) |" cr
+." |_| |_|\___|_|_|\___/ " cr
+;
+
+: game?
+." Would you like to play a game?" cr
+." 1) Marketing Bingo " cr
+." 2) Development Sorry " cr
+." 3) Engineering Pacheesi " cr
+." 4) Sales Poker " cr
+." 5) Investment Roulette" cr
+." 6) Global Thermonuclear war" cr
+;
+
+// these words emit the VT100 terminal escape sequences
+// Consult a VT100 terminal document for details.
+: home
+// outputs <ESC>[2J<ESC>[H, i.e. clear screen and home
+27 emit ." [2J" 27 emit ." [H"
+;
+
+: red
+// outputs VT100 sequence for red
+// <ESC>[5;30;41m
+27 emit ." [5;30;41m"
+;
+
+: black
+// VT100 for black
+// <ESC>[0m
+27 emit ." [0m"
+;
+
+: boom!
+home red
+."  ____   ___   ___  __  __ _  " cr
+." | __ ) / _ \ / _ \|  \/  | | " cr
+." |  _ \| | | | | | | |\/| | | " cr
+." | |_) | |_| | |_| | |  | |_| " cr
+." |____/ \___/ \___/|_|  |_(_) " cr
+black
+;
+
+: bomb
+25 0 do
+." ." cr 100 delay
+loop
+boom!
+;
+
+: game
+dup [ char 1 ] literal = if // note [ ] allows interpret mode
+." Too much drinking!" cr
+else
+dup [ char 2 ] literal = if 	
+." Too depressing!" cr
+else
+dup [ char 3 ] literal = if
+." Too boring!" cr
+else
+dup [ char 4 ] literal = if
+." Too Risky!" cr
+else
+dup [ char 5 ] literal = if
+." No upside!" cr
+else
+dup [ char 6 ] literal = if
+bomb
+else
+drop ." bad choice " cr
+then
+then
+then
+then
+then
+then
+;
+
+: go
+home red signon black game?
+begin key dup 27 = 0= while
+game
+repeat
+;
+home

@@ -1,0 +1,29 @@
+// Read the compass, only output a value if the heading changes
+// more than 10 degrees
+
+forget lastYawT
+variable lastYawT
+
+: deviation
+// make a copy, compare to last value
+dup lastYawT @ f- fabs
+f10.0 f> // compare absolute value of difference in last two readings
+		 // to see if it is greater than 10 degrees.
+// if true store and output the value
+if
+dup lastYawT ! f. cr // make a copy, store in lastYawt, print value
+7 7 7 emit emit emit // send 3 alerts
+else
+drop // drop the new sample, change not big enough
+then
+;
+
+: filter
+// first output the current heading
+yawt di@ dup f. lastYawT !
+begin ?key 0=
+while
+	yawt di@ deviation // read the current yaw, send to function
+	500 delay
+repeat
+;

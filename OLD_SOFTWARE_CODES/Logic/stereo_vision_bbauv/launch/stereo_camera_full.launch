@@ -1,0 +1,33 @@
+<launch>
+
+  <!--node pkg="stereo_vision_bbauv" type="addCamInfo_right" name="addCamInfoRight" output="screen"/-->
+  <!--node pkg="stereo_vision_bbauv" type="addCamInfo_left" name="addCamInfoLeft" output="screen"/-->
+  
+  <!-- use image_transport to do republish if your recorded image is compressed:
+		./bin/republish compressed in:=stereo_camera/right/image_raw raw out:=stereo_camera/right/image_raw
+		./bin/republish compressed in:=stereo_camera/left/image_raw raw out:=stereo_camera/left/image_raw
+	-->
+  
+  <!-- to subscribe to stereo_camera images, output disparity image and 3D pointcloud -->
+  <node pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_processor" ns="stereo_camera">
+    <remap from="points2" to="/cloud" />
+    <param name="approximate_sync" value="true"/>
+    <param name="prefilter_size" value="9"/>
+    <param name="prefilter_cap" value="31"/>
+    <param name="correlation_window_size" value="37"/>
+    <param name="min_disparity" value="0"/>
+    <param name="disparity_range" value="128"/>
+    <param name="uniqueness_ratio" value="5"/>
+    <param name="texture_threshold" value="10"/>
+    <param name="speckle_size" value="500"/>
+    <param name="speckle_range" value="4"/>
+  </node>
+  
+  <!--node pkg="dynamic_reconfigure" type="reconfigure_gui" name="reconfigure_gui" output="screen" /-->
+  
+  <!-- this node to provide stereo-vision service of object distance culculation -->
+  <node pkg="stereo_vision_bbauv" type="pcl_process" name="pcl_process" output="screen">
+	<param name="z_limit" value="5.0"/>
+  </node>
+  
+</launch>

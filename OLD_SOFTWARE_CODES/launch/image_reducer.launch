@@ -1,0 +1,20 @@
+<launch>
+  <node pkg="Vision" type="image_debugger.py" name="image_debugger">
+    <param name="~factor" value="0.5" />
+  </node>
+  <node ns="/debug/bottomcam/camera" pkg="image_transport" type="republish" name="republish_bottom"
+        args="raw in:=image_rect_color compressed out:=image_rect_color">
+  </node>
+  <node ns="/debug/stereo_camera/left" pkg="image_transport" type="republish" name="republish_left"
+        args="raw in:=image_rect_color compressed out:=image_rect_color">
+  </node>
+  <node ns="/debug/stereo_camera/right" pkg="image_transport" type="republish" name="republish_right"
+        args="raw in:=image_rect_color compressed out:=image_rect_color">
+  </node>
+  <node ns="/debug/Vision" pkg="image_transport" type="republish" name="republish_filter"
+        args="raw in:=image_filter compressed out:=image_filter">
+  </node>
+
+  <param name="debug/stereo_camera/left/image_rect_color/compressed/jpeg_quality" value="40" />
+  <param name="debug/bottomcam/camera/image_rect_color/compressed/jpeg_quality" value="40" />
+</launch>

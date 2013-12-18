@@ -1,0 +1,43 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~depth_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~heading_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~forward_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~sidemove_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~pitch_PID" : \b [bool] Manual-0 or Auto-1 min: False, default: False, max: True
+- \b "~teleop" : \b [bool] Manual-0 or Auto-1 min: False, default: True, max: True
+- \b "~topside" : \b [bool] Manual-0 or Auto-1 min: False, default: True, max: True
+- \b "~depth_setpoint" : \b [double] Setpoint for depth controller min: 0.0, default: 0.0, max: 20.0
+- \b "~heading_setpoint" : \b [double] Setpoint for heading controller min: 0.0, default: 0.0, max: 360.0
+- \b "~forward_setpoint" : \b [double] Setpoint for forward controller min: -1.0, default: 0.0, max: 1.0
+- \b "~sidemove_setpoint" : \b [double] Setpoint for sidemove controller min: -1.0, default: 0.0, max: 1.0
+- \b "~pitch_setpoint" : \b [double] Setpoint for pitch controller min: 0.0, default: 0.0, max: 360.0
+- \b "~depth_offset" : \b [double] Place vehicle at sea level first and record offset value min: -1.0, default: 0.0, max: 1500.0
+- \b "~depth_Kp" : \b [double] P const for depth controller min: 0.0, default: 12000.0, max: 50000.0
+- \b "~depth_Ti" : \b [double] I const for depth controller min: 0.0, default: 8500.0, max: 50000.0
+- \b "~depth_Td" : \b [double] D const for depth controller min: 0.0, default: 1000.0, max: 50000.0
+- \b "~depth_min" : \b [int] Actuator Min for Depth controller min: -3268, default: -2400, max: 3268
+- \b "~depth_max" : \b [int] Actuator Max for Depth controller min: -3268, default: 2400, max: 3268
+- \b "~pitch_Kp" : \b [double] P const for pitch controller min: 0.0, default: 130.0, max: 50000.0
+- \b "~pitch_Ti" : \b [double] I const for pitch controller min: 0.0, default: 7000.0, max: 50000.0
+- \b "~pitch_Td" : \b [double] D const for pitch controller min: 0.0, default: 130.0, max: 50000.0
+- \b "~pitch_min" : \b [int] Actuator Min for Pitch controller min: -3268, default: -800, max: 3268
+- \b "~pitch_max" : \b [int] Actuator Max for Pitch controller min: -3268, default: 800, max: 3268
+- \b "~heading_Kp" : \b [double] P const for heading controller min: 0.0, default: 15.0, max: 10000.0
+- \b "~heading_Ti" : \b [double] I const for heading controller min: 0.0, default: 0.0, max: 100000.0
+- \b "~heading_Td" : \b [double] D const for heading controller min: 0.0, default: 30.0, max: 10000.0
+- \b "~heading_min" : \b [int] Actuator Min for Heading controller min: -3260, default: -817, max: 3260
+- \b "~heading_max" : \b [int] Actuator Max for Heading controller min: -3268, default: 817, max: 3268
+- \b "~forward_Kp" : \b [double] P const for forward controller min: 0.0, default: 13000.0, max: 20000.0
+- \b "~forward_Ti" : \b [double] I const for forward controller min: 0.0, default: 0.0, max: 10000.0
+- \b "~forward_Td" : \b [double] D const for forward controller min: 0.0, default: 1000.0, max: 10000.0
+- \b "~forward_min" : \b [int] Actuator Min for Forward controller min: -3268, default: -1634, max: 3268
+- \b "~forward_max" : \b [int] Actuator Max for Forward controller min: -3268, default: 1634, max: 3268
+- \b "~sidemove_Kp" : \b [double] P const for sidemove controller min: 0.0, default: 8000.0, max: 20000.0
+- \b "~sidemove_Ti" : \b [double] I const for sidemove controller min: 0.0, default: 0.0, max: 10000.0
+- \b "~sidemove_Td" : \b [double] D const for sidemove controller min: 0.0, default: 1000.0, max: 10000.0
+- \b "~sidemove_min" : \b [int] Actuator Min for Sway controller min: -3268, default: -817, max: 3268
+- \b "~sidemove_max" : \b [int] Actuator Max for Sway controller min: -3268, default: 817, max: 3268
+
