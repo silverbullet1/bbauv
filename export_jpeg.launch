@@ -1,0 +1,25 @@
+<!-- Used to export compressed images in bag files to jpeg files via image_view/extract_images  -->
+<launch>
+
+
+  <node name="extract" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="node">
+    <remap from="image" to="/bottomcam/camera/image_rect_color"/>
+    <param name="filename_format" value="/home/jason/eclipseWorkspace/run4/bottomcam_%06i.jpg"/>
+    <param name="image_transport" type="string" value="compressed"/>
+  </node>
+
+  <node name="extract2" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="node">
+    <remap from="image" to="/stereo_camera/right/image_rect_color"/>
+    <param name="filename_format" value="/home/jason/eclipseWorkspace/run4/front_right_%06i.jpg"/>
+    <param name="image_transport" type="string" value="compressed"/>
+  </node>
+
+
+  <node name="extract3" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="node">
+    <remap from="image" to="/stereo_camera/left/image_rect_color"/>
+    <param name="filename_format" value="/home/jason/eclipseWorkspace/run4/front_left_%06i.jpg"/>
+    <param name="image_transport" type="string" value="compressed"/>
+  </node>
+
+
+</launch>
