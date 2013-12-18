@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(core)
+project(msgs)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -44,30 +45,28 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-#add_message_files(
-#  FILES
-#  TimeElapsed.msg
-#)
+add_message_files(
+  FILES
+  TimeElapsed.msg
+)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+
+)
 
 ## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files(
+  FILES
+
+)
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  std_msgs
-#)
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -80,7 +79,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES core
+#  LIBRARIES msgs
 #  CATKIN_DEPENDS roscpp rospy std_msgs
    CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
@@ -98,21 +97,21 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(core
-#   src/${PROJECT_NAME}/core.cpp
+# add_library(msgs
+#   src/${PROJECT_NAME}/msgs.cpp
 # )
 
 ## Declare a cpp executable
-add_executable(timer src/timer.cpp)
+# add_executable(msgs_node src/msgs_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(timer msgs_generate_messages_cpp)
+# add_dependencies(msgs_node msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(timer
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(msgs_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -129,7 +128,7 @@ target_link_libraries(timer
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS core core_node
+# install(TARGETS msgs msgs_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -154,7 +153,7 @@ target_link_libraries(timer
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_core.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_msgs.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
