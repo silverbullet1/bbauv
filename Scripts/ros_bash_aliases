@@ -27,7 +27,7 @@ alias sshbb='sshpass -p bb ssh bbauvsbc1@bbauv'
 alias catm='catkin_make'
 alias cati='catkin_make install'
 ##cd to Arduino sketchbook libraries and run this command to generate
-alias aml='rosrun rosserial_arduino make_libraries.py'
+alias rosserial_make='rosrun rosserial_arduino make_libraries.py'
 alias sim=runSim
 alias vision=runVisionUI
 
