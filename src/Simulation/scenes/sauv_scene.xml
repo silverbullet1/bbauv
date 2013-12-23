@@ -7,7 +7,7 @@
     <windx> 0 </windx>
     <windy> 0 </windy>
     <windSpeed> 0 </windSpeed>
-    <depth> 10 </depth>
+    <depth> 3.0 </depth>
     <reflectionDamping> 0.35 </reflectionDamping>
     <waveScale> 0 </waveScale>
     <isNotChoppy> 0 </isNotChoppy>
@@ -223,7 +223,7 @@
     <position>
       <x> 0</x>
       <y> 0 </y>
-      <z> -2.0 </z>
+      <z> -2.2 </z>
     </position>
     <orientation>
       <r>1.57</r>
@@ -252,7 +252,7 @@
     <position>
       <x> 0.6 </x>
       <y> 9 </y>
-      <z> -1.9 </z>
+      <z> -2.1 </z>
     </position>
     <orientation>
       <r>1.57</r>
@@ -264,22 +264,44 @@
       <collisionShapeType> trimesh </collisionShapeType>
     </physics>
   </object>
-  <!-- Tried to add flare object but there's problem with the path :( 
-       <object>
-       <name>flare</name>
-       <file>data/scenes/flare.xml</file>
-       <position>
-       <x> 0</x>
-       <y> 0 </y>
-       <z> 0 </z>
-       </position>
-       <orientation>
-       <r>0</r>
+  
+   <object>
+     <name>flare</name>
+     <file>models/flare.osg</file>
+     <position>
+       <x>10</x>
+       <y>14</y>
+       <z>-2.1</z>
+     </position>
+     <orientation>
+       <r>1.57</r>
        <p>0</p>
        <y>0</y>
-       </orientation>
-       </object>
-  --> 
+     </orientation>
+     <physics>
+       <mass> 0 </mass>
+       <collisionShapeType> trimesh </collisionShapeType>
+     </physics>
+   </object>
+   
+   <object>
+     <name>bucket</name>
+     <file>models/bucket.osg</file>
+     <position>
+       <x>6</x>
+       <y>14.2</y>
+       <z>-2.1</z>
+     </position>
+     <orientation>
+       <r>1.57</r>
+       <p>0</p>
+       <y>0</y>
+     </orientation>
+     <physics>
+       <mass> 0 </mass>
+       <collisionShapeType> trimesh </collisionShapeType>
+     </physics>
+   </object>
 
   <rosInterfaces>
     <ROSOdomToPAT>
