@@ -1,0 +1,22 @@
+<package>
+  <description brief="acoustic_nav">
+
+     Acoustic Navigation to find underwater pinger
+
+  </description>
+  <author>Louis</author>
+  <license>BSD</license>
+
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
+  <depend package="bbauv_msgs"/>
+  <depend package="std_msgs"/>
+  <depend package="nav_msgs"/>
+  <depend package="smach_ros"/>
+  <depend package="dynamic_reconfigure"/>
+  <depend package="smach"/>
+  <depend package="PID_Controller"/>
+
+</package>
+
+

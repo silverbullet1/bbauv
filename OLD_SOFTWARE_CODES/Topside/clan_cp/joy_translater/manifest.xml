@@ -1,0 +1,18 @@
+<package>
+  <description brief="joy_translater">
+
+     translate Joy message into action command: forward/backward, rotate, up/down
+
+  </description>
+  <author>Thanh Quang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/manual_control</url>
+
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="bbauv_msgs"/>
+  <depend package="joy"/>
+</package>
+
+

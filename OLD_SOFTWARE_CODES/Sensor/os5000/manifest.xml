@@ -1,0 +1,18 @@
+<package>
+  <description brief="Ocean Server OS5000 Digital Compass">
+    ROS driver for the Ocean Server OS5000 digital compass.
+  </description>
+  <author>Thomas Denewiler</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url></url>
+
+  <depend package="dynamic_reconfigure"/>
+  <depend package="roscpp"/>
+  <depend package="tf"/>
+  <depend package="bbauv_msgs"/>
+  
+  <export>
+    <cpp cflags="-I${prefix}/msg/cpp"/>
+  </export>
+</package>

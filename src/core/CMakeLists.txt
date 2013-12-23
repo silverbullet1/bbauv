@@ -8,7 +8,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -45,10 +44,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  TimeElapsed.msg
-)
+#add_message_files(
+#  FILES
+#  TimeElapsed.msg
+#)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -65,10 +64,10 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
+#generate_messages(
+#  DEPENDENCIES
+#  std_msgs
+#)
 
 ###################################
 ## catkin specific configuration ##
@@ -108,7 +107,7 @@ add_executable(timer src/timer.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(timer core_generate_messages_cpp)
+add_dependencies(timer msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(timer

@@ -1,0 +1,12 @@
+#start vision node request
+bool start_request
+controller start_ctrl
+bool use_left
+int8 num_lanes
+#abort vision node request
+bool abort_request
+---
+#start vision node response
+bool start_response
+# abort vision node response
+bool abort_response

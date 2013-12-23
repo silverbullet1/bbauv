@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+
+<launch>
+  
+<!-- The multi map server -->
+  <node pkg="multi_map_server" type="map_server" name="map_server" args="$(find navigation_2D)/maps/surface.yaml">
+
+  </node>
+
+</launch>

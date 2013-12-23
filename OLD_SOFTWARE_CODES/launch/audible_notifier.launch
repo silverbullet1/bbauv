@@ -1,0 +1,10 @@
+<launch>
+    <node
+        pkg="audible_notifiers" name="leak_notifier" type="leak_notifier.py" >
+    </node>
+    
+    <node
+        pkg="audible_notifiers" name="battery_notifier" type="battery_notifier.py" >
+    </node>
+
+</launch>

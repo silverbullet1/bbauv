@@ -1,0 +1,14 @@
+<launch>
+    <arg name="frontDevice" default="/dev/videoFront" />
+    <arg name="bottomDevice" default="/dev/videoBottom" />
+
+    <node ns="frontcam" name="uvc_cam_node" pkg="uvc_cam" type="uvc_cam_node" output="screen">
+        <param name="device" value="$(arg frontDevice)" />
+        <param name="width" value="160" />
+        <param name="height" value="120" />
+        <param name="frame_rate" value="20" />
+        <param name="exposure" value="0" />
+        <param name="gain" value="100" />  
+    </node>
+
+</launch>

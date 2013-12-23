@@ -1,0 +1,16 @@
+<package>
+  <description brief="bbauv_software_launch">
+
+     bbauv software
+
+  </description>
+  <author>Thanh Quang</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/abc</url>
+  <depend package="teleop_controller"/>
+  <depend package="joy_translater"/>
+  <depend package="joy"/>
+</package>
+
+

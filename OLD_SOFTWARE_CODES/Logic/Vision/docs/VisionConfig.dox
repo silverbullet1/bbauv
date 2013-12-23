@@ -1,0 +1,8 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~mode_param" : \b [int] Processing mode min: 0, default: 0, max: 2
+- \b "~color_param" : \b [int] Color to match min: 0, default: 0, max: 2
+- \b "~reference_image" : \b [str] File name of a reference image for matching min: , default: sword.png, max: 
+

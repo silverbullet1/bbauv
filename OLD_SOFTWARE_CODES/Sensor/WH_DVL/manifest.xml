@@ -1,0 +1,25 @@
+<package>
+  <description brief="WH_DVL">
+
+     WH_DVL
+
+  </description>
+  <author>SEARCHER</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/WH_DVL</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="tf"/>
+  <depend package="dynamic_reconfigure"/>
+  <depend package="nav_msgs"/>
+  <depend package="std_msgs"/>
+  <depend package="geometry_msgs"/>
+
+  <export>
+    <cpp cflags="-I${prefix}/msg/cpp"/>
+  </export>
+
+</package>
+
+

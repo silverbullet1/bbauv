@@ -1,0 +1,147 @@
+// AdaptNav script for calculating sensor mean deviation
+// AdaptNav Initialization
+forget mx1
+
+// Define Variables
+// Magnetometers
+variable mx1
+variable mx2
+variable mvx
+variable my1
+variable my2
+variable mvy
+variable mz1
+variable mz2
+variable mvz
+variable mtot
+
+// Accelerometers
+variable ax1
+variable ax2
+variable avx
+variable ay1
+variable ay2
+variable avy
+variable az1
+variable az2
+variable avz
+variable atot
+
+// Gyros
+variable gx1
+variable gx2
+variable gvx
+variable gy1
+variable gy2
+variable gvy
+variable gz1
+variable gz2
+variable gvz
+variable gtot
+variable filterK
+
+// Restore Factory Defaults
+: restoreDefaults
+km0 f0.005 set drop
+ka0 f0.005 set drop
+wlim f0.0035 set drop
+mlim f2.0 set drop
+alim f40.0 set drop
+emlim f0.1 set drop
+ealim f0.1 set drop
+kgyrooffset f1.0 set drop
+;
+
+: deviation
+
+// Initialize variables
+f0.04 filterK !
+kgyrooffset f0.1 set
+km0 f0.01 set drop
+ka0 f0.01 set drop
+wlim f0.002 set drop
+emlim f0.1 set drop
+ealim f0.1 set drop
+
+	1000 0 do
+
+	10 delay
+
+// Process Magnetometers
+		mx1 @
+		magp &di @ dup
+		mx2 @ f+ f2.0 f/ mx1 @ f- fabs
+		mvx @ f- filterK @ f* mvx @ f+ mvx !
+		mx1 ! mx2 !
+		
+		my1 @
+		magp &di 4 + @ dup
+		my2 @ f+ f2.0 f/ my1 @ f- fabs
+		mvy @ f- filterK @ f* mvy @ f+ mvy !
+		my1 ! my2 !
+
+		mz1 @
+		magp &di 8 + @ dup
+		mz2 @ f+ f2.0 f/ mz1 @ f- fabs
+		mvz @ f- filterK @ f* mvz @ f+ mvz !
+		mz1 ! mz2 !
+
+		mvx @ mvy @ mvz @ f+ f+ f3.0 f/ mtot !
+// Process Accelerometers
+		ax1 @
+		accelp &di @ dup
+		ax2 @ f+ f2.0 f/ ax1 @ f- fabs
+		avx @ f- filterK @ f* avx @ f+ avx !
+		ax1 ! ax2 !
+
+		ay1 @
+		accelp &di 4 + @ dup
+		ay2 @ f+ f2.0 f/ ay1 @ f- fabs
+		avy @ f- filterK @ f* avy @ f+ avy !
+		ay1 ! ay2 !
+
+		az1 @
+		accelp &di 8 + @ dup
+		az2 @ f+ f2.0 f/ az1 @ f- fabs
+		avz @ f- filterK @ f* avz @ f+ avz !
+		az1 ! az2 !
+
+		avx @ avy @ avz @ f+ f+ f3.0 f/ atot !
+// Process Gyros
+		gx1 @
+		gyrop &di @ dup
+		gx2 @ f+ f2.0 f/ gx1 @ f- fabs
+		gvx @ f- filterK @ f* gvx @ f+ gvx !
+		gx1 ! gx2 !
+		
+		gy1 @ 
+		gyrop &di 4 + @ dup
+		gy2 f+ f2.0 f/ gy1 @ f- fabs
+		gvy @ f- filterK @ f* gvy @ f+ gvy !
+		gy1 ! gy2 ! 
+		
+		gz1 @ 
+		gyrop &di 8 + @ dup
+		gz2 @ f+ f2.0 f/ gz1 @ f- fabs
+		gvz @ f- filterK @ f* gvz @ f+ gvz !
+		gz1 ! gz2 ! 
+		
+		gvx @ gvy @ gvz @ f+ f+ f3.0 f/ gtot !
+		loop
+;
+
+: init
+cr ." Analyzing Navigation sensor Environment (10 Seconds) " cr
+deviation
+mlim mtot @ f6.0 f* set drop
+alim atot @ f6.0 f* set drop
+cr ." Computing Gyro Offsets, Do Not Move Unit (30 Seconds) " cr
+InvokeGyroOffsetCal 1 set
+30000 delay
+cr ." Initialization Complete." cr
+1000 delay
+reset
+;
+
+ // Added line to start the program after loaded
+ init
