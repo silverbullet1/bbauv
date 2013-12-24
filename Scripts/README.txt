@@ -5,6 +5,7 @@ I.E. Run the script in the "Scripts" folder / Open a terminal that 'cd' to the "
 
 This folder contains scripts that help in setting up the ROS system
 1. Run InstallRosHydro.sh will download and set up ROS Hydro in your system
+ 1a. Run Setup12.04.sh if you are on Ubuntu 12.04 in order to install tools that Ubuntu 12.04 lacks
 2. Run SetupCatkinWorkspace.sh will make a catkin workspace in this directory
 3. Run SetAutoSource.sh will add the appropriate lines to source the workspace in your .bashrc
 4. Run InstallAliases.sh will set up aliases for faster typing in your system. To view the aliases, read ros_bash_aliases 
