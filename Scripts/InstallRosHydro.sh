@@ -6,6 +6,7 @@ sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu precise main" > /etc/ap
 wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
 sudo apt-get update
 sudo apt-get install ros-hydro-desktop-full
+sudo apt-get install ros-hydro-camera1394 # ROS drivers for FireWire cameras
 
 #Initialize rosdep
 sudo rosdep init
