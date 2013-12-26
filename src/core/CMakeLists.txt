@@ -113,6 +113,7 @@ add_executable(core src/core_node.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(timer bbauv_msgs_generate_messages_cpp)
+add_dependencies(core bbauv_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(timer

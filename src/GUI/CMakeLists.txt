@@ -16,7 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   actionlib
   actionlib_msgs
-  bbauv_msgs
 )
 
 ##Required for QT5
@@ -99,7 +98,7 @@ find_package(OpenCV)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES GUI
-  CATKIN_DEPENDS roscpp rospy std_msgs actionlib
+  CATKIN_DEPENDS roscpp rospy std_msgs actionlib message_runtime
   DEPENDS system_lib
  )
 
@@ -138,7 +137,8 @@ add_executable(Control_node src/controlui.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(GUI_node GUI_generate_messages_cpp)
+add_dependencies(Control_node bbauv_msgs_generate_messages_cpp)
+add_dependencies(GUI_node bbauv_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(GUI_node

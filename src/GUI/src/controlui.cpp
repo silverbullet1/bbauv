@@ -1,6 +1,7 @@
 #include "controlui_add.h"
 #include "qcustomplot.h"
 
+
 static map <string, string> params; //Map for parameters
 static QVector<double> setpt_x(101), setpt_y(101), sensor_x(101), sensor_y(101); //Vector values for graph
 static bool live;					//Boolean whether UI is connected to robot
