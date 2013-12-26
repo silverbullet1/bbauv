@@ -109,18 +109,22 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(test_dvl wh_dvl/Q2E.cpp)
-add_executable(dvl wh_dvl/WH_main.cpp)
+add_executable(DVL_Q2E wh_dvl/Q2E.cpp)
+add_executable(DVL wh_dvl/WH_main.cpp)
+add_executable(AHRS8_Q2E imu/src/Q2E.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(sensors_node sensors_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(test_dvl
+target_link_libraries(DVL_Q2E
   ${catkin_LIBRARIES}
 )
-target_link_libraries(dvl
+target_link_libraries(DVL
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(AHRS8_Q2E
   ${catkin_LIBRARIES}
 )
 
