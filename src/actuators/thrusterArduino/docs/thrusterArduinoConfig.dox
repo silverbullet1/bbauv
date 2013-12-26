@@ -1,0 +1,18 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~depth_kp" : \b [double] P const for depth controller min: 0.0, default: 0.0, max: 10.0
+- \b "~depth_ki" : \b [double] I const for depth controller min: 0.0, default: 0.0, max: 10.0
+- \b "~depth_kd" : \b [double] D const for depth controller min: 0.0, default: 0.0, max: 10.0
+- \b "~heading_kp" : \b [double] P const for heading controller min: 0.0, default: 0.0, max: 10.0
+- \b "~heading_ki" : \b [double] I const for heading controller min: 0.0, default: 0.0, max: 10.0
+- \b "~heading_kd" : \b [double] D const for heading controller min: 0.0, default: 0.0, max: 10.0
+- \b "~ratio_t1" : \b [double] thruster 1 ratio min: 0.0, default: 1.0, max: 1.0
+- \b "~ratio_t2" : \b [double] thruster 2 ratio min: 0.0, default: 1.0, max: 1.0
+- \b "~ratio_t3" : \b [double] thruster 3 ratio min: 0.0, default: 1.0, max: 1.0
+- \b "~ratio_t4" : \b [double] thruster 4 ratio min: 0.0, default: 1.0, max: 1.0
+- \b "~ratio_t5" : \b [double] thruster 5 ratio min: 0.0, default: 1.0, max: 1.0
+- \b "~ratio_t6" : \b [double] thruster 6 ratio min: 0.0, default: 1.0, max: 1.0
+- \b "~mode" : \b [bool] Manual-0 or Auto-1 min: False, default: True, max: True
+
