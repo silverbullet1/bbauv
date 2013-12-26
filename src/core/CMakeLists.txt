@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  tasks
 )
 
 ## System dependencies are found with CMake's conventions
@@ -104,6 +105,7 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(timer src/timer.cpp)
+add_executable(core src/core_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -111,6 +113,9 @@ add_dependencies(timer msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(timer
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(core
   ${catkin_LIBRARIES}
 )
 
