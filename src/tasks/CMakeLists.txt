@@ -80,8 +80,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES tasks
+  INCLUDE_DIRS include
+  LIBRARIES tasks
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
@@ -98,9 +98,9 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(tasks
-#   src/${PROJECT_NAME}/tasks.cpp
-# )
+add_library(tasks
+   include/${PROJECT_NAME}/TaskDescriptor.cpp
+)
 
 ## Declare a cpp executable
 # add_executable(tasks_node src/tasks_node.cpp)
