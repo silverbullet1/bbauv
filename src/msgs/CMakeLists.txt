@@ -71,6 +71,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
+  TaskStatus.srv
   ##Old srv files start
   locomotion_mode.srv
   mission_to_lane.srv

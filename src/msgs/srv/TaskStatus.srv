@@ -1,0 +1,3 @@
+bool isCompleted
+---
+bool isAcknowledged
