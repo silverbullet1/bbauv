@@ -19,7 +19,6 @@ int main(int argc, char **argv)
 		timeElapsed.secondsElapsed = duration;
 		//Publishes the calculated duration
 		timer_publisher.publish(timeElapsed);
-
 		ros::spinOnce();
 
 		//Sleeps for 1 second

@@ -22,6 +22,39 @@ vector<TaskDescriptor> tasks;
 string current_general_task = "";
 int current_task_id = 0;
 std_msgs::String msg;
+ros::Time current_task_start_time;
+
+void setCurrentTaskTime()
+{
+	current_task_start_time = ros::Time::now();
+}
+
+void updateCurrentTask()
+{
+	if(current_task_id>-1)
+	{
+		current_general_task = tasks[current_task_id].task;
+	}
+	setCurrentTaskTime();
+}
+
+void setFallbackTask()
+{
+	string fallbackTask = tasks[current_task_id].fallback_task;
+	ROS_INFO("Fallback task is %s", fallbackTask.c_str());
+	for(int i=0;i<tasks.size();i++)
+	{
+		string targetTask = tasks[i].task;
+		if(fallbackTask.compare(targetTask) == 0)
+		{
+			current_task_id = i;
+			ROS_INFO("Fallback task is found! %s", fallbackTask.c_str());
+			return;
+		}
+	}
+	current_task_id = -1;
+	current_general_task = "IDLE";
+}
 
 bool taskFeedback(msgs::TaskStatus::Request  &req,
          			msgs::TaskStatus::Response &res)
@@ -32,17 +65,9 @@ bool taskFeedback(msgs::TaskStatus::Request  &req,
 	}
 	else
 	{
-		string fallbackTask = tasks[current_task_id].fallback_task;
-		for(int i=0;i<tasks.size();i++)
-		{
-			string targetTask = tasks[i].task;
-			if(fallbackTask.compare(targetTask) == 0)
-			{
-				current_task_id = i;
-			}
-		}
+		setFallbackTask();
 	}
-	current_general_task = tasks[current_task_id].task;
+	updateCurrentTask();
 	res.isAcknowledged = true;
 	return true;
 }
@@ -102,6 +127,8 @@ int main(int argc, char **argv)
 	if(tasks.size()>0)
 	{
 		current_general_task = tasks[0].task;
+		setCurrentTaskTime();
+		
 	}
 		
 	/*
@@ -111,6 +138,13 @@ int main(int argc, char **argv)
 	{
 		msg.data = current_general_task;
 		general_task_publisher.publish(msg);
+		int currentTaskTimeElapsed = (ros::Time::now() - current_task_start_time).toSec();
+		if(currentTaskTimeElapsed>=tasks[current_task_id].timeout && current_general_task.compare("IDLE") != 0)
+		{
+			ROS_INFO("TimedOut!");
+			setFallbackTask();
+			updateCurrentTask();
+		}
 		ros::spinOnce();
 		rate.sleep();
 	}
