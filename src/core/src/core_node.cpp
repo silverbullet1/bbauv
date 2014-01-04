@@ -18,7 +18,8 @@ using namespace std;
 ifstream tasks_descriptor_file;
 string line;
 string tasks_descriptor_filename = "sauvc.txt";
-string tasks_descriptor_path = "MissionPlans/" + tasks_descriptor_filename;
+string tasks_descriptor_path = "";
+string running_mode = "AUTO";
 char * token;
 vector<TaskDescriptor> tasks;
 string current_general_task = "";
@@ -84,13 +85,40 @@ int main(int argc, char **argv)
 	ros::Rate rate(50); //in hz
 	ros::ServiceServer taskFeedbackService = node.advertiseService("core_node/task_feedback", taskFeedback);
 	ros::Publisher general_task_publisher = node.advertise<std_msgs::String>("core_node/current_task", 10);
+
+	/*
+		Get params from ROS Param Server
+	*/
+	if (node.hasParam("/core/mission_plan"))
+	{
+		if(node.getParam("/core/mission_plan", tasks_descriptor_filename))
+		{
+			ROS_INFO("Mission Plan: %s", tasks_descriptor_filename.c_str());
+		}
+	}
+	if (node.hasParam("/core/tasks_descriptor_path"))
+	{
+		if(node.getParam("/core/tasks_descriptor_path", tasks_descriptor_path))
+		{
+			tasks_descriptor_path = tasks_descriptor_path + "/" + tasks_descriptor_filename;
+			ROS_INFO("Mission Plan Full Path: %s", tasks_descriptor_path.c_str());
+		}
+	}
+	if (node.hasParam("/core/running_mode"))
+	{
+		if(node.getParam("/core/running_mode", running_mode))
+		{
+			ROS_INFO("Running Mode: %s", running_mode.c_str());
+		}
+	}
+
 	/*
 		Read our mission plan
 	*/
-	ROS_INFO("Reading tasks descriptor file: %s", tasks_descriptor_path.c_str());
 	tasks_descriptor_file.open(tasks_descriptor_path.c_str());
 	if(tasks_descriptor_file.is_open())
 	{
+		ROS_INFO("Reading tasks descriptor file: %s", tasks_descriptor_path.c_str());
 		while ( getline(tasks_descriptor_file, line) )
 	    {
 	    	vector<string> splitVec;
@@ -103,7 +131,6 @@ int main(int argc, char **argv)
 	    }
 	}
 	tasks_descriptor_file.close();
-
 	/*
 		Intialize Current Task
 	*/
