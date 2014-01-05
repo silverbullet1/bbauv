@@ -1,27 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(GUI)
-
-## In the event that rosrun GUI GUI_node doesn't work and you're looking at this,
-## Just create two empty folders under src/GUI called include and GUI_node
-## Then run catkin_make or catm if you installed our aliases. And it'll work
+project(mission_plans)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  std_msgs
-  image_transport
-  cv_bridge
-)
-
-##Required for QT5
-##set (Qt5Widgets_DIR "/home/ndt/Softwares/Qt/5.1.1/gcc_64/lib/cmake/Qt5Widgets") ## for Thien's case only
-find_package(Qt5Widgets)
-
-##Required for OpenCV
-find_package(OpenCV)
+find_package(catkin REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -80,7 +63,7 @@ find_package(OpenCV)
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   std_msgs
+#   std_msgs  # Or other packages containing msgs
 # )
 
 ###################################
@@ -93,11 +76,11 @@ find_package(OpenCV)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES GUI
-  CATKIN_DEPENDS roscpp rospy std_msgs
-  DEPENDS system_lib
- )
+#  INCLUDE_DIRS include
+#  LIBRARIES mission_plans
+#  CATKIN_DEPENDS other_catkin_pkg
+#  DEPENDS system_lib
+)
 
 ###########
 ## Build ##
@@ -106,48 +89,23 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  ${Qt5Widgets_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-)
-
-##Required for QT5
-add_definitions(${Qt5Widgets_DEFINITIONS})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
-
 
 ## Declare a cpp library
-#add_library(GUI
-#  src/auv_gui.cpp
-#)
+# add_library(mission_plans
+#   src/${PROJECT_NAME}/mission_plans.cpp
+# )
 
 ## Declare a cpp executable
-<<<<<<< HEAD
-add_executable(GUI_node src/auv_gui.cpp src/filters.cpp)
-=======
-add_executable(GUI_node src/auv_gui.cpp)
-add_executable(Control_node src/controlui.cpp)
->>>>>>> 3d65117f131a1d84be7cf3ebc6f5a7af139f88c2
+# add_executable(mission_plans_node src/mission_plans_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(GUI_node GUI_generate_messages_cpp)
+# add_dependencies(mission_plans_node mission_plans_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(GUI_node
-  ${catkin_LIBRARIES}
-  Qt5::Widgets
-  ${OpenCV_LIBRARIES}
-)
-target_link_libraries(Control_node
-  ${catkin_LIBRARIES}
-  Qt5::Widgets
-)
-##Required for QT5
-qt5_use_modules( GUI_node Widgets )
-qt5_use_modules( Control_node Widgets )
+# target_link_libraries(mission_plans_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -164,7 +122,7 @@ qt5_use_modules( Control_node Widgets )
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS GUI GUI_node
+# install(TARGETS mission_plans mission_plans_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -189,7 +147,7 @@ qt5_use_modules( Control_node Widgets )
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_GUI.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_mission_plans.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
