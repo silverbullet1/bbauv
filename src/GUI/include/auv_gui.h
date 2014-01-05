@@ -40,13 +40,15 @@ public:
     QWidget *verticalLayoutWidget_2;
     QVBoxLayout *_2;
     QFrame *frontcamfiltered;
+    QLabel *labelFrontFiltered;
     QWidget *verticalLayoutWidget_3;
     QVBoxLayout *_4;
     QFrame *bottomcam_2;
-    QLabel *labelbottom;
+    QLabel *labelBottom;
     QWidget *verticalLayoutWidget_4;
     QVBoxLayout *_3;
     QFrame *bottomcamfiltered;
+    QLabel *labelBottomFiltered;
     QFrame *line;
     QComboBox *frontfilter;
     QComboBox *bottomfilter;
@@ -63,7 +65,7 @@ public:
     {
         if (Vision->objectName().isEmpty())
             Vision->setObjectName(QStringLiteral("Vision"));
-        Vision->resize(796, 613);
+        Vision->resize(773, 613);
         actionOpen = new QAction(Vision);
         actionOpen->setObjectName(QStringLiteral("actionOpen"));
         actionSave = new QAction(Vision);
@@ -84,7 +86,7 @@ public:
         frontcam_2->setFrameShadow(QFrame::Raised);
         labelFront = new QLabel(frontcam_2);
         labelFront->setObjectName(QStringLiteral("labelFront"));
-        labelFront->setGeometry(QRect(10, 10, 311, 191));
+        labelFront->setGeometry(QRect(0, 0, 331, 211));
 
         vboxLayout->addWidget(frontcam_2);
 
@@ -98,6 +100,9 @@ public:
         frontcamfiltered->setObjectName(QStringLiteral("frontcamfiltered"));
         frontcamfiltered->setFrameShape(QFrame::StyledPanel);
         frontcamfiltered->setFrameShadow(QFrame::Raised);
+        labelFrontFiltered = new QLabel(frontcamfiltered);
+        labelFrontFiltered->setObjectName(QStringLiteral("labelFrontFiltered"));
+        labelFrontFiltered->setGeometry(QRect(0, 0, 341, 211));
 
         _2->addWidget(frontcamfiltered);
 
@@ -111,9 +116,9 @@ public:
         bottomcam_2->setObjectName(QStringLiteral("bottomcam_2"));
         bottomcam_2->setFrameShape(QFrame::StyledPanel);
         bottomcam_2->setFrameShadow(QFrame::Raised);
-        labelbottom = new QLabel(bottomcam_2);
-        labelbottom->setObjectName(QStringLiteral("labelbottom"));
-        labelbottom->setGeometry(QRect(10, 0, 311, 191));
+        labelBottom = new QLabel(bottomcam_2);
+        labelBottom->setObjectName(QStringLiteral("labelBottom"));
+        labelBottom->setGeometry(QRect(0, 0, 331, 201));
 
         _4->addWidget(bottomcam_2);
 
@@ -127,6 +132,9 @@ public:
         bottomcamfiltered->setObjectName(QStringLiteral("bottomcamfiltered"));
         bottomcamfiltered->setFrameShape(QFrame::StyledPanel);
         bottomcamfiltered->setFrameShadow(QFrame::Raised);
+        labelBottomFiltered = new QLabel(bottomcamfiltered);
+        labelBottomFiltered->setObjectName(QStringLiteral("labelBottomFiltered"));
+        labelBottomFiltered->setGeometry(QRect(0, 0, 341, 201));
 
         _3->addWidget(bottomcamfiltered);
 
@@ -169,7 +177,7 @@ public:
         Vision->setCentralWidget(centralwidget);
         menubar = new QMenuBar(Vision);
         menubar->setObjectName(QStringLiteral("menubar"));
-        menubar->setGeometry(QRect(0, 0, 796, 20));
+        menubar->setGeometry(QRect(0, 0, 773, 20));
         menuFile = new QMenu(menubar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         Vision->setMenuBar(menubar);
@@ -207,7 +215,9 @@ public:
         actionQuit->setText(QApplication::translate("Vision", "&Quit", 0));
         actionQuit->setShortcut(QApplication::translate("Vision", "Ctrl+Q", 0));
         labelFront->setText(QApplication::translate("Vision", "Front Camera", 0));
-        labelbottom->setText(QApplication::translate("Vision", "Bottom Camera", 0));
+        labelFrontFiltered->setText(QApplication::translate("Vision", "Front Camera", 0));
+        labelBottom->setText(QApplication::translate("Vision", "Bottom Camera", 0));
+        labelBottomFiltered->setText(QApplication::translate("Vision", "Bottom Camera", 0));
         frontfilter->clear();
         frontfilter->insertItems(0, QStringList()
          << QApplication::translate("Vision", "Filter 1", 0)
