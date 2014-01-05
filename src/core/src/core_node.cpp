@@ -2,6 +2,8 @@
 #include "tasks/TaskDescriptor.cpp"
 #include "msgs/TaskStatus.h"
 #include "std_msgs/String.h"
+#include "boost/algorithm/string/split.hpp"
+#include "boost/algorithm/string/classification.hpp"
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
@@ -91,32 +93,13 @@ int main(int argc, char **argv)
 	{
 		while ( getline(tasks_descriptor_file, line) )
 	    {
-	    	ROS_INFO("%s", line.c_str());
+	    	vector<string> splitVec;
+	    	split( splitVec, line, boost::algorithm::is_any_of(", "), boost::token_compress_on );
 	    	TaskDescriptor task_descriptor;
-	    	char * cstr = new char [line.length()+1];
-	    	strcpy (cstr, line.c_str());
-
-	    	token = strtok (cstr, " ,");
-	    	int token_i = 0;
-	    	while(token != NULL)
-	    	{
-	    		//ROS_INFO("%s", token);
-	    		switch(token_i)
-	    		{
-	    			case 0://Task
-	    				task_descriptor.task = string(token);
-	    				break;
-	    			case 1://Fallback Task
-	    				task_descriptor.fallback_task = string(token);
-	    				break;
-	    			case 2://Timeout
-	    				task_descriptor.timeout = atoi(token);
-	    				tasks.push_back(task_descriptor);
-	    				break;
-	    		}
-	    		token = strtok (NULL, " ,");
-	    		token_i++;
-	    	}
+	    	task_descriptor.task = splitVec[0];
+	    	task_descriptor.fallback_task = splitVec[1];
+	    	task_descriptor.timeout = atoi(splitVec[2].c_str());
+	    	tasks.push_back(task_descriptor);
 	    }
 	}
 	tasks_descriptor_file.close();
