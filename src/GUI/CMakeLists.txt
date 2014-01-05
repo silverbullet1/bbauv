@@ -125,6 +125,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 
 ## Declare a cpp executable
 add_executable(GUI_node src/auv_gui.cpp)
+add_executable(Control_node src/controlui.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -136,8 +137,13 @@ target_link_libraries(GUI_node
   Qt5::Widgets
   ${OpenCV_LIBRARIES}
 )
+target_link_libraries(Control_node
+  ${catkin_LIBRARIES}
+  Qt5::Widgets
+)
 ##Required for QT5
 qt5_use_modules( GUI_node Widgets )
+qt5_use_modules( Control_node Widgets )
 
 #############
 ## Install ##
