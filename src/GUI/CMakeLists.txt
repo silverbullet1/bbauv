@@ -17,7 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ##Required for QT5
-##set (Qt5Widgets_DIR "/home/ndt/Softwares/Qt/5.1.1/gcc_64/lib/cmake/Qt5Widgets") ## for Thien's case only
+set (Qt5Widgets_DIR "/home/ndt/Softwares/Qt/5.1.1/gcc_64/lib/cmake/Qt5Widgets") ## for Thien's case only
 find_package(Qt5Widgets)
 
 ##Required for OpenCV
@@ -124,12 +124,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 #)
 
 ## Declare a cpp executable
-<<<<<<< HEAD
 add_executable(GUI_node src/auv_gui.cpp src/filters.cpp)
-=======
-add_executable(GUI_node src/auv_gui.cpp)
 add_executable(Control_node src/controlui.cpp)
->>>>>>> 3d65117f131a1d84be7cf3ebc6f5a7af139f88c2
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes

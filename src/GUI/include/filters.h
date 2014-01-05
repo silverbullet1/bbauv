@@ -3,7 +3,7 @@
 
 #define NUM_FILTERS 1
 
-typedef cv::Mat (* filter_t) (cv::Mat image);
+typedef cv::Mat (* filter_t) (cv::Mat);
 
 cv::Mat Canny_filter(cv::Mat image);
 
