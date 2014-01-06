@@ -15,6 +15,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+using namespace std;
+
 static Ui::ControlSysUI ui;
 static QMainWindow *window;
 
@@ -32,11 +34,14 @@ void initialize(){
 	ui.output_val->setText("5");
 	ui.thruster_val->setText("5");
 
-	//DOF spinbox
 	ui.goal_val->setText("5");
 
 	//Advanced part
-	//Checkboxesi
+	//Checkboxes
+	ui.fwd_check->setChecked(true);
+	ui.depth_check->setChecked(true);
+	ui.yaw_check->setChecked(true);
+	ui.sm_check->setChecked(true);
 	ui.fwd_val->setText("5");
 	ui.depth_val->setText("5");
 	ui.yaw_val->setText("5");
@@ -50,6 +55,14 @@ void initialize(){
 	ui.actmax_val->setText("5");
 }
 
+static void saveFile(){
+	//Open a .txt file
+	string filename = 
+	ofstream file (filename);
+
+	cout << ui.error_val->text().toUtf8().constData() << endl;
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 
@@ -60,6 +73,9 @@ int main(int argc, char **argv) {
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
 
 	initialize();
+
+	QObject::connect(ui.actionSave, &QAction::triggered, saveFile);
+	QObject::connect(ui.saveButton, &QAbstractButton::released, saveFile);
 
 	window->show();
 

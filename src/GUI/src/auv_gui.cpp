@@ -41,7 +41,7 @@ static void update_filter(camera_t camera, cv::Mat image);
 static void openFile(bool open){
 	QString selfilter = QString("BAG(*.bag)");
 	QString filename = QFileDialog::getOpenFileName(window, QString("Open bag file"), QDir::currentPath(), 
-			QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
+	QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
 
 	string filename_string = filename.toUtf8().constData();
 

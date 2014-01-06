@@ -274,16 +274,6 @@
      <string>DOF</string>
     </property>
    </widget>
-   <widget class="QSpinBox" name="DOF_spinbox">
-    <property name="geometry">
-     <rect>
-      <x>440</x>
-      <y>150</y>
-      <width>101</width>
-      <height>27</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QLabel" name="Goal_label">
     <property name="geometry">
      <rect>
@@ -515,7 +505,7 @@
       <string>Depth</string>
      </property>
     </widget>
-    <widget class="QCheckBox" name="Depth_check">
+    <widget class="QCheckBox" name="depth_check">
      <property name="geometry">
       <rect>
        <x>50</x>
@@ -653,6 +643,31 @@
      <enum>Qt::RichText</enum>
     </property>
    </widget>
+   <widget class="QComboBox" name="dof_comboBox">
+    <property name="geometry">
+     <rect>
+      <x>440</x>
+      <y>150</y>
+      <width>91</width>
+      <height>27</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>pos x</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>pos y</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>pos z</string>
+     </property>
+    </item>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -700,5 +715,22 @@
   </action>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>ControlSysUI</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>422</x>
+     <y>284</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

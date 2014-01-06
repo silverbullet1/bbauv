@@ -14,6 +14,7 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QButtonGroup>
 #include <QtWidgets/QCheckBox>
+#include <QtWidgets/QComboBox>
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QHeaderView>
@@ -23,7 +24,6 @@
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QPushButton>
-#include <QtWidgets/QSpinBox>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QWidget>
 
@@ -59,7 +59,6 @@ public:
     QLineEdit *thruster_val;
     QPushButton *saveButton;
     QLabel *DOF_label;
-    QSpinBox *DOF_spinbox;
     QLabel *Goal_label;
     QLineEdit *goal_val;
     QFrame *controparam_frame;
@@ -79,7 +78,7 @@ public:
     QCheckBox *fwd_check;
     QLineEdit *fwd_val;
     QLabel *Depth_label;
-    QCheckBox *Depth_check;
+    QCheckBox *depth_check;
     QLineEdit *depth_val;
     QLineEdit *yaw_val;
     QLabel *yaw_label;
@@ -90,6 +89,7 @@ public:
     QPushButton *enabledButton;
     QPushButton *disabledButton;
     QLabel *Advanced_label;
+    QComboBox *dof_comboBox;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -176,9 +176,6 @@ public:
         DOF_label = new QLabel(centralwidget);
         DOF_label->setObjectName(QStringLiteral("DOF_label"));
         DOF_label->setGeometry(QRect(390, 150, 51, 17));
-        DOF_spinbox = new QSpinBox(centralwidget);
-        DOF_spinbox->setObjectName(QStringLiteral("DOF_spinbox"));
-        DOF_spinbox->setGeometry(QRect(440, 150, 101, 27));
         Goal_label = new QLabel(centralwidget);
         Goal_label->setObjectName(QStringLiteral("Goal_label"));
         Goal_label->setGeometry(QRect(390, 190, 51, 17));
@@ -240,9 +237,9 @@ public:
         Depth_label = new QLabel(advanced_frame);
         Depth_label->setObjectName(QStringLiteral("Depth_label"));
         Depth_label->setGeometry(QRect(10, 40, 51, 17));
-        Depth_check = new QCheckBox(advanced_frame);
-        Depth_check->setObjectName(QStringLiteral("Depth_check"));
-        Depth_check->setGeometry(QRect(50, 40, 97, 22));
+        depth_check = new QCheckBox(advanced_frame);
+        depth_check->setObjectName(QStringLiteral("depth_check"));
+        depth_check->setGeometry(QRect(50, 40, 97, 22));
         depth_val = new QLineEdit(advanced_frame);
         depth_val->setObjectName(QStringLiteral("depth_val"));
         depth_val->setGeometry(QRect(100, 40, 101, 27));
@@ -274,6 +271,9 @@ public:
         Advanced_label->setObjectName(QStringLiteral("Advanced_label"));
         Advanced_label->setGeometry(QRect(550, 140, 151, 17));
         Advanced_label->setTextFormat(Qt::RichText);
+        dof_comboBox = new QComboBox(centralwidget);
+        dof_comboBox->setObjectName(QStringLiteral("dof_comboBox"));
+        dof_comboBox->setGeometry(QRect(440, 150, 91, 27));
         ControlSysUI->setCentralWidget(centralwidget);
         menubar = new QMenuBar(ControlSysUI);
         menubar->setObjectName(QStringLiteral("menubar"));
@@ -291,6 +291,7 @@ public:
         menuFile->addAction(actionQuit);
 
         retranslateUi(ControlSysUI);
+        QObject::connect(actionQuit, SIGNAL(triggered()), ControlSysUI, SLOT(close()));
 
         QMetaObject::connectSlotsByName(ControlSysUI);
     } // setupUi
@@ -327,7 +328,7 @@ public:
         Fwd_label->setText(QApplication::translate("ControlSysUI", "Fwd", 0));
         fwd_check->setText(QString());
         Depth_label->setText(QApplication::translate("ControlSysUI", "Depth", 0));
-        Depth_check->setText(QString());
+        depth_check->setText(QString());
         yaw_label->setText(QApplication::translate("ControlSysUI", "Yaw", 0));
         yaw_check->setText(QString());
         sm_check->setText(QString());
@@ -335,6 +336,12 @@ public:
         enabledButton->setText(QApplication::translate("ControlSysUI", "Enabled", 0));
         disabledButton->setText(QApplication::translate("ControlSysUI", "Disabled", 0));
         Advanced_label->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p><span style=\" font-weight:600;\">Advanced</span></p></body></html>", 0));
+        dof_comboBox->clear();
+        dof_comboBox->insertItems(0, QStringList()
+         << QApplication::translate("ControlSysUI", "pos x", 0)
+         << QApplication::translate("ControlSysUI", "pos y", 0)
+         << QApplication::translate("ControlSysUI", "pos z", 0)
+        );
         menuFile->setTitle(QApplication::translate("ControlSysUI", "File", 0));
     } // retranslateUi
 
