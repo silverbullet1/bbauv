@@ -248,7 +248,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QPushButton" name="saveButton">
+   <widget class="QPushButton" name="fireButton">
     <property name="geometry">
      <rect>
       <x>710</x>
@@ -258,7 +258,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>Save</string>
+     <string>Fi&amp;re</string>
+    </property>
+    <property name="shortcut">
+     <string>Ctrl+R</string>
     </property>
    </widget>
    <widget class="QLabel" name="DOF_label">
@@ -610,7 +613,10 @@
       </rect>
      </property>
      <property name="text">
-      <string>Enabled</string>
+      <string>&amp;Enabled</string>
+     </property>
+     <property name="shortcut">
+      <string>Ctrl+E</string>
      </property>
     </widget>
     <widget class="QPushButton" name="disabledButton">
@@ -623,7 +629,10 @@
       </rect>
      </property>
      <property name="text">
-      <string>Disabled</string>
+      <string>&amp;Disabled</string>
+     </property>
+     <property name="shortcut">
+      <string>Ctrl+D</string>
      </property>
     </widget>
    </widget>
@@ -654,17 +663,17 @@
     </property>
     <item>
      <property name="text">
-      <string>pos x</string>
+      <string>pos_X</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>pos y</string>
+      <string>pos_Y</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>pos z</string>
+      <string>pos_Z</string>
      </property>
     </item>
    </widget>
@@ -680,7 +689,7 @@
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>&amp;File</string>
     </property>
     <addaction name="actionSave"/>
     <addaction name="actionOpen"/>
@@ -691,15 +700,15 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionSave">
    <property name="text">
-    <string>Save</string>
+    <string>&amp;!Save</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+S</string>
+    <string>Ctrl+Shift+S</string>
    </property>
   </action>
   <action name="actionOpen">
    <property name="text">
-    <string>Open</string>
+    <string>&amp;Open</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
@@ -707,7 +716,7 @@
   </action>
   <action name="actionQuit">
    <property name="text">
-    <string>Quit</string>
+    <string>&amp;Quit</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>

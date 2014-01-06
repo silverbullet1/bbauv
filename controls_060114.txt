@@ -1,0 +1,19 @@
+setpt_val 5
+sensor_val 0
+error_val 0
+KP_val 0
+KI_val 0
+KD_val 0
+output_val 0
+thruster_val 0
+dof_comboBox pos_X
+goal_val 0
+fwd_val false 0
+depth_val false 0
+yaw_val false 0
+sm_val false 0
+con_KP_val 0
+con_KI_val 0
+con_KD_val 0
+actmin_val 0
+actmax_val 0

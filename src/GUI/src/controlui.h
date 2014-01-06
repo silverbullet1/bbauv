@@ -57,7 +57,7 @@ public:
     QLineEdit *output_val;
     QLabel *thruster_label;
     QLineEdit *thruster_val;
-    QPushButton *saveButton;
+    QPushButton *fireButton;
     QLabel *DOF_label;
     QLabel *Goal_label;
     QLineEdit *goal_val;
@@ -170,9 +170,9 @@ public:
         thruster_val = new QLineEdit(telemetry_box);
         thruster_val->setObjectName(QStringLiteral("thruster_val"));
         thruster_val->setGeometry(QRect(330, 50, 61, 27));
-        saveButton = new QPushButton(centralwidget);
-        saveButton->setObjectName(QStringLiteral("saveButton"));
-        saveButton->setGeometry(QRect(710, 490, 98, 27));
+        fireButton = new QPushButton(centralwidget);
+        fireButton->setObjectName(QStringLiteral("fireButton"));
+        fireButton->setGeometry(QRect(710, 490, 98, 27));
         DOF_label = new QLabel(centralwidget);
         DOF_label->setObjectName(QStringLiteral("DOF_label"));
         DOF_label->setGeometry(QRect(390, 150, 51, 17));
@@ -299,11 +299,11 @@ public:
     void retranslateUi(QMainWindow *ControlSysUI)
     {
         ControlSysUI->setWindowTitle(QApplication::translate("ControlSysUI", "Control System UI", 0));
-        actionSave->setText(QApplication::translate("ControlSysUI", "Save", 0));
-        actionSave->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+S", 0));
-        actionOpen->setText(QApplication::translate("ControlSysUI", "Open", 0));
+        actionSave->setText(QApplication::translate("ControlSysUI", "&!Save", 0));
+        actionSave->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+Shift+S", 0));
+        actionOpen->setText(QApplication::translate("ControlSysUI", "&Open", 0));
         actionOpen->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+O", 0));
-        actionQuit->setText(QApplication::translate("ControlSysUI", "Quit", 0));
+        actionQuit->setText(QApplication::translate("ControlSysUI", "&Quit", 0));
         actionQuit->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+Q", 0));
         graph_label->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p><span style=\" font-weight:600;\">Graph</span></p></body></html>", 0));
         telemetry_label->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p><span style=\" font-weight:600;\">Telemetry</span></p></body></html>", 0));
@@ -316,7 +316,8 @@ public:
         KD_label->setText(QApplication::translate("ControlSysUI", "KD", 0));
         output_label->setText(QApplication::translate("ControlSysUI", "Output", 0));
         thruster_label->setText(QApplication::translate("ControlSysUI", "Thruster", 0));
-        saveButton->setText(QApplication::translate("ControlSysUI", "Save", 0));
+        fireButton->setText(QApplication::translate("ControlSysUI", "Fi&re", 0));
+        fireButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+R", 0));
         DOF_label->setText(QApplication::translate("ControlSysUI", "DOF", 0));
         Goal_label->setText(QApplication::translate("ControlSysUI", "Goal", 0));
         actmin_label->setText(QApplication::translate("ControlSysUI", "Act_Min", 0));
@@ -333,16 +334,18 @@ public:
         yaw_check->setText(QString());
         sm_check->setText(QString());
         sm_label->setText(QApplication::translate("ControlSysUI", "SM", 0));
-        enabledButton->setText(QApplication::translate("ControlSysUI", "Enabled", 0));
-        disabledButton->setText(QApplication::translate("ControlSysUI", "Disabled", 0));
+        enabledButton->setText(QApplication::translate("ControlSysUI", "&Enabled", 0));
+        enabledButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+E", 0));
+        disabledButton->setText(QApplication::translate("ControlSysUI", "&Disabled", 0));
+        disabledButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+D", 0));
         Advanced_label->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p><span style=\" font-weight:600;\">Advanced</span></p></body></html>", 0));
         dof_comboBox->clear();
         dof_comboBox->insertItems(0, QStringList()
-         << QApplication::translate("ControlSysUI", "pos x", 0)
-         << QApplication::translate("ControlSysUI", "pos y", 0)
-         << QApplication::translate("ControlSysUI", "pos z", 0)
+         << QApplication::translate("ControlSysUI", "pos_X", 0)
+         << QApplication::translate("ControlSysUI", "pos_Y", 0)
+         << QApplication::translate("ControlSysUI", "pos_Z", 0)
         );
-        menuFile->setTitle(QApplication::translate("ControlSysUI", "File", 0));
+        menuFile->setTitle(QApplication::translate("ControlSysUI", "&File", 0));
     } // retranslateUi
 
 };
