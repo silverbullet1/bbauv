@@ -99,9 +99,11 @@ static void frontCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 
 static void bottomCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 	cv_bridge::CvImagePtr cv_ptr;
+	cv::Mat smallerImage(ui.labelFront->size().height(), ui.labelFront->size().width(), CV_8UC3, cv::Scalar(0,0,0));
 	try {
 		cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
-		update_filter(BOTTOM, cv_ptr->image);
+		cv::resize(cv_ptr->image, smallerImage, smallerImage.size());
+		update_filter(BOTTOM, smallerImage);
 	} catch (cv_bridge::Exception& e) {
 		ROS_ERROR("cv_bridge exception: %s", e.what());
 		return;
