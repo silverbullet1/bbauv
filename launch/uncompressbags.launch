@@ -1,0 +1,16 @@
+<!-- Used to play .bag files and uncompress compressed .bag video streams -->
+
+<launch>
+
+  <param name="use_sim_time" value="false"/>
+
+  <arg name="bagfile" default="testing" />
+  <node pkg="rosbag" type="play" name="play" args="--clock -l $(find GUI)/$(arg bagfile).bag">
+  </node>
+
+  <node name="republish" pkg="image_transport" type="republish" output="screen" args="compressed in:=/camera/image_raw raw out:=/camera/image_raw">
+  <remap from="/camera/image_raw" to="/bumblebee/camera1"/>
+
+  </node>
+
+</launch>

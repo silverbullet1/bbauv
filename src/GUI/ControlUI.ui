@@ -168,7 +168,7 @@
       <string>KI</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="KP_val_2">
+    <widget class="QLineEdit" name="KI_val">
      <property name="geometry">
       <rect>
        <x>190</x>
@@ -407,7 +407,7 @@
       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Control Parameters&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="con_KP_val_2">
+    <widget class="QLineEdit" name="con_KI_val">
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -528,7 +528,7 @@
       <string/>
      </property>
     </widget>
-    <widget class="QLineEdit" name="Depth_val">
+    <widget class="QLineEdit" name="depth_val">
      <property name="geometry">
       <rect>
        <x>100</x>
@@ -678,15 +678,24 @@
    <property name="text">
     <string>Save</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
   </action>
   <action name="actionOpen">
    <property name="text">
     <string>Open</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
   </action>
   <action name="actionQuit">
    <property name="text">
     <string>Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
  </widget>

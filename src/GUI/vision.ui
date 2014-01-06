@@ -7,7 +7,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>773</width>
+    <width>765</width>
     <height>573</height>
    </rect>
   </property>
@@ -16,6 +16,12 @@
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>341</width>
+    <height>211</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Vision</string>
@@ -26,13 +32,19 @@
      <rect>
       <x>20</x>
       <y>50</y>
-      <width>331</width>
-      <height>211</height>
+      <width>343</width>
+      <height>213</height>
      </rect>
     </property>
     <layout class="QVBoxLayout">
      <item>
       <widget class="QFrame" name="frontcam_2">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="frameShape">
         <enum>QFrame::StyledPanel</enum>
        </property>
@@ -44,9 +56,15 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>331</width>
+          <width>341</width>
           <height>211</height>
          </rect>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
         </property>
         <property name="text">
          <string>Front Camera</string>
@@ -185,17 +203,17 @@
     </property>
     <item>
      <property name="text">
-      <string>Filter 1</string>
+      <string>Canny Filter</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Filter 2</string>
+      <string>Adaptive Threshold Filter</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Filter 3</string>
+      <string>Haven't Decided</string>
      </property>
     </item>
    </widget>
@@ -210,17 +228,17 @@
     </property>
     <item>
      <property name="text">
-      <string>Filter 1</string>
+      <string>Canny Filter</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Filter 2</string>
+      <string>Adaptive Threshold Filter</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Filter 3</string>
+      <string>Havent Decided</string>
      </property>
     </item>
    </widget>
@@ -316,8 +334,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>773</width>
-     <height>20</height>
+     <width>765</width>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -379,22 +397,6 @@
     <hint type="destinationlabel">
      <x>397</x>
      <y>306</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>bottomfilter</sender>
-   <signal>currentIndexChanged(int)</signal>
-   <receiver>Vision</receiver>
-   <slot>openFIle(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>241</x>
-     <y>316</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>167</x>
-     <y>-13</y>
     </hint>
    </hints>
   </connection>

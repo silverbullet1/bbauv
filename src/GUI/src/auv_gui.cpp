@@ -21,6 +21,8 @@
 
 #include "filters.h"
 
+using namespace std;
+
 //Macro to change subscriber's topic during run time
 #define CHANGE_TOPIC(sub, topic, callback)	\
 		(sub = it->subscribe(topic, 1, callback))
@@ -35,19 +37,21 @@ static image_transport::ImageTransport *it;
 
 static void update_filter(camera_t camera, cv::Mat image);
 
+
 static void openFile(bool open){
 	QString selfilter = QString("BAG(*.bag)");
 	QString filename = QFileDialog::getOpenFileName(window, QString("Open bag file"), QDir::currentPath(), 
 			QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
 
-	if (filename.isEmpty()) {
-		QMessageBox::critical(ui.centralwidget, "Error", "Could not open file");
-		return;
-	} else {
+	string filename_string = filename.toUtf8().constData();
+
+	if (!filename_string.empty()){
 		char command[256];
-		sprintf(command, "gnome-terminal -e 'bash -c \"rosbag play %s; exec bash\" '", filename.toUtf8().constData());
+		//sprintf(command, "gnome-terminal -e 'bash -c \"cd launch; roslaunch uncompressbags.launch bagfile:=%s; exec bash\" '", filename_string.c_str());
+		sprintf(command, "gnome-terminal -e 'bash -c \"rosbag play %s; exec bash\" '", filename_string.c_str());
 		system(command);
 	}
+
 }
 
 static QImage CvMatToQImage(const cv::Mat& mat) {
@@ -79,14 +83,18 @@ static QImage CvMatToQImage(const cv::Mat& mat) {
 
 static void frontCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 	cv_bridge::CvImagePtr cv_ptr;
+	cv::Mat smallerImage(ui.labelFront->size().height(), ui.labelFront->size().width(), CV_8UC3, cv::Scalar(0,0,0));
+	//std::cout << ui.labelFront->size().width() << " " << ui.labelFront->size().height() << std::endl;
 	try {
 		cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
-		update_filter(FRONT, cv_ptr->image);
+		cv::resize(cv_ptr->image, smallerImage, smallerImage.size());
+		update_filter(FRONT, smallerImage);
 	} catch (cv_bridge::Exception& e) {
 		ROS_ERROR("cv_bridge exception: %s", e.what());
 		return;
 	}
-	ui.labelFront->setPixmap(QPixmap::fromImage(CvMatToQImage(cv_ptr->image)));
+
+	ui.labelFront->setPixmap(QPixmap::fromImage(CvMatToQImage(smallerImage)));
 }
 
 static void bottomCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
@@ -102,18 +110,18 @@ static void bottomCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 }
 
 //Callback when data input source is changed from selection
+//Just need to remap the topic
 static void source_selected(int index) {
 	switch(index) {
-	case 0: //Simulation
-		CHANGE_TOPIC(sub1, "/bumblebee/camera1", frontCameraCallback);
-		CHANGE_TOPIC(sub2, "/bumblebee/camera2", bottomCameraCallback);
-		break;
-	case 1: //Bag file
+	case 1: //Bag file must run uncompress bags
 		CHANGE_TOPIC(sub1, "/front_right", frontCameraCallback);
 		CHANGE_TOPIC(sub2, "/bottomcam", bottomCameraCallback);
 		break;
 	}
+	CHANGE_TOPIC(sub1, "/bumblebee/camera1", frontCameraCallback);
+	CHANGE_TOPIC(sub2, "/bumblebee/camera2", bottomCameraCallback);
 }
+
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "auv_gui");
@@ -149,7 +157,6 @@ static void update_filter(camera_t camera, cv::Mat image) {
 		case FRONT: {
 			cv::Mat front_out = (front_filters[ui.frontfilter->currentIndex()])(image);
 			ui.labelFrontFiltered->setPixmap(QPixmap::fromImage(CvMatToQImage(front_out)));
-
 		}
 			break;
 		case BOTTOM: {

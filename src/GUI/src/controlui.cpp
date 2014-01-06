@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QPixmap>
 #include <QDebug>
+#include <QLineEdit>
 
 #include "controlui.h"
 #include <ros/ros.h>
@@ -17,6 +18,38 @@
 static Ui::ControlSysUI ui;
 static QMainWindow *window;
 
+void initialize(){
+	ros::NodeHandle node;
+	//Subscribe to the stuff and initialize them
+
+	//Telemetry part
+	ui.setpt_val->setText("5");
+	ui.sensor_val->setText("5");
+	ui.error_val->setText("5");
+	ui.KP_val->setText("5");
+	ui.KI_val->setText("5");
+	ui.KD_val->setText("5");
+	ui.output_val->setText("5");
+	ui.thruster_val->setText("5");
+
+	//DOF spinbox
+	ui.goal_val->setText("5");
+
+	//Advanced part
+	//Checkboxesi
+	ui.fwd_val->setText("5");
+	ui.depth_val->setText("5");
+	ui.yaw_val->setText("5");
+	ui.sm_val->setText("5");
+
+	//Control parameters
+	ui.con_KP_val->setText("5");
+	ui.con_KI_val->setText("5");
+	ui.con_KD_val->setText("5");
+	ui.actmin_val->setText("5");
+	ui.actmax_val->setText("5");
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 
@@ -24,6 +57,9 @@ int main(int argc, char **argv) {
 	QApplication app(argc, argv);
 	window = new QMainWindow;
 	ui.setupUi(window);
+	window->setFixedSize(window->geometry().width(), window->geometry().height());
+
+	initialize();
 
 	window->show();
 

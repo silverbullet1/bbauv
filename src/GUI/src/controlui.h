@@ -50,7 +50,7 @@ public:
     QLabel *KP_label;
     QLineEdit *KP_val;
     QLabel *KI_label;
-    QLineEdit *KP_val_2;
+    QLineEdit *KI_val;
     QLabel *KD_label;
     QLineEdit *KD_val;
     QLabel *output_label;
@@ -70,7 +70,7 @@ public:
     QLabel *con_KI_label;
     QLineEdit *actmin_val;
     QLabel *Controlpara_label;
-    QLineEdit *con_KP_val_2;
+    QLineEdit *con_KI_val;
     QLabel *con_KP_label;
     QLineEdit *con_KD_val;
     QLineEdit *con_KP_val;
@@ -80,7 +80,7 @@ public:
     QLineEdit *fwd_val;
     QLabel *Depth_label;
     QCheckBox *Depth_check;
-    QLineEdit *Depth_val;
+    QLineEdit *depth_val;
     QLineEdit *yaw_val;
     QLabel *yaw_label;
     QCheckBox *yaw_check;
@@ -149,9 +149,9 @@ public:
         KI_label = new QLabel(telemetry_box);
         KI_label->setObjectName(QStringLiteral("KI_label"));
         KI_label->setGeometry(QRect(150, 40, 51, 17));
-        KP_val_2 = new QLineEdit(telemetry_box);
-        KP_val_2->setObjectName(QStringLiteral("KP_val_2"));
-        KP_val_2->setGeometry(QRect(190, 40, 61, 27));
+        KI_val = new QLineEdit(telemetry_box);
+        KI_val->setObjectName(QStringLiteral("KI_val"));
+        KI_val->setGeometry(QRect(190, 40, 61, 27));
         KD_label = new QLabel(telemetry_box);
         KD_label->setObjectName(QStringLiteral("KD_label"));
         KD_label->setGeometry(QRect(150, 70, 51, 17));
@@ -211,9 +211,9 @@ public:
         Controlpara_label = new QLabel(controparam_frame);
         Controlpara_label->setObjectName(QStringLiteral("Controlpara_label"));
         Controlpara_label->setGeometry(QRect(20, 0, 151, 17));
-        con_KP_val_2 = new QLineEdit(controparam_frame);
-        con_KP_val_2->setObjectName(QStringLiteral("con_KP_val_2"));
-        con_KP_val_2->setGeometry(QRect(60, 60, 61, 27));
+        con_KI_val = new QLineEdit(controparam_frame);
+        con_KI_val->setObjectName(QStringLiteral("con_KI_val"));
+        con_KI_val->setGeometry(QRect(60, 60, 61, 27));
         con_KP_label = new QLabel(controparam_frame);
         con_KP_label->setObjectName(QStringLiteral("con_KP_label"));
         con_KP_label->setGeometry(QRect(20, 30, 51, 17));
@@ -243,9 +243,9 @@ public:
         Depth_check = new QCheckBox(advanced_frame);
         Depth_check->setObjectName(QStringLiteral("Depth_check"));
         Depth_check->setGeometry(QRect(50, 40, 97, 22));
-        Depth_val = new QLineEdit(advanced_frame);
-        Depth_val->setObjectName(QStringLiteral("Depth_val"));
-        Depth_val->setGeometry(QRect(100, 40, 101, 27));
+        depth_val = new QLineEdit(advanced_frame);
+        depth_val->setObjectName(QStringLiteral("depth_val"));
+        depth_val->setGeometry(QRect(100, 40, 101, 27));
         yaw_val = new QLineEdit(advanced_frame);
         yaw_val->setObjectName(QStringLiteral("yaw_val"));
         yaw_val->setGeometry(QRect(100, 70, 101, 27));
@@ -299,8 +299,11 @@ public:
     {
         ControlSysUI->setWindowTitle(QApplication::translate("ControlSysUI", "Control System UI", 0));
         actionSave->setText(QApplication::translate("ControlSysUI", "Save", 0));
+        actionSave->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+S", 0));
         actionOpen->setText(QApplication::translate("ControlSysUI", "Open", 0));
+        actionOpen->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+O", 0));
         actionQuit->setText(QApplication::translate("ControlSysUI", "Quit", 0));
+        actionQuit->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+Q", 0));
         graph_label->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p><span style=\" font-weight:600;\">Graph</span></p></body></html>", 0));
         telemetry_label->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p><span style=\" font-weight:600;\">Telemetry</span></p></body></html>", 0));
         setpt_label->setText(QApplication::translate("ControlSysUI", "Set pt", 0));

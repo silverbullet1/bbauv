@@ -3,7 +3,6 @@
 
 <launch>
 
-
   <node name="extract" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="node">
     <remap from="image" to="/bottomcam/camera/image_rect_color"/>
     <param name="filename_format" value="/home/huixian/test/bottomcam_%06i.jpg"/>
