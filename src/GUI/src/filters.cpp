@@ -21,5 +21,5 @@ cv::Mat adaptiveThresh_filter(cv::Mat image) {
 	return out;
 }
 
-filter_t front_filters[NUM_FILTERS] = { Canny_filter } ;
-filter_t bottom_filters[NUM_FILTERS] = { adaptiveThresh_filter };
+filter_t front_filters[NUM_FILTERS] = { Canny_filter, adaptiveThresh_filter } ;
+filter_t bottom_filters[NUM_FILTERS] = { Canny_filter, adaptiveThresh_filter };

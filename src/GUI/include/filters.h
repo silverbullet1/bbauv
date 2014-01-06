@@ -1,7 +1,7 @@
 #ifndef FILTERS_H_
 #define FILTERS_H_
 
-#define NUM_FILTERS 1
+#define NUM_FILTERS 2
 
 typedef cv::Mat (* filter_t) (cv::Mat);
 
