@@ -47,8 +47,8 @@ static void openFile(bool open){
 
 	if (!filename_string.empty()){
 		char command[256];
-		//sprintf(command, "gnome-terminal -e 'bash -c \"cd launch; roslaunch uncompressbags.launch bagfile:=%s; exec bash\" '", filename_string.c_str());
-		sprintf(command, "gnome-terminal -e 'bash -c \"rosbag play %s; exec bash\" '", filename_string.c_str());
+		sprintf(command, "gnome-terminal -e 'bash -c \"cd launch; roslaunch uncompressbags.launch bagfile:=%s; exec bash\" '", filename_string.c_str());
+		//sprintf(command, "gnome-terminal -e 'bash -c \"rosbag play %s; exec bash\" '", filename_string.c_str());
 		system(command);
 	}
 
