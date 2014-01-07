@@ -331,9 +331,7 @@ void mouseclicked(QMouseEvent *event) {
 	oss << std::fixed << std::setprecision(3);
 
 	double x = ui.graph_canvas->xAxis->pixelToCoord(event->x());
-	x = floor(x * 1000 + 0.5) / 1000;
  	double y = ui.graph_canvas->yAxis->pixelToCoord(event->y());
- 	y = floor(y * 1000 + 0.5) / 1000;
 
  	oss << "x: " << x << " y: " << y;
  	ui.graphvalues->setText(QString::fromStdString(oss.str()));
