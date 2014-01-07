@@ -320,17 +320,23 @@ void graph_test() {
 	ui.graph_canvas->yAxis2->setRange(3,5);
 	//For user interaction
 	ui.graph_canvas->setInteraction(QCP::iRangeZoom, true);
-	QObject::connect(ui.graph_canvas, &QCustomPlot::plottableClick, mouseclicked);
+	QObject::connect(ui.graph_canvas, &QCustomPlot::mousePress, mouseclicked);
 	//Plot the graph
 	ui.graph_canvas->replot();
 }
 
 //Mouse clicked on graph so display data point
-void mouseclicked(){
-	ui.graphvalues->setText("x: 0.0, y: 0.0");
-	// double x = ui.graph_canvas->xAxis->pixelToCoord(event.x());
- 	// double y = ui.graph_canvas->yAxis->pixelToCoord(event.y());
- 	//cout << x << " " << y << endl;
+void mouseclicked(QMouseEvent *event) {
+	ostringstream oss;
+	oss << std::fixed << std::setprecision(3);
+
+	double x = ui.graph_canvas->xAxis->pixelToCoord(event->x());
+	x = floor(x * 1000 + 0.5) / 1000;
+ 	double y = ui.graph_canvas->yAxis->pixelToCoord(event->y());
+ 	y = floor(y * 1000 + 0.5) / 1000;
+
+ 	oss << "x: " << x << " y: " << y;
+ 	ui.graphvalues->setText(QString::fromStdString(oss.str()));
 }
 
 

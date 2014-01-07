@@ -30,6 +30,7 @@
 #include <boost/lexical_cast.hpp>
 #include <vector>
 #include <sstream>
+#include <iomanip>
 
 using namespace std;
 
@@ -46,7 +47,7 @@ void fire();
 void enableButton();
 void disableButton();
 void graph_test();
-void mouseclicked();
+void mouseclicked(QMouseEvent*);
 
 
 //Functions for the subscribers
