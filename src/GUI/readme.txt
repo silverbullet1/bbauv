@@ -12,13 +12,14 @@ Filtering code is inside filters.cpp
     - Add a corresponding entry into the front_filters or bottom_filters array in filters.cpp
     - Add an comboBox item in vision.ui
 
-Setting up QCustomPlot (already done for the project)
+Compiling Setting up QCustomPlot (already done for the project)
 ======================
 - Download both the source code directory and the shared libraries directory from QCustomPlot website
 - Compile the code according to the instruction in the shared libraries directory
 - Add link_directories(libs) to the CMakeLists.txt of GUI package
+- Copy qcustomplot.h to include directory
 - Add "qcustomplot.h" in the any GUI code that uses it
-- Add a generic Widget in QtDesigner and promote it to QCustomPlot class
+- Add a generic Widget in QtDesigner and promote it to QCustomPlot class the header set as qcustomplot.h
 
 Running Controls GUI with QCustomPlot
 =======================
