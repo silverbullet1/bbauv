@@ -1,20 +1,13 @@
 #include "controlui_add.h"
-#include "qcustomplot.h"
+//#include "qcustomplot.h"
 
-/*List of all parameters in the following format: 
-setpt, sensor, error, KP, KI, KD, output, thruster, dof, goal, fwd checkbox, fwd val,
-depth checkbox, depth val, yaw checkbox, yaw val, sm checkbox, sm val, control KP, control KI,
-control KD, act min, act max
-*/
 static map <string, string> params; //Map for parameters
 static map <string, double> graph; //Map for the setpt and sensor graph
-
-void graph_test();
+static bool live;					//Boolean whether UI is connected to robot
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 	ros::NodeHandle private_node_handle("~");
-	bool live;
 	private_node_handle.param("live", live, bool(false));
 	if (live == false){
 		ROS_INFO("%s", "Not going live");
@@ -46,7 +39,7 @@ int main(int argc, char **argv) {
 	return app.exec();
 }
 
-static string getdate(){
+string getdate(){
 	int max_date = 12;
 	time_t now;
 	char date[max_date];
@@ -56,7 +49,7 @@ static string getdate(){
 	return date;
 }
 
-static void initialiseDefault(){
+void initialiseDefault(){
 	params.clear();
 	//Telemetry
 	params["setpt_val"] = "3.5";
@@ -88,9 +81,14 @@ static void initialiseDefault(){
 	params["actmin_val"] = "0.5";
 	params["actmax_val"] = "5.7";
 
+	//Graph
+	graph["setpt_x"] = 0.0;
+	graph["setpt_y"] = 0.0;
+	graph["sensor_x"] = 0.0;
+	graph["sensor_y"] = 0.0;
 }
 
-static void initialiseParameters(){
+void initialiseParameters(){
 	//Telemetry part
 	ui.setpt_val->setText(params.find("setpt_val")->second.c_str());
 	ui.sensor_val->setText(params.find("sensor_val")->second.c_str());
@@ -135,7 +133,7 @@ static void initialiseParameters(){
 	*/
 }
 
-static void saveFile(){
+void saveFile(){
 	//Open a .txt file
 	string filename = "controls";
 	filename.append("_");
@@ -196,7 +194,7 @@ static void saveFile(){
 	file.close();
 }
 
-static void openFile(){
+void openFile(){
 	string line;
 	vector<string> tokens;
 	QString selfilter = QString("*.bag");
@@ -223,7 +221,7 @@ static void openFile(){
 }
 
 //To subscribe to data topics: currently under default!! 
-static void subscribeToData(){
+void subscribeToData(){
 	ros::NodeHandle n;
 	//For telemetry
 	ros::Subscriber setpt_val_sub = n.subscribe("a", 1, setpt_val_callback);
@@ -256,10 +254,14 @@ static void subscribeToData(){
 	ros::Subscriber actmax_sub = n.subscribe("a", 1, actmax_val_callback);
 
 	//For graph
+	ros::Subscriber setpt_x_sub = n.subscribe("a", 1, setpt_x_callback);
+	ros::Subscriber setpt_y_sub = n.subscribe("a", 1, setpt_y_callback);
+	ros::Subscriber sensor_x_sub = n.subscribe("a", 1, sensor_x_callback);
+	ros::Subscriber sensor_y_sub = n.subscribe("a", 1, sensor_y_callback);
 }
 
 //To enable all the check boxes
-static void enableButton(){
+void enableButton(){
 	ui.fwd_check->setChecked(true);
 	ui.depth_check->setChecked(true);
 	ui.yaw_check->setChecked(true);
@@ -267,7 +269,7 @@ static void enableButton(){
 }
 
 //To disable all the checkboxes
-static void disableButton(){
+void disableButton(){
 	ui.fwd_check->setChecked(false);
 	ui.depth_check->setChecked(false);
 	ui.yaw_check->setChecked(false);
@@ -275,90 +277,28 @@ static void disableButton(){
 }
 
 //To connect to actionlib and move the robot
-static void fire(){
-
+void fire(){
+	if (!live){
+		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
+	}
+	else{
+		actionlib::SimpleActionClient <msgs::ControllerAction> ac ("client", true);
+		// ROS_INFO("Waiting for action server to start.");
+		// ac.wait_for_server();
+		// ROS_INFO("Action server started, sending goal.");
+		// learning_actionlib::bbGoal goal; 
+		// ac.sendGoal(goal);
+		// bool finished_before_timeout = ac.wait_for_result(ros::Duration(30.0));
+	}
 }
 
-/* Functions for the subscribers to subscribe to topics 
-*/
-
-static void setpt_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["setpt_val"] = msg->data;
-}
-static void sensor_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["sensor_val"] = msg->data;
-}
-static void error_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["error_val"] = msg->data;
-}
-static void KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["KP_val"] = msg->data;
-}
-static void KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["KI_val"] = msg->data;
-}
-static void KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["KD_val"] = msg->data;
-}
-static void output_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["output_val"] = msg->data;
-}
-static void thruster_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val"] = msg->data;
-}
-static void dof_val_callback(const std_msgs::String::ConstPtr& msg){
-	params["dof_comboBox"] = msg->data;
-}
-static void goal_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["goal_val"] = msg->data;
-}
-static void fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["fwd_check"] = msg->data;
-}
-static void fwd_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["fwd_val"] = msg->data;
-}
-static void depthcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["depth_check"] = msg->data;
-}
-static void depth_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["depth_val"] = msg->data;
-}
-static void yawcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["yaw_check"] = msg->data;
-}
-static void yaw_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["yaw_val"] = msg->data;
-}
-static void smcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["sm_check"] = msg->data;
-}
-static void sm_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["sm_val"] = msg->data;
-}
-
-static void con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KP_val"] = msg->data;
-}
-static void con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KI_val"] = msg->data;
-}
-static void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KD_val"] = msg->data;
-}
-static void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["actmin_val"] = msg->data;
-}
-static void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["actmax_val"] = msg->data;
-}
-
+//To plot the graph of sensors and setpt, currently just plots a quadratic graph
 void graph_test() {
 	QVector<double> x(101), y (101);
 	for (int i=0; i<101; ++i)
 	{
 	  x[i] = i/50.0 - 1; // x goes from -1 to 1
-	  y[i] = x[i]*x[i]; // let's plot a quadratic function
+	  y[i] = x[i]*x[i]; // quadratic function
 	}
 	// create graph and assign data to it:
 	ui.graph_canvas->addGraph();
@@ -370,4 +310,91 @@ void graph_test() {
 	ui.graph_canvas->xAxis->setRange(-1, 1);
 	ui.graph_canvas->yAxis->setRange(0, 1);
 	ui.graph_canvas->replot();
+}
+
+
+/* Functions for the subscribers to subscribe to topics 
+*/
+
+void setpt_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["setpt_val"] = msg->data;
+}
+void sensor_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["sensor_val"] = msg->data;
+}
+void error_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["error_val"] = msg->data;
+}
+void KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["KP_val"] = msg->data;
+}
+void KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["KI_val"] = msg->data;
+}
+void KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["KD_val"] = msg->data;
+}
+void output_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["output_val"] = msg->data;
+}
+void thruster_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["thruster_val"] = msg->data;
+}
+void dof_val_callback(const std_msgs::String::ConstPtr& msg){
+	params["dof_comboBox"] = msg->data;
+}
+ void goal_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["goal_val"] = msg->data;
+}
+void fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg){
+	params["fwd_check"] = msg->data;
+}
+void fwd_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["fwd_val"] = msg->data;
+}
+void depthcheck_callback(const std_msgs::Bool::ConstPtr& msg){
+	params["depth_check"] = msg->data;
+}
+void depth_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["depth_val"] = msg->data;
+}
+void yawcheck_callback(const std_msgs::Bool::ConstPtr& msg){
+	params["yaw_check"] = msg->data;
+}
+void yaw_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["yaw_val"] = msg->data;
+}
+void smcheck_callback(const std_msgs::Bool::ConstPtr& msg){
+	params["sm_check"] = msg->data;
+}
+void sm_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["sm_val"] = msg->data;
+}
+
+void con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["con_KP_val"] = msg->data;
+}
+void con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["con_KI_val"] = msg->data;
+}
+void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["con_KD_val"] = msg->data;
+}
+void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["actmin_val"] = msg->data;
+}
+void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
+	params["actmax_val"] = msg->data;
+}
+void setpt_x_callback(const std_msgs::Float32::ConstPtr& msg){
+	graph["setpt_x"] = msg->data;
+}
+void setpt_y_callback(const std_msgs::Float32::ConstPtr& msg){
+	graph["setpt_y"] = msg->data;
+}
+void sensor_x_callback(const std_msgs::Float32::ConstPtr& msg){
+	graph["sensor_x"] = msg->data;
+}
+void sensor_y_callback(const std_msgs::Float32::ConstPtr& msg){
+	graph["sensor_y"] = msg->data;
 }
