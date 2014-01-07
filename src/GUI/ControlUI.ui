@@ -23,7 +23,11 @@
       <height>411</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="graph"/>
+    <layout class="QHBoxLayout" name="graph">
+     <item>
+      <widget class="QCustomPlot" name="graph_canvas" native="true"/>
+     </item>
+    </layout>
    </widget>
    <widget class="QLabel" name="graph_label">
     <property name="geometry">
@@ -723,6 +727,14 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QCustomPlot</class>
+   <extends>QWidget</extends>
+   <header>qcustomplot.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

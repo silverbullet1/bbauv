@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'ControlUI.ui'
 **
-** Created by: Qt User Interface Compiler version 5.1.1
+** Created by: Qt User Interface Compiler version 5.0.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -26,6 +26,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QWidget>
+#include "qcustomplot.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -38,6 +39,7 @@ public:
     QWidget *centralwidget;
     QWidget *horizontalLayoutWidget;
     QHBoxLayout *graph;
+    QCustomPlot *graph_canvas;
     QLabel *graph_label;
     QLabel *telemetry_label;
     QFrame *telemetry_box;
@@ -113,6 +115,11 @@ public:
         graph = new QHBoxLayout(horizontalLayoutWidget);
         graph->setObjectName(QStringLiteral("graph"));
         graph->setContentsMargins(0, 0, 0, 0);
+        graph_canvas = new QCustomPlot(horizontalLayoutWidget);
+        graph_canvas->setObjectName(QStringLiteral("graph_canvas"));
+
+        graph->addWidget(graph_canvas);
+
         graph_label = new QLabel(centralwidget);
         graph_label->setObjectName(QStringLiteral("graph_label"));
         graph_label->setGeometry(QRect(20, 10, 66, 17));

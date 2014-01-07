@@ -1,4 +1,5 @@
 #include "controlui_add.h"
+#include "qcustomplot.h"
 
 /*List of all parameters in the following format: 
 setpt, sensor, error, KP, KI, KD, output, thruster, dof, goal, fwd checkbox, fwd val,
@@ -7,6 +8,8 @@ control KD, act min, act max
 */
 static map <string, string> params; //Map for parameters
 static map <string, double> graph; //Map for the setpt and sensor graph
+
+void graph_test();
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
@@ -35,6 +38,8 @@ int main(int argc, char **argv) {
 	QObject::connect(ui.actionOpen, &QAction::triggered, openFile);
 	QObject::connect(ui.enabledButton, &QAbstractButton::released, enableButton);
 	QObject::connect(ui.disabledButton, &QAbstractButton::released, disableButton);
+
+	graph_test();
 
 	window->show();
 
@@ -346,4 +351,8 @@ static void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
 }
 static void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["actmax_val"] = msg->data;
+}
+
+void graph_test() {
+
 }

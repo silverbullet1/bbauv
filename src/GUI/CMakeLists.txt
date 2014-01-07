@@ -113,6 +113,10 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
+link_directories(
+	libs
+)
+
 ##Required for QT5
 add_definitions(${Qt5Widgets_DEFINITIONS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
@@ -140,10 +144,11 @@ target_link_libraries(GUI_node
 target_link_libraries(Control_node
   ${catkin_LIBRARIES}
   Qt5::Widgets
+  qcustomplot
 )
 ##Required for QT5
 qt5_use_modules( GUI_node Widgets )
-qt5_use_modules( Control_node Widgets )
+qt5_use_modules( Control_node Widgets PrintSupport)
 
 #############
 ## Install ##

@@ -5,6 +5,7 @@
 #include <QPixmap>
 #include <QDebug>
 #include <QLineEdit>
+#include <QVector>
 
 #include "../src/controlui.h"
 
