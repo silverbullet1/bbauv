@@ -4,3 +4,5 @@ install/
 *.pyc
 .pydevproject
 *.bag
+*~
+*.bak
