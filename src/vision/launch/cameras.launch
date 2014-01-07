@@ -1,0 +1,18 @@
+<launch>
+
+  <arg name="camera" default="guppy_4_5mm_front" />
+  <arg name="camera2" default="guppy_4_5mm_bot" />
+  <node pkg="camera1394" type="camera1394_node" name="camera1394_node" >
+    <rosparam
+       file="$(find vision)/launch/$(arg camera).yaml" />
+  </node>
+  <node pkg="camera1394" type="camera1394_node" name="camera1394_node2" ns="camera2">
+    <rosparam
+       file="$(find vision)/launch/$(arg camera2).yaml" />
+  </node>
+  <node pkg="image_proc" type="image_proc" name="image_proc_node" ns="camera">
+  </node>
+  <node pkg="image_proc" type="image_proc" name="image_proc_node2" ns="camera2/camera">
+  </node>
+</launch>
+
