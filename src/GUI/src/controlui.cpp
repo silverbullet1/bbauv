@@ -1,8 +1,8 @@
 #include "controlui_add.h"
-//#include "qcustomplot.h"
+#include "qcustomplot.h"
 
 static map <string, string> params; //Map for parameters
-static map <string, double> graph; //Map for the setpt and sensor graph
+static QVector<double> setpt_x(101), setpt_y(101), sensor_x(101), sensor_y(101); //Vector values for graph
 static bool live;					//Boolean whether UI is connected to robot
 
 int main(int argc, char **argv) {
@@ -81,11 +81,16 @@ void initialiseDefault(){
 	params["actmin_val"] = "0.5";
 	params["actmax_val"] = "5.7";
 
-	//Graph
-	graph["setpt_x"] = 0.0;
-	graph["setpt_y"] = 0.0;
-	graph["sensor_x"] = 0.0;
-	graph["sensor_y"] = 0.0;
+	//Graph: initialise random function
+	for (int i=0; i<101; i++){
+	  setpt_x[i] = i/50.0 - 1; // x goes from -1 to 1
+	  setpt_y[i] = setpt_x[i]*setpt_x[i]; // quadratic function
+	}
+	for (int i=0; i<101; i++){
+	  sensor_x[i] = i/50.0 - 1; // x goes from -1 to 1
+	  sensor_y[i] = exp(sensor_x[i])+3; // exponential function
+	}
+		 
 }
 
 void initialiseParameters(){
@@ -125,12 +130,6 @@ void initialiseParameters(){
 	ui.actmin_val->setText(params.find("actmin_val")->second.c_str());
 	ui.actmax_val->setText(params.find("actmax_val")->second.c_str());
 
-	/*
-	double set = 3.4;
-	ostringstream convert; 
-	convert << set;
-	ui.setpt_val->setText(convert.str().c_str());
-	*/
 }
 
 void saveFile(){
@@ -282,34 +281,56 @@ void fire(){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
 	else{
-		actionlib::SimpleActionClient <msgs::ControllerAction> ac ("client", true);
+
+		//actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
 		// ROS_INFO("Waiting for action server to start.");
-		// ac.wait_for_server();
+		// ac.waitForServer();
 		// ROS_INFO("Action server started, sending goal.");
-		// learning_actionlib::bbGoal goal; 
+		// msgs::ControllerAction goal; 
 		// ac.sendGoal(goal);
-		// bool finished_before_timeout = ac.wait_for_result(ros::Duration(30.0));
+		// bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
 	}
 }
 
 //To plot the graph of sensors and setpt, currently just plots a quadratic graph
 void graph_test() {
-	QVector<double> x(101), y (101);
-	for (int i=0; i<101; ++i)
-	{
-	  x[i] = i/50.0 - 1; // x goes from -1 to 1
-	  y[i] = x[i]*x[i]; // quadratic function
-	}
-	// create graph and assign data to it:
-	ui.graph_canvas->addGraph();
-	ui.graph_canvas->graph(0)->setData(x, y);
+	//Make legend visible
+	ui.graph_canvas->legend->setVisible(true);
+	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis, ui.graph_canvas->yAxis);
+	ui.graph_canvas->graph(0)->setData(setpt_x, setpt_y);
+	ui.graph_canvas->graph(0)->setName("Setpt");
+	ui.graph_canvas->graph(0)->setPen(QPen(Qt::blue));
+	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis2, ui.graph_canvas->yAxis2);
+	ui.graph_canvas->graph(1)->setData(sensor_x, sensor_y);
+	ui.graph_canvas->graph(1)->setName("Sensor");
+	ui.graph_canvas->graph(1)->setPen(QPen(Qt::red));
+
 	// give the axes some labels:
-	ui.graph_canvas->xAxis->setLabel("x");
-	ui.graph_canvas->yAxis->setLabel("y");
+	ui.graph_canvas->xAxis->setLabel("Setpt X");
+	ui.graph_canvas->yAxis->setLabel("Setpt Y");
+	ui.graph_canvas->xAxis2->setLabel("Sensor X");
+	ui.graph_canvas->yAxis2->setLabel("Sensor Y");
+	// set the axes to visible
+	ui.graph_canvas->xAxis2->setVisible(true);
+	ui.graph_canvas->yAxis2->setVisible(true);
 	// set axes ranges, so we see all data:
 	ui.graph_canvas->xAxis->setRange(-1, 1);
 	ui.graph_canvas->yAxis->setRange(0, 1);
+	ui.graph_canvas->xAxis2->setRange(-1,1);
+	ui.graph_canvas->yAxis2->setRange(3,5);
+	//For user interaction
+	ui.graph_canvas->setInteraction(QCP::iRangeZoom, true);
+	QObject::connect(ui.graph_canvas, &QCustomPlot::plottableClick, mouseclicked);
+	//Plot the graph
 	ui.graph_canvas->replot();
+}
+
+//Mouse clicked on graph so display data point
+void mouseclicked(){
+	ui.graphvalues->setText("x: 0.0, y: 0.0");
+	// double x = ui.graph_canvas->xAxis->pixelToCoord(event.x());
+ 	// double y = ui.graph_canvas->yAxis->pixelToCoord(event.y());
+ 	//cout << x << " " << y << endl;
 }
 
 
@@ -387,14 +408,14 @@ void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["actmax_val"] = msg->data;
 }
 void setpt_x_callback(const std_msgs::Float32::ConstPtr& msg){
-	graph["setpt_x"] = msg->data;
+	setpt_x.append(msg->data);
 }
 void setpt_y_callback(const std_msgs::Float32::ConstPtr& msg){
-	graph["setpt_y"] = msg->data;
+	setpt_y.append(msg->data);
 }
 void sensor_x_callback(const std_msgs::Float32::ConstPtr& msg){
-	graph["sensor_x"] = msg->data;
+	sensor_x.append(msg->data);
 }
 void sensor_y_callback(const std_msgs::Float32::ConstPtr& msg){
-	graph["sensor_y"] = msg->data;
+	sensor_y.append(msg->data);
 }

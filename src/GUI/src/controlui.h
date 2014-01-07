@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'ControlUI.ui'
 **
-** Created by: Qt User Interface Compiler version 5.0.1
+** Created by: Qt User Interface Compiler version 5.1.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -92,6 +92,7 @@ public:
     QPushButton *disabledButton;
     QLabel *Advanced_label;
     QComboBox *dof_comboBox;
+    QLabel *graphvalues;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -100,7 +101,7 @@ public:
     {
         if (ControlSysUI->objectName().isEmpty())
             ControlSysUI->setObjectName(QStringLiteral("ControlSysUI"));
-        ControlSysUI->resize(846, 570);
+        ControlSysUI->resize(823, 570);
         actionSave = new QAction(ControlSysUI);
         actionSave->setObjectName(QStringLiteral("actionSave"));
         actionOpen = new QAction(ControlSysUI);
@@ -132,18 +133,21 @@ public:
         setpt_val = new QLineEdit(telemetry_box);
         setpt_val->setObjectName(QStringLiteral("setpt_val"));
         setpt_val->setGeometry(QRect(70, 10, 61, 27));
+        setpt_val->setCursor(QCursor(Qt::ForbiddenCursor));
         setpt_label = new QLabel(telemetry_box);
         setpt_label->setObjectName(QStringLiteral("setpt_label"));
         setpt_label->setGeometry(QRect(10, 10, 51, 17));
         sensor_val = new QLineEdit(telemetry_box);
         sensor_val->setObjectName(QStringLiteral("sensor_val"));
         sensor_val->setGeometry(QRect(70, 40, 61, 27));
+        sensor_val->setCursor(QCursor(Qt::ForbiddenCursor));
         sensor_label = new QLabel(telemetry_box);
         sensor_label->setObjectName(QStringLiteral("sensor_label"));
         sensor_label->setGeometry(QRect(10, 40, 51, 17));
         error_val = new QLineEdit(telemetry_box);
         error_val->setObjectName(QStringLiteral("error_val"));
         error_val->setGeometry(QRect(70, 70, 61, 27));
+        error_val->setCursor(QCursor(Qt::ForbiddenCursor));
         error_label = new QLabel(telemetry_box);
         error_label->setObjectName(QStringLiteral("error_label"));
         error_label->setGeometry(QRect(10, 70, 51, 17));
@@ -153,33 +157,38 @@ public:
         KP_val = new QLineEdit(telemetry_box);
         KP_val->setObjectName(QStringLiteral("KP_val"));
         KP_val->setGeometry(QRect(190, 10, 61, 27));
+        KP_val->setCursor(QCursor(Qt::ForbiddenCursor));
         KI_label = new QLabel(telemetry_box);
         KI_label->setObjectName(QStringLiteral("KI_label"));
         KI_label->setGeometry(QRect(150, 40, 51, 17));
         KI_val = new QLineEdit(telemetry_box);
         KI_val->setObjectName(QStringLiteral("KI_val"));
         KI_val->setGeometry(QRect(190, 40, 61, 27));
+        KI_val->setCursor(QCursor(Qt::ForbiddenCursor));
         KD_label = new QLabel(telemetry_box);
         KD_label->setObjectName(QStringLiteral("KD_label"));
         KD_label->setGeometry(QRect(150, 70, 51, 17));
         KD_val = new QLineEdit(telemetry_box);
         KD_val->setObjectName(QStringLiteral("KD_val"));
         KD_val->setGeometry(QRect(190, 70, 61, 27));
+        KD_val->setCursor(QCursor(Qt::ForbiddenCursor));
         output_label = new QLabel(telemetry_box);
         output_label->setObjectName(QStringLiteral("output_label"));
         output_label->setGeometry(QRect(270, 10, 51, 17));
         output_val = new QLineEdit(telemetry_box);
         output_val->setObjectName(QStringLiteral("output_val"));
         output_val->setGeometry(QRect(330, 10, 61, 27));
+        output_val->setCursor(QCursor(Qt::ForbiddenCursor));
         thruster_label = new QLabel(telemetry_box);
         thruster_label->setObjectName(QStringLiteral("thruster_label"));
         thruster_label->setGeometry(QRect(270, 50, 61, 17));
         thruster_val = new QLineEdit(telemetry_box);
         thruster_val->setObjectName(QStringLiteral("thruster_val"));
         thruster_val->setGeometry(QRect(330, 50, 61, 27));
+        thruster_val->setCursor(QCursor(Qt::ForbiddenCursor));
         fireButton = new QPushButton(centralwidget);
         fireButton->setObjectName(QStringLiteral("fireButton"));
-        fireButton->setGeometry(QRect(710, 490, 98, 27));
+        fireButton->setGeometry(QRect(400, 250, 98, 27));
         DOF_label = new QLabel(centralwidget);
         DOF_label->setObjectName(QStringLiteral("DOF_label"));
         DOF_label->setGeometry(QRect(390, 160, 51, 17));
@@ -189,6 +198,7 @@ public:
         goal_val = new QLineEdit(centralwidget);
         goal_val->setObjectName(QStringLiteral("goal_val"));
         goal_val->setGeometry(QRect(440, 200, 101, 27));
+        goal_val->setCursor(QCursor(Qt::IBeamCursor));
         controparam_frame = new QFrame(centralwidget);
         controparam_frame->setObjectName(QStringLiteral("controparam_frame"));
         controparam_frame->setGeometry(QRect(380, 350, 431, 131));
@@ -197,6 +207,7 @@ public:
         actmax_val = new QLineEdit(controparam_frame);
         actmax_val->setObjectName(QStringLiteral("actmax_val"));
         actmax_val->setGeometry(QRect(240, 80, 81, 27));
+        actmax_val->setCursor(QCursor(Qt::ForbiddenCursor));
         actmin_label = new QLabel(controparam_frame);
         actmin_label->setObjectName(QStringLiteral("actmin_label"));
         actmin_label->setGeometry(QRect(170, 40, 61, 17));
@@ -212,21 +223,25 @@ public:
         actmin_val = new QLineEdit(controparam_frame);
         actmin_val->setObjectName(QStringLiteral("actmin_val"));
         actmin_val->setGeometry(QRect(240, 40, 81, 27));
+        actmin_val->setCursor(QCursor(Qt::ForbiddenCursor));
         Controlpara_label = new QLabel(controparam_frame);
         Controlpara_label->setObjectName(QStringLiteral("Controlpara_label"));
         Controlpara_label->setGeometry(QRect(20, 10, 151, 17));
         con_KI_val = new QLineEdit(controparam_frame);
         con_KI_val->setObjectName(QStringLiteral("con_KI_val"));
         con_KI_val->setGeometry(QRect(60, 70, 61, 27));
+        con_KI_val->setCursor(QCursor(Qt::ForbiddenCursor));
         con_KP_label = new QLabel(controparam_frame);
         con_KP_label->setObjectName(QStringLiteral("con_KP_label"));
         con_KP_label->setGeometry(QRect(20, 40, 51, 17));
         con_KD_val = new QLineEdit(controparam_frame);
         con_KD_val->setObjectName(QStringLiteral("con_KD_val"));
         con_KD_val->setGeometry(QRect(60, 100, 61, 27));
+        con_KD_val->setCursor(QCursor(Qt::ForbiddenCursor));
         con_KP_val = new QLineEdit(controparam_frame);
         con_KP_val->setObjectName(QStringLiteral("con_KP_val"));
         con_KP_val->setGeometry(QRect(60, 40, 61, 27));
+        con_KP_val->setCursor(QCursor(Qt::ForbiddenCursor));
         advanced_frame = new QFrame(centralwidget);
         advanced_frame->setObjectName(QStringLiteral("advanced_frame"));
         advanced_frame->setGeometry(QRect(550, 150, 261, 201));
@@ -281,10 +296,13 @@ public:
         dof_comboBox = new QComboBox(centralwidget);
         dof_comboBox->setObjectName(QStringLiteral("dof_comboBox"));
         dof_comboBox->setGeometry(QRect(440, 160, 91, 27));
+        graphvalues = new QLabel(centralwidget);
+        graphvalues->setObjectName(QStringLiteral("graphvalues"));
+        graphvalues->setGeometry(QRect(20, 470, 321, 21));
         ControlSysUI->setCentralWidget(centralwidget);
         menubar = new QMenuBar(ControlSysUI);
         menubar->setObjectName(QStringLiteral("menubar"));
-        menubar->setGeometry(QRect(0, 0, 846, 25));
+        menubar->setGeometry(QRect(0, 0, 823, 25));
         menuFile = new QMenu(menubar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         ControlSysUI->setMenuBar(menubar);
@@ -352,6 +370,7 @@ public:
          << QApplication::translate("ControlSysUI", "pos_Y", 0)
          << QApplication::translate("ControlSysUI", "pos_Z", 0)
         );
+        graphvalues->setText(QApplication::translate("ControlSysUI", "x:   y:", 0));
         menuFile->setTitle(QApplication::translate("ControlSysUI", "&File", 0));
     } // retranslateUi
 

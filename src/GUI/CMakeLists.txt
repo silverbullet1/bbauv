@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   image_transport
   cv_bridge
+  actionlib_msgs
 )
 
 ##Required for QT5
@@ -72,9 +73,10 @@ find_package(OpenCV)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
+#   DIRECTORY
+#   action
 #   FILES
-#   Action1.action
-#   Action2.action
+#   Controller.action
 # )
 
 ## Generate added messages and services with any dependencies listed here
@@ -95,7 +97,7 @@ find_package(OpenCV)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES GUI
-  CATKIN_DEPENDS roscpp rospy std_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs actionlib
   DEPENDS system_lib
  )
 
@@ -107,10 +109,11 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-  include
+  include 
   ${catkin_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
 )
 
 link_directories(

@@ -46,7 +46,7 @@ void fire();
 void enableButton();
 void disableButton();
 void graph_test();
-
+void mouseclicked();
 
 
 //Functions for the subscribers
