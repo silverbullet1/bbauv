@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 	}
 	else {
 		ROS_INFO("%s", "Going live!");
-		subscribeToData();
+		//subscribeToData();
 	}
 
 	//Initiate QAppication and UI
@@ -282,20 +282,65 @@ void fire(){
 	}
 	else{
 
-		//actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
-		// ROS_INFO("Waiting for action server to start.");
-		// ac.waitForServer();
-		// ROS_INFO("Action server started, sending goal.");
-		// msgs::ControllerAction goal; 
-		// ac.sendGoal(goal);
-		// bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+		actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
+		ROS_INFO("Waiting for action server to start.");
+		ac.waitForServer();
+		ROS_INFO("Action server started, sending goal.");
+		msgs::ControllerGoal goal; 
+
+		double temp;
+		istringstream iss("");
+		//oss << std::fixed << std::setprecision(3);
+		if (ui.yaw_check->isChecked()){
+			iss.clear();
+			iss.str(params.find("yaw_val")->second);
+			iss >> temp;
+			goal.heading_setpoint= temp;
+			//cout << temp << endl;
+		}
+		else { goal.heading_setpoint=0.0;}
+		if (ui.fwd_check->isChecked()){
+			iss.clear();
+			iss.str(params.find("fwd_val")->second);
+			iss >> temp;
+			goal.forward_setpoint=temp;
+		}
+		else { goal.forward_setpoint = 0.0;}
+		if (ui.depth_check->isChecked()){
+			iss.clear();
+			iss.str(params.find("depth_val")->second);
+			iss >> temp;
+			goal.depth_setpoint=temp;
+		}
+		else { goal.depth_setpoint = 0.0; }
+		if (ui.sm_check->isChecked()){
+			iss.clear();
+			iss.str(params.find("sm_val")->second);
+			iss >> temp;
+			goal.sidemove_setpoint=temp;
+		}
+		else { goal.sidemove_setpoint = 0.0; }
+		ac.sendGoal(goal);
+
+		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+		if (finished_before_timeout){
+			actionlib::SimpleClientGoalState state = ac.getState();
+			ROS_INFO("Action finished: %s", state.toString().c_str());
+			QMessageBox::information(ui.centralwidget, "Goal status", state.toString().c_str());
+		}
+		else {
+			ROS_INFO("Timeout! Goal not achieved");
+			QMessageBox::critical(ui.centralwidget, "Goal status", "Timeout! Goal not achieved");
+		}
 	}
 }
 
-//To plot the graph of sensors and setpt, currently just plots a quadratic graph
+//To plot the graph of sensors and setpt
 void graph_test() {
 	//Make legend visible
 	ui.graph_canvas->legend->setVisible(true);
+	ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
+	//Add the graphs
 	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis, ui.graph_canvas->yAxis);
 	ui.graph_canvas->graph(0)->setData(setpt_x, setpt_y);
 	ui.graph_canvas->graph(0)->setName("Setpt");
@@ -320,7 +365,7 @@ void graph_test() {
 	ui.graph_canvas->yAxis2->setRange(3,5);
 	//For user interaction
 	ui.graph_canvas->setInteraction(QCP::iRangeZoom, true);
-	QObject::connect(ui.graph_canvas, &QCustomPlot::mousePress, mouseclicked);
+	QObject::connect(ui.graph_canvas, &QCustomPlot::mouseMove, mouseclicked);
 	//Plot the graph
 	ui.graph_canvas->replot();
 }
@@ -333,7 +378,7 @@ void mouseclicked(QMouseEvent *event) {
 	double x = ui.graph_canvas->xAxis->pixelToCoord(event->x());
  	double y = ui.graph_canvas->yAxis->pixelToCoord(event->y());
 
- 	oss << "x: " << x << " y: " << y;
+ 	oss << "x: " << x << "\ty: " << y;
  	ui.graphvalues->setText(QString::fromStdString(oss.str()));
 }
 
