@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 	}
 	else {
 		ROS_INFO("%s", "Going live!");
-		//subscribeToData();
+		subscribeToData();
 	}
 
 	//Initiate QAppication and UI
@@ -281,13 +281,11 @@ void fire(){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
 	else{
-
 		actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
 		msgs::ControllerGoal goal; 
-
 		double temp;
 		istringstream iss("");
 		//oss << std::fixed << std::setprecision(3);
@@ -296,7 +294,7 @@ void fire(){
 			iss.str(params.find("yaw_val")->second);
 			iss >> temp;
 			goal.heading_setpoint= temp;
-			//cout << temp << endl;
+			cout << temp << endl;
 		}
 		else { goal.heading_setpoint=0.0;}
 		if (ui.fwd_check->isChecked()){
