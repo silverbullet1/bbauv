@@ -35,10 +35,13 @@ static QMainWindow *window;
 static image_transport::Subscriber sub1, sub2;
 static image_transport::ImageTransport *it;
 
-static void update_filter(camera_t camera, cv::Mat image);
+FiltersContainer::Filters front_filters;
+FiltersContainer::Filters bottom_filters;
+
+void update_filter(camera_t camera, cv::Mat image);
 
 
-static void openFile(bool open){
+void openFile(bool open){
 	QString selfilter = QString("BAG(*.bag)");
 	QString filename = QFileDialog::getOpenFileName(window, QString("Open bag file"), QDir::currentPath(), 
 	QString("BAG files (*.bag);; All files (*.*)"), &selfilter);
@@ -54,7 +57,7 @@ static void openFile(bool open){
 
 }
 
-static QImage CvMatToQImage(const cv::Mat& mat) {
+QImage CvMatToQImage(const cv::Mat& mat) {
 	// 8-bits unsigned, NO. OF CHANNELS=1
 	if(mat.type() == CV_8UC1) {
 		// Set the color table (used to translate colour indexes to qRgb values)
@@ -81,7 +84,7 @@ static QImage CvMatToQImage(const cv::Mat& mat) {
 	}
 }
 
-static void frontCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
+void frontCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 	cv_bridge::CvImagePtr cv_ptr;
 	cv::Mat smallerImage(ui.labelFront->size().height(), ui.labelFront->size().width(), CV_8UC3, cv::Scalar(0,0,0));
 	//std::cout << ui.labelFront->size().width() << " " << ui.labelFront->size().height() << std::endl;
@@ -97,7 +100,7 @@ static void frontCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 	ui.labelFront->setPixmap(QPixmap::fromImage(CvMatToQImage(smallerImage)));
 }
 
-static void bottomCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
+void bottomCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 	cv_bridge::CvImagePtr cv_ptr;
 	cv::Mat smallerImage(ui.labelFront->size().height(), ui.labelFront->size().width(), CV_8UC3, cv::Scalar(0,0,0));
 	try {
@@ -113,7 +116,7 @@ static void bottomCameraCallback(const sensor_msgs::ImageConstPtr& msg) {
 
 //Callback when data input source is changed from selection
 //Just need to remap the topic
-static void source_selected(int index) {
+void source_selected(int index) {
 	switch(index) {
 	case 1: //Bag file must run uncompress bags
 		CHANGE_TOPIC(sub1, "/front_right", frontCameraCallback);
@@ -127,6 +130,11 @@ static void source_selected(int index) {
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "auv_gui");
+
+	//Initialize filters
+	FiltersContainer myFilters;
+	front_filters = myFilters.getFrontFilters();
+	bottom_filters = myFilters.getBottomFilters();
 
 	//Initiate QAppication and UI
 	QApplication app(argc, argv);
@@ -154,16 +162,19 @@ int main(int argc, char **argv) {
 	return app.exec();
 }
 
-static void update_filter(camera_t camera, cv::Mat image) {
+void update_filter(camera_t camera, cv::Mat image) {
+	Filter* f;
 	switch (camera) {
 		case FRONT: {
-			cv::Mat front_out = (front_filters[ui.frontfilter->currentIndex()])(image);
-			ui.labelFrontFiltered->setPixmap(QPixmap::fromImage(CvMatToQImage(front_out)));
+			f = front_filters[ui.frontfilter->currentIndex()];
+			f->setInputImage(image);
+			ui.labelFrontFiltered->setPixmap(QPixmap::fromImage(CvMatToQImage(f->getOutputImage())));
 		}
 			break;
 		case BOTTOM: {
-			cv::Mat bottom_out = (bottom_filters[ui.bottomfilter->currentIndex()])(image);
-			ui.labelBottomFiltered->setPixmap(QPixmap::fromImage(CvMatToQImage(bottom_out)));
+			f = bottom_filters[ui.bottomfilter->currentIndex()];
+			f->setInputImage(image);
+			ui.labelFrontFiltered->setPixmap(QPixmap::fromImage(CvMatToQImage(f->getOutputImage())));
 		}
 			break;
 	}

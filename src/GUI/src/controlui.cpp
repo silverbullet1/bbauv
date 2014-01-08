@@ -281,8 +281,7 @@ void fire(){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
 	else{
-
-		//actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
+		actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
 		// ROS_INFO("Waiting for action server to start.");
 		// ac.waitForServer();
 		// ROS_INFO("Action server started, sending goal.");
