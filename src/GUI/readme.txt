@@ -3,15 +3,6 @@ Vision GUI
 - Can run using alias: vision
 - Can also run using: rosrun GUI GUI_node
 
-Code related stuffs
-=======================
-Main UI code is in auv_gui.cpp
-Filtering code is inside filters.cpp
-    - Add function code in filters.cpp and declaration in filters.h
-    - Increment the NUM_FILTERS macro
-    - Add a corresponding entry into the front_filters or bottom_filters array in filters.cpp
-    - Add an comboBox item in vision.ui
-
 Controls GUI 
 =======================
 - run using: rosrun GUI Control_node
@@ -26,6 +17,7 @@ Compiling Setting up QCustomPlot (already done for the project)
 - Download both the source code directory and the shared libraries directory from QCustomPlot website
 - Compile the code according to the instruction in the shared libraries directory
 - Add link_directories(libs) to the CMakeLists.txt of GUI package
+- Add PrintSupport to the node's qt_use_module macro
 - Copy qcustomplot.h to include directory
 - Add "qcustomplot.h" in the any GUI code that uses it
 - Add a generic Widget in QtDesigner and promote it to QCustomPlot class the header set as qcustomplot.h
