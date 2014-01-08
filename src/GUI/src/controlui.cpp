@@ -281,11 +281,11 @@ void fire(){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
 	else{
-		actionlib::SimpleActionClient <msgs::ControllerAction> ac ("Controller", true);
+		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("Controller", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
-		msgs::ControllerGoal goal; 
+		bbauv_msgs::ControllerGoal goal; 
 		double temp;
 		istringstream iss("");
 		//oss << std::fixed << std::setprecision(3);

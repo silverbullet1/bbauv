@@ -16,7 +16,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <msgs/ControllerAction.h>
+#include <bbauv_msgs/ControllerAction.h>
 
 #include <stdio.h>
 #include <cstdlib>

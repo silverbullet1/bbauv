@@ -1,9 +1,0 @@
-bool search_request
-
-bool task_complete_request
-controller task_complete_ctrl
----
-
-bool search_response
-
-bool task_complete_response
