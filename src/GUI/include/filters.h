@@ -48,6 +48,7 @@ public:
 	FiltersContainer();
 	std::vector<Filter*> getFrontFilters();
 	std::vector<Filter*> getBottomFilters();
+	~FiltersContainer();
 };
 
 #endif /* FILTERS_H_ */

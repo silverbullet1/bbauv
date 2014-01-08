@@ -58,3 +58,8 @@ std::vector<Filter*> FiltersContainer::getFrontFilters() {
 std::vector<Filter*> FiltersContainer::getBottomFilters() {
 	return this->bottom_filters;
 }
+
+FiltersContainer::~FiltersContainer() {
+	delete filter1;
+	delete filter2;
+}
