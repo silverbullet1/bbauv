@@ -41,7 +41,9 @@ public:
 
 class FiltersContainer {
 private:
+	Filter *filter1, *filter2;
 	std::vector<Filter*> front_filters, bottom_filters;
+	static const int NUM_FILTERS;
 public:
 	typedef std::vector<Filter*> Filters;
 
