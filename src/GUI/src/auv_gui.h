@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'vision.ui'
 **
-** Created by: Qt User Interface Compiler version 5.1.1
+** Created by: Qt User Interface Compiler version 5.0.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -225,18 +225,6 @@ public:
         labelFrontFiltered->setText(QApplication::translate("Vision", "Front Camera", 0));
         labelBottom->setText(QApplication::translate("Vision", "Bottom Camera", 0));
         labelBottomFiltered->setText(QApplication::translate("Vision", "Bottom Camera", 0));
-        frontfilter->clear();
-        frontfilter->insertItems(0, QStringList()
-         << QApplication::translate("Vision", "Canny Filter", 0)
-         << QApplication::translate("Vision", "Adaptive Threshold Filter", 0)
-         << QApplication::translate("Vision", "Haven't Decided", 0)
-        );
-        bottomfilter->clear();
-        bottomfilter->insertItems(0, QStringList()
-         << QApplication::translate("Vision", "Canny Filter", 0)
-         << QApplication::translate("Vision", "Adaptive Threshold Filter", 0)
-         << QApplication::translate("Vision", "Havent Decided", 0)
-        );
         bottomcam->setText(QApplication::translate("Vision", "Bottom Camera", 0));
         frontcam->setText(QApplication::translate("Vision", "Front Camera", 0));
         source_ddm->clear();

@@ -88,6 +88,10 @@ VisionUI::VisionUI() : it(node) {
 	window = new QMainWindow;
 	ui.setupUi(window);
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
+	for (int i = 0; i < front_filters.size(); i++)
+		ui.frontfilter->addItem(QString::fromStdString(front_filters[i]->getName()));
+	for (int i = 0; i < bottom_filters.size(); i++)
+		ui.bottomfilter->addItem(QString::fromStdString(bottom_filters[i]->getName()));
 
 	//Subscribe to ros topics
 	change_front_topic("/bumblebee/camera1");

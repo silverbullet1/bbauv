@@ -201,21 +201,6 @@
       <height>27</height>
      </rect>
     </property>
-    <item>
-     <property name="text">
-      <string>Canny Filter</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Adaptive Threshold Filter</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Haven't Decided</string>
-     </property>
-    </item>
    </widget>
    <widget class="QComboBox" name="bottomfilter">
     <property name="geometry">
@@ -226,21 +211,6 @@
       <height>27</height>
      </rect>
     </property>
-    <item>
-     <property name="text">
-      <string>Canny Filter</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Adaptive Threshold Filter</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Havent Decided</string>
-     </property>
-    </item>
    </widget>
    <widget class="QLabel" name="bottomcam">
     <property name="geometry">
