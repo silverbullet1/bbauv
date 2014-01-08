@@ -12,6 +12,15 @@ Filtering code is inside filters.cpp
     - Add a corresponding entry into the front_filters or bottom_filters array in filters.cpp
     - Add an comboBox item in vision.ui
 
+Controls GUI 
+=======================
+- run using: rosrun GUI Control_node
+- can modify the "live" parameter in command line as: rosrun GUI Control_node _live:=true
+If live is false, parameters initialised to 0; otherwise, it will subscribe to the relevant topics
+Default mode is live:=false
+- Do need to fill in the subscribers name 
+- Still need to fix actionlib with the movebaseclient :) 
+
 Compiling Setting up QCustomPlot (already done for the project)
 ======================
 - Download both the source code directory and the shared libraries directory from QCustomPlot website
@@ -27,9 +36,3 @@ Running Controls GUI with QCustomPlot
 - add export LD_LIBRARY_PATH="{path_to_the_libs_dir}":$LD_LIBRARY_PATH to ~/.bashrc
   or copy the libraries into typical shared libraries directories like usr/local/lib or usr/lib
 
-Controls GUI 
-=======================
-- run using: rosrun GUI Control_node
-- can modify the "live" parameter in command line as: rosrun GUI Control_node _live:=true
-If live is false, parameters initialised to 0; otherwise, it will subscribe to the relevant topics
-Default mode is live:=false
