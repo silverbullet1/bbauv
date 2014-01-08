@@ -87,7 +87,7 @@ void initialiseDefault(){
 	  setpt_y[i] = setpt_x[i]*setpt_x[i]; // quadratic function
 	}
 	for (int i=0; i<101; i++){
-	  sensor_x[i] = i/50.0 - 1; // x goes from -1 to 1
+	  sensor_x[i] = i/50.0 - 2; // x goes from -1 to 1
 	  sensor_y[i] = exp(sensor_x[i])+3; // exponential function
 	}
 		 
@@ -343,6 +343,7 @@ void graph_test() {
 	ui.graph_canvas->graph(0)->setData(setpt_x, setpt_y);
 	ui.graph_canvas->graph(0)->setName("Setpt");
 	ui.graph_canvas->graph(0)->setPen(QPen(Qt::blue));
+	//ui.graph_canvas->addGraph();
 	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis2, ui.graph_canvas->yAxis2);
 	ui.graph_canvas->graph(1)->setData(sensor_x, sensor_y);
 	ui.graph_canvas->graph(1)->setName("Sensor");
@@ -356,12 +357,14 @@ void graph_test() {
 	// set the axes to visible
 	ui.graph_canvas->xAxis2->setVisible(true);
 	ui.graph_canvas->yAxis2->setVisible(true);
-	// set axes ranges, so we see all data:
-	ui.graph_canvas->xAxis->setRange(-1, 1);
-	ui.graph_canvas->yAxis->setRange(0, 1);
-	ui.graph_canvas->xAxis2->setRange(-1,1);
-	ui.graph_canvas->yAxis2->setRange(3,5);
+	// set axes ranges, so we see all data1:
+	ui.graph_canvas->xAxis->scaleRange(-3.0,ui.graph_canvas->xAxis->range().center());
+	ui.graph_canvas->yAxis->scaleRange(-3.0,ui.graph_canvas->yAxis->range().center());
+	ui.graph_canvas->xAxis2->scaleRange(-3.0,ui.graph_canvas->xAxis2->range().center());
+	ui.graph_canvas->yAxis2->scaleRange(-3.0,ui.graph_canvas->yAxis2->range().center());
+
 	//For user interaction
+	ui.graph_canvas->setInteraction(QCP::iRangeDrag, true);
 	ui.graph_canvas->setInteraction(QCP::iRangeZoom, true);
 	QObject::connect(ui.graph_canvas, &QCustomPlot::mouseMove, mouseclicked);
 	//Plot the graph
@@ -376,7 +379,7 @@ void mouseclicked(QMouseEvent *event) {
 	double x = ui.graph_canvas->xAxis->pixelToCoord(event->x());
  	double y = ui.graph_canvas->yAxis->pixelToCoord(event->y());
 
- 	oss << "x: " << x << "\ty: " << y;
+ 	oss << "Graph values: x: " << x << "\ty: " << y ;
  	ui.graphvalues->setText(QString::fromStdString(oss.str()));
 }
 
