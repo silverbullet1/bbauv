@@ -9,12 +9,12 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tasks
-  msgs
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
 
+#find_package(bbauv_msgs)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -49,6 +49,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 #add_message_files(
 #  FILES
 #  TimeElapsed.msg
+#  TaskStatus.msg
 #)
 
 ## Generate services in the 'srv' folder
@@ -68,7 +69,8 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## Generate added messages and services with any dependencies listed here
 #generate_messages(
 #  DEPENDENCIES
-#  std_msgs
+# std_msgs
+# bbauv_msgs
 #)
 
 ###################################
@@ -110,7 +112,7 @@ add_executable(core src/core_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(timer msgs_generate_messages_cpp)
+add_dependencies(timer bbauv_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(timer

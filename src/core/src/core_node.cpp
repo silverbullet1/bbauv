@@ -1,6 +1,6 @@
 #include "ros/ros.h"
 #include "tasks/TaskDescriptor.cpp"
-#include "msgs/TaskStatus.h"
+#include "bbauv_msgs/TaskStatus.h"
 #include "std_msgs/String.h"
 #include "boost/algorithm/string/split.hpp"
 #include "boost/algorithm/string/classification.hpp"
@@ -59,8 +59,8 @@ void setFallbackTask()
 	current_general_task = "IDLE";
 }
 
-bool taskFeedback(msgs::TaskStatus::Request  &req,
-         			msgs::TaskStatus::Response &res)
+bool taskFeedback(bbauv_msgs::TaskStatus::Request  &req,
+         			bbauv_msgs::TaskStatus::Response &res)
 {
 	if(req.isCompleted)
 	{
