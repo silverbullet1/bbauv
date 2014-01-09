@@ -285,6 +285,7 @@ void fire(){
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
+		//Send goal and publish to topics 
 		bbauv_msgs::ControllerGoal goal; 
 		double temp;
 		istringstream iss("");
@@ -318,6 +319,7 @@ void fire(){
 			goal.sidemove_setpoint=temp;
 		}
 		else { goal.sidemove_setpoint = 0.0; }
+
 		ac.sendGoal(goal);
 
 		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
