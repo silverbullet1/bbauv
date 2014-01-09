@@ -281,6 +281,7 @@ void fire(){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
 	else{
+		ros::NodeHandle n;
 		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("Controller", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
@@ -295,7 +296,7 @@ void fire(){
 			iss.str(params.find("yaw_val")->second);
 			iss >> temp;
 			goal.heading_setpoint= temp;
-			cout << temp << endl;
+			ros::Publisher yaw_val_pub = n.advertise<std_msgs::Float32>("yaw_val_pub", 1);
 		}
 		else { goal.heading_setpoint=0.0;}
 		if (ui.fwd_check->isChecked()){
@@ -303,6 +304,8 @@ void fire(){
 			iss.str(params.find("fwd_val")->second);
 			iss >> temp;
 			goal.forward_setpoint=temp;
+			ros::Publisher fwd_val_pub = n.advertise<std_msgs::Float32>("yaw_val_pub", 1);
+
 		}
 		else { goal.forward_setpoint = 0.0;}
 		if (ui.depth_check->isChecked()){
