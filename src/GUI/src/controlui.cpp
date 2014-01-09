@@ -291,38 +291,60 @@ void fire(){
 		double temp;
 		istringstream iss("");
 		//oss << std::fixed << std::setprecision(3);
+		ros::Publisher yaw_val_pub = n.advertise<std_msgs::Float32>("yaw_val_pub", 1);
+		ros::Rate loop_rate(10);
 		if (ui.yaw_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("yaw_val")->second);
 			iss >> temp;
 			goal.heading_setpoint= temp;
-			ros::Publisher yaw_val_pub = n.advertise<std_msgs::Float32>("yaw_val_pub", 1);
 		}
-		else { goal.heading_setpoint=0.0;}
+		else { 
+			temp = 0.0;
+			goal.heading_setpoint=temp;
+		}
+		yaw_val_pub.publish(temp);
+
+		ros::Publisher fwd_val_pub = n.advertise<std_msgs::Float32>("fwd_val_pub", 1);
 		if (ui.fwd_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("fwd_val")->second);
 			iss >> temp;
 			goal.forward_setpoint=temp;
-			ros::Publisher fwd_val_pub = n.advertise<std_msgs::Float32>("yaw_val_pub", 1);
-
 		}
-		else { goal.forward_setpoint = 0.0;}
+		else { 
+			temp = 0.0;
+			goal.forward_setpoint = temp;
+		}
+		fwd_val_pub.publish(temp);
+
+		ros::Publisher depth_val_pub = n.advertise<std_msgs::Float32>("depth_val_pub", 1);
 		if (ui.depth_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("depth_val")->second);
 			iss >> temp;
 			goal.depth_setpoint=temp;
 		}
-		else { goal.depth_setpoint = 0.0; }
+		else { g
+			temp = 0.0;
+			goal.depth_setpoint = temp; 
+		}
+		depth_val_pub.publish(temp);
+
+		ros::Publisher sm_val_pub = n.advertise<std_msgs::Float32>("sm_val_pub", 1);
 		if (ui.sm_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("sm_val")->second);
 			iss >> temp;
 			goal.sidemove_setpoint=temp;
 		}
-		else { goal.sidemove_setpoint = 0.0; }
-
+		else { 
+			temp = 0.0;
+			goal.sidemove_setpoint = temp; 
+		}
+		sm_val_pub.publish(temp);
+		ros::spinOnce();
+		loop_rate.sleep();
 		ac.sendGoal(goal);
 
 		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
