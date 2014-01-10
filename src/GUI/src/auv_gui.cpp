@@ -94,8 +94,8 @@ VisionUI::VisionUI() : it(node) {
 		ui.bottomfilter->addItem(QString::fromStdString(bottom_filters[i]->getName()));
 
 	//Subscribe to ros topics
-	change_front_topic("/bumblebee/camera1");
-	change_bottom_topic("/bumblebee/camera2");
+	change_front_topic("/bumblebee/frontCam");
+	change_bottom_topic("/bumblebee/bottomCam");
 
 	window->show();
 }
@@ -168,8 +168,8 @@ void source_selected(int index) {
 		vision_ui->change_bottom_topic("/bottomcam");
 		break;
 	}
-	vision_ui->change_front_topic("/bumblebee/camera1");
-	vision_ui->change_bottom_topic("/bumblebee/camera2");
+	vision_ui->change_front_topic("/bumblebee/frontCam");
+	vision_ui->change_bottom_topic("/bumblebee/bottomCam");
 }
 
 void openFile(bool open) {

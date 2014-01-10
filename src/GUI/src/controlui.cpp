@@ -221,42 +221,42 @@ void openFile(){
 
 //To subscribe to data topics: currently under default!! 
 void subscribeToData(){
-	ros::NodeHandle n;
+	ros::NodeHandle nh;
 	//For telemetry
-	ros::Subscriber setpt_val_sub = n.subscribe("a", 1, setpt_val_callback);
-	ros::Subscriber sensor_sub = n.subscribe("a", 1, sensor_val_callback);
-	ros::Subscriber error_sub = n.subscribe("a", 1, error_val_callback);
-	ros::Subscriber KP_val_sub = n.subscribe("a", 1, KP_val_callback);
-	ros::Subscriber KI_sub = n.subscribe("a", 1, KI_val_callback);
-	ros::Subscriber KD_sub = n.subscribe("a", 1, KD_val_callback);
-	ros::Subscriber output_sub = n.subscribe("a", 1, output_val_callback);
-	ros::Subscriber thruster_sub = n.subscribe("a", 1, thruster_val_callback);
+	ros::Subscriber setpt_val_sub = nh.subscribe("a", 1, setpt_val_callback);
+	ros::Subscriber sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
+	ros::Subscriber error_sub = nh.subscribe("a", 1, error_val_callback);
+	ros::Subscriber KP_val_sub = nh.subscribe("a", 1, KP_val_callback);
+	ros::Subscriber KI_sub = nh.subscribe("a", 1, KI_val_callback);
+	ros::Subscriber KD_sub = nh.subscribe("a", 1, KD_val_callback);
+	ros::Subscriber output_sub = nh.subscribe("a", 1, output_val_callback);
+	ros::Subscriber thruster_sub = nh.subscribe("a", 1, thruster_val_callback);
 
-	ros::Subscriber dof_sub = n.subscribe("a", 1, dof_val_callback);
-	ros::Subscriber goal_val_sub = n.subscribe("a", 1, goal_val_callback);
+	ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
+	ros::Subscriber goal_val_sub = nh.subscribe("a", 1, goal_val_callback);
 
 	//For advanced
-	ros::Subscriber fwdcheck_sub = n.subscribe("a", 1, fwdcheck_callback);
-	ros::Subscriber depthcheck_sub = n.subscribe("a", 1, depthcheck_callback);
-	ros::Subscriber yawcheck_sub = n.subscribe("a", 1, yawcheck_callback);
-	ros::Subscriber smcheck_sub = n.subscribe("a", 1, smcheck_callback);
-	ros::Subscriber fwd_val_sub = n.subscribe("a", 1, fwd_val_callback);
-	ros::Subscriber depth_val_sub = n.subscribe("a", 1, depth_val_callback);
-	ros::Subscriber yaw_val_sub = n.subscribe("a", 1, yaw_val_callback);
-	ros::Subscriber sm_val_sub = n.subscribe("a", 1, sm_val_callback);
+	ros::Subscriber fwdcheck_sub = nh.subscribe("a", 1, fwdcheck_callback);
+	ros::Subscriber depthcheck_sub = nh.subscribe("a", 1, depthcheck_callback);
+	ros::Subscriber yawcheck_sub = nh.subscribe("a", 1, yawcheck_callback);
+	ros::Subscriber smcheck_sub = nh.subscribe("a", 1, smcheck_callback);
+	ros::Subscriber fwd_val_sub = nh.subscribe("a", 1, fwd_val_callback);
+	ros::Subscriber depth_val_sub = nh.subscribe("a", 1, depth_val_callback);
+	ros::Subscriber yaw_val_sub = nh.subscribe("a", 1, yaw_val_callback);
+	ros::Subscriber sm_val_sub = nh.subscribe("a", 1, sm_val_callback);
 
 	//For controls
-	ros::Subscriber con_KP_val_sub = n.subscribe("a", 1, con_KP_val_callback);
-	ros::Subscriber con_KI_sub = n.subscribe("a", 1, con_KI_val_callback);
-	ros::Subscriber con_KD_sub = n.subscribe("a", 1, con_KD_val_callback);
-	ros::Subscriber actmin_sub = n.subscribe("a", 1, actmin_val_callback);
-	ros::Subscriber actmax_sub = n.subscribe("a", 1, actmax_val_callback);
+	ros::Subscriber con_KP_val_sub = nh.subscribe("a", 1, con_KP_val_callback);
+	ros::Subscriber con_KI_sub = nh.subscribe("a", 1, con_KI_val_callback);
+	ros::Subscriber con_KD_sub = nh.subscribe("a", 1, con_KD_val_callback);
+	ros::Subscriber actmin_sub = nh.subscribe("a", 1, actmin_val_callback);
+	ros::Subscriber actmax_sub = nh.subscribe("a", 1, actmax_val_callback);
 
 	//For graph
-	ros::Subscriber setpt_x_sub = n.subscribe("a", 1, setpt_x_callback);
-	ros::Subscriber setpt_y_sub = n.subscribe("a", 1, setpt_y_callback);
-	ros::Subscriber sensor_x_sub = n.subscribe("a", 1, sensor_x_callback);
-	ros::Subscriber sensor_y_sub = n.subscribe("a", 1, sensor_y_callback);
+	ros::Subscriber setpt_x_sub = nh.subscribe("a", 1, setpt_x_callback);
+	ros::Subscriber setpt_y_sub = nh.subscribe("a", 1, setpt_y_callback);
+	ros::Subscriber sensor_x_sub = nh.subscribe("a", 1, sensor_x_callback);
+	ros::Subscriber sensor_y_sub = nh.subscribe("a", 1, sensor_y_callback);
 }
 
 //To enable all the check boxes
@@ -281,17 +281,18 @@ void fire(){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
 	else{
-		ros::NodeHandle n;
+		ros::NodeHandle nh;
 		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("Controller", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
 		//Send goal and publish to topics 
 		bbauv_msgs::ControllerGoal goal; 
-		double temp;
+		float temp;
 		istringstream iss("");
 		//oss << std::fixed << std::setprecision(3);
-		ros::Publisher yaw_val_pub = n.advertise<std_msgs::Float32>("yaw_val_pub", 1);
+		std_msgs::Float32 msg;
+		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
 		ros::Rate loop_rate(10);
 		if (ui.yaw_check->isChecked()){
 			iss.clear();
@@ -303,9 +304,10 @@ void fire(){
 			temp = 0.0;
 			goal.heading_setpoint=temp;
 		}
-		yaw_val_pub.publish(temp);
+		msg.data = temp;
+		yaw_val_pub.publish(msg);
 
-		ros::Publisher fwd_val_pub = n.advertise<std_msgs::Float32>("fwd_val_pub", 1);
+		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
 		if (ui.fwd_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("fwd_val")->second);
@@ -316,22 +318,24 @@ void fire(){
 			temp = 0.0;
 			goal.forward_setpoint = temp;
 		}
-		fwd_val_pub.publish(temp);
+		msg.data = temp;
+		fwd_val_pub.publish(msg);
 
-		ros::Publisher depth_val_pub = n.advertise<std_msgs::Float32>("depth_val_pub", 1);
+		ros::Publisher depth_val_pub = nh.advertise<std_msgs::Float32>("depth_val_pub", 1);
 		if (ui.depth_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("depth_val")->second);
 			iss >> temp;
 			goal.depth_setpoint=temp;
 		}
-		else { g
+		else { 
 			temp = 0.0;
 			goal.depth_setpoint = temp; 
 		}
-		depth_val_pub.publish(temp);
+		msg.data = temp;
+		depth_val_pub.publish(msg);
 
-		ros::Publisher sm_val_pub = n.advertise<std_msgs::Float32>("sm_val_pub", 1);
+		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
 		if (ui.sm_check->isChecked()){
 			iss.clear();
 			iss.str(params.find("sm_val")->second);
@@ -342,7 +346,8 @@ void fire(){
 			temp = 0.0;
 			goal.sidemove_setpoint = temp; 
 		}
-		sm_val_pub.publish(temp);
+		msg.data = temp;
+		sm_val_pub.publish(msg);
 		ros::spinOnce();
 		loop_rate.sleep();
 		ac.sendGoal(goal);

@@ -314,13 +314,13 @@
     </PATToROSOdom>
     <VirtualCameraToROSImage> 
       <cameraName>bowtech1</cameraName>
-      <imageTopic> /bumblebee/camera1 </imageTopic>
-      <infoTopic> /bumblebee/camera1_info </infoTopic>
+      <imageTopic> /bumblebee/frontCam </imageTopic>
+      <infoTopic> /bumblebee/frontCam_info </infoTopic>
     </VirtualCameraToROSImage>
     <VirtualCameraToROSImage> 
       <cameraName>bowtech2</cameraName>
-      <imageTopic> /bumblebee/camera2 </imageTopic>
-      <infoTopic> /bumblebee/camera2_info </infoTopic>
+      <imageTopic> /bumblebee/bottomCam </imageTopic>
+      <infoTopic> /bumblebee/bottomCam_info </infoTopic>
     </VirtualCameraToROSImage>
     <RangeSensorToROSRange>
       <name>sonarleft</name>
