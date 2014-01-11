@@ -3,6 +3,7 @@ bool sidemove
 bool heading
 bool depth
 bool pitch
+bool roll
 bool topside
 bool navigation
 ---

@@ -53,7 +53,7 @@ bool isForward = false;
 bool isSidemove = false;
 
 /**********************Function Prototypes**********************************/
-void collectVelocity(const nav_msgs::Odometry::ConstPtr& msg);
+void collectPosition(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
-	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectVelocity);
+	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectPosition);
 	orientationSub = nh.subscribe("/AHRS8_data_e",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
