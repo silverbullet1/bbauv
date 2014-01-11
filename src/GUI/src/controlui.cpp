@@ -395,7 +395,7 @@ void sendButton(){
 	}
 	else{
 		ros::NodeHandle nh;
-		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("Controller", true);
+		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
