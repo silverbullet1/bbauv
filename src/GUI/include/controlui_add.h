@@ -27,6 +27,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include "bbauv_msgs/ControllerAction.h"
+#include <bbauv_msgs/thruster.h>
 
 #include <stdio.h>
 #include <cstdlib>
@@ -58,7 +59,7 @@ void fire();
 void enableButton();
 void sendButton();
 void tuneButton();
-void graph_test();
+void initialize_graph();
 void dofSelected(int index);
 void mouseclicked(QMouseEvent*);
 
@@ -73,14 +74,7 @@ void KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
 void output_val_callback(const std_msgs::Float32::ConstPtr& msg);
 
 
-void thruster_val_1_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_2_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_3_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_4_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_5_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_6_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_7_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_8_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
 
 
 void dof_val_callback(const std_msgs::String::ConstPtr& msg);

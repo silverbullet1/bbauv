@@ -24,6 +24,9 @@ void updateGraph()
 	ui.graph_canvas->graph(0)->rescaleAxes();
 	ui.graph_canvas->graph(1)->rescaleAxes();
 	ui.graph_canvas->replot();
+
+	//update ROS every 1 second
+	ros::spinOnce();
 }
 
 int main(int argc, char **argv) {
@@ -61,7 +64,7 @@ int main(int argc, char **argv) {
 	QObject::connect(timer, &QTimer::timeout, updateGraph);
     timer->start(1000);
 
-	graph_test();
+	initialize_graph();
 
 	window->show();
 
@@ -118,19 +121,6 @@ void initialiseDefault(){
 	params["con_KD_val"] = "2.4";
 	params["actmin_val"] = "0.5";
 	params["actmax_val"] = "5.7";
-
-	//Graph: initialise random function
-	/*
-	for (int i=0; i<101; i++){
-	  graph_x[i] = i-5; // x goes from -1 to 1
-	  graph_setpt[i] = 2; //straight line function
-	}
-	int x_val;
-	for (int i=0; i<101; i++){
-	  x_val = i/50.0 - 1; // x goes from -1 to 1
-	  graph_output[i] = x_val*x_val; // exponential function
-	}
-	*/
 		 
 }
 
@@ -284,29 +274,11 @@ void subscribeToData(){
 	ros::Subscriber KD_sub = nh.subscribe("a", 1, KD_val_callback);
 	ros::Subscriber output_sub = nh.subscribe("a", 1, output_val_callback);
 	
-	//Initialise the 8 thrusters -- they're all in one topic?
-	ros::Subscriber thruster1_sub = nh.subscribe("/thruster_speed", 1, thruster_val_1_callback);
-	ros::Subscriber thruster2_sub = nh.subscribe("/thruster_speed", 1, thruster_val_2_callback);
-	ros::Subscriber thruster3_sub = nh.subscribe("/thruster_speed", 1, thruster_val_3_callback);
-	ros::Subscriber thruster4_sub = nh.subscribe("/thruster_speed", 1, thruster_val_4_callback);
-	ros::Subscriber thruster5_sub = nh.subscribe("/thruster_speed", 1, thruster_val_5_callback);
-	ros::Subscriber thruster6_sub = nh.subscribe("/thruster_speed", 1, thruster_val_6_callback);
-	ros::Subscriber thruster7_sub = nh.subscribe("/thruster_speed", 1, thruster_val_7_callback);
-	ros::Subscriber thruster8_sub = nh.subscribe("/thruster_speed", 1, thruster_val_8_callback);
+	//Initialise the 8 thrusters -- they're all in one topic
+	ros::Subscriber thruster_sub = nh.subscribe("/thruster_speed", 1, thruster_val_callback);
 
 	//Default use dof_x
 	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
-	ros::Subscriber goal_val_sub = nh.subscribe("a", 1, goal_val_callback);
-
-	//For advanced
-	ros::Subscriber fwdcheck_sub = nh.subscribe("a", 1, fwdcheck_callback);
-	ros::Subscriber depthcheck_sub = nh.subscribe("a", 1, depthcheck_callback);
-	ros::Subscriber yawcheck_sub = nh.subscribe("a", 1, yawcheck_callback);
-	ros::Subscriber smcheck_sub = nh.subscribe("a", 1, smcheck_callback);
-	ros::Subscriber fwd_val_sub = nh.subscribe("a", 1, fwd_val_callback);
-	ros::Subscriber depth_val_sub = nh.subscribe("/depth", 1, depth_val_callback);
-	ros::Subscriber yaw_val_sub = nh.subscribe("a", 1, yaw_val_callback);
-	ros::Subscriber sm_val_sub = nh.subscribe("a", 1, sm_val_callback);
 
 	//For controls
 	ros::Subscriber con_KP_val_sub = nh.subscribe("a", 1, con_KP_val_callback);
@@ -344,22 +316,17 @@ void fire(){
 	}
 	else {
 		ros::NodeHandle nh;
-		float temp;
-		istringstream iss("");
+		float goal_val = atof(params.find("goal_val")->second.c_str());;
 		std_msgs::Float32 msg;
 		ros::Publisher goal_pub = nh.advertise<std_msgs::Float32>("goal_pub", 1);
-		ros::Rate loop_rate(10);
-		iss.str(params.find("goal_val")->second);
-		iss >> temp;
-		msg.data = temp;
+		msg.data = goal_val;
 		goal_pub.publish(msg);
 		ros::spinOnce();
-		loop_rate.sleep();
 	}
 }
 
 //To plot the graph of sensors and setpt
-void graph_test() {
+void initialize_graph() {
 	//Make legend visible
 	ui.graph_canvas->legend->setVisible(true);
 	ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
@@ -377,14 +344,6 @@ void graph_test() {
 	// give the axes some labels:
 	ui.graph_canvas->xAxis->setLabel("Time (s)");
 	ui.graph_canvas->yAxis->setLabel("Output");
-	
-	// center the axes
-	ui.graph_canvas->xAxis->scaleRange(0,ui.graph_canvas->xAxis->range().center());
-	ui.graph_canvas->yAxis->scaleRange(0,ui.graph_canvas->yAxis->range().center());
-	// if (ui.graph_canvas->yAxis->range().size() < 1.234)
- //  		ui.graph_canvas->yAxis->setRange(ui.graph_canvas->yAxis->range().center(), 0.234, Qt::AlignCenter);
-	// if (ui.graph_canvas->xAxis->range().size() < 1.234)
- //  		ui.graph_canvas->xAxis->setRange(ui.graph_canvas->xAxis->range().center(), -1.234, Qt::AlignCenter);
 
 	//For user interaction
 	ui.graph_canvas->setInteraction(QCP::iRangeDrag, true);
@@ -420,15 +379,11 @@ void sendButton(){
 		//Send goal and publish to topics to controller.msgs
 		bbauv_msgs::ControllerGoal goal; 
 		float temp;
-		istringstream iss("");
 		//oss << std::fixed << std::setprecision(3);
 		std_msgs::Float32 msg;
 		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
-		ros::Rate loop_rate(10);
 		if (ui.yaw_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("yaw_val")->second);
-			iss >> temp;
+			temp = atof(params.find("yaw_val")->second.c_str());
 			goal.heading_setpoint= temp;
 		}
 		else { 
@@ -440,9 +395,7 @@ void sendButton(){
 
 		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
 		if (ui.fwd_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("fwd_val")->second);
-			iss >> temp;
+			temp = atof(params.find("fwd_val")->second.c_str());
 			goal.forward_setpoint=temp;
 		}
 		else { 
@@ -454,9 +407,7 @@ void sendButton(){
 
 		ros::Publisher depth_val_pub = nh.advertise<std_msgs::Float32>("depth_val_pub", 1);
 		if (ui.depth_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("depth_val")->second);
-			iss >> temp;
+			temp = atof(params.find("depth_val")->second.c_str());
 			goal.depth_setpoint=temp;
 		}
 		else { 
@@ -468,9 +419,7 @@ void sendButton(){
 
 		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
 		if (ui.sm_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("sm_val")->second);
-			iss >> temp;
+			temp = atof(params.find("sm_val")->second.c_str());
 			goal.sidemove_setpoint=temp;
 		}
 		else { 
@@ -479,9 +428,9 @@ void sendButton(){
 		}
 		msg.data = temp;
 		sm_val_pub.publish(msg);
-		ros::spinOnce();
-		loop_rate.sleep();
+		
 		ac.sendGoal(goal);
+		ros::spinOnce();
 
 		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
 		if (finished_before_timeout){
@@ -504,46 +453,32 @@ void tuneButton(){
 	else {
 		ros::NodeHandle nh;
 		float temp;
-		istringstream iss("");
 		std_msgs::Float32 msg;
-		ros::Rate loop_rate(10);
 
 		ros::Publisher con_KP_pub = nh.advertise<std_msgs::Float32>("con_KP_pub", 1);
-		iss.str(params.find("con_KP_val")->second);
-		iss >> temp;
+		temp = atof(params.find("con_KP_val")->second.c_str());
 		msg.data = temp;
 		con_KP_pub.publish(msg);
 
 		ros::Publisher con_KD_pub = nh.advertise<std_msgs::Float32>("con_KD_pub", 1);
-		iss.clear();
-		iss.str(params.find("con_KD_val")->second);
-		iss >> temp;
+		temp = atof(params.find("con_KD_val")->second.c_str());
 		msg.data = temp;
 		con_KD_pub.publish(msg);
 
 		ros::Publisher con_KI_pub = nh.advertise<std_msgs::Float32>("con_KI_pub", 1);
-		iss.clear();
-		iss.str(params.find("con_KI_val")->second);
-		iss >> temp;
+		temp = atof(params.find("con_KI_val")->second.c_str());
 		msg.data = temp;
 		con_KI_pub.publish(msg);
 
 		ros::Publisher actmin_pub = nh.advertise<std_msgs::Float32>("actmin_pub", 1);
-		iss.clear();
-		iss.str(params.find("actmin_val")->second);
-		iss >> temp;
+		temp = atof(params.find("actmin_val")->second.c_str());
 		msg.data = temp;
 		actmin_pub.publish(msg);
 
 		ros::Publisher actmax_pub = nh.advertise<std_msgs::Float32>("actmax_pub", 1);
-		iss.clear();
-		iss.str(params.find("actmax_val")->second);
-		iss >> temp;
+		temp = atof(params.find("actmax_val")->second.c_str());
 		msg.data = temp;
 		actmax_pub.publish(msg);
-
-		ros::spinOnce();
-		loop_rate.sleep();
 	}
 }
 
@@ -553,154 +488,95 @@ void dofSelected(int index){
 	ros::Subscriber dof_setpt_sub, sensor_sub, error_sub, output_sub, KP_sub, KI_sub, KD_sub;
 	ros::Subscriber thruster_val_1_sub, thruster_val_2_sub, thruster_val_3_sub, thruster_val_4_sub, thruster_val_5_sub, thruster_val_6_sub, thruster_val_7_sub, thruster_val_8_sub;
 
+	string dof_setpt_sub_name, sensor_sub_name, error_sub_name, output_sub_name, KP_sub_name, KI_sub_name, KD_sub_name;
 
 	switch(index){
 		//dof x
 		case 1:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
-
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 
 		//dof y
 		case 2:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
-
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 
 		//yaw
 		case 3:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
-
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 
-		// //roll
+		//roll
 		case 4:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
-
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 
 		//pitch
 		case 5:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
-
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 
-		// //depth
+		//depth
 		case 6:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
-
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 
 		//dof x
 		default:
-		dof_setpt_sub = nh.subscribe("a", 100, setpt_val_callback);
-		sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-		error_sub = nh.subscribe("a", 1, error_val_callback);
-		output_sub = nh.subscribe("a", 1, output_val_callback);
-		KP_sub = nh.subscribe("a", 1, KP_val_callback);
-		KI_sub = nh.subscribe("a", 1, KI_val_callback);
-		KD_sub = nh.subscribe("a", 1, KD_val_callback);
-
-		// thruster_val_1_sub = nh.subscribe("a", 1, thruster_val_1_callback);
-		// thruster_val_2_sub = nh.subscribe("a", 1, thruster_val_2_callback);
-		// thruster_val_3_sub = nh.subscribe("a", 1, thruster_val_3_callback);
-		// thruster_val_4_sub = nh.subscribe("a", 1, thruster_val_4_callback);
-		// thruster_val_5_sub = nh.subscribe("a", 1, thruster_val_5_callback);
-		// thruster_val_6_sub = nh.subscribe("a", 1, thruster_val_6_callback);
-		// thruster_val_7_sub = nh.subscribe("a", 1, thruster_val_7_callback);
-		// thruster_val_8_sub = nh.subscribe("a", 1, thruster_val_8_callback);
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
 		break;
 	}
+	
+	// thruster_val_sub = nh.subscribe("a", 1, thruster_val_callback);
+	dof_setpt_sub = nh.subscribe(dof_setpt_sub_name, 100, setpt_val_callback);
+	sensor_sub = nh.subscribe(sensor_sub_name, 1, sensor_val_callback);
+	error_sub = nh.subscribe(error_sub_name, 1, error_val_callback);
+	output_sub = nh.subscribe(output_sub_name, 1, output_val_callback);
+	KP_sub = nh.subscribe(KP_sub_name, 1, KP_val_callback);
+	KI_sub = nh.subscribe(KI_sub_name, 1, KI_val_callback);
+	KD_sub = nh.subscribe(KD_sub_name, 1, KD_val_callback);
 }
 
 
@@ -729,29 +605,15 @@ void output_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["output_val"] = msg->data;
 }
 
-void thruster_val_1_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_1"] = msg->data;
-}
-void thruster_val_2_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_2"] = msg->data;
-}
-void thruster_val_3_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_3"] = msg->data;
-}
-void thruster_val_4_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_4"] = msg->data;
-}
-void thruster_val_5_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_5"] = msg->data;
-}
-void thruster_val_6_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_6"] = msg->data;
-}
-void thruster_val_7_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_7"] = msg->data;
-}
-void thruster_val_8_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val_8"] = msg->data;
+void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg){
+	params["thruster_val_1"] = msg->speed1;
+	params["thruster_val_2"] = msg->speed2;
+	params["thruster_val_3"] = msg->speed3;
+	params["thruster_val_4"] = msg->speed4;
+	params["thruster_val_5"] = msg->speed5;
+	params["thruster_val_6"] = msg->speed6;
+	params["thruster_val_7"] = msg->speed7;
+	params["thruster_val_8"] = msg->speed8;
 }
 
 void dof_val_callback(const std_msgs::String::ConstPtr& msg){
