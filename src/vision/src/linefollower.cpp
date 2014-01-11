@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-//#include <bbauv_msgs/compass_data>
+#include "bbauv_msgs/compass_data.h"
 //#include <bbauv_msgs/controller_input>
 #include <sensor_msgs/image_encodings.h>
 

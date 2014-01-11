@@ -86,6 +86,7 @@ catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES vision
 #  CATKIN_DEPENDS roscpp rospy std_msgs
+   CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -109,6 +110,10 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(linefollower_node src/linefollower.cpp)
+
+## Add cmake target dependencies of the executable/library
+## as an example, message headers may need to be generated before nodes
+add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
