@@ -1,3 +1,11 @@
+/* 
+	controlui_add.cpp
+	Header file for Control UI 
+	Date created: 9 Jan 2014
+	Author: Lynnette Ng
+*/
+
+
 #include <QApplication>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -45,8 +53,10 @@ void saveFile();
 void openFile();
 void fire();
 void enableButton();
-void disableButton();
+void sendButton();
+void tuneButton();
 void graph_test();
+void dofSelected(int index);
 void mouseclicked(QMouseEvent*);
 
 
@@ -58,7 +68,18 @@ void KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
 void KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
 void KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
 void output_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void thruster_val_callback(const std_msgs::Float32::ConstPtr& msg);
+
+
+void thruster_val_1_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_2_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_3_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_4_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_5_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_6_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_7_callback(const std_msgs::Float32::ConstPtr& msg);
+void thruster_val_8_callback(const std_msgs::Float32::ConstPtr& msg);
+
+
 void dof_val_callback(const std_msgs::String::ConstPtr& msg);
 void goal_val_callback(const std_msgs::Float32::ConstPtr& msg);
 
@@ -77,7 +98,6 @@ void con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
 void con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
 void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
 
-void setpt_x_callback(const std_msgs::Float32::ConstPtr& msg);
-void setpt_y_callback(const std_msgs::Float32::ConstPtr& msg);
-void sensor_x_callback(const std_msgs::Float32::ConstPtr& msg);
-void sensor_y_callback(const std_msgs::Float32::ConstPtr& msg);
+void graph_setpt_callback(const std_msgs::Float32::ConstPtr& msg);
+void graph_output_callback(const std_msgs::Float32::ConstPtr& msg);
+

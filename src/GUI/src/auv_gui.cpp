@@ -1,3 +1,11 @@
+/* 
+	auv_gui.cpp
+	A GUI for visualising the images and applying filters to it 
+	Date created: November 2013 
+	Author: Jason Poh & Lynnette Ng
+*/
+
+
 #include <QApplication>
 #include <QFileDialog>
 #include <QMessageBox>

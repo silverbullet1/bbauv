@@ -1,6 +1,13 @@
+/* 
+	linefollower.cpp
+	Date created: 10 Jan 2014
+	Author: Lynnette Ng
+*/
+
+
 #include <ros/ros.h>
 #include "bbauv_msgs/compass_data.h"
-//#include <bbauv_msgs/controller_input>
+#include "bbauv_msgs/controller.h"
 #include <sensor_msgs/image_encodings.h>
 
 #include <stdio.h>
