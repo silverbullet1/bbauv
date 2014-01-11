@@ -1,3 +1,10 @@
+/* 
+	timer.cpp
+	For testing the ROS msg svc
+	Date created: Dec 2013
+	Author: Jason Poh
+*/
+
 #include "ros/ros.h"
 #include "bbauv_msgs/TimeElapsed.h"
 #include <sstream>

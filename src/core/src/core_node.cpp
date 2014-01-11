@@ -1,3 +1,11 @@
+/* 
+	core_node.cpp
+	For setting tasks and viewing their states
+	Date created: Dec 2013
+	Author: Jason Poh
+*/
+
+
 #include "ros/ros.h"
 #include "tasks/TaskDescriptor.cpp"
 #include "bbauv_msgs/TaskStatus.h"

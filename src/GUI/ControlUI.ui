@@ -307,7 +307,7 @@
     <widget class="QLabel" name="thruster_val_1">
      <property name="geometry">
       <rect>
-       <x>360</x>
+       <x>370</x>
        <y>40</y>
        <width>66</width>
        <height>17</height>
@@ -342,7 +342,7 @@
     <widget class="QLabel" name="thruster_val_2">
      <property name="geometry">
       <rect>
-       <x>360</x>
+       <x>370</x>
        <y>70</y>
        <width>66</width>
        <height>17</height>
@@ -355,7 +355,7 @@
     <widget class="QLabel" name="thruster_val_3">
      <property name="geometry">
       <rect>
-       <x>360</x>
+       <x>370</x>
        <y>100</y>
        <width>66</width>
        <height>17</height>
@@ -368,7 +368,7 @@
     <widget class="QLabel" name="thruster_val_4">
      <property name="geometry">
       <rect>
-       <x>360</x>
+       <x>370</x>
        <y>130</y>
        <width>66</width>
        <height>17</height>
@@ -381,7 +381,7 @@
     <widget class="QLabel" name="thruster_val_8">
      <property name="geometry">
       <rect>
-       <x>440</x>
+       <x>450</x>
        <y>40</y>
        <width>66</width>
        <height>17</height>
@@ -394,7 +394,7 @@
     <widget class="QLabel" name="thruster_val_6">
      <property name="geometry">
       <rect>
-       <x>440</x>
+       <x>450</x>
        <y>130</y>
        <width>66</width>
        <height>17</height>
@@ -407,7 +407,7 @@
     <widget class="QLabel" name="thruster_val_7">
      <property name="geometry">
       <rect>
-       <x>440</x>
+       <x>450</x>
        <y>70</y>
        <width>71</width>
        <height>21</height>
@@ -420,7 +420,7 @@
     <widget class="QLabel" name="thruster_val_5">
      <property name="geometry">
       <rect>
-       <x>440</x>
+       <x>450</x>
        <y>100</y>
        <width>66</width>
        <height>17</height>
@@ -966,10 +966,6 @@
       <string>Goal</string>
      </property>
     </widget>
-    <zorder>fireButton</zorder>
-    <zorder>goal_val</zorder>
-    <zorder>DOF_label</zorder>
-    <zorder>Goal_label</zorder>
    </widget>
    <widget class="QLineEdit" name="con_KD_val">
     <property name="geometry">
