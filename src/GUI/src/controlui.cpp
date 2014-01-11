@@ -14,9 +14,22 @@ static QVector<double> graph_x(101), graph_setpt(101), graph_output(101); //Vect
 static bool live=false;					//Boolean whether UI is connected to robot
 static bool enable=false;
 
+void updateGraph()
+{
+	int x_val = (ros::Time::now() - startTime).toSec();
+	int setpoint_val = 3;
+	int outout_val = 9;
+	ui.graph_canvas->graph(0)->addData(x_val, setpoint_val);//Set Point
+	ui.graph_canvas->graph(1)->addData(x_val, outout_val);//Output
+	ui.graph_canvas->graph(0)->rescaleAxes();
+	ui.graph_canvas->graph(1)->rescaleAxes();
+	ui.graph_canvas->replot();
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 	ros::NodeHandle private_node_handle("~");
+	startTime = ros::Time::now();
 	private_node_handle.param("live", live, bool(false));
 	if (!live){
 		ROS_INFO("%s", "Not going live");
@@ -44,6 +57,9 @@ int main(int argc, char **argv) {
 	QObject::connect(ui.dof_comboBox,
 					 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
 					 dofSelected);
+	QTimer *timer = new QTimer();
+	QObject::connect(timer, &QTimer::timeout, updateGraph);
+    timer->start(1000);
 
 	graph_test();
 
@@ -104,6 +120,7 @@ void initialiseDefault(){
 	params["actmax_val"] = "5.7";
 
 	//Graph: initialise random function
+	/*
 	for (int i=0; i<101; i++){
 	  graph_x[i] = i-5; // x goes from -1 to 1
 	  graph_setpt[i] = 2; //straight line function
@@ -113,6 +130,7 @@ void initialiseDefault(){
 	  x_val = i/50.0 - 1; // x goes from -1 to 1
 	  graph_output[i] = x_val*x_val; // exponential function
 	}
+	*/
 		 
 }
 
@@ -361,8 +379,8 @@ void graph_test() {
 	ui.graph_canvas->yAxis->setLabel("Output");
 	
 	// center the axes
-	ui.graph_canvas->xAxis->scaleRange(-3.0,ui.graph_canvas->xAxis->range().center());
-	ui.graph_canvas->yAxis->scaleRange(-3.0,ui.graph_canvas->yAxis->range().center());
+	ui.graph_canvas->xAxis->scaleRange(0,ui.graph_canvas->xAxis->range().center());
+	ui.graph_canvas->yAxis->scaleRange(0,ui.graph_canvas->yAxis->range().center());
 	// if (ui.graph_canvas->yAxis->range().size() < 1.234)
  //  		ui.graph_canvas->yAxis->setRange(ui.graph_canvas->yAxis->range().center(), 0.234, Qt::AlignCenter);
 	// if (ui.graph_canvas->xAxis->range().size() < 1.234)
