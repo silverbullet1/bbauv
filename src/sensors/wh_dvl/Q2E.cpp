@@ -1,3 +1,10 @@
+/* 
+	Q2E.cpp
+	Controls' Testing on DVL data
+	Date created: Jan 2014
+	Author: Huan
+*/
+
 #include <iostream>
 #include <cmath>
 #include <ros/ros.h>

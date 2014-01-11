@@ -4,7 +4,6 @@
 	Author: Lynnette Ng
 */
 
-
 #include <ros/ros.h>
 #include "bbauv_msgs/compass_data.h"
 #include "bbauv_msgs/controller.h"
@@ -16,6 +15,7 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 #include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
 
 //#include "linefollowingstates.h"
 
@@ -26,9 +26,8 @@ class LineFollower
 public:
 	LineFollower();
 
-	//void bottomCamCallback(const bbauv_msgs::controller_input& msg);
-	//void compassCallback(const bbauv_msgs::compass_data& msg);
-	//void publishMovement(const bbauv_msgs::controller_input& movement);
+	void compassCallback(const bbauv_msgs::compass_data& msg);
+	void publishMovement(const bbauv_msgs::controller& movement);
 	double normHeading(double heading);	
 	void bottomCamCallback(const sensor_msgs::ImageConstPtr& msg);
 
@@ -40,17 +39,18 @@ private:
 
 	ros::NodeHandle nh;
 	//Subscribers to respective topic
-	//Please write a .launch file to change the topic names if required
 	ros::Subscriber imageSub;
 	ros::Subscriber compassSub;
 	ros::Publisher movementPub;
+	image_transport::ImageTransport it;
+
 };
 
-LineFollower::LineFollower()
+LineFollower::LineFollower() : it(nh)
 {
-// 	imageSub = nh.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback);
-// 	//compassSub = nh.subscribe("/compass", 1, compassCallback);
-// 	//movementPub = nh.advertise<bbauv_msgs::controller_input>("/movement", 1);
+ 	//imageSub = it.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback, this);
+    compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
+	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 }
 
 int kfd = 0;
@@ -69,6 +69,7 @@ int main(int argc, char** argv)
 	int loopRate = 20;
 	ros::Rate loop_rate(loopRate);
 	LineFollower linefollower;
+	ROS_INFO("Initialsing LineFollower...");
 
 	signal(SIGINT, quit);
 
@@ -86,7 +87,14 @@ double LineFollower::normHeading(double heading)
 	else { return heading; }
 }
 
-//Having some problems here... 
-// LineFollower::publishMovement(const bbauv_msgs::controller_input& movement){
-// 	movementPub.publish(movement);
-// }
+void LineFollower::publishMovement(const bbauv_msgs::controller& movement){
+ 	movementPub.publish(movement);
+}
+
+void LineFollower::compassCallback(const bbauv_msgs::compass_data& msg){
+
+}
+
+void LineFollower::bottomCamCallback(const sensor_msgs::ImageConstPtr& msg){
+
+}
