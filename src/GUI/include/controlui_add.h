@@ -14,6 +14,8 @@
 #include <QDebug>
 #include <QLineEdit>
 #include <QVector>
+#include <QTimer>
+#include <QObject>
 
 #include "../src/controlui.h"
 
@@ -44,6 +46,7 @@ using namespace std;
 
 static Ui::ControlSysUI ui;
 static QMainWindow *window;
+ros::Time startTime;
 
 void initialiseDefault();
 void initialiseParameters();
