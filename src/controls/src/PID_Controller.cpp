@@ -5,24 +5,24 @@
  *      Author: gohew
  */
 #include "ros/ros.h"
-#include "bbauv_msgs/thruster.h"
+#include <bbauv_msgs/thruster.h>
 #include <bbauv_msgs/compass_data.h>
 #include <bbauv_msgs/depth.h>
 #include <bbauv_msgs/controller.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Joy.h>
 #include <dynamic_reconfigure/server.h>
-#include <PID_Controller/PID_ControllerConfig.h>
+#include <controls/PID_ControllerConfig.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Int8.h>
-#include <PID_Controller/PID.h>
+#include <PID_Controller/PID.cpp>
 #include <NavUtils/NavUtils.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include <actionlib/server/simple_action_server.h>
 #include <bbauv_msgs/ControllerAction.h>
-#include <ControllerActionServer/ControllerActionServer.h>
+#include <ControllerActionServer/ControllerActionServer.cpp>
 #include <geometry_msgs/Twist.h>
 #include <bbauv_msgs/imu_data.h>
 #include <bbauv_msgs/set_controller.h>

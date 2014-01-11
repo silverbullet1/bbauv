@@ -8,6 +8,12 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  actionlib
+  actionlib_msgs
+  bbauv_msgs
+  dynamic_reconfigure
+  nav_msgs
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -79,6 +85,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
+generate_dynamic_reconfigure_options(
+  cfg/PID_Controller.cfg
+)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES controls
@@ -92,7 +101,10 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+include_directories(include)
+include_directories(include/ControllerActionServer)
+include_directories(include/NavUtils)
+include_directories(include/PID_Controller)
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
@@ -103,16 +115,16 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(controls_node src/controls_node.cpp)
+add_executable(PID_Controller src/PID_Controller.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(controls_node controls_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(controls_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(PID_Controller
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##

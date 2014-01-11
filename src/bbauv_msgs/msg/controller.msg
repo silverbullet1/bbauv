@@ -8,3 +8,5 @@ float32 sidemove_input
 float32 sidemove_setpoint
 float32 pitch_input
 float32 pitch_setpoint
+float32 roll_input
+float32 roll_setpoint
