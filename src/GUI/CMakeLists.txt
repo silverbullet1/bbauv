@@ -152,8 +152,8 @@ target_link_libraries(Control_node
   qcustomplot
 )
 ##Required for QT5
-qt5_use_modules( GUI_node Widgets )
-qt5_use_modules( Control_node Widgets PrintSupport)
+#qt5_use_modules( GUI_node Widgets )
+#qt5_use_modules( Control_node Widgets PrintSupport)
 
 #############
 ## Install ##
