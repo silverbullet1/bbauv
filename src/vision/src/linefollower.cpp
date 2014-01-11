@@ -39,7 +39,7 @@ private:
 
 	ros::NodeHandle nh;
 	//Subscribers to respective topic
-	ros::Subscriber imageSub;
+	image_transport::Subscriber imageSub;
 	ros::Subscriber compassSub;
 	ros::Publisher movementPub;
 	image_transport::ImageTransport it;
@@ -48,7 +48,7 @@ private:
 
 LineFollower::LineFollower() : it(nh)
 {
- 	//imageSub = it.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback, this);
+ 	imageSub = it.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback, this);
     compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 }
