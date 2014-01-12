@@ -1,3 +1,10 @@
+/* 
+	filters.h
+	Header file for filters for vision task
+	Date created: 8 Jan 2014
+	Author: Thein
+*/
+
 #ifndef FILTERS_H_
 #define FILTERS_H_
 

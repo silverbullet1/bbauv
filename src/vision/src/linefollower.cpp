@@ -1,7 +1,7 @@
 /* 
 	linefollower.cpp
 	Date created: 10 Jan 2014
-	Author: Lynnette Ng
+	Author: Lynnette
 */
 
 #include <ros/ros.h>
@@ -17,9 +17,12 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 
-//#include "linefollowingstates.h"
+#include "linefollowingstates.h"
 
 using namespace std;
+
+static double heading = 0.0;
+static bool enabled = false;
 
 class LineFollower
 {
@@ -48,6 +51,7 @@ private:
 
 LineFollower::LineFollower() : it(nh)
 {
+
  	imageSub = it.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback, this);
     compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
@@ -92,9 +96,17 @@ void LineFollower::publishMovement(const bbauv_msgs::controller& movement){
 }
 
 void LineFollower::compassCallback(const bbauv_msgs::compass_data& msg){
-
+	heading = msg.yaw;
 }
 
+// Convert ROS image to CV image
 void LineFollower::bottomCamCallback(const sensor_msgs::ImageConstPtr& msg){
-
+	cv_bridge::CvImagePtr cv_ptr;
+	try {
+		cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
+	} catch (cv_bridge::Exception& e) {
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+		return;
+	}
+	// Do something with cv_ptr
 }

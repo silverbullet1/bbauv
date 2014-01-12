@@ -6,6 +6,7 @@ Vision GUI
 Controls GUI 
 =======================
 - run using: rosrun GUI Control_node
+or run using the alias: PID
 - can modify the "live" parameter in command line as: rosrun GUI Control_node _live:=true
 If live is false, parameters initialised to 0; otherwise, it will subscribe to the relevant topics
 Default mode is live:=false
