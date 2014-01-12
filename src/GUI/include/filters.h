@@ -16,11 +16,11 @@ class Filter {
 protected:
 	cv::Mat inImage;
 public:
-	Filter() {};
+    Filter() {}
 	Filter(cv::Mat image) {
 		this->inImage = image;
 	}
-	virtual ~Filter() {};
+    virtual ~Filter() {}
 	virtual void setInputImage(cv::Mat);
 	virtual cv::Mat getOutputImage() = 0;
 	virtual std::string getName() = 0;
@@ -30,18 +30,18 @@ class CannyFilter : public Filter {
 private:
 	static std::string name;
 public:
-	CannyFilter() {};
-	CannyFilter(cv::Mat image) : Filter(image) {};
+    CannyFilter() {}
+    CannyFilter(cv::Mat image) : Filter(image) {}
 	cv::Mat getOutputImage();
-	std::string getName() { return CannyFilter::name; };
+    std::string getName() { return CannyFilter::name; }
 };
 
 class AdaptiveThresholdFilter: public Filter {
 private:
 	static std::string name;
 public:
-	AdaptiveThresholdFilter() {};
-	AdaptiveThresholdFilter(cv::Mat image) : Filter(image) {};
+    AdaptiveThresholdFilter() {}
+    AdaptiveThresholdFilter(cv::Mat image) : Filter(image) {}
 	cv::Mat getOutputImage();
 	std::string getName() { return AdaptiveThresholdFilter::name; }
 };
