@@ -1,3 +1,10 @@
+/* 
+  keyboard_control.cpp
+  For using WSADE to control the Simulation robot
+  Date created: November 2013
+  Author: Thien
+*/
+
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <signal.h>

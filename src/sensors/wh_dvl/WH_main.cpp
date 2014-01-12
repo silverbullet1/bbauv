@@ -24,7 +24,7 @@
 
 // Dynamic reconfigure.
 #include <dynamic_reconfigure/server.h>
-#include <sensors/WH_DVLConfig.h>
+#include "sensors/WH_DVLConfig.h"
 
 using namespace std;
 

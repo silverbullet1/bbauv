@@ -1,6 +1,6 @@
 \subsubsection usage Usage
 \verbatim
-<node name="thrusterArduino" pkg="thrusterArduino" type="thrusterArduino">
+<node name="thrusterArduino" pkg="actuators" type="thrusterArduino">
   <param name="depth_kp" type="double" value="0.0" />
   <param name="depth_ki" type="double" value="0.0" />
   <param name="depth_kd" type="double" value="0.0" />

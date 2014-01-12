@@ -1,16 +1,40 @@
+/* 
+	controlui.cpp
+	A GUI for tuning the control systems
+	Date created: 8 Jan 2014
+	Author: Jason & Lynnette
+*/
+
 #include "controlui_add.h"
 #include "qcustomplot.h"
 
 
 static map <string, string> params; //Map for parameters
-static QVector<double> setpt_x(101), setpt_y(101), sensor_x(101), sensor_y(101); //Vector values for graph
-static bool live;					//Boolean whether UI is connected to robot
+static QVector<double> graph_x(101), graph_setpt(101), graph_output(101); //Vector values for graph
+static bool live=false;					//Boolean whether UI is connected to robot
+static bool enable=false;
+
+void updateGraph()
+{
+	int x_val = (ros::Time::now() - startTime).toSec();
+	int setpoint_val = 3;
+	int outout_val = 9;
+	ui.graph_canvas->graph(0)->addData(x_val, setpoint_val);//Set Point
+	ui.graph_canvas->graph(1)->addData(x_val, outout_val);//Output
+	ui.graph_canvas->graph(0)->rescaleAxes();
+	ui.graph_canvas->graph(1)->rescaleAxes();
+	ui.graph_canvas->replot();
+
+	//update ROS every 1 second
+	ros::spinOnce();
+}
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 	ros::NodeHandle private_node_handle("~");
+	startTime = ros::Time::now();
 	private_node_handle.param("live", live, bool(false));
-	if (live == false){
+	if (!live){
 		ROS_INFO("%s", "Not going live");
 		initialiseDefault();
 	}
@@ -31,9 +55,16 @@ int main(int argc, char **argv) {
 	QObject::connect(ui.fireButton, &QAbstractButton::released, fire);
 	QObject::connect(ui.actionOpen, &QAction::triggered, openFile);
 	QObject::connect(ui.enabledButton, &QAbstractButton::released, enableButton);
-	QObject::connect(ui.disabledButton, &QAbstractButton::released, disableButton);
+	QObject::connect(ui.tuneButton, &QAbstractButton::released, tuneButton);
+	QObject::connect(ui.sendButton, &QAbstractButton::released, sendButton);
+	QObject::connect(ui.dof_comboBox,
+					 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+					 dofSelected);
+	QTimer *timer = new QTimer();
+	QObject::connect(timer, &QTimer::timeout, updateGraph);
+    timer->start(1000);
 
-	graph_test();
+	initialize_graph();
 
 	window->show();
 
@@ -60,7 +91,16 @@ void initialiseDefault(){
 	params["KI_val"] = "4.5";
 	params["KD_val"] = "3.7";
 	params["output_val"] = "9.8";
-	params["thruster_val"] = "1.4";
+
+	//Thruster values 
+	params["thruster_val_1"] = "1.4";
+	params["thruster_val_2"] = "1.4";
+	params["thruster_val_3"] = "1.4";
+	params["thruster_val_4"] = "1.4";
+	params["thruster_val_5"] = "1.4";
+	params["thruster_val_6"] = "1.4";
+	params["thruster_val_7"] = "1.4";
+	params["thruster_val_8"] = "1.4";
 
 	params["dof_comboBox"] = "pos_X";
 	params["goal_val"] = "10.3";
@@ -81,16 +121,6 @@ void initialiseDefault(){
 	params["con_KD_val"] = "2.4";
 	params["actmin_val"] = "0.5";
 	params["actmax_val"] = "5.7";
-
-	//Graph: initialise random function
-	for (int i=0; i<101; i++){
-	  setpt_x[i] = i/50.0 - 1; // x goes from -1 to 1
-	  setpt_y[i] = setpt_x[i]*setpt_x[i]; // quadratic function
-	}
-	for (int i=0; i<101; i++){
-	  sensor_x[i] = i/50.0 - 2; // x goes from -1 to 1
-	  sensor_y[i] = exp(sensor_x[i])+3; // exponential function
-	}
 		 
 }
 
@@ -103,7 +133,14 @@ void initialiseParameters(){
 	ui.KI_val->setText(params.find("KI_val")->second.c_str());
 	ui.KD_val->setText(params.find("KD_val")->second.c_str());
 	ui.output_val->setText(params.find("output_val")->second.c_str());
-	ui.thruster_val->setText(params.find("thruster_val")->second.c_str());
+	ui.thruster_val_1->setText(params.find("thruster_val_1")->second.c_str());
+	ui.thruster_val_2->setText(params.find("thruster_val_2")->second.c_str());
+	ui.thruster_val_3->setText(params.find("thruster_val_3")->second.c_str());
+	ui.thruster_val_4->setText(params.find("thruster_val_4")->second.c_str());
+	ui.thruster_val_5->setText(params.find("thruster_val_5")->second.c_str());
+	ui.thruster_val_6->setText(params.find("thruster_val_6")->second.c_str());
+	ui.thruster_val_7->setText(params.find("thruster_val_7")->second.c_str());
+	ui.thruster_val_8->setText(params.find("thruster_val_8")->second.c_str());
 
 	int index = ui.dof_comboBox->findText(params.find("dof_comboBox")->second.c_str());
 	if (index == -1) index=0;
@@ -148,7 +185,11 @@ void saveFile(){
 	file << "KI_val " << ui.KI_val->text().toUtf8().constData() << "\n";
 	file << "KD_val " << ui.KD_val->text().toUtf8().constData()<< "\n";
 	file << "output_val " << ui.output_val->text().toUtf8().constData() << "\n";
-	file << "thruster_val " << ui.thruster_val->text().toUtf8().constData() << "\n";
+	file << "thruster_val " << ui.thruster_val_1->text().toUtf8().constData() << ui.thruster_val_2->text().toUtf8().constData() 
+	<< ui.thruster_val_3->text().toUtf8().constData() << ui.thruster_val_4->text().toUtf8().constData() <<
+	ui.thruster_val_5->text().toUtf8().constData() << ui.thruster_val_6->text().toUtf8().constData() << 
+	ui.thruster_val_7->text().toUtf8().constData() << ui.thruster_val_8->text().toUtf8().constData()<< "\n";
+
 
 	file << "dof_comboBox " << ui.dof_comboBox->currentText().toUtf8().constData() << "\n";
 	file << "goal_val " << ui.goal_val->text().toUtf8().constData() << "\n";
@@ -192,6 +233,7 @@ void saveFile(){
 	file << "actmax_val " << ui.actmax_val->text().toUtf8().constData()<< "\n";
 
 	file.close();
+	QMessageBox::information(ui.centralwidget, "File saved", "File successfully saved! :)");
 }
 
 void openFile(){
@@ -231,20 +273,12 @@ void subscribeToData(){
 	ros::Subscriber KI_sub = nh.subscribe("a", 1, KI_val_callback);
 	ros::Subscriber KD_sub = nh.subscribe("a", 1, KD_val_callback);
 	ros::Subscriber output_sub = nh.subscribe("a", 1, output_val_callback);
-	ros::Subscriber thruster_sub = nh.subscribe("a", 1, thruster_val_callback);
+	
+	//Initialise the 8 thrusters -- they're all in one topic
+	ros::Subscriber thruster_sub = nh.subscribe("/thruster_speed", 1, thruster_val_callback);
 
-	ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
-	ros::Subscriber goal_val_sub = nh.subscribe("a", 1, goal_val_callback);
-
-	//For advanced
-	ros::Subscriber fwdcheck_sub = nh.subscribe("a", 1, fwdcheck_callback);
-	ros::Subscriber depthcheck_sub = nh.subscribe("a", 1, depthcheck_callback);
-	ros::Subscriber yawcheck_sub = nh.subscribe("a", 1, yawcheck_callback);
-	ros::Subscriber smcheck_sub = nh.subscribe("a", 1, smcheck_callback);
-	ros::Subscriber fwd_val_sub = nh.subscribe("a", 1, fwd_val_callback);
-	ros::Subscriber depth_val_sub = nh.subscribe("a", 1, depth_val_callback);
-	ros::Subscriber yaw_val_sub = nh.subscribe("a", 1, yaw_val_callback);
-	ros::Subscriber sm_val_sub = nh.subscribe("a", 1, sm_val_callback);
+	//Default use dof_x
+	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
 
 	//For controls
 	ros::Subscriber con_KP_val_sub = nh.subscribe("a", 1, con_KP_val_callback);
@@ -254,147 +288,62 @@ void subscribeToData(){
 	ros::Subscriber actmax_sub = nh.subscribe("a", 1, actmax_val_callback);
 
 	//For graph
-	ros::Subscriber setpt_x_sub = nh.subscribe("a", 1, setpt_x_callback);
-	ros::Subscriber setpt_y_sub = nh.subscribe("a", 1, setpt_y_callback);
-	ros::Subscriber sensor_x_sub = nh.subscribe("a", 1, sensor_x_callback);
-	ros::Subscriber sensor_y_sub = nh.subscribe("a", 1, sensor_y_callback);
+	ros::Subscriber graph_setpt_sub = nh.subscribe("a", 1, graph_setpt_callback);
+	ros::Subscriber graph_output_sub = nh.subscribe("a", 1, graph_output_callback);
 }
 
 //To enable all the check boxes
 void enableButton(){
-	ui.fwd_check->setChecked(true);
-	ui.depth_check->setChecked(true);
-	ui.yaw_check->setChecked(true);
-	ui.sm_check->setChecked(true);
+	enable = !enable;
+	if (enable){
+		ui.fwd_check->setChecked(true);
+		ui.depth_check->setChecked(true);
+		ui.yaw_check->setChecked(true);
+		ui.sm_check->setChecked(true);
+	}
+	else {
+		ui.fwd_check->setChecked(false);
+		ui.depth_check->setChecked(false);
+		ui.yaw_check->setChecked(false);
+		ui.sm_check->setChecked(false);
+	}
 }
 
-//To disable all the checkboxes
-void disableButton(){
-	ui.fwd_check->setChecked(false);
-	ui.depth_check->setChecked(false);
-	ui.yaw_check->setChecked(false);
-	ui.sm_check->setChecked(false);
-}
-
-//To connect to actionlib and move the robot
+//To send goal value
 void fire(){
 	if (!live){
 		QMessageBox::information(ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	}
-	else{
+	else {
 		ros::NodeHandle nh;
-		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("Controller", true);
-		ROS_INFO("Waiting for action server to start.");
-		ac.waitForServer();
-		ROS_INFO("Action server started, sending goal.");
-		//Send goal and publish to topics 
-		bbauv_msgs::ControllerGoal goal; 
-		float temp;
-		istringstream iss("");
-		//oss << std::fixed << std::setprecision(3);
+		float goal_val = atof(params.find("goal_val")->second.c_str());;
 		std_msgs::Float32 msg;
-		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
-		ros::Rate loop_rate(10);
-		if (ui.yaw_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("yaw_val")->second);
-			iss >> temp;
-			goal.heading_setpoint= temp;
-		}
-		else { 
-			temp = 0.0;
-			goal.heading_setpoint=temp;
-		}
-		msg.data = temp;
-		yaw_val_pub.publish(msg);
-
-		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
-		if (ui.fwd_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("fwd_val")->second);
-			iss >> temp;
-			goal.forward_setpoint=temp;
-		}
-		else { 
-			temp = 0.0;
-			goal.forward_setpoint = temp;
-		}
-		msg.data = temp;
-		fwd_val_pub.publish(msg);
-
-		ros::Publisher depth_val_pub = nh.advertise<std_msgs::Float32>("depth_val_pub", 1);
-		if (ui.depth_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("depth_val")->second);
-			iss >> temp;
-			goal.depth_setpoint=temp;
-		}
-		else { 
-			temp = 0.0;
-			goal.depth_setpoint = temp; 
-		}
-		msg.data = temp;
-		depth_val_pub.publish(msg);
-
-		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
-		if (ui.sm_check->isChecked()){
-			iss.clear();
-			iss.str(params.find("sm_val")->second);
-			iss >> temp;
-			goal.sidemove_setpoint=temp;
-		}
-		else { 
-			temp = 0.0;
-			goal.sidemove_setpoint = temp; 
-		}
-		msg.data = temp;
-		sm_val_pub.publish(msg);
+		ros::Publisher goal_pub = nh.advertise<std_msgs::Float32>("goal_pub", 1);
+		msg.data = goal_val;
+		goal_pub.publish(msg);
 		ros::spinOnce();
-		loop_rate.sleep();
-		ac.sendGoal(goal);
-
-		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
-		if (finished_before_timeout){
-			actionlib::SimpleClientGoalState state = ac.getState();
-			ROS_INFO("Action finished: %s", state.toString().c_str());
-			QMessageBox::information(ui.centralwidget, "Goal status", state.toString().c_str());
-		}
-		else {
-			ROS_INFO("Timeout! Goal not achieved");
-			QMessageBox::critical(ui.centralwidget, "Goal status", "Timeout! Goal not achieved");
-		}
 	}
 }
 
 //To plot the graph of sensors and setpt
-void graph_test() {
+void initialize_graph() {
 	//Make legend visible
 	ui.graph_canvas->legend->setVisible(true);
 	ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
 	//Add the graphs
 	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis, ui.graph_canvas->yAxis);
-	ui.graph_canvas->graph(0)->setData(setpt_x, setpt_y);
+	ui.graph_canvas->graph(0)->setData(graph_x, graph_setpt);
 	ui.graph_canvas->graph(0)->setName("Setpt");
 	ui.graph_canvas->graph(0)->setPen(QPen(Qt::blue));
-	//ui.graph_canvas->addGraph();
-	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis2, ui.graph_canvas->yAxis2);
-	ui.graph_canvas->graph(1)->setData(sensor_x, sensor_y);
-	ui.graph_canvas->graph(1)->setName("Sensor");
+	ui.graph_canvas->addGraph();
+	//ui.graph_canvas->addGraph(ui.graph_canvas->xAxis2, ui.graph_canvas->yAxis2);
+	ui.graph_canvas->graph(1)->setData(graph_x, graph_output);
+	ui.graph_canvas->graph(1)->setName("Output (dof)");
 	ui.graph_canvas->graph(1)->setPen(QPen(Qt::red));
 
 	// give the axes some labels:
-	ui.graph_canvas->xAxis->setLabel("Setpt X");
-	ui.graph_canvas->yAxis->setLabel("Setpt Y");
-	ui.graph_canvas->xAxis2->setLabel("Sensor X");
-	ui.graph_canvas->yAxis2->setLabel("Sensor Y");
-	// set the axes to visible
-	ui.graph_canvas->xAxis2->setVisible(true);
-	ui.graph_canvas->yAxis2->setVisible(true);
-	// set axes ranges, so we see all data1:
-	ui.graph_canvas->xAxis->scaleRange(-3.0,ui.graph_canvas->xAxis->range().center());
-	ui.graph_canvas->yAxis->scaleRange(-3.0,ui.graph_canvas->yAxis->range().center());
-	ui.graph_canvas->xAxis2->scaleRange(-3.0,ui.graph_canvas->xAxis2->range().center());
-	ui.graph_canvas->yAxis2->scaleRange(-3.0,ui.graph_canvas->yAxis2->range().center());
+	ui.graph_canvas->xAxis->setLabel("Time (s)");
+	ui.graph_canvas->yAxis->setLabel("Output");
 
 	//For user interaction
 	ui.graph_canvas->setInteraction(QCP::iRangeDrag, true);
@@ -414,6 +363,220 @@ void mouseclicked(QMouseEvent *event) {
 
  	oss << "Graph values: x: " << x << "\ty: " << y ;
  	ui.graphvalues->setText(QString::fromStdString(oss.str()));
+}
+
+// Send the advanced parameters 
+void sendButton(){
+	if (!live){
+		QMessageBox::information(ui.centralwidget, "Send!", "Bang! Boom! Bam!");
+	}
+	else{
+		ros::NodeHandle nh;
+		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
+		ROS_INFO("Waiting for action server to start.");
+		ac.waitForServer();
+		ROS_INFO("Action server started, sending goal.");
+		//Send goal and publish to topics to controller.msgs
+		bbauv_msgs::ControllerGoal goal; 
+		float temp;
+		//oss << std::fixed << std::setprecision(3);
+		std_msgs::Float32 msg;
+		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
+		if (ui.yaw_check->isChecked()){
+			temp = atof(params.find("yaw_val")->second.c_str());
+			goal.heading_setpoint= temp;
+		}
+		else { 
+			temp = 0.0;
+			goal.heading_setpoint=temp;
+		}
+		msg.data = temp;
+		yaw_val_pub.publish(msg);
+
+		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
+		if (ui.fwd_check->isChecked()){
+			temp = atof(params.find("fwd_val")->second.c_str());
+			goal.forward_setpoint=temp;
+		}
+		else { 
+			temp = 0.0;
+			goal.forward_setpoint = temp;
+		}
+		msg.data = temp;
+		fwd_val_pub.publish(msg);
+
+		ros::Publisher depth_val_pub = nh.advertise<std_msgs::Float32>("depth_val_pub", 1);
+		if (ui.depth_check->isChecked()){
+			temp = atof(params.find("depth_val")->second.c_str());
+			goal.depth_setpoint=temp;
+		}
+		else { 
+			temp = 0.0;
+			goal.depth_setpoint = temp; 
+		}
+		msg.data = temp;
+		depth_val_pub.publish(msg);
+
+		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
+		if (ui.sm_check->isChecked()){
+			temp = atof(params.find("sm_val")->second.c_str());
+			goal.sidemove_setpoint=temp;
+		}
+		else { 
+			temp = 0.0;
+			goal.sidemove_setpoint = temp; 
+		}
+		msg.data = temp;
+		sm_val_pub.publish(msg);
+		
+		ac.sendGoal(goal);
+		ros::spinOnce();
+
+		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+		if (finished_before_timeout){
+			actionlib::SimpleClientGoalState state = ac.getState();
+			ROS_INFO("Action finished: %s", state.toString().c_str());
+			QMessageBox::information(ui.centralwidget, "Goal status", state.toString().c_str());
+		}
+		else {
+			ROS_INFO("Timeout! Goal not achieved");
+			QMessageBox::critical(ui.centralwidget, "Goal status", "Timeout! Goal not achieved");
+		}
+	}
+}
+
+// Tune the control parameters by publishing them
+void tuneButton(){
+	if (!live){
+		QMessageBox::information(ui.centralwidget, "Tune!", "Twinkle Twinkle Little Star~");
+	}
+	else {
+		ros::NodeHandle nh;
+		float temp;
+		std_msgs::Float32 msg;
+
+		ros::Publisher con_KP_pub = nh.advertise<std_msgs::Float32>("con_KP_pub", 1);
+		temp = atof(params.find("con_KP_val")->second.c_str());
+		msg.data = temp;
+		con_KP_pub.publish(msg);
+
+		ros::Publisher con_KD_pub = nh.advertise<std_msgs::Float32>("con_KD_pub", 1);
+		temp = atof(params.find("con_KD_val")->second.c_str());
+		msg.data = temp;
+		con_KD_pub.publish(msg);
+
+		ros::Publisher con_KI_pub = nh.advertise<std_msgs::Float32>("con_KI_pub", 1);
+		temp = atof(params.find("con_KI_val")->second.c_str());
+		msg.data = temp;
+		con_KI_pub.publish(msg);
+
+		ros::Publisher actmin_pub = nh.advertise<std_msgs::Float32>("actmin_pub", 1);
+		temp = atof(params.find("actmin_val")->second.c_str());
+		msg.data = temp;
+		actmin_pub.publish(msg);
+
+		ros::Publisher actmax_pub = nh.advertise<std_msgs::Float32>("actmax_pub", 1);
+		temp = atof(params.find("actmax_val")->second.c_str());
+		msg.data = temp;
+		actmax_pub.publish(msg);
+	}
+}
+
+// Receive the respective parameters for the dof 
+void dofSelected(int index){
+	ros::NodeHandle nh;
+	ros::Subscriber dof_setpt_sub, sensor_sub, error_sub, output_sub, KP_sub, KI_sub, KD_sub;
+	ros::Subscriber thruster_val_1_sub, thruster_val_2_sub, thruster_val_3_sub, thruster_val_4_sub, thruster_val_5_sub, thruster_val_6_sub, thruster_val_7_sub, thruster_val_8_sub;
+
+	string dof_setpt_sub_name, sensor_sub_name, error_sub_name, output_sub_name, KP_sub_name, KI_sub_name, KD_sub_name;
+
+	switch(index){
+		//dof x
+		case 1:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+
+		//dof y
+		case 2:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+
+		//yaw
+		case 3:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+
+		//roll
+		case 4:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+
+		//pitch
+		case 5:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+
+		//depth
+		case 6:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+
+		//dof x
+		default:
+		dof_setpt_sub_name = "a";
+		sensor_sub_name = "b";
+		error_sub_name = "c";
+		output_sub_name = "d";
+		KP_sub_name = "e";
+		KI_sub_name = "f";
+		KD_sub_name = "g";
+		break;
+	}
+	
+	// thruster_val_sub = nh.subscribe("a", 1, thruster_val_callback);
+	dof_setpt_sub = nh.subscribe(dof_setpt_sub_name, 100, setpt_val_callback);
+	sensor_sub = nh.subscribe(sensor_sub_name, 1, sensor_val_callback);
+	error_sub = nh.subscribe(error_sub_name, 1, error_val_callback);
+	output_sub = nh.subscribe(output_sub_name, 1, output_val_callback);
+	KP_sub = nh.subscribe(KP_sub_name, 1, KP_val_callback);
+	KI_sub = nh.subscribe(KI_sub_name, 1, KI_val_callback);
+	KD_sub = nh.subscribe(KD_sub_name, 1, KD_val_callback);
 }
 
 
@@ -441,9 +604,18 @@ void KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
 void output_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["output_val"] = msg->data;
 }
-void thruster_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["thruster_val"] = msg->data;
+
+void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg){
+	params["thruster_val_1"] = msg->speed1;
+	params["thruster_val_2"] = msg->speed2;
+	params["thruster_val_3"] = msg->speed3;
+	params["thruster_val_4"] = msg->speed4;
+	params["thruster_val_5"] = msg->speed5;
+	params["thruster_val_6"] = msg->speed6;
+	params["thruster_val_7"] = msg->speed7;
+	params["thruster_val_8"] = msg->speed8;
 }
+
 void dof_val_callback(const std_msgs::String::ConstPtr& msg){
 	params["dof_comboBox"] = msg->data;
 }
@@ -490,15 +662,9 @@ void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
 void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["actmax_val"] = msg->data;
 }
-void setpt_x_callback(const std_msgs::Float32::ConstPtr& msg){
-	setpt_x.append(msg->data);
+void graph_setpt_callback(const std_msgs::Float32::ConstPtr& msg){
+	graph_setpt.append(msg->data);
 }
-void setpt_y_callback(const std_msgs::Float32::ConstPtr& msg){
-	setpt_y.append(msg->data);
-}
-void sensor_x_callback(const std_msgs::Float32::ConstPtr& msg){
-	sensor_x.append(msg->data);
-}
-void sensor_y_callback(const std_msgs::Float32::ConstPtr& msg){
-	sensor_y.append(msg->data);
+void graph_output_callback(const std_msgs::Float32::ConstPtr& msg){
+	graph_output.append(msg->data);
 }

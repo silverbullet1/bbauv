@@ -1,3 +1,10 @@
+/* 
+	filters.cpp
+	Filters for vision task
+	Date created: 8 Jan 2014
+	Author: Thein
+*/
+
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
