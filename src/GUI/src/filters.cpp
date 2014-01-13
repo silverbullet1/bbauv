@@ -42,21 +42,32 @@ Mat AdaptiveThresholdFilter::getOutputImage() {
 	return out;
 }
 
+//Detecting center of blackline
+std::string BlackLineCenter::name = "Black Line Center";
+
+Mat BlackLineCenter::getOutputImage() {
+	cv::Mat out;
+
+	return out;
+}
+
 //Container for Filters
-const int FiltersContainer::NUM_FILTERS = 2;
+const int FiltersContainer::NUM_FRONT_FILTERS = 2;
+const int FiltersContainer::NUM_BOTTOM_FILTERS = 3;
 
 FiltersContainer::FiltersContainer() {
 	//Instantiate filters
 	filter1 = new CannyFilter();
 	filter2 = new AdaptiveThresholdFilter();
+	filter3 = new BlackLineCenter();
 
 	Filter* front_filters_array[] = { filter1, filter2 };
-	Filter* bottom_filters_array[] = { filter1, filter2 };
+	Filter* bottom_filters_array[] = { filter1, filter2, filter3 };
 
 	front_filters.insert(front_filters.end(),
-						 front_filters_array, front_filters_array + NUM_FILTERS);
+						 front_filters_array, front_filters_array + NUM_FRONT_FILTERS);
 	bottom_filters.insert(bottom_filters.end(),
-						  bottom_filters_array, bottom_filters_array + NUM_FILTERS);
+						  bottom_filters_array, bottom_filters_array + NUM_BOTTOM_FILTERS);
 }
 
 std::vector<Filter*> FiltersContainer::getFrontFilters() {
@@ -70,4 +81,5 @@ std::vector<Filter*> FiltersContainer::getBottomFilters() {
 FiltersContainer::~FiltersContainer() {
 	delete filter1;
 	delete filter2;
+	delete filter3;
 }
