@@ -1,0 +1,17 @@
+#!/bin/bash
+
+echo -e "\nCleaning old build files"
+make clean
+
+echo -e "\nBuilding bbsonar"
+make
+
+echo -e "\nRunning bbsonar"
+chmod +x bbsonar
+./bbsonar
+
+
+#cowsay -f tux "finished working Drago"
+#cowsay -f dragon "good job Pingu"
+
+

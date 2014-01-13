@@ -7,7 +7,6 @@
 
 #include "ros/ros.h"
 #include "bbauv_msgs/TimeElapsed.h"
-#include <sstream>
 
 int main(int argc, char **argv)
 {

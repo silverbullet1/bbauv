@@ -2,7 +2,7 @@
 	controlui.cpp
 	A GUI for tuning the control systems
 	Date created: 8 Jan 2014
-	Author: Lynnette Ng
+	Author: Jason & Lynnette
 */
 
 #include "controlui_add.h"

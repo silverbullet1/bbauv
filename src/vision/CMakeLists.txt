@@ -85,10 +85,9 @@ find_package(OpenCV)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES vision
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-   CATKIN_DEPENDS message_runtime
-#  DEPENDS system_lib
+  LIBRARIES vision
+  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+  DEPENDS system_lib
 )
 
 ###########
@@ -102,6 +101,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS} 
+  ${Boost_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library

@@ -116,7 +116,11 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(PID_Controller src/PID_Controller.cpp)
+add_executable(SimpleMovement src/SimpleMovement.cpp)
+
+##Dependencies
 add_dependencies(PID_Controller bbauv_msgs_generate_messages_cpp)
+add_dependencies(SimpleMovement bbauv_msgs_generate_messages_cpp)
 
 
 ## Add cmake target dependencies of the executable/library
@@ -125,6 +129,9 @@ add_dependencies(PID_Controller bbauv_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(PID_Controller
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(SimpleMovement
   ${catkin_LIBRARIES}
 )
 

@@ -2,7 +2,7 @@
 	controlui_add.cpp
 	Header file for Control UI 
 	Date created: 9 Jan 2014
-	Author: Lynnette Ng
+	Author: Lynnette
 */
 
 
