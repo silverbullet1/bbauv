@@ -1,0 +1,28 @@
+Folder Layout
+-------------
+
+./colormaps : Contains the colormaps for mapping the grayscale image returned by the bvtsdk to a monochromatic color image.
+
+./lib : Has all the shared object files. Please remember to create a symbolic link in your /usr/lib directory as specified in the note "Setting up the Blueview sdk on Linux" on Evernote. In short, you must do the following:
+
+	ln -s /path/to/lib/libbvtsdk.so.3.5.0 libbvtsdk.so.3
+	sudo ldconfig
+
+./include : Contains all the include files (C/C++) of the sonar's sdk
+
+BBsonar.cpp, BBSonar.h, main.cpp : Has the headers and sonar functionality code.
+
+Config.h : All the configuration related defines including the path where the sonar log file, images have to be saved. Please change the home directory path accordingly on your system.
+
+rcript : A small shell script to clean the old build files, compile the code and then run it at one go.
+
+
+Notes
+-----
+1. You need to install Opencv on your system, take note of where all its library files and include headers are present. 
+On my system the libraries are in /usr/local/lib and the include files are in /usr/local/include, hence I included them in the library and include path respectively. 
+
+2. You must see that at least opencv_core, opencv_highgui and opencv_imgproc libraries are included in your Makefile which will be looked up while linking the bbsonar code containing opencv functions.
+
+3. Out of interest, you can also make use of pkg-config to list out all the dynamically linkable libraries that opencv has on your system by doing:
+	pkg-config --libs opencv
