@@ -163,6 +163,7 @@ void VisionUI::update_filter(camera_t camera, cv::Mat image) {
 		}
 			break;
 	}
+	ros::Duration(0.15).sleep();
 }
 
 //UI Callbacks Definition
