@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   cv_bridge
   image_transport
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -111,11 +112,12 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(linefollower_node src/linefollower.cpp)
+add_executable(red_bucket_detection src/red_bucket_detection.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
-
+add_dependencies(red_bucket_detection bbauv_msgs_generate_messages_cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(vision_node vision_generate_messages_cpp)
@@ -125,7 +127,10 @@ add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
  )
-
+ target_link_libraries(red_bucket_detection
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+ )
 #############
 ## Install ##
 #############
