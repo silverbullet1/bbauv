@@ -5,6 +5,7 @@
 Thrusters::Thrusters(int pin1,int pin2)
 {
   motor1 = pin1;
+  motor2 = pin2;
 }
 
 void Thrusters::acc(int throttleOld, int throttle)
@@ -18,14 +19,16 @@ void Thrusters::acc(int throttleOld, int throttle)
 	for(i=throttleOld;i <= throttle - (throttle%10) - 10; i=i+10)
 	{
           esc1.writeMicroseconds(i);
-  	      delay(5);
+          esc2.writeMicroseconds(i);
+  	      delay(10);
 	        Serial.println(i);
 	}
 	for(i;i <= throttle; i++)
 	{
           Serial.println(i);
           esc1.writeMicroseconds(i);
-  	      delay(5);
+          esc2.writeMicroseconds(i);
+  	      delay(10);
 	}
    }
   else if (difference < 0)
@@ -34,12 +37,14 @@ void Thrusters::acc(int throttleOld, int throttle)
 	{
           Serial.println(i);
 	  esc1.writeMicroseconds(i);
+    esc2.writeMicroseconds(i);
   	  delay(10);
 	}
 	for(i;i >= throttle; i=i-1)
 	{
           Serial.println(i);
           esc1.writeMicroseconds(i);
+          esc2.writeMicroseconds(i);
   	  delay(10);
 	}
    }
@@ -51,7 +56,9 @@ void Thrusters::acc(int throttleOld, int throttle)
 void Thrusters::mov(int input)
 {
   esc1.attach(motor1);
+  esc2.attach(motor2);
   int throttle, throttleOld;
+
   throttleOld = esc1.readMicroseconds();
   if(input > 0)    throttle = thrusterForward(input);
   if(input < 0)    throttle = thrusterReverse(input);
