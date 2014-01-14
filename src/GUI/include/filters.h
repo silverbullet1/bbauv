@@ -49,7 +49,7 @@ public:
 class BlackLineCenter : public Filter {
 private:
 	static std::string name;
-	int thVal;
+	double thVal;
 	double areaThresh;
 public:
 	BlackLineCenter();

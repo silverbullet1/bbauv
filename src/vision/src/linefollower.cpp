@@ -19,7 +19,7 @@
 
 #include "linefollowingstates.h"
 
-using namespace std;
+using namespace cv;
 
 static double heading = 0.0;
 static bool enabled = false;
@@ -34,6 +34,7 @@ public:
 	double normHeading(double heading);	
 	void bottomCamCallback(const sensor_msgs::ImageConstPtr& msg);
 
+	Point2f blackLineXCenter(Mat inImage);
 private: 
 
 	static const int endTime = 0;
@@ -47,14 +48,19 @@ private:
 	ros::Publisher movementPub;
 	image_transport::ImageTransport it;
 
+	//Center detection parameter
+	double thVal;
+	double areaThresh;
 };
 
 LineFollower::LineFollower() : it(nh)
 {
-
  	imageSub = it.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback, this);
     compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
+
+	thVal = 30;
+	areaThresh = 2000;
 }
 
 int kfd = 0;
@@ -109,4 +115,43 @@ void LineFollower::bottomCamCallback(const sensor_msgs::ImageConstPtr& msg){
 		return;
 	}
 	// Do something with cv_ptr
+	std::cout << blackLineXCenter(cv_ptr->image) << std::endl;
+}
+
+Point2f LineFollower::blackLineXCenter(Mat inImage) {
+	Mat greyImg;
+	cvtColor(inImage, greyImg, CV_BGR2GRAY);
+	resize(greyImg, greyImg, Size(640, 480));
+	//ROI
+	Mat roiImg;
+	Rect roi(0, 190, 640, 100);
+	greyImg(roi).copyTo(roiImg);
+
+	//Thresholding and noise removal
+	GaussianBlur(roiImg, roiImg, Size(5, 5), 0, 0);
+	threshold(roiImg, roiImg, thVal, 255, THRESH_BINARY_INV);
+	Mat erodeEl = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateEl = getStructuringElement(MORPH_RECT, Point(5, 5));
+	erode(roiImg, roiImg, erodeEl);
+	dilate(roiImg, roiImg, dilateEl);
+
+	//Find x-center
+	cv::Mat out = inImage.clone();
+	resize(out, out, Size(640, 480));
+	cv::vector< cv::vector<Point> > contours;
+	cv::vector<cv::Vec4i> hierachy;
+
+	findContours(roiImg, contours, hierachy,
+				 CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	for (size_t i = 0; i < contours.size(); i++) {
+		float area = contourArea(contours[i]);
+		if (area > areaThresh) {
+			Moments mu;
+			mu = moments(contours[i], false);
+			Point2f center(mu.m10/mu.m00, 240);
+			return center;
+		}
+	}
+
+	return Point2f(-1, -1);
 }
