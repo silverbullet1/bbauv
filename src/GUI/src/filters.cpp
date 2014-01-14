@@ -45,8 +45,45 @@ Mat AdaptiveThresholdFilter::getOutputImage() {
 //Detecting center of blackline
 std::string BlackLineCenter::name = "Black Line Center";
 
+BlackLineCenter::BlackLineCenter() {
+	thVal = 30;
+	areaThresh = 2000;
+}
+
 Mat BlackLineCenter::getOutputImage() {
-	cv::Mat out;
+	Mat greyImg;
+	cvtColor(inImage, greyImg, CV_BGR2GRAY);
+	resize(greyImg, greyImg, Size(640, 480));
+	//ROI
+	Mat roiImg;
+	Rect roi(0, 190, 640, 100);
+	greyImg(roi).copyTo(roiImg);
+
+	//Thresholding and noise removal
+	GaussianBlur(roiImg, roiImg, Size(5, 5), 0, 0);
+	threshold(roiImg, roiImg, thVal, 255, THRESH_BINARY_INV);
+	Mat erodeEl = getStructuringElement(MORPH_RECT, Size(3, 3));
+	Mat dilateEl = getStructuringElement(MORPH_RECT, Point(5, 5));
+	erode(roiImg, roiImg, erodeEl);
+	dilate(roiImg, roiImg, dilateEl);
+
+	//Find x-center
+	cv::Mat out = inImage.clone();
+	resize(out, out, Size(640, 480));
+	cv::vector< cv::vector<Point> > contours;
+	cv::vector<cv::Vec4i> hierachy;
+
+	findContours(roiImg, contours, hierachy,
+				 CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	for (size_t i = 0; i < contours.size(); i++) {
+		float area = contourArea(contours[i]);
+		if (area > areaThresh) {
+			Moments mu;
+			mu = moments(contours[i], false);
+			Point2f center(mu.m10/mu.m00, 240);
+			circle(out, center, 5, Scalar(0, 255, 0));
+		}
+	}
 
 	return out;
 }

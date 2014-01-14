@@ -49,9 +49,11 @@ public:
 class BlackLineCenter : public Filter {
 private:
 	static std::string name;
+	int thVal;
+	double areaThresh;
 public:
-	BlackLineCenter() {}
-	BlackLineCenter(cv::Mat image) : Filter(image) {}
+	BlackLineCenter();
+	//BlackLineCenter(cv::Mat image);
 	cv::Mat getOutputImage();
 	std::string getName() { return BlackLineCenter::name; }
 };
