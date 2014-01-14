@@ -8,7 +8,11 @@
   <node pkg="rosbag" type="play" name="play" args="--clock -l $(find GUI)/$(arg bagfile)">
   </node>
 
-  <node name="republish" pkg="image_transport" type="republish" output="screen" args="compressed in:=/camera/image_raw raw out:=/camera/image_raw">
+  <node name="bottomRepublish" pkg="image_transport" type="republish" output="screen" args="compressed in:=/bottomcam/camera/image_rect_color raw out:=/camera/image_raw">
+  <remap from="/camera/image_raw" to="/bumblebee/bottomCam"/>
+  </node>
+  
+  <node name="frontRepublish" pkg="image_transport" type="republish" output="screen" args="compressed in:=/stereo_camera/left/image_rect_color raw out:=/camera/image_raw">
   <remap from="/camera/image_raw" to="/bumblebee/frontCam"/>
 
   </node>

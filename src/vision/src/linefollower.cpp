@@ -12,8 +12,9 @@
 #include <stdio.h>
 #include <termios.h>
 #include <signal.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 
@@ -28,12 +29,14 @@ class LineFollower
 {
 public:
 	LineFollower();
+	~LineFollower();
 
 	void compassCallback(const bbauv_msgs::compass_data& msg);
 	void publishMovement(const bbauv_msgs::controller& movement);
 	double normHeading(double heading);	
 	void bottomCamCallback(const sensor_msgs::ImageConstPtr& msg);
 
+	//Returns the x center of the black line (image width i.e. x range is 640)
 	Point2f blackLineXCenter(Mat inImage);
 private: 
 
@@ -55,12 +58,18 @@ private:
 
 LineFollower::LineFollower() : it(nh)
 {
- 	imageSub = it.subscribe("/bumblebee/bottomcam", 1, &LineFollower::bottomCamCallback, this);
+ 	imageSub = it.subscribe("/bumblebee/bottomCam", 1, &LineFollower::bottomCamCallback, this);
     compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 
-	thVal = 30;
+	thVal = 100;
 	areaThresh = 2000;
+
+	namedWindow("test");
+}
+
+LineFollower::~LineFollower() {
+	cv::destroyWindow("test");
 }
 
 int kfd = 0;
@@ -76,15 +85,15 @@ void quit(int sig)
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "linefollower");
-	int loopRate = 20;
-	ros::Rate loop_rate(loopRate);
+//	int loopRate = 20;
+//	ros::Rate loop_rate(loopRate);
 	LineFollower linefollower;
 	ROS_INFO("Initialsing LineFollower...");
 
 	signal(SIGINT, quit);
 
-	ros::spinOnce();
-	loop_rate.sleep();
+	ros::spin();
+	//loop_rate.sleep();
 
 	return (0);
 }
@@ -115,6 +124,7 @@ void LineFollower::bottomCamCallback(const sensor_msgs::ImageConstPtr& msg){
 		return;
 	}
 	// Do something with cv_ptr
+	// See class prototype for function of blackLineXCenter
 	std::cout << blackLineXCenter(cv_ptr->image) << std::endl;
 }
 
@@ -149,6 +159,11 @@ Point2f LineFollower::blackLineXCenter(Mat inImage) {
 			Moments mu;
 			mu = moments(contours[i], false);
 			Point2f center(mu.m10/mu.m00, 240);
+			circle(out, center, 5, Scalar(0, 255, 0));
+
+			imshow("test", out);
+			waitKey(3);
+
 			return center;
 		}
 	}
