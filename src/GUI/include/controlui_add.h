@@ -61,6 +61,7 @@ void sendButton();
 void tuneButton();
 void initialize_graph();
 void dofSelected(int index);
+void updateGraph();
 void mouseclicked(QMouseEvent*);
 
 

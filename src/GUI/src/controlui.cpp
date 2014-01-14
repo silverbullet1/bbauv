@@ -14,21 +14,6 @@ static QVector<double> graph_x(101), graph_setpt(101), graph_output(101); //Vect
 static bool live=false;					//Boolean whether UI is connected to robot
 static bool enable=false;
 
-void updateGraph()
-{
-	int x_val = (ros::Time::now() - startTime).toSec();
-	int setpoint_val = 3;
-	int outout_val = 9;
-	ui.graph_canvas->graph(0)->addData(x_val, setpoint_val);//Set Point
-	ui.graph_canvas->graph(1)->addData(x_val, outout_val);//Output
-	ui.graph_canvas->graph(0)->rescaleAxes();
-	ui.graph_canvas->graph(1)->rescaleAxes();
-	ui.graph_canvas->replot();
-
-	//update ROS every 1 second
-	ros::spinOnce();
-}
-
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 	ros::NodeHandle private_node_handle("~");
@@ -67,6 +52,9 @@ int main(int argc, char **argv) {
 	initialize_graph();
 
 	window->show();
+
+	ros::AsyncSpinner spinner(4);
+	spinner.start();
 
 	return app.exec();
 }
@@ -351,6 +339,21 @@ void initialize_graph() {
 	QObject::connect(ui.graph_canvas, &QCustomPlot::mouseMove, mouseclicked);
 	//Plot the graph
 	ui.graph_canvas->replot();
+}
+
+void updateGraph()
+{
+	int x_val = (ros::Time::now() - startTime).toSec();
+	int setpoint_val = 3;
+	int outout_val = 9;
+	ui.graph_canvas->graph(0)->addData(x_val, setpoint_val);//Set Point
+	ui.graph_canvas->graph(1)->addData(x_val, outout_val);//Output
+	ui.graph_canvas->graph(0)->rescaleAxes();
+	ui.graph_canvas->graph(1)->rescaleAxes();
+	ui.graph_canvas->replot();
+
+	//update ROS every 1 second
+	ros::spinOnce();
 }
 
 //Mouse clicked on graph so display data point

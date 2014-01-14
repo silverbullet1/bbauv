@@ -52,6 +52,16 @@ bool rotateLeft(int degrees)
 	ROS_INFO("SimpleMovement: Rotating left by %d degrees", degrees);
 }
 
+bool moveForward (int meters)
+{
+	ROS_INFO("SimpleMovement: Moving forward by %d meters", meters);
+}
+
+bool moveBackward (int meters)
+{
+	ROS_INFO("SimpleMovement: Moving backward by %d meters", meters);
+}
+
 /*
 	Service required functions
 */
@@ -128,6 +138,24 @@ bool rotateRightSvc(bbauv_msgs::SimpleMovement::Request  &req,
 	return true;
 }
 
+bool moveForwardSvc(bbauv_msgs::SimpleMovement::Request  &req,
+         			bbauv_msgs::SimpleMovement::Response &res)
+{
+	int val = req.val;
+	moveForward(val);
+	res.isCompleted = true;
+	return true;
+}
+
+bool moveBackwardSvc(bbauv_msgs::SimpleMovement::Request  &req,
+         			bbauv_msgs::SimpleMovement::Response &res)
+{
+	int val = req.val;
+	moveBackward(val);
+	res.isCompleted = true;
+	return true;
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "simple_movement");
@@ -145,10 +173,12 @@ int main(int argc, char **argv)
 	ros::ServiceServer svc_moveRight = node.advertiseService("simple_movement/moveRight", moveRightSvc);
 	ros::ServiceServer svc_rotateLeft = node.advertiseService("simple_movement/rotateLeft", rotateLeftSvc);
 	ros::ServiceServer svc_rotateRight = node.advertiseService("simple_movement/rotateRight", rotateRightSvc);
+	ros::ServiceServer svc_moveForward = node.advertiseService("simple_movement/moveForward", moveForwardSvc);
+	ros::ServiceServer svc_moveBackward = node.advertiseService("simple_movement/moveBackward", moveBackwardSvc);
 
 	while(ros::ok())
 	{
-		ros::AsyncSpinner spinner(16); // Use 16 threads
+		ros::AsyncSpinner spinner(20); // Use 20 threads so can call each service twice in each round
 		spinner.start();
 		ros::waitForShutdown();
 	}
