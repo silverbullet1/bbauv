@@ -46,7 +46,7 @@ Mat AdaptiveThresholdFilter::getOutputImage() {
 std::string BlackLineCenter::name = "Black Line Center";
 
 BlackLineCenter::BlackLineCenter() {
-	thVal = 30;
+	thVal = 100;
 	areaThresh = 2000;
 }
 
@@ -63,7 +63,7 @@ Mat BlackLineCenter::getOutputImage() {
 	GaussianBlur(roiImg, roiImg, Size(5, 5), 0, 0);
 	threshold(roiImg, roiImg, thVal, 255, THRESH_BINARY_INV);
 	Mat erodeEl = getStructuringElement(MORPH_RECT, Size(3, 3));
-	Mat dilateEl = getStructuringElement(MORPH_RECT, Point(5, 5));
+	Mat dilateEl = getStructuringElement(MORPH_RECT, Size(5, 5));
 	erode(roiImg, roiImg, erodeEl);
 	dilate(roiImg, roiImg, dilateEl);
 
@@ -77,6 +77,7 @@ Mat BlackLineCenter::getOutputImage() {
 				 CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 	for (size_t i = 0; i < contours.size(); i++) {
 		float area = contourArea(contours[i]);
+
 		if (area > areaThresh) {
 			Moments mu;
 			mu = moments(contours[i], false);
@@ -99,7 +100,7 @@ FiltersContainer::FiltersContainer() {
 	filter3 = new BlackLineCenter();
 
 	Filter* front_filters_array[] = { filter1, filter2 };
-	Filter* bottom_filters_array[] = { filter1, filter2, filter3 };
+	Filter* bottom_filters_array[] = { filter3, filter1, filter2};
 
 	front_filters.insert(front_filters.end(),
 						 front_filters_array, front_filters_array + NUM_FRONT_FILTERS);
