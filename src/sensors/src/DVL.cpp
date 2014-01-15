@@ -1,6 +1,6 @@
 /*
  * dvl.cpp
- *	For Dead Reckoning
+ *	Calculate heading and relative positions of the robot
  *  Created on: 14 Jan, 2014
  *      Author: huixian
  */
@@ -48,7 +48,7 @@ private:
 	ros::Subscriber compassSub;
 	ros::Subscriber thrusterSub;
 
-	direction fwd, right, up;
+	direction fwd, right, up, robotDir;
 
 };
 DVL *dvl;
@@ -147,12 +147,15 @@ void DVL::calculateAngles(){
 
 // To find relative positioning of robot
 void DVL::findRobotPositions(){
-	//positionalData.rel_xpos = addVectors(fwd)
+	robotDir = addVectors(fwd, right, up);
+	positionalData.rel_xpos = robotDir.xpos;
+	positionalData.rel_ypos = robotDir.ypos;
+	positionalData.rel_zpos = robotDir.zpos;
 }
 
 // To find heading of robot
 void DVL::findRobotHeading(){
-
+	positionalData.rel_heading = positionalData.yaw;
 }
 
 
