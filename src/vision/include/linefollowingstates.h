@@ -23,26 +23,35 @@ struct RectData {
 
 //Abstract base class for states
 class State {
-protected:
-	cv::Mat inImage;
-	std::string rectData;
 public:
-	State() {};
-	State(cv::Mat image, std::string rectData) {
-		this->rectData = rectData;
-		this->inImage = image;
-	}
 	virtual ~State() {};
-	virtual void gotFrame(cv::Mat, RectData rectData);
+	virtual boost::shared_ptr<State> gotFrame(cv::Mat, RectData rectData);
 };
 
-class LookForLine : public State{
-private:
-	std::string rectData;
+class LookForLineState : public State{
 public:
-	LookForLine() {};
-	LookForLine (cv::Mat image, std::string rectData) : State(image, rectData) {};
-	void gotFrame (cv::Mat);
+	boost::shared_ptr<State> gotFrame (cv::Mat, RectData rectData);
+};
+
+class DiveState : public State {
+private:
+	double transitionTime;
+	boost::shared_ptr<State> nextState;
+public:
+	DiveState (double secondsToDive, boost::shared_ptr<State> nextState);
+	boost::shared_ptr<State> gotFrame(cv::Mat, RectData);
+};
+
+class SurfaceState : public State {
+public:
+	SurfaceState(double heading);
+	boost::shared_ptr<State> gotFrame(cv::Mat, RectData);
+};
+
+class StraightLineState : public State {
+public:
+	StraightLineState();
+	boost::shared_ptr<State> gotFrame(cv::Mat, RectData);
 };
 
 

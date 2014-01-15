@@ -30,6 +30,7 @@ using namespace cv;
 double normHeading(double heading);
 double radianToDegree(double degree);
 
+//Main class for linefollower node
 class LineFollower
 {
 public:
@@ -104,6 +105,8 @@ LineFollower::~LineFollower() {
 }
 
 void LineFollower::start() {
+	//boost::shared_ptr<State> nextState(new StraightLineState());
+	//state = boost::shared_ptr<State>(new DiveState(0.2, nextState));
 	enabled = true;
 }
 
