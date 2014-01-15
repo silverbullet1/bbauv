@@ -8,4 +8,4 @@ linefollower.cpp
 - Line follower code for SAUVC's task, based on last year's code 
 
 linefollowingstates.cpp
-- States for the line follower .
+- States for the line follower
