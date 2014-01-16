@@ -1,0 +1,12 @@
+int32 yaw
+int32 pitch
+int32 roll
+int32 left
+int32 right
+int32 depth
+int32 forward
+int32 backward
+int32 rotateLeft
+int32 rotateRight
+---
+bool isCompleted

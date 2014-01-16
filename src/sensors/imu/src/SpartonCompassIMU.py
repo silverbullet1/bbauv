@@ -285,7 +285,7 @@ if __name__ == '__main__':
                         rospy.logerr("[4]Received a sentence but not correct. Sentence was: %s" % data)
 
             except ValueError as e:
-                rospy.logwarn("Value error, likely due to missing fields in the data messages.Sentence was: %s" % data)
+                rospy.logwarn("Value error, likely due to missing fields in the data messages.Sentence was: %s %s" % (data, fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17])
 
             # no loop, delay, ROSspin() here, we try to read all the data asap
         D_Compass.write(myStr1) # stop data stream before close port

@@ -5,24 +5,24 @@
  *      Author: gohew
  */
 #include "ros/ros.h"
-#include <bbauv_msgs/thruster.h>
+#include "bbauv_msgs/thruster.h"
 #include <bbauv_msgs/compass_data.h>
 #include <bbauv_msgs/depth.h>
 #include <bbauv_msgs/controller.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Joy.h>
 #include <dynamic_reconfigure/server.h>
-#include <controls/PID_ControllerConfig.h>
+#include <PID_Controller/PID_ControllerConfig.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Int8.h>
-#include <PID_Controller/PID.cpp>
+#include <PID_Controller/PID.h>
 #include <NavUtils/NavUtils.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include <actionlib/server/simple_action_server.h>
 #include <bbauv_msgs/ControllerAction.h>
-#include <ControllerActionServer/ControllerActionServer.cpp>
+#include <ControllerActionServer/ControllerActionServer.h>
 #include <geometry_msgs/Twist.h>
 #include <bbauv_msgs/imu_data.h>
 #include <bbauv_msgs/set_controller.h>
@@ -35,7 +35,7 @@ const static int PSI30 = 206842;
 const static int PSI100 = 689475;
 const static int ATM = 99974; //Pascals or 14.5PSI
 
-double thruster5_ratio,thruster6_ratio;
+double thruster3_ratio,thruster4_ratio,thruster5_ratio,thruster6_ratio;
 
 bbauv_msgs::controller ctrl;
 bbauv_msgs::thruster thrusterSpeed;
@@ -46,7 +46,7 @@ double depth_offset = 0;
 
 //State Machines
 bool inTopside,inTeleop,inHovermode = false, oldHovermode = false;
-bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID,inPitchPID;
+bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID, inPitchPID, inRollPID;
 bool inNavigation;
 bool inVisionTracking;
 bool isForward = false;
@@ -60,8 +60,11 @@ void collectTeleop(const bbauv_msgs::thruster& msg);
 void collectAutonomous(const bbauv_msgs::controller & msg);
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
+
+//Need to change these two functions for new configuration
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output);
+
 double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 /**********************Publisher**********************************/
 ros::Publisher thrusterPub;
@@ -81,6 +84,7 @@ bbauv::bbPID depthPID("d",1.2,0,0,20);
 bbauv::bbPID headingPID("h",1.2,0,0,20);
 bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
+bbauv::bbPID rollPID("r",1.2,0,0,20);
 
 int act_forward[2];
 int act_sidemove[2];
@@ -143,6 +147,7 @@ bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
   inHeadingPID = req.heading;
   inSidemovePID = req.sidemove;
   inPitchPID = req.pitch;
+  inRollPID = req.roll;
   inTopside = req.topside;
   inNavigation = req.navigation;
   res.complete = true;
@@ -153,7 +158,7 @@ int main(int argc, char **argv)
 {
 	//Initialize PID output variables
 
-	double forwardPIDoutput, headingPID_output,depthPID_output,sidemovePID_output,pitchPID_output;
+	double forwardPIDoutput, headingPID_output,depthPID_output,sidemovePID_output,pitchPID_output, rollPID_output;
 
 	//Initialize Node
 
@@ -240,6 +245,14 @@ int main(int argc, char **argv)
 			pitchPID_output = 0;
 			pitchPID.clearIntegrator();
 		}
+		if(inRollPID) rollPID_output = rollPID.computePID(ctrl.roll_setpoint,ctrl.roll_input);
+		else
+		{
+			rollPID_output = 0;
+			rollPID.clearIntegrator();
+		}
+		
+		//need to modify these two lines
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output);
 
@@ -255,7 +268,7 @@ int main(int argc, char **argv)
 
 		controllerPub.publish(ctrl);
 		thrusterPub.publish(thrusterSpeed);
-		ROS_DEBUG("%i,%i,%i,%i,%i,%i",inForwardPID,inSidemovePID,inHeadingPID,inSidemovePID,inDepthPID,inNavigation);
+		ROS_DEBUG(" F %i, SM%i, H %i, P %i, R %i, D %i, Nav %i",inForwardPID,inSidemovePID,inHeadingPID,inPitchPID, inRollPID, inDepthPID,inNavigation);
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
@@ -274,16 +287,27 @@ double getHeadingPIDUpdate()
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
     {
-      thrusterSpeed.speed1=-headingPID_output-forwardPID_output+sidemovePID_output + manual_speed[0];
-      thrusterSpeed.speed2=headingPID_output+forwardPID_output+sidemovePID_output + manual_speed[1];
-      thrusterSpeed.speed3=headingPID_output-forwardPID_output-sidemovePID_output + manual_speed[2];
-      thrusterSpeed.speed4=-headingPID_output+forwardPID_output-sidemovePID_output + manual_speed[3];
+      thrusterSpeed.speed1=forwardPID_output;
+      thrusterSpeed.speed2=forwardPID_output;
+      thrusterSpeed.speed7=-headingPID_output-sidemovePID_output;
+      thrusterSpeed.speed8=-headingPID_output-sidemovePID_output;
     }
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
   {
-	double speed5_output = thruster5_ratio*(- depthPID_output + pitchPID_output + manual_speed[4]);
-	double speed6_output = thruster6_ratio*(- depthPID_output - pitchPID_output + manual_speed[5]);
+	double speed3_output = thruster3_ratio*(- depthPID_output + pitchPID_output);
+	double speed4_output = thruster4_ratio*(- depthPID_output + pitchPID_output);
+	double speed5_output = thruster5_ratio*(- depthPID_output - pitchPID_output);
+	double speed6_output = thruster6_ratio*(- depthPID_output - pitchPID_output);
+
+    if(speed3_output < -3200) thrusterSpeed.speed3 = -3200;
+    else if(speed3_output >3200) thrusterSpeed.speed3 = 3200;
+    else thrusterSpeed.speed3= speed3_output;
+
+    if(speed4_output < -3200) thrusterSpeed.speed4 = -3200;
+    else if(speed4_output >3200) thrusterSpeed.speed4 = 3200;
+    else thrusterSpeed.speed4= speed4_output;
+
     if(speed5_output < -3200) thrusterSpeed.speed5 = -3200;
     else if(speed5_output >3200) thrusterSpeed.speed5 = 3200;
     else thrusterSpeed.speed5= speed5_output;
@@ -303,7 +327,8 @@ void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg)
 {
 	ctrl.heading_input =  msg->orientation.z*180/M_PI;
 	ctrl.pitch_input = msg->orientation.y*180/M_PI;
-	orientationAngles.roll = msg->orientation.x*180/M_PI;
+        ctrl.roll_input = msg->orientation.x*180/M_PI;
+	orientationAngles.roll = ctrl.roll_input;
 	orientationAngles.yaw = ctrl.heading_input;
 	orientationAngles.pitch = ctrl.pitch_input;
 	orientationPub.publish(orientationAngles);
@@ -336,6 +361,8 @@ double fmap(int input, int in_min, int in_max, int out_min, int out_max){
   return (input- in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+
+//no longer in use
 void collectTeleop(const bbauv_msgs::thruster &msg)
 {
 	if(inTopside && inTeleop)
@@ -357,16 +384,6 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 	}
 }
 
-void collectNavVel(const geometry_msgs::Twist::ConstPtr& msg)
-{
-	if(inNavigation)
-	{
-		ctrl.forward_setpoint = msg->linear.x;
-		ctrl.sidemove_setpoint = msg->linear.y;
-		ctrl.heading_setpoint  = msg->angular.z;
-	}
-
-}
 void collectAutonomous(const bbauv_msgs::controller & msg)
 {
 	if(inNavigation)
@@ -386,6 +403,7 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inDepthPID = config.depth_PID;
   inSidemovePID = config.sidemove_PID;
   inPitchPID = config.pitch_PID;
+  inRollPID = config.pitch_PID;
   inNavigation = config.navigation;
   inHovermode = config.hovermode;
   thruster5_ratio = config.thruster5_ratio;
@@ -396,6 +414,7 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   ctrl.sidemove_setpoint = config.sidemove_setpoint;
   ctrl.forward_setpoint = config.forward_setpoint;
   ctrl.pitch_setpoint = config.pitch_setpoint;
+  ctrl.roll_setpoint = config.roll_setpoint;
 
   depthPID.setKp(config.depth_Kp);
   depthPID.setTi(config.depth_Ti);
@@ -429,9 +448,10 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   pitchPID.setTi(config.pitch_Ti);
   pitchPID.setActuatorSatModel(config.pitch_min,config.pitch_max);
 
-  headingPID.setKp(config.heading_Kp);
-  headingPID.setTi(config.heading_Ti);
-  headingPID.setTd(config.heading_Td);
-  headingPID.setActuatorSatModel(config.heading_min,config.heading_max);
+  rollPID.setKp(config.roll_Kp);
+  rollPID.setTd(config.roll_Td);
+  rollPID.setTi(config.roll_Ti);
+  rollPID.setActuatorSatModel(config.roll_min,config.roll_max);
+
   }
 

@@ -138,6 +138,9 @@ int main(int argc, char **argv) {
 
 	window->show();
 
+	ros::AsyncSpinner spinner(4);
+	spinner.start();
+
 	return app.exec();
 }
 
@@ -425,6 +428,8 @@ void initialize_graph() {
 	//Plot the graph
 	ui.graph_canvas->replot();
 }
+
+
 
 //Mouse clicked on graph so display data point
 void mouseclicked(QMouseEvent *event) {
