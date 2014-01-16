@@ -26,7 +26,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include "bbauv_msgs/ControllerAction.h"
+#include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/thruster.h>
 
 #include <stdio.h>
@@ -61,6 +61,7 @@ void sendButton();
 void tuneButton();
 void initialize_graph();
 void dofSelected(int index);
+void updateGraph();
 void mouseclicked(QMouseEvent*);
 
 

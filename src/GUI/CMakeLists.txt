@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   actionlib
   actionlib_msgs
+  dynamic_reconfigure
 )
 
 ##Required for QT5

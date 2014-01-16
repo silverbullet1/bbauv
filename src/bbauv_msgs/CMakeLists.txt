@@ -72,6 +72,8 @@ add_message_files(
 add_service_files(
   FILES
   TaskStatus.srv
+  SimpleMovement.srv
+  DVL.srv
   ##Old srv files start
   locomotion_mode.srv
   mission_to_lane.srv

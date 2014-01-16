@@ -7,12 +7,68 @@
 
 #include "controlui_add.h"
 #include "qcustomplot.h"
+#include <dynamic_reconfigure/DoubleParameter.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/Config.h>
 
 
 static map <string, string> params; //Map for parameters
 static QVector<double> graph_x(101), graph_setpt(101), graph_output(101); //Vector values for graph
 static bool live=false;					//Boolean whether UI is connected to robot
 static bool enable=false;
+
+/*
+	Helper functions to update Dynamic Reconfigure params
+*/
+
+void updateParameter(string paramName, bool val)
+{
+	dynamic_reconfigure::ReconfigureRequest srv_req;
+	dynamic_reconfigure::ReconfigureResponse srv_resp;
+	dynamic_reconfigure::BoolParameter bool_param;
+	dynamic_reconfigure::Config conf;
+
+	bool_param.name = paramName;
+	bool_param.value = val;
+	conf.bools.push_back(bool_param);
+
+	srv_req.config = conf;
+
+	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+}
+
+void updateParameter(string paramName, double val)
+{
+	dynamic_reconfigure::ReconfigureRequest srv_req;
+	dynamic_reconfigure::ReconfigureResponse srv_resp;
+	dynamic_reconfigure::DoubleParameter double_param;
+	dynamic_reconfigure::Config conf;
+
+	double_param.name = paramName;
+	double_param.value = val;
+	conf.doubles.push_back(double_param);
+
+	srv_req.config = conf;
+
+	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+}
+void updateParameter(string paramName, int val)
+{
+	dynamic_reconfigure::ReconfigureRequest srv_req;
+	dynamic_reconfigure::ReconfigureResponse srv_resp;
+	dynamic_reconfigure::IntParameter integer_param;
+	dynamic_reconfigure::Config conf;
+
+	integer_param.name = paramName;
+	integer_param.value = val;
+	conf.ints.push_back(integer_param);
+
+	srv_req.config = conf;
+
+	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+}
+
+
 
 void updateGraph()
 {
@@ -67,6 +123,9 @@ int main(int argc, char **argv) {
 	initialize_graph();
 
 	window->show();
+
+	ros::AsyncSpinner spinner(4);
+	spinner.start();
 
 	return app.exec();
 }
@@ -352,6 +411,8 @@ void initialize_graph() {
 	//Plot the graph
 	ui.graph_canvas->replot();
 }
+
+
 
 //Mouse clicked on graph so display data point
 void mouseclicked(QMouseEvent *event) {

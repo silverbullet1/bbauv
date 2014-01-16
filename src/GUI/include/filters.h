@@ -46,11 +46,23 @@ public:
 	std::string getName() { return AdaptiveThresholdFilter::name; }
 };
 
+class BlackLineCenter : public Filter {
+private:
+	static std::string name;
+	double thVal;
+	double areaThresh;
+public:
+	BlackLineCenter();
+	//BlackLineCenter(cv::Mat image);
+	cv::Mat getOutputImage();
+	std::string getName() { return BlackLineCenter::name; }
+};
+
 class FiltersContainer {
 private:
-	Filter *filter1, *filter2;
+	Filter *filter1, *filter2, *filter3;
 	std::vector<Filter*> front_filters, bottom_filters;
-	static const int NUM_FILTERS;
+	static const int NUM_FRONT_FILTERS, NUM_BOTTOM_FILTERS;
 public:
 	typedef std::vector<Filter*> Filters;
 

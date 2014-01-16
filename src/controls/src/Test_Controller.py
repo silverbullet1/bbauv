@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import roslib; roslib.load_manifest('PID_Controller')
+import roslib; roslib.load_manifest('controls')
 import rospy
 
 # Brings in the SimpleActionClient
