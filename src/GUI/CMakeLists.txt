@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 2.8.9)
 project(GUI)
 
 ## In the event that rosrun GUI GUI_node doesn't work and you're looking at this,
@@ -153,8 +153,8 @@ target_link_libraries(Control_node
   qcustomplot
 )
 ##Required for QT5
-#qt5_use_modules( GUI_node Widgets )
-#qt5_use_modules( Control_node Widgets PrintSupport)
+qt5_use_modules( GUI_node Widgets )
+qt5_use_modules( Control_node Widgets PrintSupport)
 
 #############
 ## Install ##

@@ -138,9 +138,6 @@ int main(int argc, char **argv) {
 
 	window->show();
 
-	ros::AsyncSpinner spinner(4);
-	spinner.start();
-
 	return app.exec();
 }
 
