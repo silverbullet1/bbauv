@@ -115,12 +115,12 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(PID_Controller src/PID_Controller.cpp)
+add_executable(PID_Controller src/PID_Controller.cpp include/PID_Controller/PID.cpp include/ControllerActionServer/ControllerActionServer.cpp)
 add_executable(SimpleMovement src/SimpleMovement.cpp)
 
 ##Dependencies
-add_dependencies(PID_Controller bbauv_msgs_generate_messages_cpp)
-add_dependencies(SimpleMovement bbauv_msgs_generate_messages_cpp)
+#add_dependencies(PID_Controller bbauv_msgs_generate_messages_cpp)
+#add_dependencies(SimpleMovement bbauv_msgs_generate_messages_cpp)
 
 
 ## Add cmake target dependencies of the executable/library

@@ -12,7 +12,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Joy.h>
 #include <dynamic_reconfigure/server.h>
-#include <PID_Controller/PID_ControllerConfig.h>
+#include <controls/PID_ControllerConfig.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Int8.h>
