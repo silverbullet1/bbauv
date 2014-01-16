@@ -7,6 +7,7 @@
 
 #include "controlui_add.h"
 #include "qcustomplot.h"
+#include <bbauv_msgs/compass_data.h>
 #include <dynamic_reconfigure/DoubleParameter.h>
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/Config.h>
@@ -14,12 +15,22 @@
 
 static map <string, string> params; //Map for parameters
 static QVector<double> graph_x(101), graph_setpt(101), graph_output(101); //Vector values for graph
-static bool live=false;					//Boolean whether UI is connected to robot
+static bool live=true;					//Boolean whether UI is connected to robot
 static bool enable=false;
 
 /*
 	Helper functions to update Dynamic Reconfigure params
 */
+
+void graph_compass_callback(const bbauv_msgs::compass_data::ConstPtr& data) {
+	int x_val = (ros::Time::now() - startTime).toSec();
+	ui.graph_canvas->graph(2)->addData(x_val, data->yaw);//Set Point
+	ui.graph_canvas->graph(2)->rescaleAxes();
+	ui.graph_canvas->replot();
+
+	//update ROS every 1 second
+	//ros::spinOnce();
+}
 
 void updateParameter(string paramName, bool val)
 {
@@ -121,6 +132,9 @@ int main(int argc, char **argv) {
     timer->start(1000);
 
 	initialize_graph();
+
+	ros::AsyncSpinner spinner(4);
+	spinner.start();
 
 	window->show();
 
@@ -344,9 +358,12 @@ void subscribeToData(){
 	ros::Subscriber actmax_sub = nh.subscribe("a", 1, actmax_val_callback);
 
 	//For graph
+	ros::Subscriber graph_compass_sub = nh.subscribe("/euler", 1, graph_compass_callback);
 	ros::Subscriber graph_setpt_sub = nh.subscribe("a", 1, graph_setpt_callback);
 	ros::Subscriber graph_output_sub = nh.subscribe("a", 1, graph_output_callback);
 }
+
+
 
 //To enable all the check boxes
 void enableButton(){

@@ -13,10 +13,7 @@
 
 #include "linefollowingstates.h"
 
-// Abstract base state
-void State::setInputImage(Mat image) {
-	this->inImage = image;
-}
-
 // Look for line state
+boost::shared_ptr<State> LookForLineState::gotFrame(cv::Mat image, RectData rectData) {
 
+}

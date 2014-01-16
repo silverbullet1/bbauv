@@ -43,7 +43,7 @@
 #
 
 
-import roslib; roslib.load_manifest('sensors')
+import roslib
 import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Float32
