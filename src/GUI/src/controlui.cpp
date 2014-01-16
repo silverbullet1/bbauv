@@ -22,14 +22,18 @@ static bool enable=false;
 	Helper functions to update Dynamic Reconfigure params
 */
 
+void subscribeToData(ros::NodeHandle& nh);
+
 void graph_compass_callback(const bbauv_msgs::compass_data::ConstPtr& data) {
 	int x_val = (ros::Time::now() - startTime).toSec();
-	ui.graph_canvas->graph(2)->addData(x_val, data->yaw);//Set Point
-	ui.graph_canvas->graph(2)->rescaleAxes();
+	ui.graph_canvas->graph(0)->addData(x_val, data->yaw);//Set Point
+	ui.graph_canvas->graph(1)->addData(x_val, data->pitch);
+	ui.graph_canvas->graph(1)->rescaleAxes();
+	ui.graph_canvas->graph(0)->rescaleAxes();
 	ui.graph_canvas->replot();
 
 	//update ROS every 1 second
-	//ros::spinOnce();
+	ros::spinOnce();
 }
 
 void updateParameter(string paramName, bool val)
@@ -83,32 +87,33 @@ void updateParameter(string paramName, int val)
 
 void updateGraph()
 {
-	int x_val = (ros::Time::now() - startTime).toSec();
-	int setpoint_val = 3;
-	int outout_val = 9;
-	ui.graph_canvas->graph(0)->addData(x_val, setpoint_val);//Set Point
-	ui.graph_canvas->graph(1)->addData(x_val, outout_val);//Output
-	ui.graph_canvas->graph(0)->rescaleAxes();
-	ui.graph_canvas->graph(1)->rescaleAxes();
-	ui.graph_canvas->replot();
-
-	//update ROS every 1 second
-	ros::spinOnce();
+//	int x_val = (ros::Time::now() - startTime).toSec();
+//	int setpoint_val = 3;
+//	int outout_val = 9;
+//	ui.graph_canvas->graph(0)->addData(x_val, setpoint_val);//Set Point
+//	ui.graph_canvas->graph(1)->addData(x_val, outout_val);//Output
+//	ui.graph_canvas->graph(0)->rescaleAxes();
+//	ui.graph_canvas->graph(1)->rescaleAxes();
+//	ui.graph_canvas->replot();
+//
+//	//update ROS every 1 second
+//	ros::spinOnce();
 }
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui");
 	ros::NodeHandle private_node_handle("~");
-	startTime = ros::Time::now();
-	private_node_handle.param("live", live, bool(false));
 	if (!live){
 		ROS_INFO("%s", "Not going live");
 		initialiseDefault();
 	}
 	else {
 		ROS_INFO("%s", "Going live!");
-		subscribeToData();
+		subscribeToData(private_node_handle);
 	}
+	ros::NodeHandle nh;
+	startTime = ros::Time::now();
+	private_node_handle.param("live", live, bool(false));
 
 	//Initiate QAppication and UI
 	QApplication app(argc, argv);
@@ -127,11 +132,13 @@ int main(int argc, char **argv) {
 	QObject::connect(ui.dof_comboBox,
 					 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
 					 dofSelected);
-	QTimer *timer = new QTimer();
-	QObject::connect(timer, &QTimer::timeout, updateGraph);
-    timer->start(1000);
+//	QTimer *timer = new QTimer();
+//	QObject::connect(timer, &QTimer::timeout, updateGraph);
+//  timer->start(1000);
 
 	initialize_graph();
+
+	ros::Subscriber graph_compass_sub = nh.subscribe("/euler", 1, graph_compass_callback);
 
 	ros::AsyncSpinner spinner(4);
 	spinner.start();
@@ -333,8 +340,7 @@ void openFile(){
 }
 
 //To subscribe to data topics: currently under default!! 
-void subscribeToData(){
-	ros::NodeHandle nh;
+void subscribeToData(ros::NodeHandle &nh) {
 	//For telemetry
 	ros::Subscriber setpt_val_sub = nh.subscribe("a", 1, setpt_val_callback);
 	ros::Subscriber sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
@@ -343,7 +349,7 @@ void subscribeToData(){
 	ros::Subscriber KI_sub = nh.subscribe("a", 1, KI_val_callback);
 	ros::Subscriber KD_sub = nh.subscribe("a", 1, KD_val_callback);
 	ros::Subscriber output_sub = nh.subscribe("a", 1, output_val_callback);
-	
+
 	//Initialise the 8 thrusters -- they're all in one topic
 	ros::Subscriber thruster_sub = nh.subscribe("/thruster_speed", 1, thruster_val_callback);
 
@@ -358,7 +364,6 @@ void subscribeToData(){
 	ros::Subscriber actmax_sub = nh.subscribe("a", 1, actmax_val_callback);
 
 	//For graph
-	ros::Subscriber graph_compass_sub = nh.subscribe("/euler", 1, graph_compass_callback);
 	ros::Subscriber graph_setpt_sub = nh.subscribe("a", 1, graph_setpt_callback);
 	ros::Subscriber graph_output_sub = nh.subscribe("a", 1, graph_output_callback);
 }
@@ -401,7 +406,7 @@ void fire(){
 //To plot the graph of sensors and setpt
 void initialize_graph() {
 	//Make legend visible
-	ui.graph_canvas->legend->setVisible(true);
+	//ui.graph_canvas->legend->setVisible(true);
 	ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
 	//Add the graphs
 	ui.graph_canvas->addGraph(ui.graph_canvas->xAxis, ui.graph_canvas->yAxis);

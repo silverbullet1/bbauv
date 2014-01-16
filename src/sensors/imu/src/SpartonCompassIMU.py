@@ -93,7 +93,7 @@ if __name__ == '__main__':
     D_Compassport = rospy.get_param('~port','/dev/ttyUSB0')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
-    D_Compassprintmodulus = rospy.get_param('~printmodulus',1)
+    D_Compassprintmodulus = rospy.get_param('~printmodulus', 255)
     #Digital compass heading offset in degree
     D_Compass_offset = rospy.get_param('~offset',0.)
     Imu_data = Imu()
@@ -285,7 +285,7 @@ if __name__ == '__main__':
                         rospy.logerr("[4]Received a sentence but not correct. Sentence was: %s" % data)
 
             except ValueError as e:
-                rospy.logwarn("Value error, likely due to missing fields in the data messages.Sentence was: %s %s" % (data, fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17])
+                rospy.logwarn("Value error, likely due to missing fields in the data messages.Sentence was: %s %s" % (data, fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]))
 
             # no loop, delay, ROSspin() here, we try to read all the data asap
         D_Compass.write(myStr1) # stop data stream before close port
