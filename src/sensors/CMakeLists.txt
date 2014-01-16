@@ -119,6 +119,9 @@ add_dependencies(AHRS8_Q2E bbauv_msgs_generate_messages_cpp)
 add_executable(DVL_node src/DVL.cpp)
 add_dependencies(DVL_node bbauv_msgs_generate_messages_cpp)
 
+add_executable(IMU_node src/IMU.cpp)
+add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(sensors_node sensors_generate_messages_cpp)
@@ -135,6 +138,10 @@ target_link_libraries(AHRS8_Q2E
 )
 
 target_link_libraries(DVL_node
+	${catkin_LIBRARIES}
+)
+
+target_link_libraries(IMU_node
 	${catkin_LIBRARIES}
 )
 

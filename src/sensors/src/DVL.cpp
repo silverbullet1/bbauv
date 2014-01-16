@@ -75,8 +75,6 @@ void quit(int sig){
 int main(int argc, char** argv){
 	ros::init(argc, argv, "dvl");
 	ROS_INFO("Initialising DVL...");
-	std::cout << M_PI << std::endl;
-
 
 	DVL local_dvl;
 	dvl = &local_dvl;
