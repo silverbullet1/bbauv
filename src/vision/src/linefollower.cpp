@@ -26,9 +26,15 @@ using namespace cv;
 
 //static double heading = 0.0;
 
-//Utility functions
-double normHeading(double heading);
+//Utility function
 double radianToDegree(double degree);
+
+//Initialize global variables
+//const int endTime = 0;
+const int DEPTH_POINT = 1.1;
+const double secondsToRun = 2.25 * 60;
+const double x_strip_threshold = 0.2;
+ros::Publisher movementPub;
 
 //Main class for linefollower node
 class LineFollower
@@ -36,6 +42,8 @@ class LineFollower
 public:
 	LineFollower();
 	~LineFollower();
+
+	int loopRateHz;
 
 	void start();
 	void stop();
@@ -50,15 +58,11 @@ public:
 private:
 	bool enabled;
 
-	static const int endTime = 0;
-	static const int DEPTH_POINT = 1.1;
-	static const double secondsToRun = 2.25 * 60;
-
 	ros::NodeHandle nh;
 	//Subscribers to respective topic
 	image_transport::Subscriber imageSub;
 	ros::Subscriber compassSub;
-	ros::Publisher movementPub;
+	//ros::Publisher movementPub;
 	image_transport::ImageTransport it;
 
 	//Center detection parameter
@@ -71,14 +75,6 @@ private:
 	boost::shared_ptr<State> state;
 };
 
-//Function to normalise heading in degrees
-double normHeading(double heading)
-{
-	if (heading > 360.0) { return heading - 360.0; }
-	else if (heading < 0.0) { return heading + 360.0; }
-	else { return heading; }
-}
-
 double radianToDegree(double degree) {
 	return degree / M_PI * 180;
 }
@@ -86,6 +82,10 @@ double radianToDegree(double degree) {
 LineFollower::LineFollower() : it(nh)
 {
 	enabled = false;
+
+//	nh.param<int>("~loopHz", loopRateHz, 20);
+//	string imageTopic; nh.param<string>("~image", imageTopic, "/bottomcam/camera/image_raw");
+//	string compassTopic; nh.param<string>("~compass", compassTopic, "/os5000_data");
 
  	imageSub = it.subscribe("/bumblebee/bottomCam", 1, &LineFollower::bottomCamCallback, this);
     compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
@@ -105,17 +105,14 @@ LineFollower::~LineFollower() {
 }
 
 void LineFollower::start() {
-	//boost::shared_ptr<State> nextState(new StraightLineState());
-	//state = boost::shared_ptr<State>(new DiveState(0.2, nextState));
+	boost::shared_ptr<State> nextState(new StraightLineState());
+	state = boost::shared_ptr<State>(new DiveState(0.2, nextState));
 	enabled = true;
 }
 
 void LineFollower::stop() {
+	state = boost::shared_ptr<State>(new SurfaceState(rectData.heading));
 	enabled = false;
-}
-
-void LineFollower::publishMovement(const bbauv_msgs::controller& movement){
- 	movementPub.publish(movement);
 }
 
 void LineFollower::compassCallback(const bbauv_msgs::compass_data& msg){
@@ -155,6 +152,10 @@ void LineFollower::prepareBlackLineParams(Mat inImage) {
 	erode(greyImg, greyImg, erodeEl);
 	dilate(greyImg, greyImg, dilateEl);
 
+//	Mat roiImg;
+//	Rect roi(0, 190, 640, 100);
+//	greyImg(roi).copyTo(roiImg);
+
 	//Testing Mat
 	cv::Mat out = inImage.clone();
 	resize(out, out, Size(640, 480));
@@ -180,7 +181,6 @@ void LineFollower::prepareBlackLineParams(Mat inImage) {
 
 			//Find the blackline bounding rect
 			rectData.maxRect = minAreaRect(contours[i]);
-
 		}
 	}
 
@@ -242,15 +242,17 @@ void quit(int sig)
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "linefollower");
-//	int loopRate = 20;
-//	ros::Rate loop_rate(loopRate);
 	LineFollower linefollower;
-	ROS_INFO("Initialsing LineFollower...");
+	linefollower.start();
+	ROS_INFO("Initialised LineFollower...");
 
 	signal(SIGINT, quit);
 
-	ros::spin();
-	//loop_rate.sleep();
+	ros::Rate loop_rate(linefollower.loopRateHz);
+	while (ros::ok()) {
+		ros::spinOnce();
+		loop_rate.sleep();
+	}
 
 	return (0);
 }
