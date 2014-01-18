@@ -1,48 +1,4 @@
 #!/usr/bin/env python
-# Software License Agreement (BSD License)
-
-# Sparton Digital Compass ROS Driver for AHRS-8/GEDC-6
-# Copyright (c) 2013, Cheng-Lung Lee, University of Detroit Mercy.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above
-#    copyright notice, this list of conditions and the following
-#    disclaimer in the documentation and/or other materials provided
-#    with the distribution.
-#  * Neither the names of the authors nor the names of their
-#    affiliated organizations may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-#
-
-# Sparton Digital Compass ROS Driver for AHRS-8/GEDC-6
-# Copyright (c) 2013, Cheng-Lung Lee, University of Detroit Mercy.
-
-# Changelog
-
-# 2013.01.06 Add IMU message
-# 2012.12.13 Use Pos2D message, normalized to 0 ~ 2*PI
-#
-
-
 import roslib
 import rospy
 from std_msgs.msg import String
@@ -60,13 +16,11 @@ from geometry_msgs.msg import Quaternion
 gyroSampleRate = 107.95 #hard-coded gyroSampleRate
 
 def wrapTo2PI(theta):
-    '''Normalize an angle in radians to [0, 2*pi]
-    '''
+    #   Normalize an angle in radians to [0, 2*pi]
     return theta % (2.*math.pi)
 
 def wrapToPI(theta):
-    '''Normalize an angle in radians to [-pi, pi]
-    '''
+    #   Normalize an angle in radians to [-pi, pi]
     return (wrapTo2PI(theta+math.pi) - math.pi)
 
 def Spartonshutdownhook():
@@ -78,6 +32,7 @@ def Spartonshutdownhook():
     rospy.loginfo('Closing Digital Compass Serial port')
     D_Compass.close() #Close D_Compass serial port
     # rospy.on_shutdown(Spartonshutdownhook)
+
 if __name__ == '__main__':
     global D_Compass
     global myStr1
@@ -227,7 +182,7 @@ if __name__ == '__main__':
                                 imu_data.linear_acceleration.y = Ay
                                 imu_data.linear_acceleration.z = Az
 
-				                # temperature
+                                # temperature
                                 temp.data = T;
 
                                 # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -259,18 +214,16 @@ if __name__ == '__main__':
                                 Imu_data.linear_acceleration.y = Ay
                                 Imu_data.linear_acceleration.z = Az
 
-
+                                if len(heading_array) > 5
+                                    heading_array.reverse()
+                                    heading_array.pop()
+                                    heading_array.reverse()
                                 heading_array.append(imu_data.orientation.z)
-                                if len(heading_array) == 5:
-                                    total = 0
-                                    for i in range(5):
-                                        total += heading_array[i]
-                                    imu_data.orientation.z = total / 5.0
-                                    heading_array = []
-                                    # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-                                    Imu_pub_q.publish(Imu_data)
-                                    Imu_pub_e.publish(imu_data)
-                                    Imu_pub_temp.publish(temp)
+                                imu_data.orientation.z = sum(heading_array) / len(heading_array)
+                                # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                                Imu_pub_q.publish(Imu_data)
+                                Imu_pub_e.publish(imu_data)
+                                Imu_pub_temp.publish(temp)
 
                                 #SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
                                 #SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed
