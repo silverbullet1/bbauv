@@ -59,6 +59,7 @@ private:
 	bool enabled;
 
 	ros::NodeHandle nh;
+	ros::NodeHandle private_nh;
 	//Subscribers to respective topic
 	image_transport::Subscriber imageSub;
 	ros::Subscriber compassSub;
@@ -79,13 +80,13 @@ double radianToDegree(double degree) {
 	return degree / M_PI * 180;
 }
 
-LineFollower::LineFollower() : it(nh)
+LineFollower::LineFollower() : it(nh), private_nh("~")
 {
 	enabled = false;
 
-//	nh.param<int>("~loopHz", loopRateHz, 20);
-//	string imageTopic; nh.param<string>("~image", imageTopic, "/bottomcam/camera/image_raw");
-//	string compassTopic; nh.param<string>("~compass", compassTopic, "/os5000_data");
+	private_nh.param<int>("loopHz", loopRateHz, 20);
+	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_raw");
+	string compassTopic; private_nh.param<string>("compass", compassTopic, "/os5000_data");
 
  	imageSub = it.subscribe("/bumblebee/bottomCam", 1, &LineFollower::bottomCamCallback, this);
     compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
@@ -226,7 +227,7 @@ void LineFollower::prepareBlackLineParams(Mat inImage) {
 	}
 
 	if (enabled)
-		state->gotFrame(inImage, rectData);
+		state = state->gotFrame(inImage, rectData);
 }
 
 int kfd = 0;
