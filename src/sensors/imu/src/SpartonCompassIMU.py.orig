@@ -27,6 +27,7 @@ def Spartonshutdownhook():
     global D_Compass
     global myStr1
     print "Sparton shutdown time!"
+    #rospy.loginfo("loop time: %i", now2.nsecs - now1.nsecs )
     D_Compass.write(myStr1) # stop data stream before close port
     D_Compass.flush() # flush data out
     rospy.loginfo('Closing Digital Compass Serial port')
@@ -125,13 +126,17 @@ if __name__ == '__main__':
         #Read in D_Compass
         #Testdata='P:,%i,ap,-6.34,-22.46,1011.71,gp,0.00,0.00,-0.00,yt,342.53,q,0.98,-0.01,0.01,-0.15\n'
         #i=0
-
+        now3 = rospy.get_time()
+        iters = 0
         heading_array = []
         while not rospy.is_shutdown():
+            iters += 1
+            now1 = rospy.get_time()		
             #read D_Compass line  , The data example $HCHDT,295.5,T*2B
             #                                        [0]    [1] 
             #i+=1
             #D_Compass.write(Testdata % i) # send testdata and do loop-back in RS232 for debug
+            
             data = D_Compass.readline()
             #rospy.loginfo("Received a sentence: %s" % data)
 
@@ -140,10 +145,12 @@ if __name__ == '__main__':
             #    continue
 
             #DatatimeNow = rospy.get_rostime()
+            
             DataTimeSec=rospy.get_time()
+
+            #rospy.loginfo("Data: %s" % data )
             fields = data.split(',')
             #print fields[0]+fields[2]+fields[6]+fields[10]+fields[12] #P:apgpytq
-
             try:
                 if len(fields) > 18:
                         if 'P:apgpytqT' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]):
@@ -182,7 +189,7 @@ if __name__ == '__main__':
                                 imu_data.linear_acceleration.y = Ay
                                 imu_data.linear_acceleration.z = Az
 
-				                # temperature
+                                # temperature
                                 temp.data = T;
 
                                 # Quaternion message dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -214,13 +221,23 @@ if __name__ == '__main__':
                                 Imu_data.linear_acceleration.y = Ay
                                 Imu_data.linear_acceleration.z = Az
 
-                                if len(heading_array) > 5:
+                                if len(heading_array) > 5
                                     heading_array.reverse()
                                     heading_array.pop()
                                     heading_array.reverse()
                                 heading_array.append(imu_data.orientation.z)
+<<<<<<< HEAD
+                                if len(heading_array) == 5:
+                                    total = 0
+                                    for i in range(5):
+                                        total += heading_array[i]
+                                    imu_data.orientation.z = total / 5.0
+                                    heading_array = []
+                                    # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+=======
                                 imu_data.orientation.z = sum(heading_array) / len(heading_array)
                                 # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+>>>>>>> 707680cf446043b6fe44c9c1196d57dc5971ad9d
                                 Imu_pub_q.publish(Imu_data)
                                 Imu_pub_e.publish(imu_data)
                                 Imu_pub_temp.publish(temp)
@@ -236,7 +253,8 @@ if __name__ == '__main__':
                                 rospy.logerr("[3]Received a sentence but not correct. Sentence was: %s" % data)
                 else:
                         rospy.logerr("[4]Received a sentence but not correct. Sentence was: %s" % data)
-
+                now2 = rospy.get_time()
+                rospy.loginfo("Frequency = %f", 1/(((now2 - now3)/iters)))
             except ValueError as e:
                 rospy.logwarn("Value error, likely due to missing fields in the data messages.Sentence was: %s %s" % (data, fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]))
 
