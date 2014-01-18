@@ -8,6 +8,7 @@
 #include "controlui_add.h"
 #include "qcustomplot.h"
 #include <bbauv_msgs/compass_data.h>
+#include <bbauv_msgs/ControlData.h>
 #include <dynamic_reconfigure/DoubleParameter.h>
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/Config.h>
@@ -18,9 +19,35 @@ static QVector<double> graph_x(101), graph_setpt(101), graph_output(101); //Vect
 static bool live=true;					//Boolean whether UI is connected to robot
 static bool enable=false;
 
-/*
-	Helper functions to update Dynamic Reconfigure params
-*/
+/* Static variables for DoFs */
+static float depth;
+static float yaw;
+static float pitch;
+static float roll;
+static float x;
+static float y;
+
+static float depth_kp;
+static float yaw_kp;
+static float pitch_kp;
+static float roll_kp;
+static float x_kp;
+static float y_kp;
+
+static float depth_ki;
+static float yaw_ki;
+static float pitch_ki;
+static float roll_ki;
+static float x_ki;
+static float y_ki;
+
+static float depth_kd;
+static float yaw_kd;
+static float pitch_kd;
+static float roll_kd;
+static float x_kd;
+static float y_kd;
+
 
 void subscribeToData(ros::NodeHandle& nh);
 
@@ -36,6 +63,9 @@ void graph_compass_callback(const bbauv_msgs::compass_data::ConstPtr& data) {
 	ros::spinOnce();
 }
 
+/*
+	Helper functions to update Dynamic Reconfigure params
+*/
 void updateParameter(string paramName, bool val)
 {
 	dynamic_reconfigure::ReconfigureRequest srv_req;
@@ -51,7 +81,6 @@ void updateParameter(string paramName, bool val)
 
 	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
-
 void updateParameter(string paramName, double val)
 {
 	dynamic_reconfigure::ReconfigureRequest srv_req;
@@ -82,6 +111,52 @@ void updateParameter(string paramName, int val)
 
 	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
+/*
+	DoF Subscribers
+*/
+void depth_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	depth = msg->val;
+	depth_kp = msg->kp;
+	depth_ki = msg->ki;
+	depth_kd = msg->kd;
+	dofSelected(5);
+}
+void yaw_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	yaw = msg->val;
+	yaw_kp = msg->kp;
+	yaw_ki = msg->ki;
+	yaw_kd = msg->kd;
+	dofSelected(2);
+}
+void pitch_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	pitch = msg->val;
+	pitch_kp = msg->kp;
+	pitch_ki = msg->ki;
+	pitch_kd = msg->kd;
+	dofSelected(4);
+}
+void roll_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	roll = msg->val;
+	roll_kp = msg->kp;
+	roll_ki = msg->ki;
+	roll_kd = msg->kd;
+	dofSelected(3);
+}
+void x_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	x = msg->val;
+	x_kp = msg->kp;
+	x_ki = msg->ki;
+	x_kd = msg->kd;
+	dofSelected(0);
+}
+void y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	y = msg->val;
+	y_kp = msg->kp;
+	y_ki = msg->ki;
+	y_kd = msg->kd;
+	dofSelected(1);
+}
+
 
 
 
@@ -341,17 +416,20 @@ void openFile(){
 
 //To subscribe to data topics: currently under default!! 
 void subscribeToData(ros::NodeHandle &nh) {
-	//For telemetry
-	ros::Subscriber setpt_val_sub = nh.subscribe("a", 1, setpt_val_callback);
-	ros::Subscriber sensor_sub = nh.subscribe("a", 1, sensor_val_callback);
-	ros::Subscriber error_sub = nh.subscribe("a", 1, error_val_callback);
-	ros::Subscriber KP_val_sub = nh.subscribe("a", 1, KP_val_callback);
-	ros::Subscriber KI_sub = nh.subscribe("a", 1, KI_val_callback);
-	ros::Subscriber KD_sub = nh.subscribe("a", 1, KD_val_callback);
-	ros::Subscriber output_sub = nh.subscribe("a", 1, output_val_callback);
+	/*
+		Note: Setpoint get from Dynamic Reconfigure server / Parameter Server
+	*/
 
-	//Initialise the 8 thrusters -- they're all in one topic
-	ros::Subscriber thruster_sub = nh.subscribe("/thruster_speed", 1, thruster_val_callback);
+	//For telemetry
+	ros::Subscriber setpt_val_sub = nh.subscribe("/Controller/DOF/a", 1, setpt_val_callback);
+	ros::Subscriber sensor_sub = nh.subscribe("/Controller/DOF/b", 1, sensor_val_callback);
+	ros::Subscriber error_sub = nh.subscribe("/Controller/DOF/c", 1, error_val_callback);
+	ros::Subscriber KP_val_sub = nh.subscribe("/Controller/DOF/d", 1, KP_val_callback);
+	ros::Subscriber KI_sub = nh.subscribe("/Controller/DOF/e", 1, KI_val_callback);
+	ros::Subscriber KD_sub = nh.subscribe("/Controller/DOF/f", 1, KD_val_callback);
+	ros::Subscriber output_sub = nh.subscribe("/Controller/DOF/g", 1, output_val_callback);
+
+	
 
 	//Default use dof_x
 	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
@@ -366,6 +444,21 @@ void subscribeToData(ros::NodeHandle &nh) {
 	//For graph
 	ros::Subscriber graph_setpt_sub = nh.subscribe("a", 1, graph_setpt_callback);
 	ros::Subscriber graph_output_sub = nh.subscribe("a", 1, graph_output_callback);
+
+	/*
+		Thrusters Subscriber [thrusters.msg]
+	*/
+	ros::Subscriber thruster_sub = nh.subscribe("/thruster_speed", 1, thruster_val_callback);
+
+	/*
+		DoFs Subscribers (Depth, Yaw, Pitch, Roll, X , Y) [ControlData.msg]
+	*/
+	ros::Subscriber depth_dof_sub = nh.subscribe("/Controller/DOF/Depth", 1, depth_dof_callback);
+	ros::Subscriber yaw_dof_sub = nh.subscribe("/Controller/DOF/Yaw", 1, yaw_dof_callback);
+	ros::Subscriber pitch_dof_sub = nh.subscribe("/Controller/DOF/Pitch", 1, pitch_dof_callback);
+	ros::Subscriber roll_dof_sub = nh.subscribe("/Controller/DOF/Roll", 1, roll_dof_callback);
+	ros::Subscriber x_dof_sub = nh.subscribe("/Controller/DOF/X", 1, x_dof_callback);
+	ros::Subscriber y_dof_sub = nh.subscribe("/Controller/DOF/Y", 1, y_dof_callback);
 }
 
 
@@ -562,101 +655,60 @@ void tuneButton(){
 	}
 }
 
-// Receive the respective parameters for the dof 
+/*
+	Updates DoF values in the UI
+*/
 void dofSelected(int index){
-	ros::NodeHandle nh;
-	ros::Subscriber dof_setpt_sub, sensor_sub, error_sub, output_sub, KP_sub, KI_sub, KD_sub;
-	ros::Subscriber thruster_val_1_sub, thruster_val_2_sub, thruster_val_3_sub, thruster_val_4_sub, thruster_val_5_sub, thruster_val_6_sub, thruster_val_7_sub, thruster_val_8_sub;
-
-	string dof_setpt_sub_name, sensor_sub_name, error_sub_name, output_sub_name, KP_sub_name, KI_sub_name, KD_sub_name;
-
+	ROS_INFO("Current selected index in DoF: %i", index);
 	switch(index){
 		//dof x
-		case 1:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
+		case 0:
+		ui.sensor_val->setText(boost::lexical_cast<std::string>(x).c_str());
+		ui.KP_val->setText(boost::lexical_cast<std::string>(x_kp).c_str());
+		ui.KI_val->setText(boost::lexical_cast<std::string>(x_ki).c_str());
+		ui.KD_val->setText(boost::lexical_cast<std::string>(x_kd).c_str());
 		break;
 
 		//dof y
-		case 2:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
+		case 1:
+		ui.sensor_val->setText(boost::lexical_cast<std::string>(y).c_str());
+		ui.KP_val->setText(boost::lexical_cast<std::string>(y_kp).c_str());
+		ui.KI_val->setText(boost::lexical_cast<std::string>(y_ki).c_str());
+		ui.KD_val->setText(boost::lexical_cast<std::string>(y_kd).c_str());
 		break;
 
 		//yaw
-		case 3:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
+		case 2:
+		ui.sensor_val->setText(boost::lexical_cast<std::string>(yaw).c_str());
+		ui.KP_val->setText(boost::lexical_cast<std::string>(yaw_kp).c_str());
+		ui.KI_val->setText(boost::lexical_cast<std::string>(yaw_ki).c_str());
+		ui.KD_val->setText(boost::lexical_cast<std::string>(yaw_kd).c_str());
 		break;
 
 		//roll
-		case 4:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
+		case 3:
+		ui.sensor_val->setText(boost::lexical_cast<std::string>(roll).c_str());
+		ui.KP_val->setText(boost::lexical_cast<std::string>(roll_kp).c_str());
+		ui.KI_val->setText(boost::lexical_cast<std::string>(roll_ki).c_str());
+		ui.KD_val->setText(boost::lexical_cast<std::string>(roll_kd).c_str());
 		break;
 
 		//pitch
-		case 5:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
+		case 4:
+		ui.sensor_val->setText(boost::lexical_cast<std::string>(pitch).c_str());
+		ui.KP_val->setText(boost::lexical_cast<std::string>(pitch_kp).c_str());
+		ui.KI_val->setText(boost::lexical_cast<std::string>(pitch_ki).c_str());
+		ui.KD_val->setText(boost::lexical_cast<std::string>(pitch_kd).c_str());
 		break;
 
 		//depth
-		case 6:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
-		break;
-
-		//dof x
-		default:
-		dof_setpt_sub_name = "a";
-		sensor_sub_name = "b";
-		error_sub_name = "c";
-		output_sub_name = "d";
-		KP_sub_name = "e";
-		KI_sub_name = "f";
-		KD_sub_name = "g";
+		case 5:
+		ui.sensor_val->setText(boost::lexical_cast<std::string>(depth).c_str());
+		ui.KP_val->setText(boost::lexical_cast<std::string>(depth_kp).c_str());
+		ui.KI_val->setText(boost::lexical_cast<std::string>(depth_ki).c_str());
+		ui.KD_val->setText(boost::lexical_cast<std::string>(depth_kd).c_str());
 		break;
 	}
-	
-	// thruster_val_sub = nh.subscribe("a", 1, thruster_val_callback);
-	dof_setpt_sub = nh.subscribe(dof_setpt_sub_name, 100, setpt_val_callback);
-	sensor_sub = nh.subscribe(sensor_sub_name, 1, sensor_val_callback);
-	error_sub = nh.subscribe(error_sub_name, 1, error_val_callback);
-	output_sub = nh.subscribe(output_sub_name, 1, output_val_callback);
-	KP_sub = nh.subscribe(KP_sub_name, 1, KP_val_callback);
-	KI_sub = nh.subscribe(KI_sub_name, 1, KI_val_callback);
-	KD_sub = nh.subscribe(KD_sub_name, 1, KD_val_callback);
 }
 
 
@@ -694,6 +746,14 @@ void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg){
 	params["thruster_val_6"] = msg->speed6;
 	params["thruster_val_7"] = msg->speed7;
 	params["thruster_val_8"] = msg->speed8;
+	ui.thruster_val_1->setText(params.find("thruster_val_1")->second.c_str());
+	ui.thruster_val_2->setText(params.find("thruster_val_2")->second.c_str());
+	ui.thruster_val_3->setText(params.find("thruster_val_3")->second.c_str());
+	ui.thruster_val_4->setText(params.find("thruster_val_4")->second.c_str());
+	ui.thruster_val_5->setText(params.find("thruster_val_5")->second.c_str());
+	ui.thruster_val_6->setText(params.find("thruster_val_6")->second.c_str());
+	ui.thruster_val_7->setText(params.find("thruster_val_7")->second.c_str());
+	ui.thruster_val_8->setText(params.find("thruster_val_8")->second.c_str());
 }
 
 void dof_val_callback(const std_msgs::String::ConstPtr& msg){
