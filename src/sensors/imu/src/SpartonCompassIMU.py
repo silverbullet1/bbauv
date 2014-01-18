@@ -73,6 +73,7 @@ def Spartonshutdownhook():
     global D_Compass
     global myStr1
     print "Sparton shutdown time!"
+    #rospy.loginfo("loop time: %i", now2.nsecs - now1.nsecs )
     D_Compass.write(myStr1) # stop data stream before close port
     D_Compass.flush() # flush data out
     rospy.loginfo('Closing Digital Compass Serial port')
@@ -93,7 +94,7 @@ if __name__ == '__main__':
     D_Compassport = rospy.get_param('~port','/dev/ttyUSB0')
     D_Compassrate = rospy.get_param('~baud',115200)
     # printmodulus set to 1 is 100 Hz. 2 : 50Hz 
-    D_Compassprintmodulus = rospy.get_param('~printmodulus', 255)
+    D_Compassprintmodulus = rospy.get_param('~printmodulus', 50)
     #Digital compass heading offset in degree
     D_Compass_offset = rospy.get_param('~offset',0.)
     Imu_data = Imu()
@@ -170,13 +171,17 @@ if __name__ == '__main__':
         #Read in D_Compass
         #Testdata='P:,%i,ap,-6.34,-22.46,1011.71,gp,0.00,0.00,-0.00,yt,342.53,q,0.98,-0.01,0.01,-0.15\n'
         #i=0
-
+        now3 = rospy.get_time()
+        iters = 0
         heading_array = []
         while not rospy.is_shutdown():
+            iters += 1
+            now1 = rospy.get_time()		
             #read D_Compass line  , The data example $HCHDT,295.5,T*2B
             #                                        [0]    [1] 
             #i+=1
             #D_Compass.write(Testdata % i) # send testdata and do loop-back in RS232 for debug
+            
             data = D_Compass.readline()
             #rospy.loginfo("Received a sentence: %s" % data)
 
@@ -185,10 +190,12 @@ if __name__ == '__main__':
             #    continue
 
             #DatatimeNow = rospy.get_rostime()
+            
             DataTimeSec=rospy.get_time()
+
+            #rospy.loginfo("Data: %s" % data )
             fields = data.split(',')
             #print fields[0]+fields[2]+fields[6]+fields[10]+fields[12] #P:apgpytq
-
             try:
                 if len(fields) > 18:
                         if 'P:apgpytqT' == (fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]):
@@ -268,9 +275,9 @@ if __name__ == '__main__':
                                     imu_data.orientation.z = total / 5.0
                                     heading_array = []
                                     # Publish dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-                                    Imu_pub_q.publish(Imu_data)
-                                    Imu_pub_e.publish(imu_data)
-                                    Imu_pub_temp.publish(temp)
+                                Imu_pub_q.publish(Imu_data)
+                                Imu_pub_e.publish(imu_data)
+                                Imu_pub_temp.publish(temp)
 
                                 #SpartonPose2D.y=1000./(float(fields[1])-SpartonPose2D.x) # put update rate here for debug the update rate
                                 #SpartonPose2D.x=float(fields[1]) # put mSec tick here for debug the speed
@@ -283,9 +290,11 @@ if __name__ == '__main__':
                                 rospy.logerr("[3]Received a sentence but not correct. Sentence was: %s" % data)
                 else:
                         rospy.logerr("[4]Received a sentence but not correct. Sentence was: %s" % data)
-
+                now2 = rospy.get_time()
+                rospy.loginfo("Frequency = %f", 1/(((now2 - now3)/iters)))
             except ValueError as e:
                 rospy.logwarn("Value error, likely due to missing fields in the data messages.Sentence was: %s %s" % (data, fields[0]+fields[2]+fields[6]+fields[10]+fields[12]+fields[17]))
+
 
             # no loop, delay, ROSspin() here, we try to read all the data asap
         D_Compass.write(myStr1) # stop data stream before close port
