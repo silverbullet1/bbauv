@@ -5,7 +5,7 @@
   <node pkg="camera1394" type="camera1394_node" name="camera1394_node" >
     <rosparam
        file="$(find vision)/launch/$(arg camera).yaml" />
- 	<param name="~video_mode" value="640x480_rgb24"/>
+ 	<param name="~video_mode" value="640x480_yuv411"/>
 	<param name="~brightness" value="16"/>
 	<param name="~auto_exposure" value="125"/>
 	<param name="~shutter" value="18"/>
