@@ -88,8 +88,8 @@ LineFollower::LineFollower() : it(nh), private_nh("~")
 	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_raw");
 	string compassTopic; private_nh.param<string>("compass", compassTopic, "/os5000_data");
 
- 	imageSub = it.subscribe("/bumblebee/bottomCam", 1, &LineFollower::bottomCamCallback, this);
-    compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
+ 	imageSub = it.subscribe("/camera2/camera/image_raw", 1, &LineFollower::bottomCamCallback, this);
+    compassSub = nh.subscribe("/AHRS8_data_e", 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 
 	thVal = 80;

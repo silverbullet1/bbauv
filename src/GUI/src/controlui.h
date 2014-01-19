@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'ControlUI.ui'
 **
-** Created by: Qt User Interface Compiler version 5.1.1
+** Created by: Qt User Interface Compiler version 5.0.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -66,7 +66,6 @@ public:
     QLabel *thruster_val_6;
     QLabel *thruster_val_7;
     QLabel *thruster_val_5;
-    QLabel *DOF_label;
     QFrame *controparam_frame;
     QLabel *actmin_label;
     QLabel *actmax_label;
@@ -79,6 +78,7 @@ public:
     QLineEdit *actmin_val;
     QLineEdit *actmax_val;
     QPushButton *tuneButton;
+    QLineEdit *con_KD_val;
     QFrame *advanced_frame;
     QLabel *Fwd_label;
     QCheckBox *fwd_check;
@@ -95,13 +95,14 @@ public:
     QLabel *Advanced_label;
     QPushButton *sendButton;
     QPushButton *enabledButton;
-    QComboBox *dof_comboBox;
     QLabel *graphvalues;
     QFrame *frame;
     QPushButton *fireButton;
     QLineEdit *goal_val;
     QLabel *Goal_label;
-    QLineEdit *con_KD_val;
+    QLabel *DOF_label;
+    QComboBox *dof_comboBox;
+    QComboBox *graphType;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -122,7 +123,7 @@ public:
         centralwidget->setObjectName(QStringLiteral("centralwidget"));
         horizontalLayoutWidget = new QWidget(centralwidget);
         horizontalLayoutWidget->setObjectName(QStringLiteral("horizontalLayoutWidget"));
-        horizontalLayoutWidget->setGeometry(QRect(20, 40, 341, 411));
+        horizontalLayoutWidget->setGeometry(QRect(20, 50, 371, 431));
         graph = new QHBoxLayout(horizontalLayoutWidget);
         graph->setObjectName(QStringLiteral("graph"));
         graph->setContentsMargins(0, 0, 0, 0);
@@ -134,10 +135,10 @@ public:
 
         graph_label = new QLabel(centralwidget);
         graph_label->setObjectName(QStringLiteral("graph_label"));
-        graph_label->setGeometry(QRect(20, 10, 66, 17));
+        graph_label->setGeometry(QRect(20, 20, 66, 17));
         telemetry_box = new QFrame(centralwidget);
         telemetry_box->setObjectName(QStringLiteral("telemetry_box"));
-        telemetry_box->setGeometry(QRect(380, 10, 531, 151));
+        telemetry_box->setGeometry(QRect(400, 10, 531, 151));
         telemetry_box->setFrameShape(QFrame::StyledPanel);
         setpt_label = new QLabel(telemetry_box);
         setpt_label->setObjectName(QStringLiteral("setpt_label"));
@@ -168,7 +169,7 @@ public:
         KD_label->setFont(font);
         output_label = new QLabel(telemetry_box);
         output_label->setObjectName(QStringLiteral("output_label"));
-        output_label->setGeometry(QRect(10, 130, 51, 17));
+        output_label->setGeometry(QRect(20, 130, 51, 17));
         output_label->setFont(font);
         thruster_label = new QLabel(telemetry_box);
         thruster_label->setObjectName(QStringLiteral("thruster_label"));
@@ -197,7 +198,7 @@ public:
         output_val->setGeometry(QRect(80, 130, 66, 17));
         thruster_val_1 = new QLabel(telemetry_box);
         thruster_val_1->setObjectName(QStringLiteral("thruster_val_1"));
-        thruster_val_1->setGeometry(QRect(360, 40, 66, 17));
+        thruster_val_1->setGeometry(QRect(370, 40, 66, 17));
         telemetry_label = new QLabel(telemetry_box);
         telemetry_label->setObjectName(QStringLiteral("telemetry_label"));
         telemetry_label->setGeometry(QRect(20, 10, 81, 17));
@@ -210,31 +211,28 @@ public:
         telemetry_label->setFont(font1);
         thruster_val_2 = new QLabel(telemetry_box);
         thruster_val_2->setObjectName(QStringLiteral("thruster_val_2"));
-        thruster_val_2->setGeometry(QRect(360, 70, 66, 17));
+        thruster_val_2->setGeometry(QRect(370, 70, 66, 17));
         thruster_val_3 = new QLabel(telemetry_box);
         thruster_val_3->setObjectName(QStringLiteral("thruster_val_3"));
-        thruster_val_3->setGeometry(QRect(360, 100, 66, 17));
+        thruster_val_3->setGeometry(QRect(370, 100, 66, 17));
         thruster_val_4 = new QLabel(telemetry_box);
         thruster_val_4->setObjectName(QStringLiteral("thruster_val_4"));
-        thruster_val_4->setGeometry(QRect(360, 130, 66, 17));
+        thruster_val_4->setGeometry(QRect(370, 130, 66, 17));
         thruster_val_8 = new QLabel(telemetry_box);
         thruster_val_8->setObjectName(QStringLiteral("thruster_val_8"));
-        thruster_val_8->setGeometry(QRect(440, 40, 66, 17));
+        thruster_val_8->setGeometry(QRect(450, 40, 66, 17));
         thruster_val_6 = new QLabel(telemetry_box);
         thruster_val_6->setObjectName(QStringLiteral("thruster_val_6"));
-        thruster_val_6->setGeometry(QRect(440, 130, 66, 17));
+        thruster_val_6->setGeometry(QRect(450, 130, 66, 17));
         thruster_val_7 = new QLabel(telemetry_box);
         thruster_val_7->setObjectName(QStringLiteral("thruster_val_7"));
-        thruster_val_7->setGeometry(QRect(440, 70, 71, 21));
+        thruster_val_7->setGeometry(QRect(450, 70, 71, 21));
         thruster_val_5 = new QLabel(telemetry_box);
         thruster_val_5->setObjectName(QStringLiteral("thruster_val_5"));
-        thruster_val_5->setGeometry(QRect(440, 100, 66, 17));
-        DOF_label = new QLabel(centralwidget);
-        DOF_label->setObjectName(QStringLiteral("DOF_label"));
-        DOF_label->setGeometry(QRect(400, 190, 51, 17));
+        thruster_val_5->setGeometry(QRect(450, 100, 66, 17));
         controparam_frame = new QFrame(centralwidget);
         controparam_frame->setObjectName(QStringLiteral("controparam_frame"));
-        controparam_frame->setGeometry(QRect(380, 390, 531, 131));
+        controparam_frame->setGeometry(QRect(400, 390, 531, 131));
         controparam_frame->setFrameShape(QFrame::StyledPanel);
         controparam_frame->setFrameShadow(QFrame::Raised);
         actmin_label = new QLabel(controparam_frame);
@@ -243,7 +241,7 @@ public:
         actmin_label->setFont(font);
         actmax_label = new QLabel(controparam_frame);
         actmax_label->setObjectName(QStringLiteral("actmax_label"));
-        actmax_label->setGeometry(QRect(170, 80, 61, 17));
+        actmax_label->setGeometry(QRect(170, 80, 71, 17));
         actmax_label->setFont(font);
         con_KD_label = new QLabel(controparam_frame);
         con_KD_label->setObjectName(QStringLiteral("con_KD_label"));
@@ -275,110 +273,110 @@ public:
         tuneButton = new QPushButton(controparam_frame);
         tuneButton->setObjectName(QStringLiteral("tuneButton"));
         tuneButton->setGeometry(QRect(390, 80, 98, 31));
+        con_KD_val = new QLineEdit(controparam_frame);
+        con_KD_val->setObjectName(QStringLiteral("con_KD_val"));
+        con_KD_val->setGeometry(QRect(60, 100, 81, 27));
         advanced_frame = new QFrame(centralwidget);
         advanced_frame->setObjectName(QStringLiteral("advanced_frame"));
-        advanced_frame->setGeometry(QRect(590, 170, 321, 211));
+        advanced_frame->setGeometry(QRect(630, 170, 301, 211));
         advanced_frame->setFrameShape(QFrame::StyledPanel);
         advanced_frame->setFrameShadow(QFrame::Raised);
         Fwd_label = new QLabel(advanced_frame);
         Fwd_label->setObjectName(QStringLiteral("Fwd_label"));
-        Fwd_label->setGeometry(QRect(20, 40, 51, 17));
+        Fwd_label->setGeometry(QRect(60, 40, 51, 17));
         fwd_check = new QCheckBox(advanced_frame);
         fwd_check->setObjectName(QStringLiteral("fwd_check"));
-        fwd_check->setGeometry(QRect(80, 40, 41, 22));
+        fwd_check->setGeometry(QRect(120, 40, 41, 22));
         fwd_val = new QLineEdit(advanced_frame);
         fwd_val->setObjectName(QStringLiteral("fwd_val"));
-        fwd_val->setGeometry(QRect(130, 40, 101, 27));
+        fwd_val->setGeometry(QRect(170, 40, 101, 27));
         Depth_label = new QLabel(advanced_frame);
         Depth_label->setObjectName(QStringLiteral("Depth_label"));
-        Depth_label->setGeometry(QRect(20, 70, 51, 17));
+        Depth_label->setGeometry(QRect(60, 70, 51, 17));
         depth_check = new QCheckBox(advanced_frame);
         depth_check->setObjectName(QStringLiteral("depth_check"));
-        depth_check->setGeometry(QRect(80, 70, 41, 22));
+        depth_check->setGeometry(QRect(120, 70, 41, 22));
         depth_val = new QLineEdit(advanced_frame);
         depth_val->setObjectName(QStringLiteral("depth_val"));
-        depth_val->setGeometry(QRect(130, 70, 101, 27));
+        depth_val->setGeometry(QRect(170, 70, 101, 27));
         yaw_val = new QLineEdit(advanced_frame);
         yaw_val->setObjectName(QStringLiteral("yaw_val"));
-        yaw_val->setGeometry(QRect(130, 100, 101, 27));
+        yaw_val->setGeometry(QRect(170, 100, 101, 27));
         yaw_label = new QLabel(advanced_frame);
         yaw_label->setObjectName(QStringLiteral("yaw_label"));
-        yaw_label->setGeometry(QRect(20, 100, 51, 17));
+        yaw_label->setGeometry(QRect(60, 100, 51, 17));
         yaw_check = new QCheckBox(advanced_frame);
         yaw_check->setObjectName(QStringLiteral("yaw_check"));
-        yaw_check->setGeometry(QRect(80, 100, 41, 22));
+        yaw_check->setGeometry(QRect(120, 100, 41, 22));
         sm_val = new QLineEdit(advanced_frame);
         sm_val->setObjectName(QStringLiteral("sm_val"));
-        sm_val->setGeometry(QRect(130, 130, 101, 27));
+        sm_val->setGeometry(QRect(170, 130, 101, 27));
         sm_check = new QCheckBox(advanced_frame);
         sm_check->setObjectName(QStringLiteral("sm_check"));
-        sm_check->setGeometry(QRect(80, 130, 41, 22));
+        sm_check->setGeometry(QRect(120, 130, 41, 22));
         sm_label = new QLabel(advanced_frame);
         sm_label->setObjectName(QStringLiteral("sm_label"));
-        sm_label->setGeometry(QRect(20, 130, 51, 17));
+        sm_label->setGeometry(QRect(60, 130, 51, 17));
         Advanced_label = new QLabel(advanced_frame);
         Advanced_label->setObjectName(QStringLiteral("Advanced_label"));
-        Advanced_label->setGeometry(QRect(10, 10, 151, 17));
+        Advanced_label->setGeometry(QRect(60, 10, 151, 17));
         Advanced_label->setTextFormat(Qt::RichText);
         sendButton = new QPushButton(advanced_frame);
         sendButton->setObjectName(QStringLiteral("sendButton"));
-        sendButton->setGeometry(QRect(220, 170, 98, 31));
+        sendButton->setGeometry(QRect(170, 170, 98, 31));
         enabledButton = new QPushButton(advanced_frame);
         enabledButton->setObjectName(QStringLiteral("enabledButton"));
-        enabledButton->setGeometry(QRect(240, 130, 71, 31));
+        enabledButton->setGeometry(QRect(60, 170, 81, 31));
         QFont font2;
         font2.setPointSize(10);
         font2.setBold(true);
         font2.setItalic(true);
         font2.setWeight(75);
         enabledButton->setFont(font2);
-        dof_comboBox = new QComboBox(centralwidget);
-        dof_comboBox->setObjectName(QStringLiteral("dof_comboBox"));
-        dof_comboBox->setGeometry(QRect(450, 190, 91, 27));
         graphvalues = new QLabel(centralwidget);
         graphvalues->setObjectName(QStringLiteral("graphvalues"));
-        graphvalues->setGeometry(QRect(20, 480, 321, 21));
+        graphvalues->setGeometry(QRect(20, 500, 321, 21));
         QFont font3;
-        font3.setPointSize(13);
+        font3.setPointSize(11);
         font3.setBold(true);
         font3.setWeight(75);
         graphvalues->setFont(font3);
         graphvalues->setTextFormat(Qt::AutoText);
         frame = new QFrame(centralwidget);
         frame->setObjectName(QStringLiteral("frame"));
-        frame->setGeometry(QRect(380, 170, 201, 211));
+        frame->setGeometry(QRect(400, 170, 221, 211));
         frame->setFrameShape(QFrame::StyledPanel);
         frame->setFrameShadow(QFrame::Raised);
         fireButton = new QPushButton(frame);
         fireButton->setObjectName(QStringLiteral("fireButton"));
-        fireButton->setGeometry(QRect(70, 100, 101, 27));
+        fireButton->setGeometry(QRect(80, 100, 101, 27));
         fireButton->setAutoFillBackground(true);
         fireButton->setCheckable(false);
         goal_val = new QLineEdit(frame);
         goal_val->setObjectName(QStringLiteral("goal_val"));
-        goal_val->setGeometry(QRect(70, 60, 101, 27));
+        goal_val->setGeometry(QRect(80, 60, 101, 27));
         goal_val->setCursor(QCursor(Qt::IBeamCursor));
         Goal_label = new QLabel(frame);
         Goal_label->setObjectName(QStringLiteral("Goal_label"));
-        Goal_label->setGeometry(QRect(20, 70, 51, 17));
-        fireButton->raise();
-        goal_val->raise();
-        DOF_label->raise();
-        Goal_label->raise();
-        con_KD_val = new QLineEdit(centralwidget);
-        con_KD_val->setObjectName(QStringLiteral("con_KD_val"));
-        con_KD_val->setGeometry(QRect(440, 490, 81, 27));
+        Goal_label->setGeometry(QRect(30, 70, 51, 17));
+        DOF_label = new QLabel(frame);
+        DOF_label->setObjectName(QStringLiteral("DOF_label"));
+        DOF_label->setGeometry(QRect(30, 30, 51, 17));
+        dof_comboBox = new QComboBox(frame);
+        dof_comboBox->setObjectName(QStringLiteral("dof_comboBox"));
+        dof_comboBox->setGeometry(QRect(80, 20, 101, 31));
+        graphType = new QComboBox(centralwidget);
+        graphType->setObjectName(QStringLiteral("graphType"));
+        graphType->setGeometry(QRect(70, 10, 85, 27));
         ControlSysUI->setCentralWidget(centralwidget);
         frame->raise();
         horizontalLayoutWidget->raise();
         graph_label->raise();
         telemetry_box->raise();
-        DOF_label->raise();
         controparam_frame->raise();
         advanced_frame->raise();
-        dof_comboBox->raise();
         graphvalues->raise();
-        con_KD_val->raise();
+        graphType->raise();
         menubar = new QMenuBar(ControlSysUI);
         menubar->setObjectName(QStringLiteral("menubar"));
         menubar->setGeometry(QRect(0, 0, 945, 25));
@@ -434,7 +432,6 @@ public:
         thruster_val_6->setText(QApplication::translate("ControlSysUI", "TextLabel", 0));
         thruster_val_7->setText(QApplication::translate("ControlSysUI", "TextLabel", 0));
         thruster_val_5->setText(QApplication::translate("ControlSysUI", "TextLabel", 0));
-        DOF_label->setText(QApplication::translate("ControlSysUI", "DOF", 0));
         actmin_label->setText(QApplication::translate("ControlSysUI", "Act_Min", 0));
         actmax_label->setText(QApplication::translate("ControlSysUI", "Act_Max", 0));
         con_KD_label->setText(QApplication::translate("ControlSysUI", "KD", 0));
@@ -456,6 +453,11 @@ public:
         sendButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+E", 0));
         enabledButton->setText(QApplication::translate("ControlSysUI", "&Enable", 0));
         enabledButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+E", 0));
+        graphvalues->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p>Graph values:  x:       y:</p></body></html>", 0));
+        fireButton->setText(QApplication::translate("ControlSysUI", "Fi&re", 0));
+        fireButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+R", 0));
+        Goal_label->setText(QApplication::translate("ControlSysUI", "Goal", 0));
+        DOF_label->setText(QApplication::translate("ControlSysUI", "DOF", 0));
         dof_comboBox->clear();
         dof_comboBox->insertItems(0, QStringList()
          << QApplication::translate("ControlSysUI", "pos_X", 0)
@@ -465,10 +467,15 @@ public:
          << QApplication::translate("ControlSysUI", "pitch", 0)
          << QApplication::translate("ControlSysUI", "depth", 0)
         );
-        graphvalues->setText(QApplication::translate("ControlSysUI", "<html><head/><body><p>Graph values:  x:       y:</p></body></html>", 0));
-        fireButton->setText(QApplication::translate("ControlSysUI", "Fi&re", 0));
-        fireButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+R", 0));
-        Goal_label->setText(QApplication::translate("ControlSysUI", "Goal", 0));
+        graphType->clear();
+        graphType->insertItems(0, QStringList()
+         << QApplication::translate("ControlSysUI", "Depth", 0)
+         << QApplication::translate("ControlSysUI", "Heading", 0)
+         << QApplication::translate("ControlSysUI", "Forward", 0)
+         << QApplication::translate("ControlSysUI", "Roll", 0)
+         << QApplication::translate("ControlSysUI", "Yaw", 0)
+         << QApplication::translate("ControlSysUI", "Pitch", 0)
+        );
         menuFile->setTitle(QApplication::translate("ControlSysUI", "&File", 0));
     } // retranslateUi
 

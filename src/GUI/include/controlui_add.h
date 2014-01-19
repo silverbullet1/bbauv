@@ -45,13 +45,6 @@
 
 using namespace std;
 
-static Ui::ControlSysUI ui;
-static QMainWindow *window;
-ros::Time startTime;
-
-void initialiseDefault();
-void initialiseParameters();
-void subscribeToData();
 string getdate();
 void saveFile();
 void openFile();
@@ -59,43 +52,5 @@ void fire();
 void enableButton();
 void sendButton();
 void tuneButton();
-void initialize_graph();
 void dofSelected(int index);
-void updateGraph();
 void mouseclicked(QMouseEvent*);
-
-
-//Functions for the subscribers
-void setpt_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void sensor_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void error_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void output_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-
-void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
-
-
-void dof_val_callback(const std_msgs::String::ConstPtr& msg);
-void goal_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-void fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-void fwd_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void depthcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-void depth_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void yawcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-void yaw_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void smcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-void sm_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
-void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-void graph_setpt_callback(const std_msgs::Float32::ConstPtr& msg);
-void graph_output_callback(const std_msgs::Float32::ConstPtr& msg);
-

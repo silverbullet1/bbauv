@@ -21,9 +21,9 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>40</y>
-      <width>341</width>
-      <height>411</height>
+      <y>50</y>
+      <width>371</width>
+      <height>431</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="graph">
@@ -40,7 +40,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>10</y>
+      <y>20</y>
       <width>66</width>
       <height>17</height>
      </rect>
@@ -52,7 +52,7 @@
    <widget class="QFrame" name="telemetry_box">
     <property name="geometry">
      <rect>
-      <x>380</x>
+      <x>400</x>
       <y>10</y>
       <width>531</width>
       <height>151</height>
@@ -178,7 +178,7 @@
     <widget class="QLabel" name="output_label">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>20</x>
        <y>130</y>
        <width>51</width>
        <height>17</height>
@@ -431,23 +431,10 @@
      </property>
     </widget>
    </widget>
-   <widget class="QLabel" name="DOF_label">
-    <property name="geometry">
-     <rect>
-      <x>400</x>
-      <y>190</y>
-      <width>51</width>
-      <height>17</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>DOF</string>
-    </property>
-   </widget>
    <widget class="QFrame" name="controparam_frame">
     <property name="geometry">
      <rect>
-      <x>380</x>
+      <x>400</x>
       <y>390</y>
       <width>531</width>
       <height>131</height>
@@ -483,7 +470,7 @@
       <rect>
        <x>170</x>
        <y>80</y>
-       <width>61</width>
+       <width>71</width>
        <height>17</height>
       </rect>
      </property>
@@ -623,13 +610,23 @@
       <string>Ctrl+E</string>
      </property>
     </widget>
+    <widget class="QLineEdit" name="con_KD_val">
+     <property name="geometry">
+      <rect>
+       <x>60</x>
+       <y>100</y>
+       <width>81</width>
+       <height>27</height>
+      </rect>
+     </property>
+    </widget>
    </widget>
    <widget class="QFrame" name="advanced_frame">
     <property name="geometry">
      <rect>
-      <x>590</x>
+      <x>630</x>
       <y>170</y>
-      <width>321</width>
+      <width>301</width>
       <height>211</height>
      </rect>
     </property>
@@ -642,7 +639,7 @@
     <widget class="QLabel" name="Fwd_label">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>60</x>
        <y>40</y>
        <width>51</width>
        <height>17</height>
@@ -655,7 +652,7 @@
     <widget class="QCheckBox" name="fwd_check">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>120</x>
        <y>40</y>
        <width>41</width>
        <height>22</height>
@@ -668,7 +665,7 @@
     <widget class="QLineEdit" name="fwd_val">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>170</x>
        <y>40</y>
        <width>101</width>
        <height>27</height>
@@ -678,7 +675,7 @@
     <widget class="QLabel" name="Depth_label">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>60</x>
        <y>70</y>
        <width>51</width>
        <height>17</height>
@@ -691,7 +688,7 @@
     <widget class="QCheckBox" name="depth_check">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>120</x>
        <y>70</y>
        <width>41</width>
        <height>22</height>
@@ -704,7 +701,7 @@
     <widget class="QLineEdit" name="depth_val">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>170</x>
        <y>70</y>
        <width>101</width>
        <height>27</height>
@@ -714,7 +711,7 @@
     <widget class="QLineEdit" name="yaw_val">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>170</x>
        <y>100</y>
        <width>101</width>
        <height>27</height>
@@ -724,7 +721,7 @@
     <widget class="QLabel" name="yaw_label">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>60</x>
        <y>100</y>
        <width>51</width>
        <height>17</height>
@@ -737,7 +734,7 @@
     <widget class="QCheckBox" name="yaw_check">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>120</x>
        <y>100</y>
        <width>41</width>
        <height>22</height>
@@ -750,7 +747,7 @@
     <widget class="QLineEdit" name="sm_val">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>170</x>
        <y>130</y>
        <width>101</width>
        <height>27</height>
@@ -760,7 +757,7 @@
     <widget class="QCheckBox" name="sm_check">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>120</x>
        <y>130</y>
        <width>41</width>
        <height>22</height>
@@ -773,7 +770,7 @@
     <widget class="QLabel" name="sm_label">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>60</x>
        <y>130</y>
        <width>51</width>
        <height>17</height>
@@ -786,7 +783,7 @@
     <widget class="QLabel" name="Advanced_label">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>60</x>
        <y>10</y>
        <width>151</width>
        <height>17</height>
@@ -802,7 +799,7 @@
     <widget class="QPushButton" name="sendButton">
      <property name="geometry">
       <rect>
-       <x>220</x>
+       <x>170</x>
        <y>170</y>
        <width>98</width>
        <height>31</height>
@@ -818,9 +815,9 @@
     <widget class="QPushButton" name="enabledButton">
      <property name="geometry">
       <rect>
-       <x>240</x>
-       <y>130</y>
-       <width>71</width>
+       <x>60</x>
+       <y>170</y>
+       <width>81</width>
        <height>31</height>
       </rect>
      </property>
@@ -840,58 +837,18 @@
      </property>
     </widget>
    </widget>
-   <widget class="QComboBox" name="dof_comboBox">
-    <property name="geometry">
-     <rect>
-      <x>450</x>
-      <y>190</y>
-      <width>91</width>
-      <height>27</height>
-     </rect>
-    </property>
-    <item>
-     <property name="text">
-      <string>pos_X</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>pos_Y</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>yaw</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>roll</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>pitch</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>depth</string>
-     </property>
-    </item>
-   </widget>
    <widget class="QLabel" name="graphvalues">
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>480</y>
+      <y>500</y>
       <width>321</width>
       <height>21</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>13</pointsize>
+      <pointsize>11</pointsize>
       <weight>75</weight>
       <bold>true</bold>
      </font>
@@ -906,9 +863,9 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>380</x>
+      <x>400</x>
       <y>170</y>
-      <width>201</width>
+      <width>221</width>
       <height>211</height>
      </rect>
     </property>
@@ -921,7 +878,7 @@
     <widget class="QPushButton" name="fireButton">
      <property name="geometry">
       <rect>
-       <x>70</x>
+       <x>80</x>
        <y>100</y>
        <width>101</width>
        <height>27</height>
@@ -943,7 +900,7 @@
     <widget class="QLineEdit" name="goal_val">
      <property name="geometry">
       <rect>
-       <x>70</x>
+       <x>80</x>
        <y>60</y>
        <width>101</width>
        <height>27</height>
@@ -956,7 +913,7 @@
     <widget class="QLabel" name="Goal_label">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>30</x>
        <y>70</y>
        <width>51</width>
        <height>17</height>
@@ -966,27 +923,108 @@
       <string>Goal</string>
      </property>
     </widget>
+    <widget class="QLabel" name="DOF_label">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>30</y>
+       <width>51</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>DOF</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="dof_comboBox">
+     <property name="geometry">
+      <rect>
+       <x>80</x>
+       <y>20</y>
+       <width>101</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <item>
+      <property name="text">
+       <string>pos_X</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>pos_Y</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>yaw</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>roll</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>pitch</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>depth</string>
+      </property>
+     </item>
+    </widget>
    </widget>
-   <widget class="QLineEdit" name="con_KD_val">
+   <widget class="QComboBox" name="graphType">
     <property name="geometry">
      <rect>
-      <x>440</x>
-      <y>490</y>
-      <width>81</width>
+      <x>70</x>
+      <y>10</y>
+      <width>85</width>
       <height>27</height>
      </rect>
     </property>
+    <item>
+     <property name="text">
+      <string>Depth</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Heading</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Forward</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Roll</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Yaw</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Pitch</string>
+     </property>
+    </item>
    </widget>
    <zorder>frame</zorder>
    <zorder>horizontalLayoutWidget</zorder>
    <zorder>graph_label</zorder>
    <zorder>telemetry_box</zorder>
-   <zorder>DOF_label</zorder>
    <zorder>controparam_frame</zorder>
    <zorder>advanced_frame</zorder>
-   <zorder>dof_comboBox</zorder>
    <zorder>graphvalues</zorder>
-   <zorder>con_KD_val</zorder>
+   <zorder>graphType</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
