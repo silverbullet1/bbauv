@@ -137,6 +137,9 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	ui.setupUi(window);
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
 
+	graphDepthOut = 2.0;
+	graphDepthSetPt = 4.0;
+
 	initialiseParameters();
 	initializeGraph();
 	subscribeToData();
@@ -528,10 +531,13 @@ void ControlUI::actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
 void updateGraph() {
 	double x_val = (ros::Time::now() - controlUI->startTime).toSec();
 
-//	if (graph_x.) {
-//		ui.graph_canvas->graph(0)->removeDataBefore(1);
-//		ui.graph_canvas->graph(1)->removeDataBefore(1);
-//	}
+	double x_org = controlUI->x_org;
+	if (x_val - x_org > 4) {
+		ROS_INFO("%lf", x_org);
+		controlUI->ui.graph_canvas->graph(0)->removeDataBefore(x_org + 1);
+		controlUI->ui.graph_canvas->graph(1)->removeDataBefore(x_org + 1);
+		controlUI->x_org++;
+	}
 
 	controlUI->ui.graph_canvas->graph(0)->addData(x_val, controlUI->graphDepthSetPt);//Set Point
 	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphDepthOut);//Output
