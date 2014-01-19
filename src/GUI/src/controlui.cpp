@@ -24,7 +24,7 @@ private:
 	ros::NodeHandle private_nh;
 
 	void initialiseDefault();
-	void initialize_graph();
+	void initializeGraph();
 
 	void subscribeToData();
 
@@ -69,6 +69,7 @@ public:
 	//For graph
 	double graphDepthOut;
 	double graphDepthSetPt;
+	double x_org;
 
 	void initialiseParameters();
 
@@ -123,9 +124,10 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	startTime = ros::Time::now();
 	private_nh.param("live", live, bool(false));
 
+	initialiseDefault();
+
 	if (!live){
 		ROS_INFO("%s", "Not going live");
-		initialiseDefault();
 	} else {
 		ROS_INFO("%s", "Going live!");
 		subscribeToData();
@@ -136,7 +138,7 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
 
 	initialiseParameters();
-	initialize_graph();
+	initializeGraph();
 	subscribeToData();
 }
 
@@ -399,7 +401,7 @@ void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller data) {
 }
 
 //To plot the graph of sensors and setpt
-void ControlUI::initialize_graph() {
+void ControlUI::initializeGraph() {
 	//Make legend visible
 //	ui.graph_canvas->legend->setVisible(true);
 //  ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
@@ -420,6 +422,8 @@ void ControlUI::initialize_graph() {
 	ui.graph_canvas->setInteraction(QCP::iRangeDrag, true);
 	ui.graph_canvas->setInteraction(QCP::iRangeZoom, true);
 	QObject::connect(ui.graph_canvas, &QCustomPlot::mouseMove, mouseclicked);
+
+	x_org = 0;
 
 	//Plot the graph
 	ui.graph_canvas->replot();
@@ -521,8 +525,7 @@ void ControlUI::actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
 // Non Class functions //
 /////////////////////////
 
-void updateGraph()
-{
+void updateGraph() {
 	double x_val = (ros::Time::now() - controlUI->startTime).toSec();
 
 //	if (graph_x.) {
