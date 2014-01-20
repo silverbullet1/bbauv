@@ -1,17 +1,22 @@
 <launch>
   <arg name="camera" default="guppy_4_5mm_front" />
   <arg name="camera2" default="guppy_4_5mm_bot" />
-  <node pkg="camera1394" type="camera1394_node" name="camera1394_node" >
-    <rosparam
-       file="$(find vision)/launch/$(arg camera).yaml" />
+  <node pkg="camera1394" type="camera1394_node" name="front_camera" ns="front_camera">
+    <rosparam file="$(find vision)/launch/$(arg camera).yaml" />
+	<param name="frame_rate" value="60"/>
+	<param name="iso_speed" value="400"/>
+	<param name="camera_info_url" value="package://vision/launch/guppy_4_5mm_calibration.yaml"/>
+	<param name="reset_on_open" value="1" />
   </node>
-  <node pkg="camera1394" type="camera1394_node" name="camera1394_node2" ns="camera2">
-    <rosparam
-       file="$(find vision)/launch/$(arg camera2).yaml" />
+  <node pkg="camera1394" type="camera1394_node" name="bot_camera" ns="bot_camera">
+    <rosparam file="$(find vision)/launch/$(arg camera2).yaml" />
+	<param name="frame_rate" value="15"/>
+	<param name="iso_speed" value="400"/>
+	<param name="auto_white_balance" value="2"/>
   </node>
-  <node pkg="image_proc" type="image_proc" name="image_proc_node" ns="camera">
+  <node pkg="image_proc" type="image_proc" name="front_camera_image_proc" ns="front_camera/camera">
   </node>
-  <node pkg="image_proc" type="image_proc" name="image_proc_node2" ns="camera2/camera">
+  <node pkg="image_proc" type="image_proc" name="bot_camera_image_proc" ns="bot_camera/camera">
   </node>
 </launch>
 
