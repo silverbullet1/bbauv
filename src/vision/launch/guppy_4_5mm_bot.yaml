@@ -1,4 +1,4 @@
 guid: 000a47010f0ab48b
-video_mode: 640x480_yuv411
+video_mode: 1280x960_rgb8
 frame_rate: 17
 iso_speed: 800
