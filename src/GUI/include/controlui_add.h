@@ -5,7 +5,6 @@
 	Author: Lynnette
 */
 
-
 #include <QApplication>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -47,10 +46,12 @@ using namespace std;
 
 string getdate();
 void saveFile();
-void openFile();
+void openTheFile();
 void fire();
 void enableButton();
 void sendButton();
 void tuneButton();
 void dofSelected(int index);
-void mouseclicked(QMouseEvent*);
+void mouseMoved(QMouseEvent*);
+//Qt UI callbacks
+void updateGraph();

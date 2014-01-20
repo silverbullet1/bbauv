@@ -20,7 +20,6 @@ static QVector<double> graph_x(101), graph_setpt(101), graph_output(101);
 
 class ControlUI {
 private:
-	ros::NodeHandle nh;
 	ros::NodeHandle private_nh;
 
 	void initialiseDefault();
@@ -33,10 +32,17 @@ private:
 	void updateParameter(string paramName, double val);
 	void updateParameter(string paramName, int val);
 
-	void saveFile();
-	void openFile();
+	//Subscribers
+	ros::Subscriber graph_update, setpt_val_sub, sensor_sub, error_sub;
+	ros::Subscriber KP_val_sub, KI_sub, KD_sub, output_sub;
+	ros::Subscriber con_KP_val_sub, con_KI_sub, con_KD_sub, actmin_sub, actmax_sub;
+	ros::Subscriber thruster_sub, depth_dof_sub, yaw_dof_sub, pitch_dof_sub, roll_dof_sub, x_dof_sub, y_dof_sub;
+
+
 public:
 	ControlUI();
+
+	ros::NodeHandle nh;
 
 	enum GraphTypes { DEPTH, HEADING, FORWARD };
 
@@ -92,7 +98,7 @@ public:
 
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
 
-	void controllerPointsCallBack(const bbauv_msgs::controller data);
+	void controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data);
 
 	void dof_val_callback(const std_msgs::String::ConstPtr& msg);
 	void goal_val_callback(const std_msgs::Float32::ConstPtr& msg);
@@ -113,12 +119,6 @@ public:
 	void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
 };
 ControlUI* controlUI;
-
-//Utilities Functions
-string getdate();
-
-//Qt UI callbacks
-void updateGraph();
 
 ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	startTime = ros::Time::now();
@@ -142,7 +142,6 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 
 	initialiseParameters();
 	initializeGraph();
-	subscribeToData();
 }
 
 int main(int argc, char **argv) {
@@ -156,7 +155,7 @@ int main(int argc, char **argv) {
 
 	QObject::connect(controlUI->ui.actionSave, &QAction::triggered, saveFile);
 	QObject::connect(controlUI->ui.fireButton, &QAbstractButton::released, fire);
-	QObject::connect(controlUI->ui.actionOpen, &QAction::triggered, openFile);
+	QObject::connect(controlUI->ui.actionOpen, &QAction::triggered, openTheFile);
 	QObject::connect(controlUI->ui.enabledButton, &QAbstractButton::released, enableButton);
 	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
 	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
@@ -181,38 +180,38 @@ void ControlUI::subscribeToData() {
 	//Note: Setpoint get from Dynamic Reconfigure server / Parameter Server
 
 	//For telemetry
-	ros::Subscriber setpt_val_sub = nh.subscribe("/Controller/DOF/a", 1, &ControlUI::setpt_val_callback, this);
-	ros::Subscriber sensor_sub = nh.subscribe("/Controller/DOF/b", 1, &ControlUI::sensor_val_callback, this);
-	ros::Subscriber error_sub = nh.subscribe("/Controller/DOF/c", 1, &ControlUI::error_val_callback, this);
-	ros::Subscriber KP_val_sub = nh.subscribe("/Controller/DOF/d", 1, &ControlUI::KP_val_callback, this);
-	ros::Subscriber KI_sub = nh.subscribe("/Controller/DOF/e", 1, &ControlUI::KI_val_callback, this);
-	ros::Subscriber KD_sub = nh.subscribe("/Controller/DOF/f", 1, &ControlUI::KD_val_callback, this);
-	ros::Subscriber output_sub = nh.subscribe("/Controller/DOF/g", 1, &ControlUI::output_val_callback, this);
+	setpt_val_sub = nh.subscribe("/Controller/DOF/a", 1, &ControlUI::setpt_val_callback, this);
+	sensor_sub = nh.subscribe("/Controller/DOF/b", 1, &ControlUI::sensor_val_callback, this);
+	error_sub = nh.subscribe("/Controller/DOF/c", 1, &ControlUI::error_val_callback, this);
+	KP_val_sub = nh.subscribe("/Controller/DOF/d", 1, &ControlUI::KP_val_callback, this);
+	KI_sub = nh.subscribe("/Controller/DOF/e", 1, &ControlUI::KI_val_callback, this);
+	KD_sub = nh.subscribe("/Controller/DOF/f", 1, &ControlUI::KD_val_callback, this);
+	output_sub = nh.subscribe("/Controller/DOF/g", 1, &ControlUI::output_val_callback, this);
 
 	//Default use dof_x
 	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
 
 	//For controls
-	ros::Subscriber con_KP_val_sub = nh.subscribe("a", 1, &ControlUI::con_KP_val_callback, this);
-	ros::Subscriber con_KI_sub = nh.subscribe("a", 1, &ControlUI::con_KI_val_callback, this);
-	ros::Subscriber con_KD_sub = nh.subscribe("a", 1, &ControlUI::con_KD_val_callback, this);
-	ros::Subscriber actmin_sub = nh.subscribe("a", 1, &ControlUI::actmin_val_callback, this);
-	ros::Subscriber actmax_sub = nh.subscribe("a", 1, &ControlUI::actmax_val_callback, this);
+	con_KP_val_sub = nh.subscribe("a", 1, &ControlUI::con_KP_val_callback, this);
+	con_KI_sub = nh.subscribe("a", 1, &ControlUI::con_KI_val_callback, this);
+	con_KD_sub = nh.subscribe("a", 1, &ControlUI::con_KD_val_callback, this);
+	actmin_sub = nh.subscribe("a", 1, &ControlUI::actmin_val_callback, this);
+	actmax_sub = nh.subscribe("a", 1, &ControlUI::actmax_val_callback, this);
 
 
 	//Thrusters Subscriber [thrusters.msg]
-	ros::Subscriber thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
+	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
 
 	//DoFs Subscribers (Depth, Yaw, Pitch, Roll, X , Y) [ControlData.msg]
-	ros::Subscriber depth_dof_sub = nh.subscribe("/Controller/DOF/Depth", 1, &ControlUI::depth_dof_callback, this);
-	ros::Subscriber yaw_dof_sub = nh.subscribe("/Controller/DOF/Yaw", 1, &ControlUI::yaw_dof_callback, this);
-	ros::Subscriber pitch_dof_sub = nh.subscribe("/Controller/DOF/Pitch", 1, &ControlUI::pitch_dof_callback, this);
-	ros::Subscriber roll_dof_sub = nh.subscribe("/Controller/DOF/Roll", 1, &ControlUI::roll_dof_callback, this);
-	ros::Subscriber x_dof_sub = nh.subscribe("/Controller/DOF/X", 1, &ControlUI::x_dof_callback, this);
-	ros::Subscriber y_dof_sub = nh.subscribe("/Controller/DOF/Y", 1, &ControlUI::y_dof_callback, this);
+	depth_dof_sub = nh.subscribe("/Controller/DOF/Depth", 1, &ControlUI::depth_dof_callback, this);
+	yaw_dof_sub = nh.subscribe("/Controller/DOF/Yaw", 1, &ControlUI::yaw_dof_callback, this);
+	pitch_dof_sub = nh.subscribe("/Controller/DOF/Pitch", 1, &ControlUI::pitch_dof_callback, this);
+	roll_dof_sub = nh.subscribe("/Controller/DOF/Roll", 1, &ControlUI::roll_dof_callback, this);
+	x_dof_sub = nh.subscribe("/Controller/DOF/X", 1, &ControlUI::x_dof_callback, this);
+	y_dof_sub = nh.subscribe("/Controller/DOF/Y", 1, &ControlUI::y_dof_callback, this);
 
 	//Graph controller points
-	ros::Subscriber graph_update = nh.subscribe("/controller_points", 1, &ControlUI::controllerPointsCallBack, this);
+	graph_update = nh.subscribe("/controller_points", 1, &ControlUI::controllerPointsCallBack, this);
 }
 
 /*
@@ -331,13 +330,14 @@ void ControlUI::initialiseParameters() {
 
 	//Advanced part
 	if (params.find("fwd_check")->second.compare("true") == 0)
-	 	{ ui.fwd_check->setChecked(true); }
-	 if (params.find("depth_check")->second.compare("true") == 0)
-	 	{ ui.depth_check->setChecked(true); }
-	 if (params.find("yaw_check")->second.compare("true") == 0)
-	 	{ ui.yaw_check->setChecked(true); }
-	 if (params.find("sm_check")->second.compare("true") == 0)
-	 	{ ui.sm_check->setChecked(true); }
+		ui.fwd_check->setChecked(true);
+	if (params.find("depth_check")->second.compare("true") == 0)
+		ui.depth_check->setChecked(true);
+	if (params.find("yaw_check")->second.compare("true") == 0)
+		ui.yaw_check->setChecked(true);
+	if (params.find("sm_check")->second.compare("true") == 0)
+		ui.sm_check->setChecked(true);
+
 	ui.fwd_val->setText(params.find("fwd_val")->second.c_str());
 	ui.depth_val->setText(params.find("depth_val")->second.c_str());
 	ui.yaw_val->setText(params.find("yaw_val")->second.c_str());
@@ -398,9 +398,9 @@ void ControlUI::y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
 	dofSelected(1);
 }
 
-void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller data) {
-	graphDepthSetPt = data.depth_setpoint;
-	graphDepthOut = data.depth_input;
+void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data) {
+	graphDepthSetPt = data->depth_setpoint;
+	graphDepthOut = data->depth_input;
 }
 
 //To plot the graph of sensors and setpt
@@ -424,7 +424,7 @@ void ControlUI::initializeGraph() {
 	//For user interaction
 	ui.graph_canvas->setInteraction(QCP::iRangeDrag, true);
 	ui.graph_canvas->setInteraction(QCP::iRangeZoom, true);
-	QObject::connect(ui.graph_canvas, &QCustomPlot::mouseMove, mouseclicked);
+	QObject::connect(ui.graph_canvas, &QCustomPlot::mouseMove, mouseMoved);
 
 	x_org = 0;
 
@@ -433,9 +433,7 @@ void ControlUI::initializeGraph() {
 }
 
 
-/* Functions for the subscribers to subscribe to topics
-*/
-
+//Functions for the subscribers to subscribe to topics
 void ControlUI::setpt_val_callback (const std_msgs::Float32::ConstPtr& msg) {
 	params["setpt_val"] = msg->data;
 }
@@ -467,43 +465,53 @@ void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg
 	params["thruster_val_6"] = msg->speed6;
 	params["thruster_val_7"] = msg->speed7;
 	params["thruster_val_8"] = msg->speed8;
-	ui.thruster_val_1->setText(params.find("thruster_val_1")->second.c_str());
-	ui.thruster_val_2->setText(params.find("thruster_val_2")->second.c_str());
-	ui.thruster_val_3->setText(params.find("thruster_val_3")->second.c_str());
-	ui.thruster_val_4->setText(params.find("thruster_val_4")->second.c_str());
-	ui.thruster_val_5->setText(params.find("thruster_val_5")->second.c_str());
-	ui.thruster_val_6->setText(params.find("thruster_val_6")->second.c_str());
-	ui.thruster_val_7->setText(params.find("thruster_val_7")->second.c_str());
-	ui.thruster_val_8->setText(params.find("thruster_val_8")->second.c_str());
+
+	ui.thruster_val_1->setText(QString::number(msg->speed1));
+	ui.thruster_val_2->setText(QString::number(msg->speed2));
+	ui.thruster_val_3->setText(QString::number(msg->speed3));
+	ui.thruster_val_4->setText(QString::number(msg->speed4));
+	ui.thruster_val_5->setText(QString::number(msg->speed5));
+	ui.thruster_val_6->setText(QString::number(msg->speed6));
+	ui.thruster_val_7->setText(QString::number(msg->speed7));
+	ui.thruster_val_8->setText(QString::number(msg->speed8));
 }
 
 void ControlUI::dof_val_callback(const std_msgs::String::ConstPtr& msg){
 	params["dof_comboBox"] = msg->data;
 }
+
  void ControlUI::goal_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["goal_val"] = msg->data;
 }
+
 void ControlUI::fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg){
 	params["fwd_check"] = msg->data;
 }
+
 void ControlUI::fwd_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["fwd_val"] = msg->data;
 }
+
 void ControlUI::depthcheck_callback(const std_msgs::Bool::ConstPtr& msg){
 	params["depth_check"] = msg->data;
 }
+
 void ControlUI::depth_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["depth_val"] = msg->data;
 }
+
 void ControlUI::yawcheck_callback(const std_msgs::Bool::ConstPtr& msg){
 	params["yaw_check"] = msg->data;
 }
+
 void ControlUI::yaw_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["yaw_val"] = msg->data;
 }
+
 void ControlUI::smcheck_callback(const std_msgs::Bool::ConstPtr& msg){
 	params["sm_check"] = msg->data;
 }
+
 void ControlUI::sm_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["sm_val"] = msg->data;
 }
@@ -511,15 +519,19 @@ void ControlUI::sm_val_callback(const std_msgs::Float32::ConstPtr& msg){
 void ControlUI::con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["con_KP_val"] = msg->data;
 }
+
 void ControlUI::con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["con_KI_val"] = msg->data;
 }
+
 void ControlUI::con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["con_KD_val"] = msg->data;
 }
+
 void ControlUI::actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["actmin_val"] = msg->data;
 }
+
 void ControlUI::actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
 	params["actmax_val"] = msg->data;
 }
@@ -533,7 +545,6 @@ void updateGraph() {
 
 	double x_org = controlUI->x_org;
 	if (x_val - x_org > 4) {
-		ROS_INFO("%lf", x_org);
 		controlUI->ui.graph_canvas->graph(0)->removeDataBefore(x_org + 1);
 		controlUI->ui.graph_canvas->graph(1)->removeDataBefore(x_org + 1);
 		controlUI->x_org++;
@@ -621,7 +632,7 @@ void saveFile() {
 	QMessageBox::information(controlUI->ui.centralwidget, "File saved", "File successfully saved! :)");
 }
 
-void openFile() {
+void openTheFile() {
 	string line;
 	vector<string> tokens;
 	QString selfilter = QString("*.bag");
@@ -634,10 +645,12 @@ void openFile() {
 	if (file.is_open()){
 		string msg = "Loading file " + filename_string + "...";
 		ROS_INFO("%s", msg.c_str());
-		while (getline(file, line)){
+
+		while (getline(file, line)) {
 			boost::algorithm::split(tokens, line, boost::algorithm::is_any_of(" "));
 			controlUI->params[tokens[0]] = tokens[1];
-			}
+		}
+
 		controlUI->initialiseParameters();
 		file.close();
 		}
@@ -665,7 +678,7 @@ void enableButton(){
 }
 
 //Mouse clicked on graph so display data point
-void mouseclicked(QMouseEvent *event) {
+void mouseMoved(QMouseEvent *event) {
 	ostringstream oss;
 	oss << std::fixed << std::setprecision(3);
 
@@ -702,18 +715,19 @@ void sendButton(){
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
+
 		//Send goal and publish to topics to controller.msgs
 		bbauv_msgs::ControllerGoal goal; 
 		float temp;
-		//oss << std::fixed << std::setprecision(3);
+
 		std_msgs::Float32 msg;
 		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
 		if (controlUI->ui.yaw_check->isChecked()){
 			temp = atof(controlUI->params.find("yaw_val")->second.c_str());
-			goal.heading_setpoint= temp;
+			goal.heading_setpoint = temp;
 		} else {
 			temp = 0.0;
-			goal.heading_setpoint=temp;
+			goal.heading_setpoint = temp;
 		}
 		msg.data = temp;
 		yaw_val_pub.publish(msg);
@@ -743,7 +757,7 @@ void sendButton(){
 		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
 		if (controlUI->ui.sm_check->isChecked()){
 			temp = atof(controlUI->params.find("sm_val")->second.c_str());
-			goal.sidemove_setpoint=temp;
+			goal.sidemove_setpoint = temp;
 		} else {
 			temp = 0.0;
 			goal.sidemove_setpoint = temp; 
@@ -773,31 +787,30 @@ void tuneButton(){
 		QMessageBox::information(controlUI->ui.centralwidget, "Tune!", "Twinkle Twinkle Little Star~");
 	}
 	else {
-		ros::NodeHandle nh;
 		float temp;
 		std_msgs::Float32 msg;
 
-		ros::Publisher con_KP_pub = nh.advertise<std_msgs::Float32>("con_KP_pub", 1);
+		ros::Publisher con_KP_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KP_pub", 1);
 		temp = atof(controlUI->params.find("con_KP_val")->second.c_str());
 		msg.data = temp;
 		con_KP_pub.publish(msg);
 
-		ros::Publisher con_KD_pub = nh.advertise<std_msgs::Float32>("con_KD_pub", 1);
+		ros::Publisher con_KD_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KD_pub", 1);
 		temp = atof(controlUI->params.find("con_KD_val")->second.c_str());
 		msg.data = temp;
 		con_KD_pub.publish(msg);
 
-		ros::Publisher con_KI_pub = nh.advertise<std_msgs::Float32>("con_KI_pub", 1);
+		ros::Publisher con_KI_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KI_pub", 1);
 		temp = atof(controlUI->params.find("con_KI_val")->second.c_str());
 		msg.data = temp;
 		con_KI_pub.publish(msg);
 
-		ros::Publisher actmin_pub = nh.advertise<std_msgs::Float32>("actmin_pub", 1);
+		ros::Publisher actmin_pub = controlUI->nh.advertise<std_msgs::Float32>("actmin_pub", 1);
 		temp = atof(controlUI->params.find("actmin_val")->second.c_str());
 		msg.data = temp;
 		actmin_pub.publish(msg);
 
-		ros::Publisher actmax_pub = nh.advertise<std_msgs::Float32>("actmax_pub", 1);
+		ros::Publisher actmax_pub = controlUI->nh.advertise<std_msgs::Float32>("actmax_pub", 1);
 		temp = atof(controlUI->params.find("actmax_val")->second.c_str());
 		msg.data = temp;
 		actmax_pub.publish(msg);
