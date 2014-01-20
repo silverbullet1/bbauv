@@ -880,6 +880,10 @@ void tuneButton(){
 	Updates DoF values in the UI
 */
 void dofSelected(int index){
+	if(controlUI->ui.dof_comboBox->currentIndex() != index)
+	{
+		return;
+	}
 	ROS_INFO("Current selected index in DoF: %i", index);
 	switch(index){
 		//dof x
