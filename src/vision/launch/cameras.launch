@@ -1,20 +1,9 @@
 <launch>
-
   <arg name="camera" default="guppy_4_5mm_front" />
   <arg name="camera2" default="guppy_4_5mm_bot" />
   <node pkg="camera1394" type="camera1394_node" name="camera1394_node" >
     <rosparam
        file="$(find vision)/launch/$(arg camera).yaml" />
- 	<param name="~video_mode" value="640x480_yuv411"/>
-	<param name="~brightness" value="16"/>
-	<param name="~auto_exposure" value="125"/>
-	<param name="~shutter" value="18"/>
-	<param name="~white_balance_BU" value="244"/>
-	<param name="~white_balanuce_RV" value="307"/>
-	<param name="~hue" value="128"/>
-	<param name="~saturation" value="256"/>
-	<param name="~gamma" value="0"/>
-	<param name="~gain" value="0"/>
   </node>
   <node pkg="camera1394" type="camera1394_node" name="camera1394_node2" ns="camera2">
     <rosparam
