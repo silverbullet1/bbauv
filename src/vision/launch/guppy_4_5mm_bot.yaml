@@ -1,5 +1,3 @@
 guid: 000a47010f0ab48b
 video_mode: format7_mode0
-iso_speed: 400
 camera_info_url: package://vision/launch/guppy_4_5mm_calibration.yaml
-auto_white_balance: 1
