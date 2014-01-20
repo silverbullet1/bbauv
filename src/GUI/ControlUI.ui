@@ -430,32 +430,6 @@
       <string>TextLabel</string>
      </property>
     </widget>
-    <zorder>setpt_label</zorder>
-    <zorder>sensor_label</zorder>
-    <zorder>error_label</zorder>
-    <zorder>KP_label</zorder>
-    <zorder>KI_label</zorder>
-    <zorder>KD_label</zorder>
-    <zorder>output_label</zorder>
-    <zorder>thruster_label</zorder>
-    <zorder>setpt_val</zorder>
-    <zorder>sensor_val</zorder>
-    <zorder>error_val</zorder>
-    <zorder>KP_val</zorder>
-    <zorder>KI_val</zorder>
-    <zorder>KD_val</zorder>
-    <zorder>output_val</zorder>
-    <zorder>thruster_val_1</zorder>
-    <zorder>telemetry_label</zorder>
-    <zorder>thruster_val_2</zorder>
-    <zorder>thruster_val_3</zorder>
-    <zorder>thruster_val_4</zorder>
-    <zorder>thruster_val_8</zorder>
-    <zorder>thruster_val_6</zorder>
-    <zorder>thruster_val_7</zorder>
-    <zorder>thruster_val_5</zorder>
-    <zorder>dof_comboBox</zorder>
-    <zorder>DOF_label</zorder>
    </widget>
    <widget class="QFrame" name="controparam_frame">
     <property name="geometry">
@@ -1043,11 +1017,6 @@
     <item>
      <property name="text">
       <string>Roll</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Yaw</string>
      </property>
     </item>
     <item>

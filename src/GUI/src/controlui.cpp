@@ -5,16 +5,67 @@
 	Author: Jason & Lynnette
 */
 
-#include "controlui_add.h"
-#include "qcustomplot.h"
+#include "controlui.h"
 
-#include <bbauv_msgs/compass_data.h>
-#include <bbauv_msgs/ControlData.h>
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/simple_client_goal_state.h>
 #include <bbauv_msgs/controller.h>
-
-#include <dynamic_reconfigure/DoubleParameter.h>
-#include <dynamic_reconfigure/Reconfigure.h>
+#include <bbauv_msgs/ControlData.h>
+#include <bbauv_msgs/ControllerAction.h>
+#include <bbauv_msgs/ControllerGoal.h>
+#include <bbauv_msgs/thruster.h>
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/detail/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
+#include <dynamic_reconfigure/BoolParameter.h>
 #include <dynamic_reconfigure/Config.h>
+#include <dynamic_reconfigure/DoubleParameter.h>
+#include <dynamic_reconfigure/IntParameter.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/ReconfigureRequest.h>
+#include <dynamic_reconfigure/ReconfigureResponse.h>
+#include <qaction.h>
+#include <qapplication.h>
+#include <qbytearray.h>
+#include <qcheckbox.h>
+#include <qcombobox.h>
+#include <qdir.h>
+#include <qevent.h>
+#include <qfiledialog.h>
+#include <qlabel.h>
+#include <qlineedit.h>
+#include <qmainwindow.h>
+#include <qmessagebox.h>
+#include <qnamespace.h>
+#include <qpen.h>
+#include <qpushbutton.h>
+#include <qrect.h>
+#include <qstring.h>
+#include <qtimer.h>
+#include <qvector.h>
+#include <ros/console.h>
+#include <ros/duration.h>
+#include <ros/init.h>
+#include <ros/node_handle.h>
+#include <ros/publisher.h>
+#include <ros/service.h>
+#include <ros/spinner.h>
+#include <ros/subscriber.h>
+#include <ros/time.h>
+#include <rosconsole/macros_generated.h>
+#include <std_msgs/Bool.h>
+#include <std_msgs/Float32.h>
+#include <std_msgs/String.h>
+#include "controlui_add.h"
+#include <cstdlib>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
 
 static QVector<double> graph_x(101), graph_setpt(101), graph_output(101);
 
@@ -35,16 +86,11 @@ private:
 	//Subscribers
 	ros::Subscriber graph_update, setpt_val_sub, sensor_sub, error_sub;
 	ros::Subscriber KP_val_sub, KI_sub, KD_sub, output_sub;
-	ros::Subscriber con_KP_val_sub, con_KI_sub, con_KD_sub, actmin_sub, actmax_sub;
 	ros::Subscriber thruster_sub, depth_dof_sub, yaw_dof_sub, pitch_dof_sub, roll_dof_sub, x_dof_sub, y_dof_sub;
-
-
 public:
 	ControlUI();
 
 	ros::NodeHandle nh;
-
-	enum GraphTypes { DEPTH, HEADING, FORWARD };
 
 	Ui::ControlSysUI ui;
 	QMainWindow *window;
@@ -73,8 +119,8 @@ public:
 	float x_kd, y_kd;
 
 	//For graph
-	double graphDepthOut;
-	double graphDepthSetPt;
+	string graphType;
+	double graphOut, graphSetPt;
 	double x_org;
 
 	void initialiseParameters();
@@ -137,8 +183,9 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	ui.setupUi(window);
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
 
-	graphDepthOut = 2.0;
-	graphDepthSetPt = 4.0;
+	graphOut = 0.0;
+	graphSetPt = 0.0;
+	graphType = "Depth";
 
 	initialiseParameters();
 	initializeGraph();
@@ -162,6 +209,9 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.dof_comboBox,
 					 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
 					 dofSelected);
+	QObject::connect(controlUI->ui.graphType,
+					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
+					 graphTypeChanged);
 
 	QTimer *timer = new QTimer();
 	QObject::connect(timer, &QTimer::timeout, updateGraph);
@@ -190,14 +240,6 @@ void ControlUI::subscribeToData() {
 
 	//Default use dof_x
 	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
-
-	//For controls
-	con_KP_val_sub = nh.subscribe("a", 1, &ControlUI::con_KP_val_callback, this);
-	con_KI_sub = nh.subscribe("a", 1, &ControlUI::con_KI_val_callback, this);
-	con_KD_sub = nh.subscribe("a", 1, &ControlUI::con_KD_val_callback, this);
-	actmin_sub = nh.subscribe("a", 1, &ControlUI::actmin_val_callback, this);
-	actmax_sub = nh.subscribe("a", 1, &ControlUI::actmax_val_callback, this);
-
 
 	//Thrusters Subscriber [thrusters.msg]
 	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
@@ -399,15 +441,32 @@ void ControlUI::y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
 }
 
 void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data) {
-	graphDepthSetPt = data->depth_setpoint;
-	graphDepthOut = data->depth_input;
+	if (graphType == "Depth") {
+		graphSetPt = data->depth_setpoint;
+		graphOut = data->depth_input;
+	} else if (graphType == "Heading") {
+		graphSetPt = data->heading_setpoint;
+		graphOut = data->heading_input;
+	} else if (graphType == "Forward") {
+		graphSetPt = data->forward_setpoint;
+		graphOut = data->forward_input;
+	} else if (graphType == "Side") {
+		graphSetPt = data->sidemove_setpoint;
+		graphOut = data->sidemove_setpoint;
+	} else if (graphType == "Roll") {
+		graphSetPt = data->roll_setpoint;
+		graphOut = data->roll_setpoint;
+	} else if (graphType == "Pitch") {
+		graphSetPt = data->pitch_setpoint;
+		graphOut = data->pitch_setpoint;
+	}
 }
 
 //To plot the graph of sensors and setpt
 void ControlUI::initializeGraph() {
 	//Make legend visible
-//	ui.graph_canvas->legend->setVisible(true);
-//  ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
+	//ui.graph_canvas->legend->setVisible(true);
+	//ui.graph_canvas->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignRight|Qt::AlignBottom);
 
 	//Add the graphs
 	ui.graph_canvas->addGraph();
@@ -550,8 +609,8 @@ void updateGraph() {
 		controlUI->x_org++;
 	}
 
-	controlUI->ui.graph_canvas->graph(0)->addData(x_val, controlUI->graphDepthSetPt);//Set Point
-	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphDepthOut);//Output
+	controlUI->ui.graph_canvas->graph(0)->addData(x_val, controlUI->graphSetPt);//Set Point
+	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphOut);//Output
 	controlUI->ui.graph_canvas->graph(1)->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
 }
@@ -871,4 +930,12 @@ void dofSelected(int index){
 			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->depth_kd).c_str());
 		break;
 	}
+}
+
+void graphTypeChanged(const QString& type) {
+	controlUI->ui.graph_canvas->graph(0)->clearData();
+	controlUI->ui.graph_canvas->graph(1)->clearData();
+	controlUI->x_org = 0;
+	controlUI->startTime = ros::Time::now();
+	controlUI->graphType = type.toStdString();
 }

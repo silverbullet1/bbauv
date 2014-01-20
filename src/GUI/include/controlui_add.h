@@ -44,7 +44,11 @@
 
 using namespace std;
 
+//Utilities
 string getdate();
+
+//Qt UI callbacks
+void updateGraph();
 void saveFile();
 void openTheFile();
 void fire();
@@ -52,6 +56,5 @@ void enableButton();
 void sendButton();
 void tuneButton();
 void dofSelected(int index);
+void graphTypeChanged(const QString& type);
 void mouseMoved(QMouseEvent*);
-//Qt UI callbacks
-void updateGraph();

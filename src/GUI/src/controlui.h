@@ -231,30 +231,6 @@ public:
         thruster_val_5 = new QLabel(telemetry_box);
         thruster_val_5->setObjectName(QStringLiteral("thruster_val_5"));
         thruster_val_5->setGeometry(QRect(450, 100, 66, 17));
-        setpt_label->raise();
-        sensor_label->raise();
-        error_label->raise();
-        KP_label->raise();
-        KI_label->raise();
-        KD_label->raise();
-        output_label->raise();
-        thruster_label->raise();
-        setpt_val->raise();
-        sensor_val->raise();
-        error_val->raise();
-        KP_val->raise();
-        KI_val->raise();
-        KD_val->raise();
-        output_val->raise();
-        thruster_val_1->raise();
-        telemetry_label->raise();
-        thruster_val_2->raise();
-        thruster_val_3->raise();
-        thruster_val_4->raise();
-        thruster_val_8->raise();
-        thruster_val_6->raise();
-        thruster_val_7->raise();
-        thruster_val_5->raise();
         controparam_frame = new QFrame(centralwidget);
         controparam_frame->setObjectName(QStringLiteral("controparam_frame"));
         controparam_frame->setGeometry(QRect(400, 390, 531, 131));
@@ -503,7 +479,6 @@ public:
          << QApplication::translate("ControlSysUI", "Heading", 0)
          << QApplication::translate("ControlSysUI", "Forward", 0)
          << QApplication::translate("ControlSysUI", "Roll", 0)
-         << QApplication::translate("ControlSysUI", "Yaw", 0)
          << QApplication::translate("ControlSysUI", "Pitch", 0)
         );
         menuFile->setTitle(QApplication::translate("ControlSysUI", "&File", 0));
