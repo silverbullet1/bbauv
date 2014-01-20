@@ -1,5 +1,8 @@
-\guid: 000a47010f0a557e
-video_mode: 640x480_yuv411
+guid: 000a47010f0ab48b
+video_mode: format7_mode0
+frame_rate: 15
 iso_speed: 400
-camera_info_url: package://vision/launch/guppy_4_5mm_calibration.yaml
-auto_white_balance: 1
+auto_white_balance: 2
+roi_width: 1392
+roi_height: 1040
+format7_color_coding: raw8

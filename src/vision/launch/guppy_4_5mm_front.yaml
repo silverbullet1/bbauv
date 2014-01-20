@@ -1,5 +1,13 @@
 guid: 000a4701120ac458
 video_mode: 640x480_yuv411
+frame_rate: 60
 iso_speed: 400
 camera_info_url: package://vision/launch/guppy_4_5mm_calibration.yaml
-auto_white_balance: 1
+brightness: 16
+auto_exposure: 1
+shutter: 18
+hue: 128
+saturation: 256
+gamma: 0
+gain: 0
+auto_white_balance: 2
