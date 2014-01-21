@@ -1,8 +1,5 @@
 guid: 000a47010f0ab48b
-video_mode: format7_mode0
+video_mode: 640x480_mono8
 frame_rate: 15
-iso_speed: 400
-auto_white_balance: 2
-roi_width: 1392
-roi_height: 1040
-format7_color_coding: raw8
+bayer_pattern: rggb
+bayer_method: Bilinear
