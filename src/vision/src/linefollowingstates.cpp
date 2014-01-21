@@ -4,7 +4,7 @@
 	linefollowerstates.cpp
 	States for line follower
 	Date created: 10 Jan 2014
-	Author: Lynnette
+	Author: Lynnette & Thein
 */
 
 #include <opencv/cv.h>
