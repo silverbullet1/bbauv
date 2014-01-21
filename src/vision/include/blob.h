@@ -54,10 +54,13 @@ public:
 //Colour detection
 class colourDetection : public Blob{
 public:
+	colourDetection();
 	cv::Mat colourDetection(cv::Mat img, int colour);
 	cv::Mat colourDetection(cv::Mat img, int colour, int lowerH, int higherH,
 					int lowerS, int higherS, int lowerV, int higherV);
 
+	void reDraw();
+	void drawImage();
 	void setWindowSettings();
 	void lowerHCallback(int val, void *params);
 	void higherHCallback(int val, void *params);
@@ -67,6 +70,12 @@ public:
 	void higherVCallback(int val, void *params);
 private:
 	cv::Mat image;
+	cv::Mat outImg;
+	int colour;
+	//Values are initialised as lowerH, lowerS, lowerV, higherH, higherS, higherV
+	int yellow_values[6];
+	int red_values[6];
+
 };
 
 #endif /* BLOB_H_ */
