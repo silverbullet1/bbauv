@@ -14,6 +14,7 @@
 #include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/ControllerGoal.h>
 #include <bbauv_msgs/thruster.h>
+#include <bbauv_msgs/set_controller.h>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
 #include <dynamic_reconfigure/BoolParameter.h>
@@ -66,9 +67,8 @@ private:
 	void updateParameter(string paramName, int val);
 
 	//Subscribers
-	ros::Subscriber graph_update, setpt_val_sub, sensor_sub, error_sub;
-	ros::Subscriber KP_val_sub, KI_sub, KD_sub, output_sub;
-	ros::Subscriber thruster_sub, depth_dof_sub, yaw_dof_sub, pitch_dof_sub, roll_dof_sub, x_dof_sub, y_dof_sub;
+	ros::Subscriber graph_update;
+	ros::Subscriber thruster_sub;
 	ros::Subscriber errorSub;
 public:
 	ControlUI();
@@ -82,7 +82,7 @@ public:
 	bool live;
 	bool enable;
 
-	map <string, string> params; //Map for parameters
+	map<string, string> params; //Map for parameters
 
 	//Variables for DoFs
 	float depth;
@@ -109,14 +109,6 @@ public:
 	double x_org;
 
 	void initialiseParameters();
-
-	//DoF Subscribers
-	void depth_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void yaw_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void pitch_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void roll_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void x_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
 
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
 
@@ -210,14 +202,6 @@ void ControlUI::subscribeToData() {
 	//Thrusters Subscriber [thrusters.msg]
 	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
 
-	//DoFs Subscribers (Depth, Yaw, Pitch, Roll, X , Y) [ControlData.msg]
-	depth_dof_sub = nh.subscribe("/Controller/DOF/Depth", 1, &ControlUI::depth_dof_callback, this);
-	yaw_dof_sub = nh.subscribe("/Controller/DOF/Yaw", 1, &ControlUI::yaw_dof_callback, this);
-	pitch_dof_sub = nh.subscribe("/Controller/DOF/Pitch", 1, &ControlUI::pitch_dof_callback, this);
-	roll_dof_sub = nh.subscribe("/Controller/DOF/Roll", 1, &ControlUI::roll_dof_callback, this);
-	x_dof_sub = nh.subscribe("/Controller/DOF/X", 1, &ControlUI::x_dof_callback, this);
-	y_dof_sub = nh.subscribe("/Controller/DOF/Y", 1, &ControlUI::y_dof_callback, this);
-
 	errorSub = nh.subscribe("/LocomotionServer/feedback", 1, &ControlUI::errorCallBack, this);
 
 	//Graph controller points
@@ -274,136 +258,57 @@ void ControlUI::updateParameter(string paramName, int val) {
 
 void ControlUI::initialiseDefault() {
 	params.clear();
-	//Telemetry
-	params["setpt_val"] = "3.5";
-	params["sensor_val"] = "3.2";
-	params["error_val"] = "1.0";
-	params["KP_val"] = "2.0";
-	params["KI_val"] = "4.5";
-	params["KD_val"] = "3.7";
-	params["output_val"] = "9.8";
 
-	//Thruster values 
-	params["thruster_val_1"] = "1.4";
-	params["thruster_val_2"] = "1.4";
-	params["thruster_val_3"] = "1.4";
-	params["thruster_val_4"] = "1.4";
-	params["thruster_val_5"] = "1.4";
-	params["thruster_val_6"] = "1.4";
-	params["thruster_val_7"] = "1.4";
-	params["thruster_val_8"] = "1.4";
+	params["depth_Kp"] = "";
+	params["depth_Ti"] = "";
+	params["depth_Td"] = "";
+	params["depth_min"] = "";
+	params["depth_max"] = "";
 
-	params["dof_comboBox"] = "pos_X";
-	params["goal_val"] = "10.3";
+	params["pitch_Kp"] = "";
+	params["pitch_Ti"] = "";
+	params["pitch_Td"] = "";
+	params["pitch_min"] = "";
+	params["pitch_max"] = "";
 
-	//Advanced
-	params["fwd_check"] = "false";
-	params["fwd_val"] = "3.2";
-	params["depth_check"] = "false";
-	params["depth_val"] = "3.5";
-	params["yaw_check"] = "false";
-	params["yaw_val"] = "4.3";
-	params["sm_check"] = "false";
-	params["sm_val"] = "4.3";
+	params["roll_Kp"] = "";
+	params["roll_Ti"] = "";
+	params["roll_Td"] = "";
+	params["roll_min"] = "";
+	params["roll_max"] = "";
 
-	//Controls
-	params["con_KP_val"] = "4.6";
-	params["con_KI_val"] = "7.5";
-	params["con_KD_val"] = "2.4";
-	params["actmin_val"] = "0.5";
-	params["actmax_val"] = "5.7";
-		 
+	params["heading_Kp"] = "";
+	params["heading_Ti"] = "";
+	params["heading_Td"] = "";
+	params["heading_min"] = "";
+	params["heading_max"] = "";
+
+	params["forward_Kp"] = "";
+	params["forward_Ti"] = "";
+	params["forward_Td"] = "";
+	params["forward_min"] = "";
+	params["forward_max"] = "";
+
+	params["sidemove_Kp"] = "";
+	params["sidemove_Ti"] = "";
+	params["sidemove_Td"] = "";
+	params["sidemove_min"] = "";
+	params["sidemove_max"] = "";
 }
 
 void ControlUI::initialiseParameters() {
 	//Telemetry part
-	ui.setpt_val->setText(params.find("setpt_val")->second.c_str());
-	ui.sensor_val->setText(params.find("sensor_val")->second.c_str());
-	ui.error_val->setText(params.find("error_val")->second.c_str());
-	ui.KP_val->setText(params.find("KP_val")->second.c_str());
-	ui.KI_val->setText(params.find("KI_val")->second.c_str());
-	ui.KD_val->setText(params.find("KD_val")->second.c_str());
-	ui.output_val->setText(params.find("output_val")->second.c_str());
-	ui.thruster_val_1->setText(params.find("thruster_val_1")->second.c_str());
-	ui.thruster_val_2->setText(params.find("thruster_val_2")->second.c_str());
-	ui.thruster_val_3->setText(params.find("thruster_val_3")->second.c_str());
-	ui.thruster_val_4->setText(params.find("thruster_val_4")->second.c_str());
-	ui.thruster_val_5->setText(params.find("thruster_val_5")->second.c_str());
-	ui.thruster_val_6->setText(params.find("thruster_val_6")->second.c_str());
-	ui.thruster_val_7->setText(params.find("thruster_val_7")->second.c_str());
-	ui.thruster_val_8->setText(params.find("thruster_val_8")->second.c_str());
-
-	ui.goal_val->setText(params.find("goal_val")->second.c_str());
-
-	//Advanced part
-	if (params.find("fwd_check")->second.compare("true") == 0)
-		ui.fwd_check->setChecked(true);
-	if (params.find("depth_check")->second.compare("true") == 0)
-		ui.depth_check->setChecked(true);
-	if (params.find("yaw_check")->second.compare("true") == 0)
-		ui.yaw_check->setChecked(true);
-	if (params.find("sm_check")->second.compare("true") == 0)
-		ui.sm_check->setChecked(true);
-
-	ui.fwd_val->setText(params.find("fwd_val")->second.c_str());
-	ui.depth_val->setText(params.find("depth_val")->second.c_str());
-	ui.yaw_val->setText(params.find("yaw_val")->second.c_str());
-	ui.sm_val->setText(params.find("sm_val")->second.c_str());
+	ui.KP_val->setText(params.find("depth_Kp")->second.c_str());
+	ui.KI_val->setText(params.find("depth_Ti")->second.c_str());
+	ui.KD_val->setText(params.find("depth_Td")->second.c_str());
 
 	//Controls part
-	ui.con_KP_val->setText(params.find("con_KP_val")->second.c_str());
-	ui.con_KI_val->setText(params.find("con_KI_val")->second.c_str());
-	ui.con_KD_val->setText(params.find("con_KD_val")->second.c_str());
-	ui.actmin_val->setText(params.find("actmin_val")->second.c_str());
-	ui.actmax_val->setText(params.find("actmax_val")->second.c_str());
+	ui.con_KP_val->setText(params.find("depth_Kp")->second.c_str());
+	ui.con_KI_val->setText(params.find("depth_Ti")->second.c_str());
+	ui.con_KD_val->setText(params.find("depth_Td")->second.c_str());
+	ui.actmin_val->setText(params.find("depth_min")->second.c_str());
+	ui.actmax_val->setText(params.find("depth_max")->second.c_str());
 
-}
-
-/*
-	DoF Subscribers
-*/
-void ControlUI::depth_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	ROS_INFO("currently at depth");
-	depth = msg->val;
-	depth_kp = msg->kp;
-	depth_ki = msg->ki;
-	depth_kd = msg->kd;
-	dofSelected(5);
-}
-void ControlUI::yaw_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	yaw = msg->val;
-	yaw_kp = msg->kp;
-	yaw_ki = msg->ki;
-	yaw_kd = msg->kd;
-	dofSelected(2);
-}
-void ControlUI::pitch_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	pitch = msg->val;
-	pitch_kp = msg->kp;
-	pitch_ki = msg->ki;
-	pitch_kd = msg->kd;
-	dofSelected(4);
-}
-void ControlUI::roll_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	roll = msg->val;
-	roll_kp = msg->kp;
-	roll_ki = msg->ki;
-	roll_kd = msg->kd;
-	dofSelected(3);
-}
-void ControlUI::x_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	x = msg->val;
-	x_kp = msg->kp;
-	x_ki = msg->ki;
-	x_kd = msg->kd;
-	dofSelected(0);
-}
-void ControlUI::y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	y = msg->val;
-	y_kp = msg->kp;
-	y_ki = msg->ki;
-	y_kd = msg->kd;
-	dofSelected(1);
 }
 
 void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data) {
@@ -464,15 +369,6 @@ void ControlUI::initializeGraph() {
 }
 
 void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg) {
-	params["thruster_val_1"] = msg->speed1;
-	params["thruster_val_2"] = msg->speed2;
-	params["thruster_val_3"] = msg->speed3;
-	params["thruster_val_4"] = msg->speed4;
-	params["thruster_val_5"] = msg->speed5;
-	params["thruster_val_6"] = msg->speed6;
-	params["thruster_val_7"] = msg->speed7;
-	params["thruster_val_8"] = msg->speed8;
-
 	ui.thruster_val_1->setText(QString::number(msg->speed1));
 	ui.thruster_val_2->setText(QString::number(msg->speed2));
 	ui.thruster_val_3->setText(QString::number(msg->speed3));
@@ -535,15 +431,6 @@ void saveFile() {
 	file << "KP_val " << controlUI->ui.KP_val->text().toUtf8().constData() << "\n";
 	file << "KI_val " << controlUI->ui.KI_val->text().toUtf8().constData() << "\n";
 	file << "KD_val " << controlUI->ui.KD_val->text().toUtf8().constData()<< "\n";
-	file << "output_val " << controlUI->ui.output_val->text().toUtf8().constData() << "\n";
-	file << "thruster_val " << controlUI->ui.thruster_val_1->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_2->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_3->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_4->text().toUtf8().constData()
-	     <<	controlUI->ui.thruster_val_5->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_6->text().toUtf8().constData()
-	     <<	controlUI->ui.thruster_val_7->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_8->text().toUtf8().constData() << "\n";
 
 	file << "goal_val " << controlUI->ui.goal_val->text().toUtf8().constData() << "\n";
 
@@ -671,57 +558,56 @@ void sendButton(){
 
 		//Send goal and publish to topics to controller.msgs
 		bbauv_msgs::ControllerGoal goal; 
-		float temp;
+		double temp;
 
-		std_msgs::Float32 msg;
-		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
-		if (controlUI->ui.yaw_check->isChecked()){
-			temp = atof(controlUI->params.find("yaw_val")->second.c_str());
-			goal.heading_setpoint = temp;
-		} else {
-			temp = 0.0;
-			goal.heading_setpoint = temp;
-		}
-		msg.data = temp;
-		yaw_val_pub.publish(msg);
+		bool forward, sidemove, heading, depth, pitch, roll;
+		heading = controlUI->ui.yaw_check->isChecked();
+		forward = controlUI->ui.fwd_check->isChecked();
+		depth = controlUI->ui.depth_check->isChecked();
+		sidemove = controlUI->ui.sm_check->isChecked();
+		pitch = false;
+		roll = false;
 
-		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
-		if (controlUI->ui.fwd_check->isChecked()) {
-			temp = atof(controlUI->params.find("fwd_val")->second.c_str());
-			goal.forward_setpoint=temp;
-		} else {
-			temp = 0.0;
-			goal.forward_setpoint = temp;
-		}
-		msg.data = temp;
-		fwd_val_pub.publish(msg);
+	    ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 
-		ros::Publisher depth_val_pub = nh.advertise<std_msgs::Float32>("depth_val_pub", 1);
-		if (controlUI->ui.depth_check->isChecked()){
-			temp = atof(controlUI->params.find("depth_val")->second.c_str());
-			goal.depth_setpoint=temp;
-		} else {
-			temp = 0.0;
-			goal.depth_setpoint = temp; 
-		}
-		msg.data = temp;
-		depth_val_pub.publish(msg);
+	    bbauv_msgs::set_controller srv;
+	    srv.request.depth = depth;
+	    srv.request.forward = forward;
+	    srv.request.heading = heading;
+	    srv.request.pitch = pitch;
+	    srv.request.roll= roll;
+	    srv.request.sidemove = sidemove;
 
-		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
-		if (controlUI->ui.sm_check->isChecked()){
-			temp = atof(controlUI->params.find("sm_val")->second.c_str());
-			goal.sidemove_setpoint = temp;
+	    controlClient.call(srv);
+
+		if (heading) {
+			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
 		} else {
-			temp = 0.0;
-			goal.sidemove_setpoint = temp; 
+			goal.heading_setpoint = 0.0;
 		}
-		msg.data = temp;
-		sm_val_pub.publish(msg);
-		
+
+		if (forward) {
+			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
+		} else {
+			goal.forward_setpoint = 0.0;
+		}
+
+		if (depth) {
+			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
+		} else {
+			goal.depth_setpoint = 0.0;
+		}
+
+		if (sidemove){
+			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
+		} else {
+			goal.sidemove_setpoint = 0.0;
+		}
+
 		ac.sendGoal(goal);
 		ros::spinOnce();
 
-		bool finished_before_timeout = ac.waitForResult(ros::Duration(10.0));
+		bool finished_before_timeout = ac.waitForResult(ros::Duration(5.0));
 		if (finished_before_timeout){
 			actionlib::SimpleClientGoalState state = ac.getState();
 			ROS_INFO("Action finished: %s", state.toString().c_str());
@@ -767,66 +653,6 @@ void tuneButton(){
 		temp = atof(controlUI->params.find("actmax_val")->second.c_str());
 		msg.data = temp;
 		actmax_pub.publish(msg);
-	}
-}
-
-/*
-	Updates DoF values in the UI
-*/
-void dofSelected(int index){
-//	if(controlUI->ui.dof_comboBox->currentIndex() != index)
-//	{
-//		return;
-//	}
-	//ROS_INFO("Current selected index in DoF: %i", index);
-	switch(index){
-		//dof x
-		case 0:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->x).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->x_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->x_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->x_kd).c_str());
-			break;
-
-		//dof y
-		case 1:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->y).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->y_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->y_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->y_kd).c_str());
-		break;
-
-		//yaw
-		case 2:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->yaw).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->yaw_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->yaw_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->yaw_kd).c_str());
-		break;
-
-		//roll
-		case 3:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->roll).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->roll_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->roll_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->roll_kd).c_str());
-		break;
-
-		//pitch
-		case 4:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->pitch).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->pitch_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->pitch_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->pitch_kd).c_str());
-		break;
-
-		//depth
-		case 5:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->depth).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->depth_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->depth_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->depth_kd).c_str());
-		break;
 	}
 }
 
