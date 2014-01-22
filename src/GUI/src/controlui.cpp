@@ -50,7 +50,16 @@
 #include <utility>
 #include <vector>
 
-static QVector<double> graph_x(101), graph_setpt(101), graph_output(101);
+#define numParams 30
+string dynamicParams[31] =
+{
+"depth_Kp", "depth_Ti", "depth_Td", "depth_min", "depth_max",
+"pitch_Kp", "pitch_Ti",	"pitch_Td", "pitch_min", "pitch_max",
+"roll_Kp", "roll_Ti", "roll_Td", "roll_min", "roll_max",
+"heading_Kp", "heading_Ti", "heading_Td", "heading_min", "heading_max",
+"forward_Kp", "forward_Ti", "forward_Td", "forward_min", "forward_max",
+"sidemove_Kp", "sidemove_Ti", "sidemove_Td", "sidemove_min", "sidemove_max"
+};
 
 class ControlUI {
 private:
@@ -259,48 +268,18 @@ void ControlUI::updateParameter(string paramName, int val) {
 void ControlUI::initialiseDefault() {
 	params.clear();
 
-	params["depth_Kp"] = "";
-	params["depth_Ti"] = "";
-	params["depth_Td"] = "";
-	params["depth_min"] = "";
-	params["depth_max"] = "";
-
-	params["pitch_Kp"] = "";
-	params["pitch_Ti"] = "";
-	params["pitch_Td"] = "";
-	params["pitch_min"] = "";
-	params["pitch_max"] = "";
-
-	params["roll_Kp"] = "";
-	params["roll_Ti"] = "";
-	params["roll_Td"] = "";
-	params["roll_min"] = "";
-	params["roll_max"] = "";
-
-	params["heading_Kp"] = "";
-	params["heading_Ti"] = "";
-	params["heading_Td"] = "";
-	params["heading_min"] = "";
-	params["heading_max"] = "";
-
-	params["forward_Kp"] = "";
-	params["forward_Ti"] = "";
-	params["forward_Td"] = "";
-	params["forward_min"] = "";
-	params["forward_max"] = "";
-
-	params["sidemove_Kp"] = "";
-	params["sidemove_Ti"] = "";
-	params["sidemove_Td"] = "";
-	params["sidemove_min"] = "";
-	params["sidemove_max"] = "";
+	for (int i = 0; i < numParams; i++) {
+		params[dynamicParams[i]] = "";
+	}
 }
 
 void ControlUI::initialiseParameters() {
-	//Telemetry part
-	ui.KP_val->setText(params.find("depth_Kp")->second.c_str());
-	ui.KI_val->setText(params.find("depth_Ti")->second.c_str());
-	ui.KD_val->setText(params.find("depth_Td")->second.c_str());
+	FILE* input;
+	input = fopen("control_params.txt", "r");
+	if (input != NULL) {
+		char params[500];
+		fscanf(input, "depth_Kp: %s", params);
+	}
 
 	//Controls part
 	ui.con_KP_val->setText(params.find("depth_Kp")->second.c_str());
