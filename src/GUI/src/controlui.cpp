@@ -14,8 +14,6 @@
 #include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/ControllerGoal.h>
 #include <bbauv_msgs/thruster.h>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/detail/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
 #include <dynamic_reconfigure/BoolParameter.h>
@@ -25,22 +23,6 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/ReconfigureRequest.h>
 #include <dynamic_reconfigure/ReconfigureResponse.h>
-#include <qaction.h>
-#include <qapplication.h>
-#include <qbytearray.h>
-#include <qcheckbox.h>
-#include <qcombobox.h>
-#include <qdir.h>
-#include <qevent.h>
-#include <qfiledialog.h>
-#include <qlabel.h>
-#include <qlineedit.h>
-#include <qmainwindow.h>
-#include <qmessagebox.h>
-#include <qnamespace.h>
-#include <qpen.h>
-#include <qpushbutton.h>
-#include <qrect.h>
 #include <qstring.h>
 #include <qtimer.h>
 #include <qvector.h>
@@ -133,36 +115,9 @@ public:
 	void x_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
 	void y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
 
-	//Functions for the subscribers
-	void setpt_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void sensor_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void error_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void output_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
 
 	void controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data);
-
-	void dof_val_callback(const std_msgs::String::ConstPtr& msg);
-	void goal_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-	void fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void fwd_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void depthcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void depth_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void yawcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void yaw_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void smcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void sm_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-	void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
 };
 ControlUI* controlUI;
 
@@ -228,18 +183,6 @@ int main(int argc, char **argv) {
 //To subscribe to data topics: currently under default!!
 void ControlUI::subscribeToData() {
 	//Note: Setpoint get from Dynamic Reconfigure server / Parameter Server
-
-	//For telemetry
-	setpt_val_sub = nh.subscribe("/Controller/DOF/a", 1, &ControlUI::setpt_val_callback, this);
-	sensor_sub = nh.subscribe("/Controller/DOF/b", 1, &ControlUI::sensor_val_callback, this);
-	error_sub = nh.subscribe("/Controller/DOF/c", 1, &ControlUI::error_val_callback, this);
-	KP_val_sub = nh.subscribe("/Controller/DOF/d", 1, &ControlUI::KP_val_callback, this);
-	KI_sub = nh.subscribe("/Controller/DOF/e", 1, &ControlUI::KI_val_callback, this);
-	KD_sub = nh.subscribe("/Controller/DOF/f", 1, &ControlUI::KD_val_callback, this);
-	output_sub = nh.subscribe("/Controller/DOF/g", 1, &ControlUI::output_val_callback, this);
-
-	//Default use dof_x
-	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
 
 	//Thrusters Subscriber [thrusters.msg]
 	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
@@ -398,6 +341,7 @@ void ControlUI::initialiseParameters() {
 	DoF Subscribers
 */
 void ControlUI::depth_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
+	ROS_INFO("currently at depth");
 	depth = msg->val;
 	depth_kp = msg->kp;
 	depth_ki = msg->ki;
@@ -491,30 +435,6 @@ void ControlUI::initializeGraph() {
 	ui.graph_canvas->replot();
 }
 
-
-//Functions for the subscribers to subscribe to topics
-void ControlUI::setpt_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["setpt_val"] = msg->data;
-}
-void ControlUI::sensor_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["sensor_val"] = msg->data;
-}
-void ControlUI::error_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["error_val"] = msg->data;
-}
-void ControlUI::KP_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["KP_val"] = msg->data;
-}
-void ControlUI::KI_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["KI_val"] = msg->data;
-}
-void ControlUI::KD_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["KD_val"] = msg->data;
-}
-void ControlUI::output_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["output_val"] = msg->data;
-}
-
 void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg) {
 	params["thruster_val_1"] = msg->speed1;
 	params["thruster_val_2"] = msg->speed2;
@@ -533,66 +453,6 @@ void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg
 	ui.thruster_val_6->setText(QString::number(msg->speed6));
 	ui.thruster_val_7->setText(QString::number(msg->speed7));
 	ui.thruster_val_8->setText(QString::number(msg->speed8));
-}
-
-void ControlUI::dof_val_callback(const std_msgs::String::ConstPtr& msg){
-	params["dof_comboBox"] = msg->data;
-}
-
- void ControlUI::goal_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["goal_val"] = msg->data;
-}
-
-void ControlUI::fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["fwd_check"] = msg->data;
-}
-
-void ControlUI::fwd_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["fwd_val"] = msg->data;
-}
-
-void ControlUI::depthcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["depth_check"] = msg->data;
-}
-
-void ControlUI::depth_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["depth_val"] = msg->data;
-}
-
-void ControlUI::yawcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["yaw_check"] = msg->data;
-}
-
-void ControlUI::yaw_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["yaw_val"] = msg->data;
-}
-
-void ControlUI::smcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["sm_check"] = msg->data;
-}
-
-void ControlUI::sm_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["sm_val"] = msg->data;
-}
-
-void ControlUI::con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KP_val"] = msg->data;
-}
-
-void ControlUI::con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KI_val"] = msg->data;
-}
-
-void ControlUI::con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KD_val"] = msg->data;
-}
-
-void ControlUI::actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["actmin_val"] = msg->data;
-}
-
-void ControlUI::actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["actmax_val"] = msg->data;
 }
 
 //////////////////////////
@@ -827,7 +687,7 @@ void sendButton(){
 		ac.sendGoal(goal);
 		ros::spinOnce();
 
-		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+		bool finished_before_timeout = ac.waitForResult(ros::Duration(10.0));
 		if (finished_before_timeout){
 			actionlib::SimpleClientGoalState state = ac.getState();
 			ROS_INFO("Action finished: %s", state.toString().c_str());
@@ -884,7 +744,7 @@ void dofSelected(int index){
 	{
 		return;
 	}
-	ROS_INFO("Current selected index in DoF: %i", index);
+	//ROS_INFO("Current selected index in DoF: %i", index);
 	switch(index){
 		//dof x
 		case 0:
