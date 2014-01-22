@@ -69,6 +69,7 @@ private:
 	ros::Subscriber graph_update, setpt_val_sub, sensor_sub, error_sub;
 	ros::Subscriber KP_val_sub, KI_sub, KD_sub, output_sub;
 	ros::Subscriber thruster_sub, depth_dof_sub, yaw_dof_sub, pitch_dof_sub, roll_dof_sub, x_dof_sub, y_dof_sub;
+	ros::Subscriber errorSub;
 public:
 	ControlUI();
 
@@ -100,6 +101,8 @@ public:
 	float yaw_kd, pitch_kd, roll_kd;
 	float x_kd, y_kd;
 
+	double error;
+
 	//For graph
 	string graphType;
 	double graphOut, graphSetPt;
@@ -118,6 +121,8 @@ public:
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
 
 	void controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data);
+
+	void errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback);
 };
 ControlUI* controlUI;
 
@@ -161,9 +166,6 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.enabledButton, &QAbstractButton::released, enableButton);
 	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
 	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
-	QObject::connect(controlUI->ui.dof_comboBox,
-					 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-					 dofSelected);
 	QObject::connect(controlUI->ui.graphType,
 					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
 					 graphTypeChanged);
@@ -172,12 +174,33 @@ int main(int argc, char **argv) {
 	QObject::connect(timer, &QTimer::timeout, updateGraph);
 	timer->start(50);
 
+	QTimer *statusTimer = new QTimer();
+	QObject::connect(statusTimer, &QTimer::timeout, updateStatus);
+	statusTimer->start(50);
+
 	ros::AsyncSpinner spinner(4);
 	spinner.start();
 
 	controlUI->window->show();
 
-	return app.exec();
+	int status = app.exec();
+	delete timer;
+	delete statusTimer;
+	return status;
+}
+
+void ControlUI::errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback){
+	if (graphType == "Heading") {
+		error = feedback->feedback.heading_error;
+	} else if (graphType == "Forward") {
+		error = feedback->feedback.forward_error;
+	} else if (graphType == "Side") {
+		error = feedback->feedback.sidemove_error;
+	} else if (graphType == "Depth") {
+		error = feedback->feedback.depth_error;
+	} else {
+		error = 0;
+	}
 }
 
 //To subscribe to data topics: currently under default!!
@@ -194,6 +217,8 @@ void ControlUI::subscribeToData() {
 	roll_dof_sub = nh.subscribe("/Controller/DOF/Roll", 1, &ControlUI::roll_dof_callback, this);
 	x_dof_sub = nh.subscribe("/Controller/DOF/X", 1, &ControlUI::x_dof_callback, this);
 	y_dof_sub = nh.subscribe("/Controller/DOF/Y", 1, &ControlUI::y_dof_callback, this);
+
+	errorSub = nh.subscribe("/LocomotionServer/feedback", 1, &ControlUI::errorCallBack, this);
 
 	//Graph controller points
 	graph_update = nh.subscribe("/controller_points", 1, &ControlUI::controllerPointsCallBack, this);
@@ -308,9 +333,6 @@ void ControlUI::initialiseParameters() {
 	ui.thruster_val_7->setText(params.find("thruster_val_7")->second.c_str());
 	ui.thruster_val_8->setText(params.find("thruster_val_8")->second.c_str());
 
-	int index = ui.dof_comboBox->findText(params.find("dof_comboBox")->second.c_str());
-	if (index == -1) index=0;
-	ui.dof_comboBox->setCurrentIndex(index);
 	ui.goal_val->setText(params.find("goal_val")->second.c_str());
 
 	//Advanced part
@@ -388,21 +410,27 @@ void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr&
 	if (graphType == "Depth") {
 		graphSetPt = data->depth_setpoint;
 		graphOut = data->depth_input;
+		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Heading") {
 		graphSetPt = data->heading_setpoint;
 		graphOut = data->heading_input;
+		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Forward") {
 		graphSetPt = data->forward_setpoint;
 		graphOut = data->forward_input;
+		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Side") {
 		graphSetPt = data->sidemove_setpoint;
-		graphOut = data->sidemove_setpoint;
+		graphOut = data->sidemove_input;
+		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Roll") {
 		graphSetPt = data->roll_setpoint;
-		graphOut = data->roll_setpoint;
+		graphOut = data->roll_input;
+		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Pitch") {
 		graphSetPt = data->pitch_setpoint;
-		graphOut = data->pitch_setpoint;
+		graphOut = data->pitch_input;
+		//ROS_INFO("%lf", graphOut);
 	}
 }
 
@@ -459,11 +487,15 @@ void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg
 // Non Class functions //
 /////////////////////////
 
+void updateStatus() {
+	controlUI->ui.error_val->setText(boost::lexical_cast<string>(controlUI->error).c_str());
+}
+
 void updateGraph() {
 	double x_val = (ros::Time::now() - controlUI->startTime).toSec();
 
 	double x_org = controlUI->x_org;
-	if (x_val - x_org > 4) {
+	if (x_val - x_org > 20) {
 		controlUI->ui.graph_canvas->graph(0)->removeDataBefore(x_org + 1);
 		controlUI->ui.graph_canvas->graph(1)->removeDataBefore(x_org + 1);
 		controlUI->x_org++;
@@ -471,8 +503,12 @@ void updateGraph() {
 
 	controlUI->ui.graph_canvas->graph(0)->addData(x_val, controlUI->graphSetPt);//Set Point
 	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphOut);//Output
-	controlUI->ui.graph_canvas->graph(1)->rescaleAxes();
+	controlUI->ui.graph_canvas->rescaleAxes();
+	//controlUI->ui.graph_canvas->graph(1)->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
+
+	controlUI->ui.setpt_val->setText(boost::lexical_cast<std::string>(controlUI->graphSetPt).c_str());
+	controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->graphOut).c_str());
 }
 
 string getdate() {
@@ -509,8 +545,6 @@ void saveFile() {
 	     <<	controlUI->ui.thruster_val_7->text().toUtf8().constData()
 	     << controlUI->ui.thruster_val_8->text().toUtf8().constData() << "\n";
 
-
-	file << "dof_comboBox " << controlUI->ui.dof_comboBox->currentText().toUtf8().constData() << "\n";
 	file << "goal_val " << controlUI->ui.goal_val->text().toUtf8().constData() << "\n";
 
 	if ( controlUI->ui.fwd_check->isChecked() ) {
@@ -652,7 +686,7 @@ void sendButton(){
 		yaw_val_pub.publish(msg);
 
 		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
-		if (controlUI->ui.fwd_check->isChecked()){
+		if (controlUI->ui.fwd_check->isChecked()) {
 			temp = atof(controlUI->params.find("fwd_val")->second.c_str());
 			goal.forward_setpoint=temp;
 		} else {
@@ -740,10 +774,10 @@ void tuneButton(){
 	Updates DoF values in the UI
 */
 void dofSelected(int index){
-	if(controlUI->ui.dof_comboBox->currentIndex() != index)
-	{
-		return;
-	}
+//	if(controlUI->ui.dof_comboBox->currentIndex() != index)
+//	{
+//		return;
+//	}
 	//ROS_INFO("Current selected index in DoF: %i", index);
 	switch(index){
 		//dof x

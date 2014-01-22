@@ -101,9 +101,8 @@ public:
     QLineEdit *goal_val;
     QLabel *Goal_label;
     QLabel *DOF_label;
-    QComboBox *dof_comboBox;
-    QFrame *line;
     QComboBox *graphType;
+    QFrame *line;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -363,17 +362,14 @@ public:
         DOF_label = new QLabel(frame);
         DOF_label->setObjectName(QStringLiteral("DOF_label"));
         DOF_label->setGeometry(QRect(30, 30, 51, 17));
-        dof_comboBox = new QComboBox(frame);
-        dof_comboBox->setObjectName(QStringLiteral("dof_comboBox"));
-        dof_comboBox->setGeometry(QRect(80, 20, 101, 31));
+        graphType = new QComboBox(frame);
+        graphType->setObjectName(QStringLiteral("graphType"));
+        graphType->setGeometry(QRect(80, 20, 101, 31));
         line = new QFrame(frame);
         line->setObjectName(QStringLiteral("line"));
         line->setGeometry(QRect(20, 70, 181, 16));
         line->setFrameShape(QFrame::HLine);
         line->setFrameShadow(QFrame::Sunken);
-        graphType = new QComboBox(centralwidget);
-        graphType->setObjectName(QStringLiteral("graphType"));
-        graphType->setGeometry(QRect(70, 10, 85, 27));
         ControlSysUI->setCentralWidget(centralwidget);
         frame->raise();
         horizontalLayoutWidget->raise();
@@ -382,7 +378,6 @@ public:
         controparam_frame->raise();
         advanced_frame->raise();
         graphvalues->raise();
-        graphType->raise();
         menubar = new QMenuBar(ControlSysUI);
         menubar->setObjectName(QStringLiteral("menubar"));
         menubar->setGeometry(QRect(0, 0, 945, 25));
@@ -464,19 +459,11 @@ public:
         fireButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+R", 0));
         Goal_label->setText(QApplication::translate("ControlSysUI", "Goal", 0));
         DOF_label->setText(QApplication::translate("ControlSysUI", "DOF", 0));
-        dof_comboBox->clear();
-        dof_comboBox->insertItems(0, QStringList()
-         << QApplication::translate("ControlSysUI", "pos_X", 0)
-         << QApplication::translate("ControlSysUI", "pos_Y", 0)
-         << QApplication::translate("ControlSysUI", "yaw", 0)
-         << QApplication::translate("ControlSysUI", "roll", 0)
-         << QApplication::translate("ControlSysUI", "pitch", 0)
-         << QApplication::translate("ControlSysUI", "depth", 0)
-        );
         graphType->clear();
         graphType->insertItems(0, QStringList()
          << QApplication::translate("ControlSysUI", "Depth", 0)
          << QApplication::translate("ControlSysUI", "Heading", 0)
+         << QApplication::translate("ControlSysUI", "Side", 0)
          << QApplication::translate("ControlSysUI", "Forward", 0)
          << QApplication::translate("ControlSysUI", "Roll", 0)
          << QApplication::translate("ControlSysUI", "Pitch", 0)

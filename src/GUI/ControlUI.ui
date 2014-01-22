@@ -936,7 +936,7 @@
       <string>DOF</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="dof_comboBox">
+    <widget class="QComboBox" name="graphType">
      <property name="geometry">
       <rect>
        <x>80</x>
@@ -947,32 +947,32 @@
      </property>
      <item>
       <property name="text">
-       <string>pos_X</string>
+       <string>Depth</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>pos_Y</string>
+       <string>Heading</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>yaw</string>
+       <string>Side</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>roll</string>
+       <string>Forward</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>pitch</string>
+       <string>Roll</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>depth</string>
+       <string>Pitch</string>
       </property>
      </item>
     </widget>
@@ -990,41 +990,6 @@
      </property>
     </widget>
    </widget>
-   <widget class="QComboBox" name="graphType">
-    <property name="geometry">
-     <rect>
-      <x>70</x>
-      <y>10</y>
-      <width>85</width>
-      <height>27</height>
-     </rect>
-    </property>
-    <item>
-     <property name="text">
-      <string>Depth</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Heading</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Forward</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Roll</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Pitch</string>
-     </property>
-    </item>
-   </widget>
    <zorder>frame</zorder>
    <zorder>horizontalLayoutWidget</zorder>
    <zorder>graph_label</zorder>
@@ -1032,7 +997,6 @@
    <zorder>controparam_frame</zorder>
    <zorder>advanced_frame</zorder>
    <zorder>graphvalues</zorder>
-   <zorder>graphType</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
