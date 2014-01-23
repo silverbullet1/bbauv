@@ -9,14 +9,14 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
+
 #include <bbauv_msgs/controller.h>
 #include <bbauv_msgs/ControlData.h>
 #include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/ControllerGoal.h>
 #include <bbauv_msgs/thruster.h>
 #include <bbauv_msgs/set_controller.h>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/lexical_cast.hpp>
+
 #include <dynamic_reconfigure/BoolParameter.h>
 #include <dynamic_reconfigure/Config.h>
 #include <dynamic_reconfigure/DoubleParameter.h>
@@ -24,23 +24,16 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/ReconfigureRequest.h>
 #include <dynamic_reconfigure/ReconfigureResponse.h>
+
 #include <qstring.h>
 #include <qtimer.h>
 #include <qvector.h>
-#include <ros/console.h>
-#include <ros/duration.h>
-#include <ros/init.h>
-#include <ros/node_handle.h>
-#include <ros/publisher.h>
-#include <ros/service.h>
-#include <ros/spinner.h>
-#include <ros/subscriber.h>
-#include <ros/time.h>
-#include <rosconsole/macros_generated.h>
-#include <std_msgs/Bool.h>
-#include <std_msgs/Float32.h>
-#include <std_msgs/String.h>
-#include "controlui_add.h"
+
+#include <ros/ros.h>
+
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
+
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
@@ -50,6 +43,9 @@
 #include <utility>
 #include <vector>
 
+#include "controlui_add.h"
+
+//Convenient stuffs for dynamic reconfiguring
 #define numParams 30
 string dynamicParams[31] =
 {
@@ -61,6 +57,13 @@ string dynamicParams[31] =
 "sidemove_Kp", "sidemove_Ti", "sidemove_Td", "sidemove_min", "sidemove_max"
 };
 
+//index for each DOF in the dynamicParams array
+int depthIndex = 0, pitchIndex = 5, rollIndex = 10,
+	headingIndex = 15, forwardIndex = 20, sidemoveIndex = 25;
+
+//Types for each DOF params
+string paramsTypes[] = {"int_t", "int_t", "int_t", "double_t", "double_t"};
+
 class ControlUI {
 private:
 	ros::NodeHandle private_nh;
@@ -69,11 +72,6 @@ private:
 	void initializeGraph();
 
 	void subscribeToData();
-
-	//Helper functions to update Dynamic Reconfigure params
-	void updateParameter(string paramName, bool val);
-	void updateParameter(string paramName, double val);
-	void updateParameter(string paramName, int val);
 
 	//Subscribers
 	ros::Subscriber graph_update;
@@ -91,24 +89,7 @@ public:
 	bool live;
 	bool enable;
 
-	map<string, string> params; //Map for parameters
-
-	//Variables for DoFs
-	float depth;
-	float yaw, pitch, roll;
-	float x, y;
-
-	float depth_kp;
-	float yaw_kp, pitch_kp, roll_kp;
-	float x_kp, y_kp;
-
-	float depth_ki;
-	float yaw_ki, pitch_ki, roll_ki;
-	float x_ki, y_ki;
-
-	float depth_kd;
-	float yaw_kd, pitch_kd, roll_kd;
-	float x_kd, y_kd;
+	map<string, string> params; //Map for dynamic parameters
 
 	double error;
 
@@ -118,12 +99,19 @@ public:
 	double x_org;
 
 	void initialiseParameters();
+	void autoSave();
 
+	//Data callbacks
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
-
 	void controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data);
-
 	void errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback);
+
+	//Helper functions to update Dynamic Reconfigure params
+	void updateParameter(string paramName, bool val, dynamic_reconfigure::Config&);
+	void updateParameter(string paramName, double val, dynamic_reconfigure::Config&);
+	void updateParameter(string paramName, int val, dynamic_reconfigure::Config&);
+
+	QLineEdit* configureWidgets[5];
 };
 ControlUI* controlUI;
 
@@ -143,6 +131,11 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	window = new QMainWindow;
 	ui.setupUi(window);
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
+	configureWidgets[0] = ui.conKpVal;
+	configureWidgets[1] = ui.conTiVal;
+	configureWidgets[2] = ui.conTdVal;
+	configureWidgets[3] = ui.conMinVal;
+	configureWidgets[4] = ui.conMaxVal;
 
 	graphOut = 0.0;
 	graphSetPt = 0.0;
@@ -150,44 +143,6 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 
 	initialiseParameters();
 	initializeGraph();
-}
-
-int main(int argc, char **argv) {
-	ros::init(argc, argv, "controlui");
-
-	//Initiate QAppication and UI
-	QApplication app(argc, argv);
-
-	ControlUI lControlUI;
-	controlUI = &lControlUI;
-
-	QObject::connect(controlUI->ui.actionSave, &QAction::triggered, saveFile);
-	QObject::connect(controlUI->ui.fireButton, &QAbstractButton::released, fire);
-	QObject::connect(controlUI->ui.actionOpen, &QAction::triggered, openTheFile);
-	QObject::connect(controlUI->ui.enabledButton, &QAbstractButton::released, enableButton);
-	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
-	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
-	QObject::connect(controlUI->ui.graphType,
-					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
-					 graphTypeChanged);
-
-	QTimer *timer = new QTimer();
-	QObject::connect(timer, &QTimer::timeout, updateGraph);
-	timer->start(50);
-
-	QTimer *statusTimer = new QTimer();
-	QObject::connect(statusTimer, &QTimer::timeout, updateStatus);
-	statusTimer->start(50);
-
-	ros::AsyncSpinner spinner(4);
-	spinner.start();
-
-	controlUI->window->show();
-
-	int status = app.exec();
-	delete timer;
-	delete statusTimer;
-	return status;
 }
 
 void ControlUI::errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback){
@@ -204,10 +159,7 @@ void ControlUI::errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr
 	}
 }
 
-//To subscribe to data topics: currently under default!!
 void ControlUI::subscribeToData() {
-	//Note: Setpoint get from Dynamic Reconfigure server / Parameter Server
-
 	//Thrusters Subscriber [thrusters.msg]
 	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
 
@@ -217,29 +169,19 @@ void ControlUI::subscribeToData() {
 	graph_update = nh.subscribe("/controller_points", 1, &ControlUI::controllerPointsCallBack, this);
 }
 
-/*
-	Helper functions to update Dynamic Reconfigure params
-*/
-void ControlUI::updateParameter(string paramName, bool val) {
-	dynamic_reconfigure::ReconfigureRequest srv_req;
-	dynamic_reconfigure::ReconfigureResponse srv_resp;
+//Helper functions to update Dynamic Reconfigure params
+void ControlUI::updateParameter(string paramName, bool val, dynamic_reconfigure::Config& conf) {
 	dynamic_reconfigure::BoolParameter bool_param;
-	dynamic_reconfigure::Config conf;
 
 	bool_param.name = paramName;
 	bool_param.value = val;
 	conf.bools.push_back(bool_param);
-
-	srv_req.config = conf;
-
-	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
 
-void ControlUI::updateParameter(string paramName, double val) {
+void ControlUI::updateParameter(string paramName, double val, dynamic_reconfigure::Config& conf) {
 	dynamic_reconfigure::ReconfigureRequest srv_req;
 	dynamic_reconfigure::ReconfigureResponse srv_resp;
 	dynamic_reconfigure::DoubleParameter double_param;
-	dynamic_reconfigure::Config conf;
 
 	double_param.name = paramName;
 	double_param.value = val;
@@ -250,11 +192,10 @@ void ControlUI::updateParameter(string paramName, double val) {
 	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
 
-void ControlUI::updateParameter(string paramName, int val) {
+void ControlUI::updateParameter(string paramName, int val, dynamic_reconfigure::Config& conf) {
 	dynamic_reconfigure::ReconfigureRequest srv_req;
 	dynamic_reconfigure::ReconfigureResponse srv_resp;
 	dynamic_reconfigure::IntParameter integer_param;
-	dynamic_reconfigure::Config conf;
 
 	integer_param.name = paramName;
 	integer_param.value = val;
@@ -269,52 +210,61 @@ void ControlUI::initialiseDefault() {
 	params.clear();
 
 	for (int i = 0; i < numParams; i++) {
-		params[dynamicParams[i]] = "";
+		params[dynamicParams[i]] = "0.0";
 	}
 }
 
 void ControlUI::initialiseParameters() {
 	FILE* input;
-	input = fopen("control_params.txt", "r");
+	input = fopen("controlParams.txt", "r");
 	if (input != NULL) {
-		char params[500];
-		fscanf(input, "depth_Kp: %s", params);
+		for (int i = 0; i < numParams; i++) {
+			char val[256];
+			fscanf(input, (dynamicParams[i] + ": %s\n").c_str(), val);
+			params[dynamicParams[i]] = string(val);
+		}
+
+		fclose(input);
 	}
 
 	//Controls part
-	ui.con_KP_val->setText(params.find("depth_Kp")->second.c_str());
-	ui.con_KI_val->setText(params.find("depth_Ti")->second.c_str());
-	ui.con_KD_val->setText(params.find("depth_Td")->second.c_str());
-	ui.actmin_val->setText(params.find("depth_min")->second.c_str());
-	ui.actmax_val->setText(params.find("depth_max")->second.c_str());
+	ui.conKpVal->setText(params.find("depth_Kp")->second.c_str());
+	ui.conTiVal->setText(params.find("depth_Ti")->second.c_str());
+	ui.conTdVal->setText(params.find("depth_Td")->second.c_str());
+	ui.conMinVal->setText(params.find("depth_min")->second.c_str());
+	ui.conMaxVal->setText(params.find("depth_max")->second.c_str());
 
+}
+
+void ControlUI::autoSave() {
+	FILE* output;
+	output = fopen("controlParams.txt", "w");
+	for (int i = 0; i < numParams; i++) {
+		string curParam = dynamicParams[i];
+		fprintf(output, (curParam + ": %s\n").c_str(), params[curParam].c_str());
+	}
+	fclose(output);
 }
 
 void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data) {
 	if (graphType == "Depth") {
 		graphSetPt = data->depth_setpoint;
 		graphOut = data->depth_input;
-		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Heading") {
 		graphSetPt = data->heading_setpoint;
 		graphOut = data->heading_input;
-		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Forward") {
 		graphSetPt = data->forward_setpoint;
 		graphOut = data->forward_input;
-		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Side") {
 		graphSetPt = data->sidemove_setpoint;
 		graphOut = data->sidemove_input;
-		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Roll") {
 		graphSetPt = data->roll_setpoint;
 		graphOut = data->roll_input;
-		//ROS_INFO("%lf", graphOut);
 	} else if (graphType == "Pitch") {
 		graphSetPt = data->pitch_setpoint;
 		graphOut = data->pitch_input;
-		//ROS_INFO("%lf", graphOut);
 	}
 }
 
@@ -379,7 +329,6 @@ void updateGraph() {
 	controlUI->ui.graph_canvas->graph(0)->addData(x_val, controlUI->graphSetPt);//Set Point
 	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphOut);//Output
 	controlUI->ui.graph_canvas->rescaleAxes();
-	//controlUI->ui.graph_canvas->graph(1)->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
 
 	controlUI->ui.setpt_val->setText(boost::lexical_cast<std::string>(controlUI->graphSetPt).c_str());
@@ -404,48 +353,12 @@ void saveFile() {
 	filename.append(".txt");
 	ofstream file;
 	file.open(filename.c_str());
-	file << "setpt_val " << controlUI->ui.setpt_val->text().toUtf8().constData() << "\n";
-	file << "sensor_val " << controlUI->ui.sensor_val->text().toUtf8().constData() << "\n";
-	file << "error_val " << controlUI->ui.error_val->text().toUtf8().constData()<< "\n";
-	file << "KP_val " << controlUI->ui.KP_val->text().toUtf8().constData() << "\n";
-	file << "KI_val " << controlUI->ui.KI_val->text().toUtf8().constData() << "\n";
-	file << "KD_val " << controlUI->ui.KD_val->text().toUtf8().constData()<< "\n";
 
-	file << "goal_val " << controlUI->ui.goal_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.fwd_check->isChecked() ) {
-		file << "fwd_check " << "true" << "\n";
-	} else {
-		file << "fwd_check " << "false " << "\n";
-	}
-	file << "fwd_val "  << controlUI->ui.fwd_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.depth_check->isChecked() ){
-		file << "depth_check " << "true" << "\n";
-	} else {
-		file << "depth_check " << "false " << "\n";
-	}
-	file << "depth_val "  << controlUI->ui.depth_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.yaw_check->isChecked() ){
-		file << "yaw_check " << "true" << "\n";
-	} else {
-		file << "yaw_check " << "false " << "\n";
-	}
-	file << "yaw_val " << controlUI->ui.yaw_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.sm_check->isChecked() ){
-		file << "sm_check " << "true" << "\n";
-	} else {
-		file << "sm_check " << "false " << "\n";
-	}
-	file << "sm_val "  << controlUI->ui.sm_val->text().toUtf8().constData() << "\n";
-
-	file << "con_KP_val " << controlUI->ui.con_KP_val->text().toUtf8().constData() << "\n";
-	file << "con_KI_val " << controlUI->ui.con_KI_val->text().toUtf8().constData() << "\n";
-	file << "con_KD_val " << controlUI->ui.con_KD_val->text().toUtf8().constData()<< "\n";
-	file << "actmin_val " << controlUI->ui.actmin_val->text().toUtf8().constData() << "\n";
-	file << "actmax_val " << controlUI->ui.actmax_val->text().toUtf8().constData()<< "\n";
+	file << "con_KP_val " << controlUI->ui.conKpVal->text().toUtf8().constData() << "\n";
+	file << "con_KI_val " << controlUI->ui.conTiVal->text().toUtf8().constData() << "\n";
+	file << "con_KD_val " << controlUI->ui.conTdVal->text().toUtf8().constData()<< "\n";
+	file << "actmin_val " << controlUI->ui.conMinVal->text().toUtf8().constData() << "\n";
+	file << "actmax_val " << controlUI->ui.conMaxVal->text().toUtf8().constData()<< "\n";
 
 	file.close();
 	QMessageBox::information(controlUI->ui.centralwidget, "File saved", "File successfully saved! :)");
@@ -544,8 +457,8 @@ void sendButton(){
 		forward = controlUI->ui.fwd_check->isChecked();
 		depth = controlUI->ui.depth_check->isChecked();
 		sidemove = controlUI->ui.sm_check->isChecked();
-		pitch = false;
-		roll = false;
+		pitch = controlUI->ui.pitch_check->isChecked();
+		roll = controlUI->ui.roll_check->isChecked();
 
 	    ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 
@@ -603,35 +516,43 @@ void sendButton(){
 void tuneButton(){
 	if (!controlUI->live){
 		QMessageBox::information(controlUI->ui.centralwidget, "Tune!", "Twinkle Twinkle Little Star~");
-	}
-	else {
-		float temp;
-		std_msgs::Float32 msg;
+	} else {
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::Config conf;
 
-		ros::Publisher con_KP_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KP_pub", 1);
-		temp = atof(controlUI->params.find("con_KP_val")->second.c_str());
-		msg.data = temp;
-		con_KP_pub.publish(msg);
+		int startIndex;
+		if (controlUI->graphType == "Depth") {
+			startIndex = depthIndex;
+		} else if (controlUI->graphType == "Heading") {
+			startIndex = headingIndex;
+		} else if (controlUI->graphType == "Forward") {
+			startIndex = forwardIndex;
+		} else if (controlUI->graphType == "Side") {
+			startIndex = sidemoveIndex;
+		} else if (controlUI->graphType == "Roll") {
+			startIndex = rollIndex;
+		} else if (controlUI->graphType == "Pitch") {
+			startIndex = pitchIndex;
+		}
+		int endIndex = startIndex + 5; //Exclusive
 
-		ros::Publisher con_KD_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KD_pub", 1);
-		temp = atof(controlUI->params.find("con_KD_val")->second.c_str());
-		msg.data = temp;
-		con_KD_pub.publish(msg);
+		for (int i = startIndex; i < endIndex; i++) {
+			int offsetIndex = i % 5;
+			if (paramsTypes[offsetIndex] == "int_t") {
+				int temp = controlUI->configureWidgets[offsetIndex]->text().toInt();
+				controlUI->updateParameter(dynamicParams[i], temp, conf);
+				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string>(temp);
+			} else if (paramsTypes[offsetIndex] == "double_t") {
+				double temp = controlUI->configureWidgets[offsetIndex]->text().toDouble();
+				controlUI->updateParameter(dynamicParams[i], temp, conf);
+				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string>(temp);
+			}
+		}
 
-		ros::Publisher con_KI_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KI_pub", 1);
-		temp = atof(controlUI->params.find("con_KI_val")->second.c_str());
-		msg.data = temp;
-		con_KI_pub.publish(msg);
-
-		ros::Publisher actmin_pub = controlUI->nh.advertise<std_msgs::Float32>("actmin_pub", 1);
-		temp = atof(controlUI->params.find("actmin_val")->second.c_str());
-		msg.data = temp;
-		actmin_pub.publish(msg);
-
-		ros::Publisher actmax_pub = controlUI->nh.advertise<std_msgs::Float32>("actmax_pub", 1);
-		temp = atof(controlUI->params.find("actmax_val")->second.c_str());
-		msg.data = temp;
-		actmax_pub.publish(msg);
+		srv_req.config = conf;
+		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+		controlUI->autoSave();
 	}
 }
 
@@ -641,4 +562,42 @@ void graphTypeChanged(const QString& type) {
 	controlUI->x_org = 0;
 	controlUI->startTime = ros::Time::now();
 	controlUI->graphType = type.toStdString();
+}
+
+int main(int argc, char **argv) {
+	ros::init(argc, argv, "controlui");
+
+	//Initiate QAppication and UI
+	QApplication app(argc, argv);
+
+	ControlUI lControlUI;
+	controlUI = &lControlUI;
+
+	QObject::connect(controlUI->ui.actionSave, &QAction::triggered, saveFile);
+	QObject::connect(controlUI->ui.fireButton, &QAbstractButton::released, fire);
+	QObject::connect(controlUI->ui.actionOpen, &QAction::triggered, openTheFile);
+	QObject::connect(controlUI->ui.enabledButton, &QAbstractButton::released, enableButton);
+	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
+	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
+	QObject::connect(controlUI->ui.graphType,
+					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
+					 graphTypeChanged);
+
+	QTimer *timer = new QTimer();
+	QObject::connect(timer, &QTimer::timeout, updateGraph);
+	timer->start(50);
+
+	QTimer *statusTimer = new QTimer();
+	QObject::connect(statusTimer, &QTimer::timeout, updateStatus);
+	statusTimer->start(50);
+
+	ros::AsyncSpinner spinner(4);
+	spinner.start();
+
+	controlUI->window->show();
+
+	int status = app.exec();
+	delete timer;
+	delete statusTimer;
+	return status;
 }

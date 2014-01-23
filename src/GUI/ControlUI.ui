@@ -554,7 +554,7 @@
       <string>Kp</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="con_KP_val">
+    <widget class="QLineEdit" name="conKpVal">
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -564,7 +564,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QLineEdit" name="con_KI_val">
+    <widget class="QLineEdit" name="conTiVal">
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -574,7 +574,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QLineEdit" name="actmin_val">
+    <widget class="QLineEdit" name="conMinVal">
      <property name="geometry">
       <rect>
        <x>250</x>
@@ -584,7 +584,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QLineEdit" name="actmax_val">
+    <widget class="QLineEdit" name="conMaxVal">
      <property name="geometry">
       <rect>
        <x>250</x>
@@ -610,7 +610,7 @@
       <string>Ctrl+E</string>
      </property>
     </widget>
-    <widget class="QLineEdit" name="con_KD_val">
+    <widget class="QLineEdit" name="conTdVal">
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -821,6 +821,9 @@
      </property>
     </widget>
     <widget class="QLabel" name="sm_label_2">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -834,6 +837,9 @@
      </property>
     </widget>
     <widget class="QCheckBox" name="roll_check">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="geometry">
       <rect>
        <x>120</x>
@@ -847,6 +853,9 @@
      </property>
     </widget>
     <widget class="QLineEdit" name="roll_val">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="geometry">
       <rect>
        <x>170</x>
@@ -857,6 +866,9 @@
      </property>
     </widget>
     <widget class="QLineEdit" name="pitch_val">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="geometry">
       <rect>
        <x>170</x>
@@ -867,6 +879,9 @@
      </property>
     </widget>
     <widget class="QLabel" name="sm_label_3">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="geometry">
       <rect>
        <x>60</x>
@@ -880,6 +895,9 @@
      </property>
     </widget>
     <widget class="QCheckBox" name="pitch_check">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <property name="geometry">
       <rect>
        <x>120</x>
