@@ -108,6 +108,7 @@ public:
     QLabel *DOF_label;
     QComboBox *graphType;
     QFrame *line;
+    QLabel *statusLabel;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -360,7 +361,7 @@ public:
         pitch_check->setGeometry(QRect(120, 160, 41, 22));
         graphvalues = new QLabel(centralwidget);
         graphvalues->setObjectName(QStringLiteral("graphvalues"));
-        graphvalues->setGeometry(QRect(20, 500, 321, 21));
+        graphvalues->setGeometry(QRect(20, 490, 321, 21));
         QFont font3;
         font3.setPointSize(11);
         font3.setBold(true);
@@ -395,6 +396,9 @@ public:
         line->setGeometry(QRect(20, 70, 181, 16));
         line->setFrameShape(QFrame::HLine);
         line->setFrameShadow(QFrame::Sunken);
+        statusLabel = new QLabel(centralwidget);
+        statusLabel->setObjectName(QStringLiteral("statusLabel"));
+        statusLabel->setGeometry(QRect(20, 520, 371, 17));
         ControlSysUI->setCentralWidget(centralwidget);
         frame->raise();
         horizontalLayoutWidget->raise();
@@ -403,6 +407,7 @@ public:
         controparam_frame->raise();
         advanced_frame->raise();
         graphvalues->raise();
+        statusLabel->raise();
         menubar = new QMenuBar(ControlSysUI);
         menubar->setObjectName(QStringLiteral("menubar"));
         menubar->setGeometry(QRect(0, 0, 945, 25));
@@ -496,6 +501,7 @@ public:
          << QApplication::translate("ControlSysUI", "Roll", 0)
          << QApplication::translate("ControlSysUI", "Pitch", 0)
         );
+        statusLabel->setText(QApplication::translate("ControlSysUI", "Status:", 0));
         menuFile->setTitle(QApplication::translate("ControlSysUI", "&File", 0));
     } // retranslateUi
 
