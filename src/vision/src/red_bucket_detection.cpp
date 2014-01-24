@@ -8,15 +8,83 @@
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include <cv_bridge/cv_bridge.h>
+
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
 #include <string>
 
-using namespace std;
+#include <bbauv_msgs/compass_data.h>
+#include <bbauv_msgs/controller.h>
+#include "bucketstates.h"
+
+using namespace cv;
 
 static const std::string OPENCV_WINDOW = "Image window";
 
-void imageCallback(const sensor_msgs::ImageConstPtr& msg)
+const int DEPTH_POINT = 1.1;
+ros::Publisher movementPub;
+
+class BucketDetection
+{
+public:
+	BucketDetection();
+	~BucketDetection();
+
+	int loopRateHz;
+
+	void start();
+	void stop();
+
+	void compassCallback(const bbauv_msgs::compass_data& msg);
+	double normHeading(double heading);
+	void imageCallback(const sensor_msgs::ImageConstPtr& msg);
+
+	//Fill rectData structure with necessary data
+	void prepareBucketParams(Mat inImage);
+private:
+	bool enabled;
+
+	ros::NodeHandle nh;
+	ros::NodeHandle private_nh;
+
+	image_transport::Subscriber imageSub;
+	ros::Subscriber compassSub;
+	image_transport::ImageTransport it;
+
+	//States
+	boost::shared_ptr<State> state;
+};
+
+BucketDetection::BucketDetection(): it(nh) {
+	enabled = false;
+
+	private_nh.param<int>("loopHz", loopRateHz, 20);
+	string imageTopic; private_nh.param<std::string>("image", imageTopic, "/bottomcam/camera/image_rect_color");
+	string compassTopic; private_nh.param<std::string>("compass", compassTopic, "/compass");
+
+ 	imageSub = it.subscribe(imageTopic, 1, &BucketDetection::imageCallback, this);
+    compassSub = nh.subscribe(compassTopic, 1, &BucketDetection::compassCallback, this);
+	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
+}
+
+BucketDetection::~BucketDetection() {
+
+}
+
+void BucketDetection::start() {
+	enabled = true;
+}
+
+void BucketDetection::stop() {
+	enabled = false;
+}
+
+void BucketDetection::compassCallback(const bbauv_msgs::compass_data& msg) {
+
+}
+
+void BucketDetection::imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
  	cv_bridge::CvImagePtr cv_ptr;	
 	try {
@@ -24,6 +92,15 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 	}catch(cv_bridge::Exception& e){
 		cv_bridge::CvImagePtr cv_ptr;
 	}
+
+	prepareBucketParams(cv_ptr->image);
+}
+
+void BucketDetection::prepareBucketParams(Mat image) {
+	//Do image processing here
+
+	//Call state
+
 }
 
 int main(int argc, char **argv)
@@ -32,23 +109,16 @@ int main(int argc, char **argv)
 		Initalization
 	*/
 	ros::init(argc, argv, "red_bucket_detection");
-	ros::NodeHandle node;
-  	image_transport::ImageTransport imgTransport(node);
-  	image_transport::Subscriber image_sub;
-  	string bottom_camera_topic_name = "/camera/image_raw";
 
-  	/*
-		Get params from ROS Param Server
-	*/
-	if (node.hasParam("/red_bucket_detection/bottom_camera_topic"))
-	{
-		if(node.getParam("/red_bucket_detection/bottom_camera_topic", bottom_camera_topic_name))
-		{
-			ROS_INFO("Subscribing to bottom camera topic @ %s", bottom_camera_topic_name.c_str());
-		}
+	BucketDetection bucketDetector;
+	bucketDetector.start();
+	ROS_INFO("Initialised LineFollower...");
+
+	ros::Rate loop_rate(bucketDetector.loopRateHz);
+	while (ros::ok()) {
+		ros::spinOnce();
+		loop_rate.sleep();
 	}
-
-  	image_sub = imgTransport.subscribe(bottom_camera_topic_name, 1, imageCallback);
 
   	ros::spin();
 	return 0;

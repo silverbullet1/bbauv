@@ -53,7 +53,7 @@ boost::shared_ptr<State> HoverState::gotFrame (cv::Mat image, RectData rectData)
 }
 
 //Drop ball in center state
-DropBallState::DropBallState(){
+DropBallState::DropBallState() {
 	ROS_INFO("Centering ball to drop");
 }
 

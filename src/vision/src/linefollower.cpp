@@ -85,11 +85,11 @@ LineFollower::LineFollower() : it(nh), private_nh("~")
 	enabled = false;
 
 	private_nh.param<int>("loopHz", loopRateHz, 20);
-	string imageTopic; private_nh.param<string>("image", imageTopic, "/bumblebee/bottomCam");
+	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_rect_color");
 	string compassTopic; private_nh.param<string>("compass", compassTopic, "/compass");
 
- 	imageSub = it.subscribe("/bumblebee/bottomCam", 1, &LineFollower::bottomCamCallback, this);
-    compassSub = nh.subscribe("/compass", 1, &LineFollower::compassCallback, this);
+ 	imageSub = it.subscribe(imageTopic, 1, &LineFollower::bottomCamCallback, this);
+    compassSub = nh.subscribe(compassTopic, 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 
 	thVal = 80;

@@ -426,12 +426,28 @@ void fire() {
 	if (!controlUI->live){
 		QMessageBox::information(controlUI->ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	} else {
-		ros::NodeHandle nh;
-		float goal_val = atof(controlUI->params.find("goal_val")->second.c_str());;
-		std_msgs::Float32 msg;
-		ros::Publisher goal_pub = nh.advertise<std_msgs::Float32>("goal_pub", 1);
-		msg.data = goal_val;
-		goal_pub.publish(msg);
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::Config conf;
+
+		double value = controlUI->ui.goal_val->text().toDouble();
+		if (controlUI->graphType == "Depth") {
+			controlUI->updateParameter("depth_setpoint", value, conf);
+		} else if (controlUI->graphType == "Pitch") {
+			controlUI->updateParameter("pitch_setpoint", value, conf);
+		} else if (controlUI->graphType == "Heading") {
+			controlUI->updateParameter("heading_setpoint", value, conf);
+		} else if (controlUI->graphType == "Roll") {
+			controlUI->updateParameter("roll_setpoint", value, conf);
+		} else if (controlUI->graphType == "Side") {
+			controlUI->updateParameter("sidemove_setpoint", value, conf);
+		} else if (controlUI->graphType == "Forward") {
+			controlUI->updateParameter("forward_setpoint", value, conf);
+		}
+
+		srv_req.config = conf;
+		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+
 		ros::spinOnce();
 	}
 }
@@ -443,14 +459,6 @@ void sendButton(){
 	}
 	else{
 		ros::NodeHandle nh;
-		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
-		ROS_INFO("Waiting for action server to start.");
-		ac.waitForServer();
-		ROS_INFO("Action server started, sending goal.");
-
-		//Send goal and publish to topics to controller.msgs
-		bbauv_msgs::ControllerGoal goal; 
-		double temp;
 
 		bool forward, sidemove, heading, depth, pitch, roll;
 		heading = controlUI->ui.yaw_check->isChecked();
@@ -471,6 +479,14 @@ void sendButton(){
 	    srv.request.sidemove = sidemove;
 
 	    controlClient.call(srv);
+
+		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
+		ROS_INFO("Waiting for action server to start.");
+		ac.waitForServer();
+		ROS_INFO("Action server started, sending goal.");
+
+		//Send goal and publish to topics to controller.msgs
+		bbauv_msgs::ControllerGoal goal;
 
 		if (heading) {
 			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
