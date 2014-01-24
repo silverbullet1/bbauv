@@ -479,13 +479,13 @@ void doneCb(const actionlib::SimpleClientGoalState& state,
             const bbauv_msgs::ControllerResultConstPtr& result) {
 	const char* status = state.toString().c_str();
 	ROS_INFO("Finished in state [%s]", status);
-	controlUI->ui.statusLabel->setText(status);
+	controlUI->ui.statusbar->showMessage(status);
 }
 
 // Called once when the goal becomes active
 void activeCb() {
   ROS_INFO("Goal just went active");
-  controlUI->ui.statusLabel->setText("Goal just went active");
+  controlUI->ui.statusbar->showMessage("Goal just went active");
 }
 
 // Called every time feedback is received for the goal
@@ -523,8 +523,10 @@ void sendButton(){
 
 		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
 		ROS_INFO("Waiting for action server to start.");
+		controlUI->ui.statusbar->showMessage("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
+		controlUI->ui.statusbar->showMessage("Action server started, sending goal.");
 
 		//Send goal and publish to topics to controller.msgs
 		bbauv_msgs::ControllerGoal goal;
@@ -592,8 +594,22 @@ void tuneButton(){
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
-		controlUI->ui.statusLabel->setText("Status: Finished Tuning");
+		controlUI->ui.statusbar->showMessage("Status: Finished Tuning");
 	}
+}
+
+void resetGoalsUI() {
+	controlUI->ui.fwd_check->setDisabled(false);
+	controlUI->ui.yaw_check->setDisabled(false);
+	controlUI->ui.depth_check->setDisabled(false);
+	controlUI->ui.sm_check->setDisabled(false);
+
+	controlUI->ui.fwd_val->setDisabled(false);
+	controlUI->ui.yaw_val->setDisabled(false);
+	controlUI->ui.depth_val->setDisabled(false);
+	controlUI->ui.sm_val->setDisabled(false);
+	//controlUI->ui.roll_check->setDisabled(false);
+	//controlUI->ui.pitch_check->setDisabled(false);
 }
 
 void graphTypeChanged(const QString& type) {
@@ -603,14 +619,27 @@ void graphTypeChanged(const QString& type) {
 	controlUI->startTime = ros::Time::now();
 	controlUI->graphType = type.toStdString();
 
+	resetGoalsUI();
 	if (controlUI->graphType == "Depth") {
 		controlUI->startIndex = depthIndex;
+		controlUI->ui.depth_check->setChecked(false);
+		controlUI->ui.depth_check->setDisabled(true);
+		controlUI->ui.depth_val->setDisabled(true);
 	} else if (controlUI->graphType == "Heading") {
 		controlUI->startIndex = headingIndex;
+		controlUI->ui.yaw_check->setChecked(false);
+		controlUI->ui.yaw_check->setDisabled(true);
+		controlUI->ui.yaw_val->setDisabled(true);
 	} else if (controlUI->graphType == "Forward") {
 		controlUI->startIndex = forwardIndex;
+		controlUI->ui.fwd_check->setChecked(false);
+		controlUI->ui.fwd_check->setDisabled(true);
+		controlUI->ui.fwd_val->setDisabled(true);
 	} else if (controlUI->graphType == "Side") {
 		controlUI->startIndex = sidemoveIndex;
+		controlUI->ui.sm_check->setChecked(false);
+		controlUI->ui.sm_check->setDisabled(true);
+		controlUI->ui.sm_val->setDisabled(true);
 	} else if (controlUI->graphType == "Roll") {
 		controlUI->startIndex = rollIndex;
 	} else if (controlUI->graphType == "Pitch") {
@@ -639,6 +668,10 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.graphType,
 					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
 					 graphTypeChanged);
+
+	controlUI->ui.depth_check->setChecked(false);
+	controlUI->ui.depth_check->setDisabled(true);
+	controlUI->ui.depth_val->setDisabled(true);
 
 	QTimer *timer = new QTimer();
 	QObject::connect(timer, &QTimer::timeout, updateGraph);

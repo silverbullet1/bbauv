@@ -1064,19 +1064,6 @@
      </property>
     </widget>
    </widget>
-   <widget class="QLabel" name="statusLabel">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>520</y>
-      <width>371</width>
-      <height>17</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Status:</string>
-    </property>
-   </widget>
    <zorder>frame</zorder>
    <zorder>horizontalLayoutWidget</zorder>
    <zorder>graph_label</zorder>
@@ -1084,7 +1071,6 @@
    <zorder>controparam_frame</zorder>
    <zorder>advanced_frame</zorder>
    <zorder>graphvalues</zorder>
-   <zorder>statusLabel</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
