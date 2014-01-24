@@ -17,7 +17,7 @@ LookForFlareState::LookForFlareState(){
 	ROS_INFO("Looking for yellow flare");
 }
 
-boost::shared_ptr<State> LookForFlareState::gotFrame(cv::Mat image, RectData rectData)P
+boost::shared_ptr<State> LookForFlareState::gotFrame(cv::Mat image, RectData rectData){
 		return shared_from_this();
 }
 
