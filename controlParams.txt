@@ -1,6 +1,6 @@
-depth_Kp: 9001
+depth_Kp: 7000
 depth_Ti: 8500
-depth_Td: 1500
+depth_Td: 2000
 depth_min: -2400
 depth_max: 2400
 pitch_Kp: 105.0

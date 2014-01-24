@@ -33,6 +33,7 @@
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/thread.hpp>
 
 #include <cstdlib>
 #include <ctime>
@@ -63,6 +64,15 @@ int depthIndex = 0, pitchIndex = 5, rollIndex = 10,
 
 //Types for each DOF params
 string paramsTypes[] = {"double_t", "double_t", "double_t", "int_t", "int_t"};
+
+std::string roundString(double val, int precision) {
+	std::ostringstream ss;
+	ss << std::fixed << std::setprecision(precision);
+	ss << val;
+	std::string s = ss.str();
+
+	return s;
+}
 
 class ControlUI {
 private:
@@ -119,7 +129,7 @@ ControlUI* controlUI;
 
 ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	startTime = ros::Time::now();
-	private_nh.param("live", live, bool(false));
+	private_nh.param("live", live, bool(true));
 
 	initialiseDefault();
 
@@ -325,7 +335,7 @@ void ControlUI::loadControlParams() {
 /////////////////////////
 
 void updateStatus() {
-	controlUI->ui.error_val->setText(boost::lexical_cast<string>(controlUI->error).c_str());
+	controlUI->ui.error_val->setText(QString::fromStdString(roundString(controlUI->error, 4)));
 }
 
 void updateGraph() {
@@ -343,8 +353,8 @@ void updateGraph() {
 	controlUI->ui.graph_canvas->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
 
-	controlUI->ui.setpt_val->setText(boost::lexical_cast<std::string>(controlUI->graphSetPt).c_str());
-	controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->graphOut).c_str());
+	controlUI->ui.setpt_val->setText(QString::fromStdString(roundString(controlUI->graphSetPt, 4)));
+	controlUI->ui.sensor_val->setText(QString::fromStdString(roundString(controlUI->graphOut, 4)));
 }
 
 string getdate() {
@@ -464,12 +474,31 @@ void fire() {
 	}
 }
 
-// Send the advanced parameters 
+// Called once when the goal completes
+void doneCb(const actionlib::SimpleClientGoalState& state,
+            const bbauv_msgs::ControllerResultConstPtr& result) {
+	const char* status = state.toString().c_str();
+	ROS_INFO("Finished in state [%s]", status);
+	controlUI->ui.statusLabel->setText(status);
+}
+
+// Called once when the goal becomes active
+void activeCb() {
+  ROS_INFO("Goal just went active");
+  controlUI->ui.statusLabel->setText("Goal just went active");
+}
+
+// Called every time feedback is received for the goal
+void feedbackCb(const bbauv_msgs::ControllerFeedbackConstPtr& feedback) {
+	//ROS_INFO("Got Feedback of length %i", feedback->thruster);
+}
+
+// Send the advanced parameters
 void sendButton(){
 	if (!controlUI->live){
 		QMessageBox::information(controlUI->ui.centralwidget, "Send!", "Bang! Boom! Bam!");
 	}
-	else{
+	else {
 		ros::NodeHandle nh;
 
 		bool forward, sidemove, heading, depth, pitch, roll;
@@ -524,19 +553,17 @@ void sendButton(){
 			goal.sidemove_setpoint = 0.0;
 		}
 
-		ac.sendGoal(goal);
+		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
 		ros::spinOnce();
 
-		bool finished_before_timeout = ac.waitForResult(ros::Duration(5.0));
-		if (finished_before_timeout){
-			actionlib::SimpleClientGoalState state = ac.getState();
-			ROS_INFO("Action finished: %s", state.toString().c_str());
-			QMessageBox::information(controlUI->ui.centralwidget, "Goal status", state.toString().c_str());
-		}
-		else {
-			ROS_INFO("Timeout! Goal not achieved");
-			QMessageBox::critical(controlUI->ui.centralwidget, "Goal status", "Timeout! Goal not achieved");
-		}
+//		bool finished_before_timeout = ac.waitForResult(ros::Duration(3.0));
+//		if (finished_before_timeout){
+//			actionlib::SimpleClientGoalState state = ac.getState();
+//			ROS_INFO("Action finished: %s", state.toString().c_str());
+//		}
+//		else {
+//			ROS_INFO("Timeout! Goal not achieved");
+//		}
 	}
 }
 
@@ -565,6 +592,7 @@ void tuneButton(){
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
+		controlUI->ui.statusLabel->setText("Status: Finished Tuning");
 	}
 }
 
