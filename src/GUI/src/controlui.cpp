@@ -62,7 +62,7 @@ int depthIndex = 0, pitchIndex = 5, rollIndex = 10,
 	headingIndex = 15, forwardIndex = 20, sidemoveIndex = 25;
 
 //Types for each DOF params
-string paramsTypes[] = {"int_t", "int_t", "int_t", "double_t", "double_t"};
+string paramsTypes[] = {"double_t", "double_t", "double_t", "int_t", "int_t"};
 
 class ControlUI {
 private:
@@ -95,11 +95,13 @@ public:
 
 	//For graph
 	string graphType;
+	int startIndex, endIndex;
 	double graphOut, graphSetPt;
 	double x_org;
 
 	void initialiseParameters();
 	void autoSave();
+	void loadControlParams();
 
 	//Data callbacks
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
@@ -140,6 +142,9 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	graphOut = 0.0;
 	graphSetPt = 0.0;
 	graphType = "Depth";
+
+	startIndex = 0;
+	endIndex = 5;
 
 	initialiseParameters();
 	initializeGraph();
@@ -306,6 +311,13 @@ void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg
 	ui.thruster_val_6->setText(QString::number(msg->speed6));
 	ui.thruster_val_7->setText(QString::number(msg->speed7));
 	ui.thruster_val_8->setText(QString::number(msg->speed8));
+}
+
+void ControlUI::loadControlParams() {
+	for (int i = startIndex; i < endIndex; i++) {
+		int offsetIndex = i % 5;
+		configureWidgets[offsetIndex]->setText(QString::fromStdString(params[dynamicParams[i]]));
+	}
 }
 
 //////////////////////////
@@ -537,32 +549,16 @@ void tuneButton(){
 		dynamic_reconfigure::ReconfigureResponse srv_resp;
 		dynamic_reconfigure::Config conf;
 
-		int startIndex;
-		if (controlUI->graphType == "Depth") {
-			startIndex = depthIndex;
-		} else if (controlUI->graphType == "Heading") {
-			startIndex = headingIndex;
-		} else if (controlUI->graphType == "Forward") {
-			startIndex = forwardIndex;
-		} else if (controlUI->graphType == "Side") {
-			startIndex = sidemoveIndex;
-		} else if (controlUI->graphType == "Roll") {
-			startIndex = rollIndex;
-		} else if (controlUI->graphType == "Pitch") {
-			startIndex = pitchIndex;
-		}
-		int endIndex = startIndex + 5; //Exclusive
-
-		for (int i = startIndex; i < endIndex; i++) {
+		for (int i = controlUI->startIndex; i < controlUI->endIndex; i++) {
 			int offsetIndex = i % 5;
 			if (paramsTypes[offsetIndex] == "int_t") {
 				int temp = controlUI->configureWidgets[offsetIndex]->text().toInt();
 				controlUI->updateParameter(dynamicParams[i], temp, conf);
-				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string>(temp);
+				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string, int>(temp);
 			} else if (paramsTypes[offsetIndex] == "double_t") {
 				double temp = controlUI->configureWidgets[offsetIndex]->text().toDouble();
 				controlUI->updateParameter(dynamicParams[i], temp, conf);
-				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string>(temp);
+				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string, double>(temp);
 			}
 		}
 
@@ -578,6 +574,23 @@ void graphTypeChanged(const QString& type) {
 	controlUI->x_org = 0;
 	controlUI->startTime = ros::Time::now();
 	controlUI->graphType = type.toStdString();
+
+	if (controlUI->graphType == "Depth") {
+		controlUI->startIndex = depthIndex;
+	} else if (controlUI->graphType == "Heading") {
+		controlUI->startIndex = headingIndex;
+	} else if (controlUI->graphType == "Forward") {
+		controlUI->startIndex = forwardIndex;
+	} else if (controlUI->graphType == "Side") {
+		controlUI->startIndex = sidemoveIndex;
+	} else if (controlUI->graphType == "Roll") {
+		controlUI->startIndex = rollIndex;
+	} else if (controlUI->graphType == "Pitch") {
+		controlUI->startIndex = pitchIndex;
+	}
+	controlUI->endIndex = controlUI->startIndex + 5; //Exclusive
+
+	controlUI->loadControlParams();
 }
 
 int main(int argc, char **argv) {
