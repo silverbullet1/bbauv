@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   actionlib
   actionlib_msgs
+  bbauv_msgs
   dynamic_reconfigure
 )
 
@@ -99,7 +100,7 @@ find_package(OpenCV)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES GUI
-  CATKIN_DEPENDS roscpp rospy std_msgs actionlib message_runtime
+  CATKIN_DEPENDS roscpp rospy std_msgs actionlib message_runtime bbauv_msgs
   DEPENDS system_lib
  )
 

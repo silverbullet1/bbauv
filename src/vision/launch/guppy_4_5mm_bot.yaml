@@ -1,5 +1,5 @@
-\guid: 000a47010f0a557e
-video_mode: 640x480_yuv411
-iso_speed: 400
-camera_info_url: package://vision/launch/guppy_4_5mm_calibration.yaml
-auto_white_balance: 1
+guid: 000a47010f0ab48b
+video_mode: 640x480_mono8
+frame_rate: 15
+bayer_pattern: rggb
+bayer_method: Bilinear
