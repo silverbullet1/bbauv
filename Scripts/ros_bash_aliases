@@ -32,7 +32,7 @@ alias sim=runSim
 alias vision=runVisionUI
 alias PID=runPIDUI
 alias cor='coriander'
-
+alias dri='roslaunch launch drivers.launch'
 
 #MINI Functions 
 check_process() {
