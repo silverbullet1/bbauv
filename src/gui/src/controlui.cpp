@@ -2,47 +2,12 @@
 	controlui.cpp
 	A GUI for tuning the control systems
 	Date created: 8 Jan 2014
-	Author: Jason & Lynnette
+	Author: Jason & Lynnette & Thien
 */
 
 #include "controlui.h"
 
-#include <actionlib/client/simple_action_client.h>
-#include <actionlib/client/simple_client_goal_state.h>
-
-#include <bbauv_msgs/controller.h>
-#include <bbauv_msgs/ControlData.h>
-#include <bbauv_msgs/ControllerAction.h>
-#include <bbauv_msgs/ControllerGoal.h>
-#include <bbauv_msgs/thruster.h>
-#include <bbauv_msgs/set_controller.h>
-
-#include <dynamic_reconfigure/BoolParameter.h>
-#include <dynamic_reconfigure/Config.h>
-#include <dynamic_reconfigure/DoubleParameter.h>
-#include <dynamic_reconfigure/IntParameter.h>
-#include <dynamic_reconfigure/Reconfigure.h>
-#include <dynamic_reconfigure/ReconfigureRequest.h>
-#include <dynamic_reconfigure/ReconfigureResponse.h>
-
-#include <qstring.h>
-#include <qtimer.h>
-#include <qvector.h>
-
 #include <ros/ros.h>
-
-#include <boost/algorithm/string/split.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/thread.hpp>
-
-#include <cstdlib>
-#include <ctime>
-#include <iomanip>
-#include <iostream>
-#include <map>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "controlui_add.h"
 
