@@ -85,11 +85,11 @@ LineFollower::LineFollower() : it(nh), private_nh("~")
 	enabled = false;
 
 	private_nh.param<int>("loopHz", loopRateHz, 20);
-	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_raw");
-	string compassTopic; private_nh.param<string>("compass", compassTopic, "/os5000_data");
+	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_rect_color");
+	string compassTopic; private_nh.param<string>("compass", compassTopic, "/compass");
 
- 	imageSub = it.subscribe("/camera2/camera/image_raw", 1, &LineFollower::bottomCamCallback, this);
-    compassSub = nh.subscribe("/AHRS8_data_e", 1, &LineFollower::compassCallback, this);
+ 	imageSub = it.subscribe(imageTopic, 1, &LineFollower::bottomCamCallback, this);
+    compassSub = nh.subscribe(compassTopic, 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 
 	thVal = 80;
@@ -230,24 +230,12 @@ void LineFollower::prepareBlackLineParams(Mat inImage) {
 		state = state->gotFrame(inImage, rectData);
 }
 
-int kfd = 0;
-struct termios cooked;
-
-void quit(int sig)
-{
-  tcsetattr(kfd, TCSANOW, &cooked);
-  ros::shutdown();
-  exit(0);
-}
-
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "linefollower");
 	LineFollower linefollower;
 	linefollower.start();
 	ROS_INFO("Initialised LineFollower...");
-
-	signal(SIGINT, quit);
 
 	ros::Rate loop_rate(linefollower.loopRateHz);
 	while (ros::ok()) {

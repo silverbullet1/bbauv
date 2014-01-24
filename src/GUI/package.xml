@@ -50,6 +50,7 @@
   <build_depend>cv_bridge</build_depend>
   <build_depend>actionlib</build_depend>
   <build_depend>bbauv_msgs</build_depend>
+  <build_depend>rospy</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
@@ -60,6 +61,7 @@
   <run_depend>actionlib</run_depend>
   <run_depend>bbauv_msgs</run_depend>
  <run_depend>message_runtime</run_depend>
+ <run_depend>rospy</run_depend>
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- You can specify that this package is a metapackage here: -->

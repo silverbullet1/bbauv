@@ -9,15 +9,14 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
+
 #include <bbauv_msgs/controller.h>
 #include <bbauv_msgs/ControlData.h>
 #include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/ControllerGoal.h>
 #include <bbauv_msgs/thruster.h>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/detail/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/lexical_cast.hpp>
+#include <bbauv_msgs/set_controller.h>
+
 #include <dynamic_reconfigure/BoolParameter.h>
 #include <dynamic_reconfigure/Config.h>
 #include <dynamic_reconfigure/DoubleParameter.h>
@@ -25,39 +24,16 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/ReconfigureRequest.h>
 #include <dynamic_reconfigure/ReconfigureResponse.h>
-#include <qaction.h>
-#include <qapplication.h>
-#include <qbytearray.h>
-#include <qcheckbox.h>
-#include <qcombobox.h>
-#include <qdir.h>
-#include <qevent.h>
-#include <qfiledialog.h>
-#include <qlabel.h>
-#include <qlineedit.h>
-#include <qmainwindow.h>
-#include <qmessagebox.h>
-#include <qnamespace.h>
-#include <qpen.h>
-#include <qpushbutton.h>
-#include <qrect.h>
+
 #include <qstring.h>
 #include <qtimer.h>
 #include <qvector.h>
-#include <ros/console.h>
-#include <ros/duration.h>
-#include <ros/init.h>
-#include <ros/node_handle.h>
-#include <ros/publisher.h>
-#include <ros/service.h>
-#include <ros/spinner.h>
-#include <ros/subscriber.h>
-#include <ros/time.h>
-#include <rosconsole/macros_generated.h>
-#include <std_msgs/Bool.h>
-#include <std_msgs/Float32.h>
-#include <std_msgs/String.h>
-#include "controlui_add.h"
+
+#include <ros/ros.h>
+
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
+
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
@@ -67,7 +43,26 @@
 #include <utility>
 #include <vector>
 
-static QVector<double> graph_x(101), graph_setpt(101), graph_output(101);
+#include "controlui_add.h"
+
+//Convenient stuffs for dynamic reconfiguring
+#define numParams 30
+string dynamicParams[31] =
+{
+"depth_Kp", "depth_Ti", "depth_Td", "depth_min", "depth_max",
+"pitch_Kp", "pitch_Ti",	"pitch_Td", "pitch_min", "pitch_max",
+"roll_Kp", "roll_Ti", "roll_Td", "roll_min", "roll_max",
+"heading_Kp", "heading_Ti", "heading_Td", "heading_min", "heading_max",
+"forward_Kp", "forward_Ti", "forward_Td", "forward_min", "forward_max",
+"sidemove_Kp", "sidemove_Ti", "sidemove_Td", "sidemove_min", "sidemove_max"
+};
+
+//index for each DOF in the dynamicParams array
+int depthIndex = 0, pitchIndex = 5, rollIndex = 10,
+	headingIndex = 15, forwardIndex = 20, sidemoveIndex = 25;
+
+//Types for each DOF params
+string paramsTypes[] = {"double_t", "double_t", "double_t", "int_t", "int_t"};
 
 class ControlUI {
 private:
@@ -78,15 +73,10 @@ private:
 
 	void subscribeToData();
 
-	//Helper functions to update Dynamic Reconfigure params
-	void updateParameter(string paramName, bool val);
-	void updateParameter(string paramName, double val);
-	void updateParameter(string paramName, int val);
-
 	//Subscribers
-	ros::Subscriber graph_update, setpt_val_sub, sensor_sub, error_sub;
-	ros::Subscriber KP_val_sub, KI_sub, KD_sub, output_sub;
-	ros::Subscriber thruster_sub, depth_dof_sub, yaw_dof_sub, pitch_dof_sub, roll_dof_sub, x_dof_sub, y_dof_sub;
+	ros::Subscriber graph_update;
+	ros::Subscriber thruster_sub;
+	ros::Subscriber errorSub;
 public:
 	ControlUI();
 
@@ -99,70 +89,31 @@ public:
 	bool live;
 	bool enable;
 
-	map <string, string> params; //Map for parameters
+	map<string, string> params; //Map for dynamic parameters
 
-	//Variables for DoFs
-	float depth;
-	float yaw, pitch, roll;
-	float x, y;
-
-	float depth_kp;
-	float yaw_kp, pitch_kp, roll_kp;
-	float x_kp, y_kp;
-
-	float depth_ki;
-	float yaw_ki, pitch_ki, roll_ki;
-	float x_ki, y_ki;
-
-	float depth_kd;
-	float yaw_kd, pitch_kd, roll_kd;
-	float x_kd, y_kd;
+	double error;
 
 	//For graph
 	string graphType;
+	int startIndex, endIndex;
 	double graphOut, graphSetPt;
 	double x_org;
 
 	void initialiseParameters();
+	void autoSave();
+	void loadControlParams();
 
-	//DoF Subscribers
-	void depth_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void yaw_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void pitch_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void roll_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void x_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-	void y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg);
-
-	//Functions for the subscribers
-	void setpt_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void sensor_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void error_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void output_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
+	//Data callbacks
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
-
 	void controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data);
+	void errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback);
 
-	void dof_val_callback(const std_msgs::String::ConstPtr& msg);
-	void goal_val_callback(const std_msgs::Float32::ConstPtr& msg);
+	//Helper functions to update Dynamic Reconfigure params
+	void updateParameter(string paramName, bool val, dynamic_reconfigure::Config&);
+	void updateParameter(string paramName, double val, dynamic_reconfigure::Config&);
+	void updateParameter(string paramName, int val, dynamic_reconfigure::Config&);
 
-	void fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void fwd_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void depthcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void depth_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void yawcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void yaw_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void smcheck_callback(const std_msgs::Bool::ConstPtr& msg);
-	void sm_val_callback(const std_msgs::Float32::ConstPtr& msg);
-
-	void actmin_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void actmax_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg);
-	void con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg);
+	QLineEdit* configureWidgets[5];
 };
 ControlUI* controlUI;
 
@@ -182,103 +133,60 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
 	window = new QMainWindow;
 	ui.setupUi(window);
 	window->setFixedSize(window->geometry().width(), window->geometry().height());
+	configureWidgets[0] = ui.conKpVal;
+	configureWidgets[1] = ui.conTiVal;
+	configureWidgets[2] = ui.conTdVal;
+	configureWidgets[3] = ui.conMinVal;
+	configureWidgets[4] = ui.conMaxVal;
 
 	graphOut = 0.0;
 	graphSetPt = 0.0;
 	graphType = "Depth";
 
+	startIndex = 0;
+	endIndex = 5;
+
 	initialiseParameters();
 	initializeGraph();
 }
 
-int main(int argc, char **argv) {
-	ros::init(argc, argv, "controlui");
-
-	//Initiate QAppication and UI
-	QApplication app(argc, argv);
-
-	ControlUI lControlUI;
-	controlUI = &lControlUI;
-
-	QObject::connect(controlUI->ui.actionSave, &QAction::triggered, saveFile);
-	QObject::connect(controlUI->ui.fireButton, &QAbstractButton::released, fire);
-	QObject::connect(controlUI->ui.actionOpen, &QAction::triggered, openTheFile);
-	QObject::connect(controlUI->ui.enabledButton, &QAbstractButton::released, enableButton);
-	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
-	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
-	QObject::connect(controlUI->ui.dof_comboBox,
-					 static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-					 dofSelected);
-	QObject::connect(controlUI->ui.graphType,
-					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
-					 graphTypeChanged);
-
-	QTimer *timer = new QTimer();
-	QObject::connect(timer, &QTimer::timeout, updateGraph);
-	timer->start(50);
-
-	ros::AsyncSpinner spinner(4);
-	spinner.start();
-
-	controlUI->window->show();
-
-	return app.exec();
+void ControlUI::errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback){
+	if (graphType == "Heading") {
+		error = feedback->feedback.heading_error;
+	} else if (graphType == "Forward") {
+		error = feedback->feedback.forward_error;
+	} else if (graphType == "Side") {
+		error = feedback->feedback.sidemove_error;
+	} else if (graphType == "Depth") {
+		error = feedback->feedback.depth_error;
+	} else {
+		error = 0;
+	}
 }
 
-//To subscribe to data topics: currently under default!!
 void ControlUI::subscribeToData() {
-	//Note: Setpoint get from Dynamic Reconfigure server / Parameter Server
-
-	//For telemetry
-	setpt_val_sub = nh.subscribe("/Controller/DOF/a", 1, &ControlUI::setpt_val_callback, this);
-	sensor_sub = nh.subscribe("/Controller/DOF/b", 1, &ControlUI::sensor_val_callback, this);
-	error_sub = nh.subscribe("/Controller/DOF/c", 1, &ControlUI::error_val_callback, this);
-	KP_val_sub = nh.subscribe("/Controller/DOF/d", 1, &ControlUI::KP_val_callback, this);
-	KI_sub = nh.subscribe("/Controller/DOF/e", 1, &ControlUI::KI_val_callback, this);
-	KD_sub = nh.subscribe("/Controller/DOF/f", 1, &ControlUI::KD_val_callback, this);
-	output_sub = nh.subscribe("/Controller/DOF/g", 1, &ControlUI::output_val_callback, this);
-
-	//Default use dof_x
-	//ros::Subscriber dof_sub = nh.subscribe("a", 1, dof_val_callback);
-
 	//Thrusters Subscriber [thrusters.msg]
 	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
 
-	//DoFs Subscribers (Depth, Yaw, Pitch, Roll, X , Y) [ControlData.msg]
-	depth_dof_sub = nh.subscribe("/Controller/DOF/Depth", 1, &ControlUI::depth_dof_callback, this);
-	yaw_dof_sub = nh.subscribe("/Controller/DOF/Yaw", 1, &ControlUI::yaw_dof_callback, this);
-	pitch_dof_sub = nh.subscribe("/Controller/DOF/Pitch", 1, &ControlUI::pitch_dof_callback, this);
-	roll_dof_sub = nh.subscribe("/Controller/DOF/Roll", 1, &ControlUI::roll_dof_callback, this);
-	x_dof_sub = nh.subscribe("/Controller/DOF/X", 1, &ControlUI::x_dof_callback, this);
-	y_dof_sub = nh.subscribe("/Controller/DOF/Y", 1, &ControlUI::y_dof_callback, this);
+	errorSub = nh.subscribe("/LocomotionServer/feedback", 1, &ControlUI::errorCallBack, this);
 
 	//Graph controller points
 	graph_update = nh.subscribe("/controller_points", 1, &ControlUI::controllerPointsCallBack, this);
 }
 
-/*
-	Helper functions to update Dynamic Reconfigure params
-*/
-void ControlUI::updateParameter(string paramName, bool val) {
-	dynamic_reconfigure::ReconfigureRequest srv_req;
-	dynamic_reconfigure::ReconfigureResponse srv_resp;
+//Helper functions to update Dynamic Reconfigure params
+void ControlUI::updateParameter(string paramName, bool val, dynamic_reconfigure::Config& conf) {
 	dynamic_reconfigure::BoolParameter bool_param;
-	dynamic_reconfigure::Config conf;
 
 	bool_param.name = paramName;
 	bool_param.value = val;
 	conf.bools.push_back(bool_param);
-
-	srv_req.config = conf;
-
-	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
 
-void ControlUI::updateParameter(string paramName, double val) {
+void ControlUI::updateParameter(string paramName, double val, dynamic_reconfigure::Config& conf) {
 	dynamic_reconfigure::ReconfigureRequest srv_req;
 	dynamic_reconfigure::ReconfigureResponse srv_resp;
 	dynamic_reconfigure::DoubleParameter double_param;
-	dynamic_reconfigure::Config conf;
 
 	double_param.name = paramName;
 	double_param.value = val;
@@ -289,11 +197,10 @@ void ControlUI::updateParameter(string paramName, double val) {
 	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
 
-void ControlUI::updateParameter(string paramName, int val) {
+void ControlUI::updateParameter(string paramName, int val, dynamic_reconfigure::Config& conf) {
 	dynamic_reconfigure::ReconfigureRequest srv_req;
 	dynamic_reconfigure::ReconfigureResponse srv_resp;
 	dynamic_reconfigure::IntParameter integer_param;
-	dynamic_reconfigure::Config conf;
 
 	integer_param.name = paramName;
 	integer_param.value = val;
@@ -306,138 +213,42 @@ void ControlUI::updateParameter(string paramName, int val) {
 
 void ControlUI::initialiseDefault() {
 	params.clear();
-	//Telemetry
-	params["setpt_val"] = "3.5";
-	params["sensor_val"] = "3.2";
-	params["error_val"] = "1.0";
-	params["KP_val"] = "2.0";
-	params["KI_val"] = "4.5";
-	params["KD_val"] = "3.7";
-	params["output_val"] = "9.8";
 
-	//Thruster values 
-	params["thruster_val_1"] = "1.4";
-	params["thruster_val_2"] = "1.4";
-	params["thruster_val_3"] = "1.4";
-	params["thruster_val_4"] = "1.4";
-	params["thruster_val_5"] = "1.4";
-	params["thruster_val_6"] = "1.4";
-	params["thruster_val_7"] = "1.4";
-	params["thruster_val_8"] = "1.4";
-
-	params["dof_comboBox"] = "pos_X";
-	params["goal_val"] = "10.3";
-
-	//Advanced
-	params["fwd_check"] = "false";
-	params["fwd_val"] = "3.2";
-	params["depth_check"] = "false";
-	params["depth_val"] = "3.5";
-	params["yaw_check"] = "false";
-	params["yaw_val"] = "4.3";
-	params["sm_check"] = "false";
-	params["sm_val"] = "4.3";
-
-	//Controls
-	params["con_KP_val"] = "4.6";
-	params["con_KI_val"] = "7.5";
-	params["con_KD_val"] = "2.4";
-	params["actmin_val"] = "0.5";
-	params["actmax_val"] = "5.7";
-		 
+	for (int i = 0; i < numParams; i++) {
+		params[dynamicParams[i]] = "0.0";
+	}
 }
 
 void ControlUI::initialiseParameters() {
-	//Telemetry part
-	ui.setpt_val->setText(params.find("setpt_val")->second.c_str());
-	ui.sensor_val->setText(params.find("sensor_val")->second.c_str());
-	ui.error_val->setText(params.find("error_val")->second.c_str());
-	ui.KP_val->setText(params.find("KP_val")->second.c_str());
-	ui.KI_val->setText(params.find("KI_val")->second.c_str());
-	ui.KD_val->setText(params.find("KD_val")->second.c_str());
-	ui.output_val->setText(params.find("output_val")->second.c_str());
-	ui.thruster_val_1->setText(params.find("thruster_val_1")->second.c_str());
-	ui.thruster_val_2->setText(params.find("thruster_val_2")->second.c_str());
-	ui.thruster_val_3->setText(params.find("thruster_val_3")->second.c_str());
-	ui.thruster_val_4->setText(params.find("thruster_val_4")->second.c_str());
-	ui.thruster_val_5->setText(params.find("thruster_val_5")->second.c_str());
-	ui.thruster_val_6->setText(params.find("thruster_val_6")->second.c_str());
-	ui.thruster_val_7->setText(params.find("thruster_val_7")->second.c_str());
-	ui.thruster_val_8->setText(params.find("thruster_val_8")->second.c_str());
+	FILE* input;
+	input = fopen("controlParams.txt", "r");
+	if (input != NULL) {
+		for (int i = 0; i < numParams; i++) {
+			char val[256];
+			fscanf(input, (dynamicParams[i] + ": %s\n").c_str(), val);
+			params[dynamicParams[i]] = string(val);
+		}
 
-	int index = ui.dof_comboBox->findText(params.find("dof_comboBox")->second.c_str());
-	if (index == -1) index=0;
-	ui.dof_comboBox->setCurrentIndex(index);
-	ui.goal_val->setText(params.find("goal_val")->second.c_str());
-
-	//Advanced part
-	if (params.find("fwd_check")->second.compare("true") == 0)
-		ui.fwd_check->setChecked(true);
-	if (params.find("depth_check")->second.compare("true") == 0)
-		ui.depth_check->setChecked(true);
-	if (params.find("yaw_check")->second.compare("true") == 0)
-		ui.yaw_check->setChecked(true);
-	if (params.find("sm_check")->second.compare("true") == 0)
-		ui.sm_check->setChecked(true);
-
-	ui.fwd_val->setText(params.find("fwd_val")->second.c_str());
-	ui.depth_val->setText(params.find("depth_val")->second.c_str());
-	ui.yaw_val->setText(params.find("yaw_val")->second.c_str());
-	ui.sm_val->setText(params.find("sm_val")->second.c_str());
+		fclose(input);
+	}
 
 	//Controls part
-	ui.con_KP_val->setText(params.find("con_KP_val")->second.c_str());
-	ui.con_KI_val->setText(params.find("con_KI_val")->second.c_str());
-	ui.con_KD_val->setText(params.find("con_KD_val")->second.c_str());
-	ui.actmin_val->setText(params.find("actmin_val")->second.c_str());
-	ui.actmax_val->setText(params.find("actmax_val")->second.c_str());
+	ui.conKpVal->setText(params.find("depth_Kp")->second.c_str());
+	ui.conTiVal->setText(params.find("depth_Ti")->second.c_str());
+	ui.conTdVal->setText(params.find("depth_Td")->second.c_str());
+	ui.conMinVal->setText(params.find("depth_min")->second.c_str());
+	ui.conMaxVal->setText(params.find("depth_max")->second.c_str());
 
 }
 
-/*
-	DoF Subscribers
-*/
-void ControlUI::depth_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	depth = msg->val;
-	depth_kp = msg->kp;
-	depth_ki = msg->ki;
-	depth_kd = msg->kd;
-	dofSelected(5);
-}
-void ControlUI::yaw_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	yaw = msg->val;
-	yaw_kp = msg->kp;
-	yaw_ki = msg->ki;
-	yaw_kd = msg->kd;
-	dofSelected(2);
-}
-void ControlUI::pitch_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	pitch = msg->val;
-	pitch_kp = msg->kp;
-	pitch_ki = msg->ki;
-	pitch_kd = msg->kd;
-	dofSelected(4);
-}
-void ControlUI::roll_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	roll = msg->val;
-	roll_kp = msg->kp;
-	roll_ki = msg->ki;
-	roll_kd = msg->kd;
-	dofSelected(3);
-}
-void ControlUI::x_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	x = msg->val;
-	x_kp = msg->kp;
-	x_ki = msg->ki;
-	x_kd = msg->kd;
-	dofSelected(0);
-}
-void ControlUI::y_dof_callback(const bbauv_msgs::ControlData::ConstPtr& msg){
-	y = msg->val;
-	y_kp = msg->kp;
-	y_ki = msg->ki;
-	y_kd = msg->kd;
-	dofSelected(1);
+void ControlUI::autoSave() {
+	FILE* output;
+	output = fopen("controlParams.txt", "w");
+	for (int i = 0; i < numParams; i++) {
+		string curParam = dynamicParams[i];
+		fprintf(output, (curParam + ": %s\n").c_str(), params[curParam].c_str());
+	}
+	fclose(output);
 }
 
 void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data) {
@@ -452,13 +263,13 @@ void ControlUI::controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr&
 		graphOut = data->forward_input;
 	} else if (graphType == "Side") {
 		graphSetPt = data->sidemove_setpoint;
-		graphOut = data->sidemove_setpoint;
+		graphOut = data->sidemove_input;
 	} else if (graphType == "Roll") {
 		graphSetPt = data->roll_setpoint;
-		graphOut = data->roll_setpoint;
+		graphOut = data->roll_input;
 	} else if (graphType == "Pitch") {
 		graphSetPt = data->pitch_setpoint;
-		graphOut = data->pitch_setpoint;
+		graphOut = data->pitch_input;
 	}
 }
 
@@ -491,40 +302,7 @@ void ControlUI::initializeGraph() {
 	ui.graph_canvas->replot();
 }
 
-
-//Functions for the subscribers to subscribe to topics
-void ControlUI::setpt_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["setpt_val"] = msg->data;
-}
-void ControlUI::sensor_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["sensor_val"] = msg->data;
-}
-void ControlUI::error_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["error_val"] = msg->data;
-}
-void ControlUI::KP_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["KP_val"] = msg->data;
-}
-void ControlUI::KI_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["KI_val"] = msg->data;
-}
-void ControlUI::KD_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["KD_val"] = msg->data;
-}
-void ControlUI::output_val_callback (const std_msgs::Float32::ConstPtr& msg) {
-	params["output_val"] = msg->data;
-}
-
 void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg) {
-	params["thruster_val_1"] = msg->speed1;
-	params["thruster_val_2"] = msg->speed2;
-	params["thruster_val_3"] = msg->speed3;
-	params["thruster_val_4"] = msg->speed4;
-	params["thruster_val_5"] = msg->speed5;
-	params["thruster_val_6"] = msg->speed6;
-	params["thruster_val_7"] = msg->speed7;
-	params["thruster_val_8"] = msg->speed8;
-
 	ui.thruster_val_1->setText(QString::number(msg->speed1));
 	ui.thruster_val_2->setText(QString::number(msg->speed2));
 	ui.thruster_val_3->setText(QString::number(msg->speed3));
@@ -535,75 +313,26 @@ void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg
 	ui.thruster_val_8->setText(QString::number(msg->speed8));
 }
 
-void ControlUI::dof_val_callback(const std_msgs::String::ConstPtr& msg){
-	params["dof_comboBox"] = msg->data;
-}
-
- void ControlUI::goal_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["goal_val"] = msg->data;
-}
-
-void ControlUI::fwdcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["fwd_check"] = msg->data;
-}
-
-void ControlUI::fwd_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["fwd_val"] = msg->data;
-}
-
-void ControlUI::depthcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["depth_check"] = msg->data;
-}
-
-void ControlUI::depth_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["depth_val"] = msg->data;
-}
-
-void ControlUI::yawcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["yaw_check"] = msg->data;
-}
-
-void ControlUI::yaw_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["yaw_val"] = msg->data;
-}
-
-void ControlUI::smcheck_callback(const std_msgs::Bool::ConstPtr& msg){
-	params["sm_check"] = msg->data;
-}
-
-void ControlUI::sm_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["sm_val"] = msg->data;
-}
-
-void ControlUI::con_KP_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KP_val"] = msg->data;
-}
-
-void ControlUI::con_KI_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KI_val"] = msg->data;
-}
-
-void ControlUI::con_KD_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["con_KD_val"] = msg->data;
-}
-
-void ControlUI::actmin_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["actmin_val"] = msg->data;
-}
-
-void ControlUI::actmax_val_callback(const std_msgs::Float32::ConstPtr& msg){
-	params["actmax_val"] = msg->data;
+void ControlUI::loadControlParams() {
+	for (int i = startIndex; i < endIndex; i++) {
+		int offsetIndex = i % 5;
+		configureWidgets[offsetIndex]->setText(QString::fromStdString(params[dynamicParams[i]]));
+	}
 }
 
 //////////////////////////
 // Non Class functions //
 /////////////////////////
 
+void updateStatus() {
+	controlUI->ui.error_val->setText(boost::lexical_cast<string>(controlUI->error).c_str());
+}
+
 void updateGraph() {
 	double x_val = (ros::Time::now() - controlUI->startTime).toSec();
 
 	double x_org = controlUI->x_org;
-	if (x_val - x_org > 4) {
+	if (x_val - x_org > 20) {
 		controlUI->ui.graph_canvas->graph(0)->removeDataBefore(x_org + 1);
 		controlUI->ui.graph_canvas->graph(1)->removeDataBefore(x_org + 1);
 		controlUI->x_org++;
@@ -611,8 +340,11 @@ void updateGraph() {
 
 	controlUI->ui.graph_canvas->graph(0)->addData(x_val, controlUI->graphSetPt);//Set Point
 	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphOut);//Output
-	controlUI->ui.graph_canvas->graph(1)->rescaleAxes();
+	controlUI->ui.graph_canvas->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
+
+	controlUI->ui.setpt_val->setText(boost::lexical_cast<std::string>(controlUI->graphSetPt).c_str());
+	controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->graphOut).c_str());
 }
 
 string getdate() {
@@ -633,59 +365,12 @@ void saveFile() {
 	filename.append(".txt");
 	ofstream file;
 	file.open(filename.c_str());
-	file << "setpt_val " << controlUI->ui.setpt_val->text().toUtf8().constData() << "\n";
-	file << "sensor_val " << controlUI->ui.sensor_val->text().toUtf8().constData() << "\n";
-	file << "error_val " << controlUI->ui.error_val->text().toUtf8().constData()<< "\n";
-	file << "KP_val " << controlUI->ui.KP_val->text().toUtf8().constData() << "\n";
-	file << "KI_val " << controlUI->ui.KI_val->text().toUtf8().constData() << "\n";
-	file << "KD_val " << controlUI->ui.KD_val->text().toUtf8().constData()<< "\n";
-	file << "output_val " << controlUI->ui.output_val->text().toUtf8().constData() << "\n";
-	file << "thruster_val " << controlUI->ui.thruster_val_1->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_2->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_3->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_4->text().toUtf8().constData()
-	     <<	controlUI->ui.thruster_val_5->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_6->text().toUtf8().constData()
-	     <<	controlUI->ui.thruster_val_7->text().toUtf8().constData()
-	     << controlUI->ui.thruster_val_8->text().toUtf8().constData() << "\n";
 
-
-	file << "dof_comboBox " << controlUI->ui.dof_comboBox->currentText().toUtf8().constData() << "\n";
-	file << "goal_val " << controlUI->ui.goal_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.fwd_check->isChecked() ) {
-		file << "fwd_check " << "true" << "\n";
-	} else {
-		file << "fwd_check " << "false " << "\n";
-	}
-	file << "fwd_val "  << controlUI->ui.fwd_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.depth_check->isChecked() ){
-		file << "depth_check " << "true" << "\n";
-	} else {
-		file << "depth_check " << "false " << "\n";
-	}
-	file << "depth_val "  << controlUI->ui.depth_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.yaw_check->isChecked() ){
-		file << "yaw_check " << "true" << "\n";
-	} else {
-		file << "yaw_check " << "false " << "\n";
-	}
-	file << "yaw_val " << controlUI->ui.yaw_val->text().toUtf8().constData() << "\n";
-
-	if ( controlUI->ui.sm_check->isChecked() ){
-		file << "sm_check " << "true" << "\n";
-	} else {
-		file << "sm_check " << "false " << "\n";
-	}
-	file << "sm_val "  << controlUI->ui.sm_val->text().toUtf8().constData() << "\n";
-
-	file << "con_KP_val " << controlUI->ui.con_KP_val->text().toUtf8().constData() << "\n";
-	file << "con_KI_val " << controlUI->ui.con_KI_val->text().toUtf8().constData() << "\n";
-	file << "con_KD_val " << controlUI->ui.con_KD_val->text().toUtf8().constData()<< "\n";
-	file << "actmin_val " << controlUI->ui.actmin_val->text().toUtf8().constData() << "\n";
-	file << "actmax_val " << controlUI->ui.actmax_val->text().toUtf8().constData()<< "\n";
+	file << "con_KP_val " << controlUI->ui.conKpVal->text().toUtf8().constData() << "\n";
+	file << "con_KI_val " << controlUI->ui.conTiVal->text().toUtf8().constData() << "\n";
+	file << "con_KD_val " << controlUI->ui.conTdVal->text().toUtf8().constData()<< "\n";
+	file << "actmin_val " << controlUI->ui.conMinVal->text().toUtf8().constData() << "\n";
+	file << "actmax_val " << controlUI->ui.conMaxVal->text().toUtf8().constData()<< "\n";
 
 	file.close();
 	QMessageBox::information(controlUI->ui.centralwidget, "File saved", "File successfully saved! :)");
@@ -753,12 +438,28 @@ void fire() {
 	if (!controlUI->live){
 		QMessageBox::information(controlUI->ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	} else {
-		ros::NodeHandle nh;
-		float goal_val = atof(controlUI->params.find("goal_val")->second.c_str());;
-		std_msgs::Float32 msg;
-		ros::Publisher goal_pub = nh.advertise<std_msgs::Float32>("goal_pub", 1);
-		msg.data = goal_val;
-		goal_pub.publish(msg);
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::Config conf;
+
+		double value = controlUI->ui.goal_val->text().toDouble();
+		if (controlUI->graphType == "Depth") {
+			controlUI->updateParameter("depth_setpoint", value, conf);
+		} else if (controlUI->graphType == "Pitch") {
+			controlUI->updateParameter("pitch_setpoint", value, conf);
+		} else if (controlUI->graphType == "Heading") {
+			controlUI->updateParameter("heading_setpoint", value, conf);
+		} else if (controlUI->graphType == "Roll") {
+			controlUI->updateParameter("roll_setpoint", value, conf);
+		} else if (controlUI->graphType == "Side") {
+			controlUI->updateParameter("sidemove_setpoint", value, conf);
+		} else if (controlUI->graphType == "Forward") {
+			controlUI->updateParameter("forward_setpoint", value, conf);
+		}
+
+		srv_req.config = conf;
+		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+
 		ros::spinOnce();
 	}
 }
@@ -770,64 +471,63 @@ void sendButton(){
 	}
 	else{
 		ros::NodeHandle nh;
+
+		bool forward, sidemove, heading, depth, pitch, roll;
+		heading = controlUI->ui.yaw_check->isChecked();
+		forward = controlUI->ui.fwd_check->isChecked();
+		depth = controlUI->ui.depth_check->isChecked();
+		sidemove = controlUI->ui.sm_check->isChecked();
+		pitch = controlUI->ui.pitch_check->isChecked();
+		roll = controlUI->ui.roll_check->isChecked();
+
+	    ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+
+	    bbauv_msgs::set_controller srv;
+	    srv.request.depth = depth;
+	    srv.request.forward = forward;
+	    srv.request.heading = heading;
+	    srv.request.pitch = pitch;
+	    srv.request.roll= roll;
+	    srv.request.sidemove = sidemove;
+
+	    controlClient.call(srv);
+
 		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
 
 		//Send goal and publish to topics to controller.msgs
-		bbauv_msgs::ControllerGoal goal; 
-		float temp;
+		bbauv_msgs::ControllerGoal goal;
 
-		std_msgs::Float32 msg;
-		ros::Publisher yaw_val_pub = nh.advertise<std_msgs::Float32>("yaw_val_pub", 1);
-		if (controlUI->ui.yaw_check->isChecked()){
-			temp = atof(controlUI->params.find("yaw_val")->second.c_str());
-			goal.heading_setpoint = temp;
+		if (heading) {
+			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
 		} else {
-			temp = 0.0;
-			goal.heading_setpoint = temp;
+			goal.heading_setpoint = 0.0;
 		}
-		msg.data = temp;
-		yaw_val_pub.publish(msg);
 
-		ros::Publisher fwd_val_pub = nh.advertise<std_msgs::Float32>("fwd_val_pub", 1);
-		if (controlUI->ui.fwd_check->isChecked()){
-			temp = atof(controlUI->params.find("fwd_val")->second.c_str());
-			goal.forward_setpoint=temp;
+		if (forward) {
+			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
 		} else {
-			temp = 0.0;
-			goal.forward_setpoint = temp;
+			goal.forward_setpoint = 0.0;
 		}
-		msg.data = temp;
-		fwd_val_pub.publish(msg);
 
-		ros::Publisher depth_val_pub = nh.advertise<std_msgs::Float32>("depth_val_pub", 1);
-		if (controlUI->ui.depth_check->isChecked()){
-			temp = atof(controlUI->params.find("depth_val")->second.c_str());
-			goal.depth_setpoint=temp;
+		if (depth) {
+			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
 		} else {
-			temp = 0.0;
-			goal.depth_setpoint = temp; 
+			goal.depth_setpoint = 0.0;
 		}
-		msg.data = temp;
-		depth_val_pub.publish(msg);
 
-		ros::Publisher sm_val_pub = nh.advertise<std_msgs::Float32>("sm_val_pub", 1);
-		if (controlUI->ui.sm_check->isChecked()){
-			temp = atof(controlUI->params.find("sm_val")->second.c_str());
-			goal.sidemove_setpoint = temp;
+		if (sidemove){
+			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
 		} else {
-			temp = 0.0;
-			goal.sidemove_setpoint = temp; 
+			goal.sidemove_setpoint = 0.0;
 		}
-		msg.data = temp;
-		sm_val_pub.publish(msg);
-		
+
 		ac.sendGoal(goal);
 		ros::spinOnce();
 
-		bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+		bool finished_before_timeout = ac.waitForResult(ros::Duration(5.0));
 		if (finished_before_timeout){
 			actionlib::SimpleClientGoalState state = ac.getState();
 			ROS_INFO("Action finished: %s", state.toString().c_str());
@@ -844,95 +544,27 @@ void sendButton(){
 void tuneButton(){
 	if (!controlUI->live){
 		QMessageBox::information(controlUI->ui.centralwidget, "Tune!", "Twinkle Twinkle Little Star~");
-	}
-	else {
-		float temp;
-		std_msgs::Float32 msg;
+	} else {
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::Config conf;
 
-		ros::Publisher con_KP_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KP_pub", 1);
-		temp = atof(controlUI->params.find("con_KP_val")->second.c_str());
-		msg.data = temp;
-		con_KP_pub.publish(msg);
+		for (int i = controlUI->startIndex; i < controlUI->endIndex; i++) {
+			int offsetIndex = i % 5;
+			if (paramsTypes[offsetIndex] == "int_t") {
+				int temp = controlUI->configureWidgets[offsetIndex]->text().toInt();
+				controlUI->updateParameter(dynamicParams[i], temp, conf);
+				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string, int>(temp);
+			} else if (paramsTypes[offsetIndex] == "double_t") {
+				double temp = controlUI->configureWidgets[offsetIndex]->text().toDouble();
+				controlUI->updateParameter(dynamicParams[i], temp, conf);
+				controlUI->params[dynamicParams[i]] = boost::lexical_cast<string, double>(temp);
+			}
+		}
 
-		ros::Publisher con_KD_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KD_pub", 1);
-		temp = atof(controlUI->params.find("con_KD_val")->second.c_str());
-		msg.data = temp;
-		con_KD_pub.publish(msg);
-
-		ros::Publisher con_KI_pub = controlUI->nh.advertise<std_msgs::Float32>("con_KI_pub", 1);
-		temp = atof(controlUI->params.find("con_KI_val")->second.c_str());
-		msg.data = temp;
-		con_KI_pub.publish(msg);
-
-		ros::Publisher actmin_pub = controlUI->nh.advertise<std_msgs::Float32>("actmin_pub", 1);
-		temp = atof(controlUI->params.find("actmin_val")->second.c_str());
-		msg.data = temp;
-		actmin_pub.publish(msg);
-
-		ros::Publisher actmax_pub = controlUI->nh.advertise<std_msgs::Float32>("actmax_pub", 1);
-		temp = atof(controlUI->params.find("actmax_val")->second.c_str());
-		msg.data = temp;
-		actmax_pub.publish(msg);
-	}
-}
-
-/*
-	Updates DoF values in the UI
-*/
-void dofSelected(int index){
-	if(controlUI->ui.dof_comboBox->currentIndex() != index)
-	{
-		return;
-	}
-	ROS_INFO("Current selected index in DoF: %i", index);
-	switch(index){
-		//dof x
-		case 0:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->x).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->x_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->x_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->x_kd).c_str());
-			break;
-
-		//dof y
-		case 1:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->y).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->y_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->y_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->y_kd).c_str());
-		break;
-
-		//yaw
-		case 2:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->yaw).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->yaw_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->yaw_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->yaw_kd).c_str());
-		break;
-
-		//roll
-		case 3:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->roll).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->roll_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->roll_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->roll_kd).c_str());
-		break;
-
-		//pitch
-		case 4:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->pitch).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->pitch_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->pitch_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->pitch_kd).c_str());
-		break;
-
-		//depth
-		case 5:
-			controlUI->ui.sensor_val->setText(boost::lexical_cast<std::string>(controlUI->depth).c_str());
-			controlUI->ui.KP_val->setText(boost::lexical_cast<std::string>(controlUI->depth_kp).c_str());
-			controlUI->ui.KI_val->setText(boost::lexical_cast<std::string>(controlUI->depth_ki).c_str());
-			controlUI->ui.KD_val->setText(boost::lexical_cast<std::string>(controlUI->depth_kd).c_str());
-		break;
+		srv_req.config = conf;
+		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+		controlUI->autoSave();
 	}
 }
 
@@ -942,4 +574,59 @@ void graphTypeChanged(const QString& type) {
 	controlUI->x_org = 0;
 	controlUI->startTime = ros::Time::now();
 	controlUI->graphType = type.toStdString();
+
+	if (controlUI->graphType == "Depth") {
+		controlUI->startIndex = depthIndex;
+	} else if (controlUI->graphType == "Heading") {
+		controlUI->startIndex = headingIndex;
+	} else if (controlUI->graphType == "Forward") {
+		controlUI->startIndex = forwardIndex;
+	} else if (controlUI->graphType == "Side") {
+		controlUI->startIndex = sidemoveIndex;
+	} else if (controlUI->graphType == "Roll") {
+		controlUI->startIndex = rollIndex;
+	} else if (controlUI->graphType == "Pitch") {
+		controlUI->startIndex = pitchIndex;
+	}
+	controlUI->endIndex = controlUI->startIndex + 5; //Exclusive
+
+	controlUI->loadControlParams();
+}
+
+int main(int argc, char **argv) {
+	ros::init(argc, argv, "controlui");
+
+	//Initiate QAppication and UI
+	QApplication app(argc, argv);
+
+	ControlUI lControlUI;
+	controlUI = &lControlUI;
+
+	QObject::connect(controlUI->ui.actionSave, &QAction::triggered, saveFile);
+	QObject::connect(controlUI->ui.fireButton, &QAbstractButton::released, fire);
+	QObject::connect(controlUI->ui.actionOpen, &QAction::triggered, openTheFile);
+	QObject::connect(controlUI->ui.enabledButton, &QAbstractButton::released, enableButton);
+	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
+	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
+	QObject::connect(controlUI->ui.graphType,
+					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
+					 graphTypeChanged);
+
+	QTimer *timer = new QTimer();
+	QObject::connect(timer, &QTimer::timeout, updateGraph);
+	timer->start(50);
+
+	QTimer *statusTimer = new QTimer();
+	QObject::connect(statusTimer, &QTimer::timeout, updateStatus);
+	statusTimer->start(50);
+
+	ros::AsyncSpinner spinner(4);
+	spinner.start();
+
+	controlUI->window->show();
+
+	int status = app.exec();
+	delete timer;
+	delete statusTimer;
+	return status;
 }

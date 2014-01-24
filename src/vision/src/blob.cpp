@@ -91,18 +91,20 @@ cv::Mat colourDetection::colourDetection(cv::Mat img, int colour, int lowerH, in
 	setHigherS(higherS);
 	setLowerV(lowerV);
 	setHigherV(higherV);
-	reDraw();
+	outImg = reDraw(this->image);
 	return outImg;
 
 }
 
-void colourDetection::reDraw(){
-	cvtColor(image, outImg, CV_BGR2HSV);
-	inRange(image, Scalar(lowerH,lowerS,lowerV), Scalar(higherH,higherS,higherV), outImg);
+cv::Mat colourDetection::reDraw(cv::Mat img){
+	cv::Mat out;
+	cvtColor(img, out, CV_BGR2HSV);
+	inRange(img, Scalar(lowerH,lowerS,lowerV), Scalar(higherH,higherS,higherV), out);
 	Mat erodeEl = getStructuringElement(MORPH_RECT, cv::Size(9, 9));
 	Mat dilateEl = getStructuringElement(MORPH_RECT, cv::Point(7, 7));
-	erode(outImg, outImg, erodeEl, Point(-1, -1), 1);
-	dilate(outImg, outImg, dilateEl, Point(-1, -1), 1);
+	erode(out, out, erodeEl, Point(-1, -1), 1);
+	dilate(out, out, dilateEl, Point(-1, -1), 1);
+	return out;
 }
 
 void colourDetection::drawImage(){
@@ -112,13 +114,13 @@ void colourDetection::drawImage(){
 
 void colourDetection::setWindowSettings(){
 	createTrackbar("LowerH", "trackbar", &lowerH, 180, lowerHCallback, NULL);
-    createTrackbar("UpperH", "trackbar", &upperH, 180, upperHCallback, NULL);
+    createTrackbar("UpperH", "trackbar", &higherH, 180, higherHCallback, NULL);
 
 	createTrackbar("LowerS", "trackbar", &lowerS, 256, lowerSCallback, NULL);
-    createTrackbar("UpperS", "trackbar", &upperS, 256, upperSCallback, NULL);
+    createTrackbar("UpperS", "trackbar", &higherS, 256, higherSCallback, NULL);
 
 	createTrackbar("LowerV", "trackbar", &lowerV, 256, lowerVCallback, NULL);
-    createTrackbar("UpperV", "trackbar", &upperV, 256, upperVCallback, NULL);
+    createTrackbar("UpperV", "trackbar", &higherV, 256, higherVCallback, NULL);
 }
 
 //Callback methods

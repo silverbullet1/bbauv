@@ -48,6 +48,7 @@ using namespace std;
 string getdate();
 
 //Qt UI callbacks
+void updateStatus();
 void updateGraph();
 void saveFile();
 void openTheFile();

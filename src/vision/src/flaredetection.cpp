@@ -1,8 +1,9 @@
-/* 
-	red_bucket_detection.cpp
-	Date created: Jan 2014
-	Author: Jason Poh
-*/
+/*
+ * flaredetection.cpp
+ *
+ *  Created on: 24 Jan, 2014
+ *      Author: ndt
+ */
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
@@ -16,7 +17,7 @@
 
 #include <bbauv_msgs/compass_data.h>
 #include <bbauv_msgs/controller.h>
-#include "bucketstates.h"
+#include "flarestates.h"
 
 using namespace cv;
 
@@ -25,11 +26,11 @@ static const std::string OPENCV_WINDOW = "Image window";
 const int DEPTH_POINT = 1.1;
 ros::Publisher movementPub;
 
-class BucketDetection
+class FlareDetection
 {
 public:
-	BucketDetection();
-	~BucketDetection();
+	FlareDetection();
+	~FlareDetection();
 
 	int loopRateHz;
 
@@ -41,7 +42,7 @@ public:
 	void imageCallback(const sensor_msgs::ImageConstPtr& msg);
 
 	//Fill rectData structure with necessary data
-	void prepareBucketParams(Mat inImage);
+	void prepareFlareParams(Mat inImage);
 private:
 	bool enabled;
 
@@ -56,47 +57,47 @@ private:
 	boost::shared_ptr<State> state;
 };
 
-BucketDetection::BucketDetection(): it(nh) {
+FlareDetection::FlareDetection(): it(nh) {
 	enabled = false;
 
 	private_nh.param<int>("loopHz", loopRateHz, 20);
 	string imageTopic; private_nh.param<std::string>("image", imageTopic, "/bottomcam/camera/image_rect_color");
 	string compassTopic; private_nh.param<std::string>("compass", compassTopic, "/compass");
 
- 	imageSub = it.subscribe(imageTopic, 1, &BucketDetection::imageCallback, this);
-    compassSub = nh.subscribe(compassTopic, 1, &BucketDetection::compassCallback, this);
+ 	imageSub = it.subscribe(imageTopic, 1, &FlareDetection::imageCallback, this);
+    compassSub = nh.subscribe(compassTopic, 1, &FlareDetection::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 }
 
-BucketDetection::~BucketDetection() {
+FlareDetection::~FlareDetection() {
 
 }
 
-void BucketDetection::start() {
+void FlareDetection::start() {
 	enabled = true;
 }
 
-void BucketDetection::stop() {
+void FlareDetection::stop() {
 	enabled = false;
 }
 
-void BucketDetection::compassCallback(const bbauv_msgs::compass_data& msg) {
+void FlareDetection::compassCallback(const bbauv_msgs::compass_data& msg) {
 
 }
 
-void BucketDetection::imageCallback(const sensor_msgs::ImageConstPtr& msg)
+void FlareDetection::imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
- 	cv_bridge::CvImagePtr cv_ptr;	
+ 	cv_bridge::CvImagePtr cv_ptr;
 	try {
 		cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
 	}catch(cv_bridge::Exception& e){
 		cv_bridge::CvImagePtr cv_ptr;
 	}
 
-	prepareBucketParams(cv_ptr->image);
+	prepareFlareParams(cv_ptr->image);
 }
 
-void BucketDetection::prepareBucketParams(Mat image) {
+void FlareDetection::prepareFlareParams(Mat image) {
 	//Do image processing here
 
 	//Call state
@@ -108,13 +109,13 @@ int main(int argc, char **argv)
 	/*
 		Initalization
 	*/
-	ros::init(argc, argv, "red_bucket_detection");
+	ros::init(argc, argv, "flare_detection");
 
-	BucketDetection bucketDetector;
-	bucketDetector.start();
-	ROS_INFO("Initialised Bucket Detection...");
+	FlareDetection flareDetector;
+	flareDetector.start();
+	ROS_INFO("Initialised Flare Detection...");
 
-	ros::Rate loop_rate(bucketDetector.loopRateHz);
+	ros::Rate loop_rate(flareDetector.loopRateHz);
 	while (ros::ok()) {
 		ros::spinOnce();
 		loop_rate.sleep();
@@ -123,3 +124,6 @@ int main(int argc, char **argv)
   	ros::spin();
 	return 0;
 }
+
+
+
