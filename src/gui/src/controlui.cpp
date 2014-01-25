@@ -452,21 +452,38 @@ void fire() {
 		dynamic_reconfigure::ReconfigureResponse srv_resp;
 		dynamic_reconfigure::Config conf;
 
+	    ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+
+	    bbauv_msgs::set_controller srv;
+	    srv.request.depth = false;
+	    srv.request.forward = false;
+	    srv.request.heading = false;
+	    srv.request.pitch = false;
+	    srv.request.roll= false;
+	    srv.request.sidemove = false;
+
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
+			srv.request.depth = true;
 			controlUI->updateParameter("depth_setpoint", value, conf);
 		} else if (controlUI->graphType == "Pitch") {
+			srv.request.pitch = true;
 			controlUI->updateParameter("pitch_setpoint", value, conf);
 		} else if (controlUI->graphType == "Heading") {
+			srv.request.heading = true;
 			controlUI->updateParameter("heading_setpoint", value, conf);
 		} else if (controlUI->graphType == "Roll") {
+			srv.request.roll = true;
 			controlUI->updateParameter("roll_setpoint", value, conf);
 		} else if (controlUI->graphType == "Side") {
+			srv.request.sidemove = true;
 			controlUI->updateParameter("sidemove_setpoint", value, conf);
 		} else if (controlUI->graphType == "Forward") {
+			srv.request.forward = true;
 			controlUI->updateParameter("forward_setpoint", value, conf);
 		}
 
+		controlClient.call(srv);
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
