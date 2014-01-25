@@ -81,8 +81,6 @@ private:
 	void initialiseDefault();
 	void initializeGraph();
 
-	void subscribeToData();
-
 	//Subscribers
 	ros::Subscriber graph_update;
 	ros::Subscriber thruster_sub;
@@ -109,9 +107,14 @@ public:
 	double graphOut, graphSetPt;
 	double x_org;
 
+	int thruster1, thruster2, thruster3, thruster4,
+		thruster5, thruster6, thruster7, thruster8;
+
 	void initialiseParameters();
 	void autoSave();
 	void loadControlParams();
+
+	void subscribeToData();
 
 	//Data callbacks
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
@@ -313,14 +316,14 @@ void ControlUI::initializeGraph() {
 }
 
 void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg) {
-	ui.thruster_val_1->setText(QString::number(msg->speed1));
-	ui.thruster_val_2->setText(QString::number(msg->speed2));
-	ui.thruster_val_3->setText(QString::number(msg->speed3));
-	ui.thruster_val_4->setText(QString::number(msg->speed4));
-	ui.thruster_val_5->setText(QString::number(msg->speed5));
-	ui.thruster_val_6->setText(QString::number(msg->speed6));
-	ui.thruster_val_7->setText(QString::number(msg->speed7));
-	ui.thruster_val_8->setText(QString::number(msg->speed8));
+	thruster1 = msg->speed1;
+	thruster2 = msg->speed2;
+	thruster3 = msg->speed3;
+	thruster4 = msg->speed4;
+	thruster5 = msg->speed5;
+	thruster6 = msg->speed6;
+	thruster7 = msg->speed7;
+	thruster8 = msg->speed8;
 }
 
 void ControlUI::loadControlParams() {
@@ -335,7 +338,19 @@ void ControlUI::loadControlParams() {
 /////////////////////////
 
 void updateStatus() {
+	controlUI->error = controlUI->graphOut - controlUI->graphSetPt;
 	controlUI->ui.error_val->setText(QString::fromStdString(roundString(controlUI->error, 4)));
+	controlUI->ui.setpt_val->setText(QString::fromStdString(roundString(controlUI->graphSetPt, 4)));
+	controlUI->ui.sensor_val->setText(QString::fromStdString(roundString(controlUI->graphOut, 4)));
+
+	controlUI->ui.thruster_val_1->setText(QString::number(controlUI->thruster1));
+	controlUI->ui.thruster_val_2->setText(QString::number(controlUI->thruster2));
+	controlUI->ui.thruster_val_3->setText(QString::number(controlUI->thruster3));
+	controlUI->ui.thruster_val_4->setText(QString::number(controlUI->thruster4));
+	controlUI->ui.thruster_val_5->setText(QString::number(controlUI->thruster5));
+	controlUI->ui.thruster_val_6->setText(QString::number(controlUI->thruster6));
+	controlUI->ui.thruster_val_7->setText(QString::number(controlUI->thruster7));
+	controlUI->ui.thruster_val_8->setText(QString::number(controlUI->thruster8));
 }
 
 void updateGraph() {
@@ -352,9 +367,6 @@ void updateGraph() {
 	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphOut);//Output
 	controlUI->ui.graph_canvas->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
-
-	controlUI->ui.setpt_val->setText(QString::fromStdString(roundString(controlUI->graphSetPt, 4)));
-	controlUI->ui.sensor_val->setText(QString::fromStdString(roundString(controlUI->graphOut, 4)));
 }
 
 string getdate() {
@@ -680,6 +692,10 @@ void disableButton() {
     controlClient.call(srv);
 }
 
+void refreshButton() {
+	controlUI->subscribeToData();
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui", ros::init_options::AnonymousName);
 
@@ -699,6 +715,7 @@ int main(int argc, char **argv) {
 					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
 					 graphTypeChanged);
 	QObject::connect(controlUI->ui.disableButton, &QAbstractButton::released, disableButton);
+	QObject::connect(controlUI->ui.refreshButton, &QAbstractButton::released, refreshButton);
 
 	controlUI->ui.depth_check->setChecked(false);
 	controlUI->ui.depth_check->setDisabled(true);

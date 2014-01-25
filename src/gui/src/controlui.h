@@ -117,6 +117,7 @@ public:
     QComboBox *graphType;
     QFrame *line;
     QPushButton *disableButton;
+    QPushButton *refreshButton;
     QMenuBar *menubar;
     QMenu *menuFile;
     QStatusBar *statusbar;
@@ -440,6 +441,9 @@ public:
         disableButton->setObjectName(QStringLiteral("disableButton"));
         disableButton->setGeometry(QRect(150, 190, 61, 31));
         disableButton->setFont(font2);
+        refreshButton = new QPushButton(centralwidget);
+        refreshButton->setObjectName(QStringLiteral("refreshButton"));
+        refreshButton->setGeometry(QRect(290, 10, 99, 27));
         ControlSysUI->setCentralWidget(centralwidget);
         frame->raise();
         horizontalLayoutWidget->raise();
@@ -448,6 +452,7 @@ public:
         controparam_frame->raise();
         advanced_frame->raise();
         graphvalues->raise();
+        refreshButton->raise();
         menubar = new QMenuBar(ControlSysUI);
         menubar->setObjectName(QStringLiteral("menubar"));
         menubar->setGeometry(QRect(0, 0, 945, 25));
@@ -551,6 +556,7 @@ public:
         );
         disableButton->setText(QApplication::translate("ControlSysUI", "&Disable", 0));
         disableButton->setShortcut(QApplication::translate("ControlSysUI", "Ctrl+E", 0));
+        refreshButton->setText(QApplication::translate("ControlSysUI", "Refresh", 0));
         menuFile->setTitle(QApplication::translate("ControlSysUI", "&File", 0));
     } // retranslateUi
 

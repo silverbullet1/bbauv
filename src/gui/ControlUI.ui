@@ -1240,6 +1240,19 @@
      </property>
     </widget>
    </widget>
+   <widget class="QPushButton" name="refreshButton">
+    <property name="geometry">
+     <rect>
+      <x>290</x>
+      <y>10</y>
+      <width>99</width>
+      <height>27</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Refresh</string>
+    </property>
+   </widget>
    <zorder>frame</zorder>
    <zorder>horizontalLayoutWidget</zorder>
    <zorder>graph_label</zorder>
@@ -1247,6 +1260,7 @@
    <zorder>controparam_frame</zorder>
    <zorder>advanced_frame</zorder>
    <zorder>graphvalues</zorder>
+   <zorder>refreshButton</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
