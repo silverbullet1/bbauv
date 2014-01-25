@@ -27,6 +27,22 @@
 #include <actionlib/client/terminal_state.h>
 #include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/thruster.h>
+#include <bbauv_msgs/controller.h>
+#include <bbauv_msgs/ControlData.h>
+#include <bbauv_msgs/ControllerAction.h>
+#include <bbauv_msgs/ControllerGoal.h>
+#include <bbauv_msgs/set_controller.h>
+
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/simple_client_goal_state.h>
+
+#include <dynamic_reconfigure/BoolParameter.h>
+#include <dynamic_reconfigure/Config.h>
+#include <dynamic_reconfigure/DoubleParameter.h>
+#include <dynamic_reconfigure/IntParameter.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/ReconfigureRequest.h>
+#include <dynamic_reconfigure/ReconfigureResponse.h>
 
 #include <stdio.h>
 #include <cstdlib>
@@ -35,12 +51,24 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/lexical_cast.hpp>
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <ctime>
+#include <iomanip>
+#include <map>
+#include <utility>
+
+	
+#include <qstring.h>
+#include <qtimer.h>
+#include <qvector.h>
+
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/thread.hpp>
+#include <boost/algorithm/string/classification.hpp>
+
 
 using namespace std;
 
