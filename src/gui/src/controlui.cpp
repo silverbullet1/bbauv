@@ -225,7 +225,7 @@ void ControlUI::initialiseDefault() {
 	params.clear();
 
 	for (int i = 0; i < numParams; i++) {
-		params[dynamicParams[i]] = "0.0";
+		params[dynamicParams[i]] = "0";
 	}
 }
 
