@@ -651,7 +651,7 @@ void graphTypeChanged(const QString& type) {
 }
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "controlui");
+	ros::init(argc, argv, "controlui", ros::init_options::AnonymousName);
 
 	//Initiate QAppication and UI
 	QApplication app(argc, argv);
