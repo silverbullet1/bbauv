@@ -487,6 +487,7 @@ void fire() {
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
+		controlUI->ui.statusbar->showMessage("Goal setpoint sent!");
 		ros::spinOnce();
 	}
 }
