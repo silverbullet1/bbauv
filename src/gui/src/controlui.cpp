@@ -82,15 +82,15 @@ private:
 
 	void initialiseDefault();
 	void initializeGraph();
-
-	//Subscribers
-	ros::Subscriber graph_update;
-	ros::Subscriber thruster_sub;
-	ros::Subscriber errorSub;
 public:
 	ControlUI();
 
 	ros::NodeHandle nh;
+
+	//Subscribers
+	ros::Subscriber thruster_sub;
+	ros::Subscriber errorSub;
+	ros::Subscriber graph_update;
 
 	Ui::ControlSysUI ui;
 	QMainWindow *window;
@@ -708,6 +708,9 @@ void disableButton() {
 }
 
 void refreshButton() {
+	controlUI->graph_update.shutdown();
+	controlUI->thruster_sub.shutdown();
+	controlUI->errorSub.shutdown();
 	controlUI->subscribeToData();
 }
 
