@@ -43,6 +43,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <termios.h>
+#include <signal.h>
 
 #include "controlui_add.h"
 
@@ -130,7 +132,7 @@ public:
 };
 ControlUI* controlUI;
 
-ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
+ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(true) {
 	startTime = ros::Time::now();
 	private_nh.param("live", live, bool(true));
 
@@ -428,12 +430,22 @@ void openTheFile() {
 
 //To enable all the check boxes
 void enableButton(){
-	controlUI->enable = !controlUI->enable;
+	//controlUI->enable = !controlUI->enable;
 	if (controlUI->enable){
 		controlUI->ui.fwd_check->setChecked(true);
 		controlUI->ui.depth_check->setChecked(true);
 		controlUI->ui.yaw_check->setChecked(true);
 		controlUI->ui.sm_check->setChecked(true);
+
+		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	    bbauv_msgs::set_controller srv;
+	    srv.request.depth = true;
+	    srv.request.forward = true;
+	    srv.request.heading = true;
+	    srv.request.pitch = true;
+	    srv.request.roll= true;
+	    srv.request.sidemove = true;
+	    controlClient.call(srv);
 	}
 	else {
 		controlUI->ui.fwd_check->setChecked(false);
@@ -500,7 +512,6 @@ void fire() {
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
 		controlUI->ui.statusbar->showMessage("Goal setpoint sent!", 3);
-		ros::spinOnce();
 	}
 }
 
@@ -586,7 +597,6 @@ void sendButton(){
 		}
 
 		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
-		ros::spinOnce();
 
 //		bool finished_before_timeout = ac.waitForResult(ros::Duration(3.0));
 //		if (finished_before_timeout){
@@ -681,6 +691,11 @@ void graphTypeChanged(const QString& type) {
 }
 
 void disableButton() {
+	controlUI->ui.fwd_check->setChecked(false);
+	controlUI->ui.depth_check->setChecked(false);
+	controlUI->ui.yaw_check->setChecked(false);
+	controlUI->ui.sm_check->setChecked(false);
+
 	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
     bbauv_msgs::set_controller srv;
     srv.request.depth = false;
@@ -694,6 +709,13 @@ void disableButton() {
 
 void refreshButton() {
 	controlUI->subscribeToData();
+}
+
+void quit(int sig)
+{
+	std::cout<<"Quiting"<<std::endl;
+	ros::shutdown();
+	QApplication::quit();
 }
 
 int main(int argc, char **argv) {
@@ -734,6 +756,7 @@ int main(int argc, char **argv) {
 
 	controlUI->window->show();
 
+	signal(SIGINT, quit);
 	int status = app.exec();
 	delete timer;
 	delete statusTimer;
