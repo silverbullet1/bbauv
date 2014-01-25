@@ -487,7 +487,7 @@ void fire() {
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
-		controlUI->ui.statusbar->showMessage("Goal setpoint sent!");
+		controlUI->ui.statusbar->showMessage("Goal setpoint sent!", 3);
 		ros::spinOnce();
 	}
 }
@@ -497,13 +497,13 @@ void doneCb(const actionlib::SimpleClientGoalState& state,
             const bbauv_msgs::ControllerResultConstPtr& result) {
 	const char* status = state.toString().c_str();
 	ROS_INFO("Finished in state [%s]", status);
-	controlUI->ui.statusbar->showMessage(status);
+	controlUI->ui.statusbar->showMessage(status, 3);
 }
 
 // Called once when the goal becomes active
 void activeCb() {
   ROS_INFO("Goal just went active");
-  controlUI->ui.statusbar->showMessage("Goal just went active");
+  controlUI->ui.statusbar->showMessage("Goal just went active", 3);
 }
 
 // Called every time feedback is received for the goal
@@ -541,10 +541,10 @@ void sendButton(){
 
 		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
 		ROS_INFO("Waiting for action server to start.");
-		controlUI->ui.statusbar->showMessage("Waiting for action server to start.");
+		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
-		controlUI->ui.statusbar->showMessage("Action server started, sending goal.");
+		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
 
 		//Send goal and publish to topics to controller.msgs
 		bbauv_msgs::ControllerGoal goal;
@@ -612,7 +612,7 @@ void tuneButton(){
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
-		controlUI->ui.statusbar->showMessage("Status: Finished Tuning");
+		controlUI->ui.statusbar->showMessage("Status: Finished Tuning", 3);
 	}
 }
 
@@ -668,6 +668,18 @@ void graphTypeChanged(const QString& type) {
 	controlUI->loadControlParams();
 }
 
+void disableButton() {
+	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+    bbauv_msgs::set_controller srv;
+    srv.request.depth = false;
+    srv.request.forward = false;
+    srv.request.heading = false;
+    srv.request.pitch = false;
+    srv.request.roll= false;
+    srv.request.sidemove = false;
+    controlClient.call(srv);
+}
+
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "controlui", ros::init_options::AnonymousName);
 
@@ -686,6 +698,7 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.graphType,
 					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
 					 graphTypeChanged);
+	QObject::connect(controlUI->ui.disableButton, &QAbstractButton::released, disableButton);
 
 	controlUI->ui.depth_check->setChecked(false);
 	controlUI->ui.depth_check->setDisabled(true);
