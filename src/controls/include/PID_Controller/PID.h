@@ -18,6 +18,10 @@ public:
 	void setKp(double P);
 	void setTi(double I);
 	void setTd(double D);
+	double getProportional();
+	double getDerivative();
+	double getTotal();
+	double getIntegral();
 	void setActuatorSatModel(int min,int max);
 	double actuatorConstrain(double val);
 	double computePID(double setpoint, double input);
@@ -34,10 +38,12 @@ private:
 	int actMax;
 	int actMin;
 	//Controller variables
-	double derivative;
+	double _proportional;
+	double _derivative;
+	double _total;
 	ros::Time oldTime;
 	double inputOld;
-	double integral;
+	double _integral;
 	std::string _name;
 };
 

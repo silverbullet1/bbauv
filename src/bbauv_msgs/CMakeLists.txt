@@ -51,6 +51,7 @@ add_message_files(
   FILES
   TimeElapsed.msg
   ControlData.msg
+  pid_info.msg
   ##Old msg files start
   acoustic_control.msg
   circles.msg

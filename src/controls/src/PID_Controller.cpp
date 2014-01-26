@@ -26,6 +26,7 @@
 #include <geometry_msgs/Twist.h>
 #include <bbauv_msgs/imu_data.h>
 #include <bbauv_msgs/set_controller.h>
+#include <bbauv_msgs/pid_info.h>
 #include <bbauv_msgs/locomotion_mode.h>
 #define _USE_MATH_DEFINES // for C++
 #include <math.h>
@@ -41,6 +42,7 @@ bbauv_msgs::controller ctrl;
 bbauv_msgs::thruster thrusterSpeed;
 bbauv_msgs::depth depthReading;
 bbauv_msgs::compass_data orientationAngles;
+bbauv_msgs::pid_info pidInfo;
 nav_msgs::Odometry odom_data;
 double depth_offset = 0;
 
@@ -72,6 +74,7 @@ ros::Publisher depthPub;
 ros::Publisher orientationPub;
 ros::Publisher controllerPub;
 ros::Publisher locomotionModePub;
+ros::Publisher pid_infoPub;
 /**********************Subscriber**********************************/
 ros::Subscriber orientationSub;
 ros::Subscriber pressureSub;
@@ -171,6 +174,7 @@ int main(int argc, char **argv)
 	orientationPub = nh.advertise<bbauv_msgs::compass_data>("/euler",1000);
 	controllerPub = nh.advertise<bbauv_msgs::controller>("/controller_points",100);
 	locomotionModePub = nh.advertise<std_msgs::Int8>("/locomotion_mode",100,true);
+	pid_infoPub = nh.advertise<bbauv_msgs::pid_info>("/pid_info",1000);
 
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
@@ -201,7 +205,7 @@ int main(int argc, char **argv)
 	std_msgs::Int8 std_mode;
 	std_mode.data = 0;
 	locomotionModePub.publish(std_mode);
-	ROS_INFO("PID Controllers Initialized.");
+	ROS_INFO("PID Controllers Initialized. yay!");
 	//PID Loop Computation
 	//Loop running at 20Hz
 	while(ros::ok())
@@ -215,37 +219,80 @@ int main(int argc, char **argv)
 			ctrl.heading_setpoint = ctrl.heading_input;
 			oldHovermode = inHovermode;
 		}
-		if(inHeadingPID)	headingPID_output = getHeadingPIDUpdate();
+		if(inHeadingPID)
+		{
+			headingPID_output = getHeadingPIDUpdate();
+			pidInfo.heading.p = headingPID.getProportional();
+			pidInfo.heading.i = headingPID.getIntegral();
+			pidInfo.heading.d = headingPID.getDerivative();
+			pidInfo.heading.total = headingPID.getTotal();
+		}
 		else
 		{
+
 			headingPID_output = 0;
 			headingPID.clearIntegrator();
 			}
-		if(inDepthPID)		depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
+		if(inDepthPID)
+		{
+			depthPID_output = depthPID.computePID((double)ctrl.depth_setpoint,ctrl.depth_input);
+			pidInfo.depth.p = depthPID.getProportional();
+			pidInfo.depth.i = depthPID.getIntegral();
+			pidInfo.depth.d = depthPID.getDerivative();
+			pidInfo.depth.total = depthPID.getTotal();
+		}
 		else
 		{
 			depthPID_output = 0;
 			depthPID.clearIntegrator();
 		}
-		if(inForwardPID)	forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
+		if(inForwardPID)
+		{
+			forwardPIDoutput = forwardPID.computePID(ctrl.forward_setpoint,ctrl.forward_input);
+			pidInfo.forward.p = forwardPID.getProportional();
+			pidInfo.forward.i = forwardPID.getIntegral();
+			pidInfo.forward.d = forwardPID.getDerivative();
+			pidInfo.forward.total = forwardPID.getTotal();
+		}
 		else
 		{
 			forwardPIDoutput = 0;
 			forwardPID.clearIntegrator();
 			}
-		if(inSidemovePID)	sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
+		if(inSidemovePID)
+		{
+			pidInfo.sidemove.p = sidemovePID.getProportional();
+			pidInfo.sidemove.i = sidemovePID.getIntegral();
+			pidInfo.sidemove.d = sidemovePID.getDerivative();
+			pidInfo.sidemove.total = sidemovePID.getTotal();
+			sidemovePID_output = sidemovePID.computePID(ctrl.sidemove_setpoint,ctrl.sidemove_input);
+		}
 		else
 		{
 			sidemovePID_output = 0;
 			sidemovePID.clearIntegrator();
 		}
-		if(inPitchPID) pitchPID_output = pitchPID.computePID(ctrl.pitch_setpoint,ctrl.pitch_input);
+		if(inPitchPID)
+		{
+			pidInfo.pitch.p = pitchPID.getProportional();
+			pidInfo.pitch.i = pitchPID.getIntegral();
+			pidInfo.pitch.d = pitchPID.getDerivative();
+			pidInfo.pitch.total = pitchPID.getTotal();
+			pitchPID_output = pitchPID.computePID(ctrl.pitch_setpoint,ctrl.pitch_input);
+		}
 		else
 		{
 			pitchPID_output = 0;
 			pitchPID.clearIntegrator();
 		}
-		if(inRollPID) rollPID_output = rollPID.computePID(ctrl.roll_setpoint,ctrl.roll_input);
+		if(inRollPID)
+		{
+			pidInfo.roll.p = rollPID.getProportional();
+			pidInfo.roll.i = rollPID.getIntegral();
+			pidInfo.roll.d = rollPID.getDerivative();
+			pidInfo.roll.total = rollPID.getTotal();
+			rollPID_output = rollPID.computePID(ctrl.roll_setpoint,ctrl.roll_input);
+		}
 		else
 		{
 			rollPID_output = 0;
@@ -267,6 +314,7 @@ int main(int argc, char **argv)
 		}
 
 		controllerPub.publish(ctrl);
+		pid_infoPub.publish(pidInfo);
 		thrusterPub.publish(thrusterSpeed);
 		ROS_DEBUG(" F %i, SM%i, H %i, P %i, R %i, D %i, Nav %i",inForwardPID,inSidemovePID,inHeadingPID,inPitchPID, inRollPID, inDepthPID,inNavigation);
 		ros::spinOnce();
@@ -279,18 +327,21 @@ int main(int argc, char **argv)
 double getHeadingPIDUpdate()
 {
 	double wrappedHeading;
-	double error = (double) ctrl.heading_setpoint - ctrl.heading_input;
+	double error = (double) ctrl.heading_setpoint - (double) ctrl.heading_input;
 	//Fix wrap around for angles
-	wrappedHeading = headingPID.wrapAngle360(error,ctrl.heading_input);
+	wrappedHeading = headingPID.wrapAngle360(error,(double) ctrl.heading_input);
 	//cout<<"yaw: "<<ctrl.heading_input<<" e: "<<error<<" hd: "<<wrappedHeading<<endl;
+	ROS_INFO("val: %f, set: %f, err: %f",wrappedHeading, ctrl.heading_input,error);
 	return headingPID.computePID(ctrl.heading_setpoint,wrappedHeading);
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
     {
       thrusterSpeed.speed1=forwardPID_output;
       thrusterSpeed.speed2=forwardPID_output;
-      thrusterSpeed.speed7=-headingPID_output-sidemovePID_output;
-      thrusterSpeed.speed8=-headingPID_output-sidemovePID_output;
+      thrusterSpeed.speed7= -(double)headingPID_output-(double)sidemovePID_output;
+      thrusterSpeed.speed8= (double)headingPID_output-(double)sidemovePID_output;
+      //ROS_INFO("ts8: %d, ts7: %d", thrusterSpeed.speed8,thrusterSpeed.speed7);
+      //ROS_INFO("o:%d",-(double)headingPID_output-(double)sidemovePID_output);
     }
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
