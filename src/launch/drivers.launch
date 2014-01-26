@@ -1,0 +1,24 @@
+<launch>
+
+	<!-- Launching Joystick Control -->
+<!--  	<include file="$(find launch)/teleop.launch" /> -->
+
+  	<!-- Launch PID Controller -->
+	<include file="$(find launch)/controller.launch" />  	
+
+  	<!-- Launching Embedded Systems -->
+    <include file="$(find launch)/embedded.launch"/>
+
+    <!-- Launching DVL -->
+    <include file="$(find launch)/WH_DVL.launch" />
+
+    <!-- Launch Sparton IMU -->
+    <include file="$(find launch)/SpartonCompass.launch"/>
+
+    <!-- Launching cameras and image reducer -->
+    <!--<include file="$(find vision)/cameras.launch" />-->
+    
+    <!-- Launching acoustics -->
+   <!-- <include file="$(find launch)/acoustic.launch" />-->
+
+</launch> 

@@ -1,0 +1,5 @@
+<launch>
+  <node name="red_bucket_detection" pkg="vision" type="red_bucket_detection" respawn="true">
+    <param name="bottom_camera_topic" type="string" value="/camera/image_raw"/>
+  </node>
+</launch>

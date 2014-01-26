@@ -1,0 +1,7 @@
+<launch>
+    <arg name="port" default="/dev/ttyArduino" />
+    <node
+        pkg="actuators" name="actuators" type="serial_node.py" args="$(arg port)" >
+    </node>
+
+</launch>
