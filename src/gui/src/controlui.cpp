@@ -210,6 +210,9 @@ void ControlUI::initialiseDefault() {
 	for (int i = 0; i < numParams; i++) {
 		params[dynamicParams[i]] = "0";
 	}
+
+	thruster1 = 0; thruster2 = 0; thruster3 = 0; thruster4 = 0;
+	thruster5 = 0; thruster6 = 0; thruster7 = 0; thruster8 = 0;
 }
 
 void ControlUI::initialiseParameters() {

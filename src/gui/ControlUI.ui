@@ -1318,6 +1318,33 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>goal_val</tabstop>
+  <tabstop>fireButton</tabstop>
+  <tabstop>fwd_check</tabstop>
+  <tabstop>fwd_val</tabstop>
+  <tabstop>depth_check</tabstop>
+  <tabstop>depth_val</tabstop>
+  <tabstop>yaw_check</tabstop>
+  <tabstop>yaw_val</tabstop>
+  <tabstop>sm_check</tabstop>
+  <tabstop>sm_val</tabstop>
+  <tabstop>roll_check</tabstop>
+  <tabstop>roll_val</tabstop>
+  <tabstop>pitch_check</tabstop>
+  <tabstop>pitch_val</tabstop>
+  <tabstop>sendButton</tabstop>
+  <tabstop>conKpVal</tabstop>
+  <tabstop>conTiVal</tabstop>
+  <tabstop>conTdVal</tabstop>
+  <tabstop>conMinVal</tabstop>
+  <tabstop>conMaxVal</tabstop>
+  <tabstop>tuneButton</tabstop>
+  <tabstop>enabledButton</tabstop>
+  <tabstop>graphType</tabstop>
+  <tabstop>disableButton</tabstop>
+  <tabstop>refreshButton</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
