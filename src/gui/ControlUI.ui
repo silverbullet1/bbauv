@@ -849,6 +849,9 @@
      <property name="text">
       <string/>
      </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
     </widget>
     <widget class="QLineEdit" name="depth_val">
      <property name="geometry">
@@ -974,7 +977,7 @@
     </widget>
     <widget class="QLabel" name="sm_label_2">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -990,7 +993,7 @@
     </widget>
     <widget class="QCheckBox" name="roll_check">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -1006,7 +1009,7 @@
     </widget>
     <widget class="QLineEdit" name="roll_val">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -1019,7 +1022,7 @@
     </widget>
     <widget class="QLineEdit" name="pitch_val">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -1032,7 +1035,7 @@
     </widget>
     <widget class="QLabel" name="sm_label_3">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
@@ -1048,7 +1051,7 @@
     </widget>
     <widget class="QCheckBox" name="pitch_check">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="geometry">
       <rect>
