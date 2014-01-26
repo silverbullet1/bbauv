@@ -484,7 +484,6 @@ void fire() {
 		sidemove = sidemove || controlUI->ui.sm_check->isChecked();
 		pitch = pitch || controlUI->ui.pitch_check->isChecked();
 		roll = roll || controlUI->ui.roll_check->isChecked();
-		ROS_INFO("%d %d %d %d %d %d", forward, sidemove, heading, depth, pitch, roll);
 
 	    bbauv_msgs::set_controller srv;
 	    srv.request.depth = depth;
@@ -496,16 +495,22 @@ void fire() {
 
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
+			srv.request.depth = true;
 			controlUI->updateParameter("depth_setpoint", value, conf);
 		} else if (controlUI->graphType == "Pitch") {
+			srv.request.pitch = true;
 			controlUI->updateParameter("pitch_setpoint", value, conf);
 		} else if (controlUI->graphType == "Heading") {
+			srv.request.heading = true;
 			controlUI->updateParameter("heading_setpoint", value, conf);
 		} else if (controlUI->graphType == "Roll") {
+			srv.request.roll = true;
 			controlUI->updateParameter("roll_setpoint", value, conf);
 		} else if (controlUI->graphType == "Side") {
+			srv.request.sidemove = true;
 			controlUI->updateParameter("sidemove_setpoint", value, conf);
 		} else if (controlUI->graphType == "Forward") {
+			srv.request.forward = true;
 			controlUI->updateParameter("forward_setpoint", value, conf);
 		}
 
@@ -513,7 +518,7 @@ void fire() {
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
-		controlUI->ui.statusbar->showMessage("Goal setpoint sent!", 3);
+		controlUI->ui.statusbar->showMessage("Goal setpoint sent!", 3000);
 	}
 }
 
@@ -522,13 +527,13 @@ void doneCb(const actionlib::SimpleClientGoalState& state,
             const bbauv_msgs::ControllerResultConstPtr& result) {
 	const char* status = state.toString().c_str();
 	ROS_INFO("Finished in state [%s]", status);
-	controlUI->ui.statusbar->showMessage(status, 3);
+	controlUI->ui.statusbar->showMessage(status, 3000);
 }
 
 // Called once when the goal becomes active
 void activeCb() {
   ROS_INFO("Goal just went active");
-  controlUI->ui.statusbar->showMessage("Goal just went active", 3);
+  controlUI->ui.statusbar->showMessage("Goal just went active", 3000);
 }
 
 // Called every time feedback is received for the goal
@@ -543,14 +548,23 @@ void sendButton(){
 	}
 	else {
 		ros::NodeHandle nh;
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::Config conf;
 
 		bool forward, sidemove, heading, depth, pitch, roll;
-		heading = controlUI->ui.yaw_check->isChecked();
-		forward = controlUI->ui.fwd_check->isChecked();
-		depth = controlUI->ui.depth_check->isChecked();
-		sidemove = controlUI->ui.sm_check->isChecked();
-		pitch = controlUI->ui.pitch_check->isChecked();
-		roll = controlUI->ui.roll_check->isChecked();
+		ros::param::get("/Controller/forward_PID", forward);
+		ros::param::get("/Controller/sidemove_PID", sidemove);
+		ros::param::get("/Controller/heading_PID", heading);
+		ros::param::get("/Controller/depth_PID", depth);
+		ros::param::get("/Controller/pitch_PID", pitch);
+		ros::param::get("/Controller/roll_PID", roll);
+		heading = heading || controlUI->ui.yaw_check->isChecked();
+		forward = forward || controlUI->ui.fwd_check->isChecked();
+		depth = depth || controlUI->ui.depth_check->isChecked();
+		sidemove = sidemove || controlUI->ui.sm_check->isChecked();
+		pitch = pitch || controlUI->ui.pitch_check->isChecked();
+		roll = roll || controlUI->ui.roll_check->isChecked();
 
 	    ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 
@@ -564,50 +578,64 @@ void sendButton(){
 
 	    controlClient.call(srv);
 
-		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
-		ROS_INFO("Waiting for action server to start.");
-		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
-		ac.waitForServer();
-		ROS_INFO("Action server started, sending goal.");
-		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
-
-		//Send goal and publish to topics to controller.msgs
-		bbauv_msgs::ControllerGoal goal;
-
-		if (heading) {
-			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
-		} else {
-			goal.heading_setpoint = 0.0;
-		}
-
-		if (forward) {
-			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
-		} else {
-			goal.forward_setpoint = 0.0;
-		}
-
 		if (depth) {
-			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
-		} else {
-			goal.depth_setpoint = 0.0;
+			controlUI->updateParameter("depth_setpoint", controlUI->ui.depth_val->text().toDouble(), conf);
+		}
+		if (pitch) {
+			controlUI->updateParameter("pitch_setpoint", controlUI->ui.pitch_val->text().toDouble(), conf);
+		}
+		if (heading) {
+			controlUI->updateParameter("heading_setpoint", controlUI->ui.yaw_val->text().toDouble(), conf);
+		}
+		if (roll) {
+			controlUI->updateParameter("roll_setpoint", controlUI->ui.roll_val->text().toDouble(), conf);
+		}
+		if (sidemove) {
+			controlUI->updateParameter("sidemove_setpoint", controlUI->ui.sm_val->text().toDouble(), conf);
+		}
+		if (forward) {
+			controlUI->updateParameter("forward_setpoint", controlUI->ui.fwd_val->text().toDouble(), conf);
 		}
 
-		if (sidemove){
-			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
-		} else {
-			goal.sidemove_setpoint = 0.0;
-		}
+		srv_req.config = conf;
+		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+		controlUI->ui.statusbar->showMessage("Advanced goals sent!", 3000);
 
-		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
-
-//		bool finished_before_timeout = ac.waitForResult(ros::Duration(3.0));
-//		if (finished_before_timeout){
-//			actionlib::SimpleClientGoalState state = ac.getState();
-//			ROS_INFO("Action finished: %s", state.toString().c_str());
+//		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
+//		ROS_INFO("Waiting for action server to start.");
+//		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
+//		ac.waitForServer();
+//		ROS_INFO("Action server started, sending goal.");
+//		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
+//
+//		//Send goal and publish to topics to controller.msgs
+//		bbauv_msgs::ControllerGoal goal;
+//
+//		if (heading) {
+//			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
+//		} else {
+//			goal.heading_setpoint = 0.0;
 //		}
-//		else {
-//			ROS_INFO("Timeout! Goal not achieved");
+//
+//		if (forward) {
+//			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
+//		} else {
+//			goal.forward_setpoint = 0.0;
 //		}
+//
+//		if (depth) {
+//			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
+//		} else {
+//			goal.depth_setpoint = 0.0;
+//		}
+//
+//		if (sidemove){
+//			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
+//		} else {
+//			goal.sidemove_setpoint = 0.0;
+//		}
+//
+//		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
 	}
 }
 
@@ -636,7 +664,7 @@ void tuneButton(){
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
-		controlUI->ui.statusbar->showMessage("Status: Finished Tuning", 3);
+		controlUI->ui.statusbar->showMessage("Status: Finished Tuning", 3000);
 	}
 }
 
@@ -674,32 +702,26 @@ void graphTypeChanged(const QString& type) {
 	controlUI->loadPIDChecks();
 	if (controlUI->graphType == "Depth") {
 		controlUI->startIndex = depthIndex;
-		controlUI->ui.depth_check->setChecked(true);
 		controlUI->ui.depth_check->setDisabled(true);
 		controlUI->ui.depth_val->setDisabled(true);
 	} else if (controlUI->graphType == "Heading") {
 		controlUI->startIndex = headingIndex;
-		controlUI->ui.yaw_check->setChecked(true);
 		controlUI->ui.yaw_check->setDisabled(true);
 		controlUI->ui.yaw_val->setDisabled(true);
 	} else if (controlUI->graphType == "Forward") {
 		controlUI->startIndex = forwardIndex;
-		controlUI->ui.fwd_check->setChecked(true);
 		controlUI->ui.fwd_check->setDisabled(true);
 		controlUI->ui.fwd_val->setDisabled(true);
 	} else if (controlUI->graphType == "Side") {
 		controlUI->startIndex = sidemoveIndex;
-		controlUI->ui.sm_check->setChecked(true);
 		controlUI->ui.sm_check->setDisabled(true);
 		controlUI->ui.sm_val->setDisabled(true);
 	} else if (controlUI->graphType == "Roll") {
 		controlUI->startIndex = rollIndex;
-		controlUI->ui.roll_check->setChecked(true);
 		controlUI->ui.roll_check->setDisabled(true);
 		controlUI->ui.roll_val->setDisabled(true);
 	} else if (controlUI->graphType == "Pitch") {
 		controlUI->startIndex = pitchIndex;
-		controlUI->ui.pitch_check->setChecked(true);
 		controlUI->ui.pitch_check->setDisabled(true);
 		controlUI->ui.pitch_val->setDisabled(true);
 	}
@@ -759,7 +781,6 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.disableButton, &QAbstractButton::released, disableButton);
 	QObject::connect(controlUI->ui.refreshButton, &QAbstractButton::released, refreshButton);
 
-	controlUI->ui.depth_check->setChecked(true);
 	controlUI->ui.depth_check->setDisabled(true);
 	controlUI->ui.depth_val->setDisabled(true);
 
