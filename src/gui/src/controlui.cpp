@@ -24,6 +24,9 @@
 #include <termios.h>
 #include <signal.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <controls/PID_ControllerConfig.h>
+
 #include "controlui_add.h"
 
 //Convenient stuffs for dynamic reconfiguring
@@ -105,6 +108,8 @@ public:
 	void updateParameter(string paramName, bool val, dynamic_reconfigure::Config&);
 	void updateParameter(string paramName, double val, dynamic_reconfigure::Config&);
 	void updateParameter(string paramName, int val, dynamic_reconfigure::Config&);
+	void loadPIDChecks();
+	void loadDynamicParams();
 
 	QLineEdit* configureWidgets[5];
 };
@@ -113,15 +118,6 @@ ControlUI* controlUI;
 ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(true) {
 	startTime = ros::Time::now();
 	private_nh.param("live", live, bool(true));
-
-	initialiseDefault();
-
-	if (!live){
-		ROS_INFO("%s", "Not going live");
-	} else {
-		ROS_INFO("%s", "Going live!");
-		subscribeToData();
-	}
 
 	window = new QMainWindow;
 	ui.setupUi(window);
@@ -132,6 +128,13 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(true) {
 	configureWidgets[3] = ui.conMinVal;
 	configureWidgets[4] = ui.conMaxVal;
 
+	if (!live){
+		ROS_INFO("%s", "Not going live");
+	} else {
+		ROS_INFO("%s", "Going live!");
+		subscribeToData();
+	}
+
 	graphOut = 0.0;
 	graphSetPt = 0.0;
 	graphType = "Depth";
@@ -139,6 +142,7 @@ ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(true) {
 	startIndex = 0;
 	endIndex = 5;
 
+	initialiseDefault();
 	initialiseParameters();
 	initializeGraph();
 }
@@ -204,37 +208,51 @@ void ControlUI::updateParameter(string paramName, int val, dynamic_reconfigure::
 	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
 
+void ControlUI::loadDynamicParams() {
+	for (int i = 0; i < numParams; i++) {
+		if (paramsTypes[i%5] == "double_t") {
+			double val;
+			ros::param::param<double>("/Controller/" + dynamicParams[i], val, 0.0);
+			params[dynamicParams[i]] = boost::lexical_cast<string>(val);
+		} else if (paramsTypes[i%5] == "int_t") {
+			int val;
+			ros::param::param<int>("/Controller/" + dynamicParams[i], val, 0);
+			params[dynamicParams[i]] = boost::lexical_cast<string>(val);
+		}
+	}
+}
+
+void ControlUI::loadPIDChecks() {
+	bool forward, sidemove, heading, depth, pitch, roll;
+
+	ros::param::param<bool>("/Controller/forward_PID", forward, false);
+	ros::param::param<bool>("/Controller/sidemove_PID", sidemove, false);
+	ros::param::param<bool>("/Controller/heading_PID", heading, false);
+	ros::param::param<bool>("/Controller/depth_PID", depth, false);
+	ros::param::param<bool>("/Controller/pitch_PID", pitch, false);
+	ros::param::param<bool>("/Controller/roll_PID", roll, false);
+
+	ui.roll_check->setChecked(roll);
+	ui.pitch_check->setChecked(pitch);
+	ui.fwd_check->setChecked(forward);
+	ui.depth_check->setChecked(depth);
+	ui.yaw_check->setChecked(heading);
+	ui.sm_check->setChecked(sidemove);
+}
+
 void ControlUI::initialiseDefault() {
 	params.clear();
 
-	for (int i = 0; i < numParams; i++) {
-		params[dynamicParams[i]] = "0";
-	}
+	loadDynamicParams();
+	loadPIDChecks();
 
 	thruster1 = 0; thruster2 = 0; thruster3 = 0; thruster4 = 0;
 	thruster5 = 0; thruster6 = 0; thruster7 = 0; thruster8 = 0;
 }
 
 void ControlUI::initialiseParameters() {
-	FILE* input;
-	input = fopen("controlParams.txt", "r");
-	if (input != NULL) {
-		for (int i = 0; i < numParams; i++) {
-			char val[256];
-			fscanf(input, (dynamicParams[i] + ": %s\n").c_str(), val);
-			params[dynamicParams[i]] = string(val);
-		}
-
-		fclose(input);
-	}
-
 	//Controls part
-	ui.conKpVal->setText(params.find("depth_Kp")->second.c_str());
-	ui.conTiVal->setText(params.find("depth_Ti")->second.c_str());
-	ui.conTdVal->setText(params.find("depth_Td")->second.c_str());
-	ui.conMinVal->setText(params.find("depth_min")->second.c_str());
-	ui.conMaxVal->setText(params.find("depth_max")->second.c_str());
-
+	loadControlParams();
 }
 
 void ControlUI::autoSave() {
@@ -406,7 +424,7 @@ void openTheFile() {
 	else {
 		QMessageBox::critical(controlUI->ui.centralwidget, "Error", "Could not open file");
 		return;
-	} 	
+	}
 }
 
 //To enable all the check boxes
@@ -427,12 +445,6 @@ void enableButton(){
 	    srv.request.roll= true;
 	    srv.request.sidemove = true;
 	    controlClient.call(srv);
-	}
-	else {
-		controlUI->ui.fwd_check->setChecked(false);
-		controlUI->ui.depth_check->setChecked(false);
-		controlUI->ui.yaw_check->setChecked(false);
-		controlUI->ui.sm_check->setChecked(false);
 	}
 }
 
@@ -484,22 +496,16 @@ void fire() {
 
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
-			//srv.request.depth = true;
 			controlUI->updateParameter("depth_setpoint", value, conf);
 		} else if (controlUI->graphType == "Pitch") {
-			//srv.request.pitch = true;
 			controlUI->updateParameter("pitch_setpoint", value, conf);
 		} else if (controlUI->graphType == "Heading") {
-			//srv.request.heading = true;
 			controlUI->updateParameter("heading_setpoint", value, conf);
 		} else if (controlUI->graphType == "Roll") {
-			//srv.request.roll = true;
 			controlUI->updateParameter("roll_setpoint", value, conf);
 		} else if (controlUI->graphType == "Side") {
-			//srv.request.sidemove = true;
 			controlUI->updateParameter("sidemove_setpoint", value, conf);
 		} else if (controlUI->graphType == "Forward") {
-			//srv.request.forward = true;
 			controlUI->updateParameter("forward_setpoint", value, conf);
 		}
 
@@ -665,6 +671,7 @@ void graphTypeChanged(const QString& type) {
 	controlUI->graphType = type.toStdString();
 
 	resetGoalsUI();
+	controlUI->loadPIDChecks();
 	if (controlUI->graphType == "Depth") {
 		controlUI->startIndex = depthIndex;
 		controlUI->ui.depth_check->setChecked(true);
