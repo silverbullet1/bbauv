@@ -450,38 +450,53 @@ void fire() {
 	if (!controlUI->live){
 		QMessageBox::information(controlUI->ui.centralwidget, "Fire!", "Bang! Boom! Bam!");
 	} else {
+		ros::NodeHandle nh;
 		dynamic_reconfigure::ReconfigureRequest srv_req;
 		dynamic_reconfigure::ReconfigureResponse srv_resp;
 		dynamic_reconfigure::Config conf;
 
 	    ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+		bool forward, sidemove, heading, depth, pitch, roll;
+		ros::param::get("/Controller/forward_PID", forward);
+		ros::param::get("/Controller/sidemove_PID", sidemove);
+		ros::param::get("/Controller/heading_PID", heading);
+		ros::param::get("/Controller/depth_PID", depth);
+		ros::param::get("/Controller/pitch_PID", pitch);
+		ros::param::get("/Controller/roll_PID", roll);
+		heading = heading || controlUI->ui.yaw_check->isChecked();
+		forward = forward || controlUI->ui.fwd_check->isChecked();
+		depth = depth || controlUI->ui.depth_check->isChecked();
+		sidemove = sidemove || controlUI->ui.sm_check->isChecked();
+		pitch = pitch || controlUI->ui.pitch_check->isChecked();
+		roll = roll || controlUI->ui.roll_check->isChecked();
+		ROS_INFO("%d %d %d %d %d %d", forward, sidemove, heading, depth, pitch, roll);
 
 	    bbauv_msgs::set_controller srv;
-	    srv.request.depth = false;
-	    srv.request.forward = false;
-	    srv.request.heading = false;
-	    srv.request.pitch = false;
-	    srv.request.roll= false;
-	    srv.request.sidemove = false;
+	    srv.request.depth = depth;
+	    srv.request.forward = forward;
+	    srv.request.heading = heading;
+	    srv.request.pitch = pitch;
+	    srv.request.roll= roll;
+	    srv.request.sidemove = sidemove;
 
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
-			srv.request.depth = true;
+			//srv.request.depth = true;
 			controlUI->updateParameter("depth_setpoint", value, conf);
 		} else if (controlUI->graphType == "Pitch") {
-			srv.request.pitch = true;
+			//srv.request.pitch = true;
 			controlUI->updateParameter("pitch_setpoint", value, conf);
 		} else if (controlUI->graphType == "Heading") {
-			srv.request.heading = true;
+			//srv.request.heading = true;
 			controlUI->updateParameter("heading_setpoint", value, conf);
 		} else if (controlUI->graphType == "Roll") {
-			srv.request.roll = true;
+			//srv.request.roll = true;
 			controlUI->updateParameter("roll_setpoint", value, conf);
 		} else if (controlUI->graphType == "Side") {
-			srv.request.sidemove = true;
+			//srv.request.sidemove = true;
 			controlUI->updateParameter("sidemove_setpoint", value, conf);
 		} else if (controlUI->graphType == "Forward") {
-			srv.request.forward = true;
+			//srv.request.forward = true;
 			controlUI->updateParameter("forward_setpoint", value, conf);
 		}
 
@@ -621,13 +636,22 @@ void resetGoalsUI() {
 	controlUI->ui.yaw_check->setDisabled(false);
 	controlUI->ui.depth_check->setDisabled(false);
 	controlUI->ui.sm_check->setDisabled(false);
+	controlUI->ui.roll_check->setDisabled(false);
+	controlUI->ui.pitch_check->setDisabled(false);
+
+	controlUI->ui.fwd_check->setChecked(false);
+	controlUI->ui.yaw_check->setChecked(false);
+	controlUI->ui.depth_check->setChecked(false);
+	controlUI->ui.sm_check->setChecked(false);
+	controlUI->ui.roll_check->setChecked(false);
+	controlUI->ui.pitch_check->setChecked(false);
 
 	controlUI->ui.fwd_val->setDisabled(false);
 	controlUI->ui.yaw_val->setDisabled(false);
 	controlUI->ui.depth_val->setDisabled(false);
 	controlUI->ui.sm_val->setDisabled(false);
-	//controlUI->ui.roll_check->setDisabled(false);
-	//controlUI->ui.pitch_check->setDisabled(false);
+	controlUI->ui.roll_val->setDisabled(false);
+	controlUI->ui.pitch_val->setDisabled(false);
 }
 
 void graphTypeChanged(const QString& type) {
@@ -640,28 +664,34 @@ void graphTypeChanged(const QString& type) {
 	resetGoalsUI();
 	if (controlUI->graphType == "Depth") {
 		controlUI->startIndex = depthIndex;
-		controlUI->ui.depth_check->setChecked(false);
+		controlUI->ui.depth_check->setChecked(true);
 		controlUI->ui.depth_check->setDisabled(true);
 		controlUI->ui.depth_val->setDisabled(true);
 	} else if (controlUI->graphType == "Heading") {
 		controlUI->startIndex = headingIndex;
-		controlUI->ui.yaw_check->setChecked(false);
+		controlUI->ui.yaw_check->setChecked(true);
 		controlUI->ui.yaw_check->setDisabled(true);
 		controlUI->ui.yaw_val->setDisabled(true);
 	} else if (controlUI->graphType == "Forward") {
 		controlUI->startIndex = forwardIndex;
-		controlUI->ui.fwd_check->setChecked(false);
+		controlUI->ui.fwd_check->setChecked(true);
 		controlUI->ui.fwd_check->setDisabled(true);
 		controlUI->ui.fwd_val->setDisabled(true);
 	} else if (controlUI->graphType == "Side") {
 		controlUI->startIndex = sidemoveIndex;
-		controlUI->ui.sm_check->setChecked(false);
+		controlUI->ui.sm_check->setChecked(true);
 		controlUI->ui.sm_check->setDisabled(true);
 		controlUI->ui.sm_val->setDisabled(true);
 	} else if (controlUI->graphType == "Roll") {
 		controlUI->startIndex = rollIndex;
+		controlUI->ui.roll_check->setChecked(true);
+		controlUI->ui.roll_check->setDisabled(true);
+		controlUI->ui.roll_val->setDisabled(true);
 	} else if (controlUI->graphType == "Pitch") {
 		controlUI->startIndex = pitchIndex;
+		controlUI->ui.pitch_check->setChecked(true);
+		controlUI->ui.pitch_check->setDisabled(true);
+		controlUI->ui.pitch_val->setDisabled(true);
 	}
 	controlUI->endIndex = controlUI->startIndex + 5; //Exclusive
 
@@ -669,11 +699,6 @@ void graphTypeChanged(const QString& type) {
 }
 
 void disableButton() {
-	controlUI->ui.fwd_check->setChecked(false);
-	controlUI->ui.depth_check->setChecked(false);
-	controlUI->ui.yaw_check->setChecked(false);
-	controlUI->ui.sm_check->setChecked(false);
-
 	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
     bbauv_msgs::set_controller srv;
     srv.request.depth = false;
@@ -720,7 +745,7 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.disableButton, &QAbstractButton::released, disableButton);
 	QObject::connect(controlUI->ui.refreshButton, &QAbstractButton::released, refreshButton);
 
-	controlUI->ui.depth_check->setChecked(false);
+	controlUI->ui.depth_check->setChecked(true);
 	controlUI->ui.depth_check->setDisabled(true);
 	controlUI->ui.depth_val->setDisabled(true);
 
