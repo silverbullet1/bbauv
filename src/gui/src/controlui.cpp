@@ -2,32 +2,10 @@
 	controlui.cpp
 	A GUI for tuning the control systems
 	Date created: 8 Jan 2014
-	Author: Jason & Lynnette
+	Author: Jason & Lynnette & Thien
 */
 
 #include "controlui.h"
-
-#include <actionlib/client/simple_action_client.h>
-#include <actionlib/client/simple_client_goal_state.h>
-
-#include <bbauv_msgs/controller.h>
-#include <bbauv_msgs/ControlData.h>
-#include <bbauv_msgs/ControllerAction.h>
-#include <bbauv_msgs/ControllerGoal.h>
-#include <bbauv_msgs/thruster.h>
-#include <bbauv_msgs/set_controller.h>
-
-#include <dynamic_reconfigure/BoolParameter.h>
-#include <dynamic_reconfigure/Config.h>
-#include <dynamic_reconfigure/DoubleParameter.h>
-#include <dynamic_reconfigure/IntParameter.h>
-#include <dynamic_reconfigure/Reconfigure.h>
-#include <dynamic_reconfigure/ReconfigureRequest.h>
-#include <dynamic_reconfigure/ReconfigureResponse.h>
-
-#include <qstring.h>
-#include <qtimer.h>
-#include <qvector.h>
 
 #include <ros/ros.h>
 
@@ -43,6 +21,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <termios.h>
+#include <signal.h>
 
 #include "controlui_add.h"
 
@@ -80,17 +60,15 @@ private:
 
 	void initialiseDefault();
 	void initializeGraph();
-
-	void subscribeToData();
-
-	//Subscribers
-	ros::Subscriber graph_update;
-	ros::Subscriber thruster_sub;
-	ros::Subscriber errorSub;
 public:
 	ControlUI();
 
 	ros::NodeHandle nh;
+
+	//Subscribers
+	ros::Subscriber thruster_sub;
+	ros::Subscriber errorSub;
+	ros::Subscriber graph_update;
 
 	Ui::ControlSysUI ui;
 	QMainWindow *window;
@@ -109,9 +87,14 @@ public:
 	double graphOut, graphSetPt;
 	double x_org;
 
+	int thruster1, thruster2, thruster3, thruster4,
+		thruster5, thruster6, thruster7, thruster8;
+
 	void initialiseParameters();
 	void autoSave();
 	void loadControlParams();
+
+	void subscribeToData();
 
 	//Data callbacks
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
@@ -127,7 +110,7 @@ public:
 };
 ControlUI* controlUI;
 
-ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(false) {
+ControlUI::ControlUI() : nh(), private_nh("~"), live(true), enable(true) {
 	startTime = ros::Time::now();
 	private_nh.param("live", live, bool(true));
 
@@ -225,7 +208,7 @@ void ControlUI::initialiseDefault() {
 	params.clear();
 
 	for (int i = 0; i < numParams; i++) {
-		params[dynamicParams[i]] = "0.0";
+		params[dynamicParams[i]] = "0";
 	}
 }
 
@@ -313,14 +296,14 @@ void ControlUI::initializeGraph() {
 }
 
 void ControlUI::thruster_val_callback (const bbauv_msgs::thruster::ConstPtr& msg) {
-	ui.thruster_val_1->setText(QString::number(msg->speed1));
-	ui.thruster_val_2->setText(QString::number(msg->speed2));
-	ui.thruster_val_3->setText(QString::number(msg->speed3));
-	ui.thruster_val_4->setText(QString::number(msg->speed4));
-	ui.thruster_val_5->setText(QString::number(msg->speed5));
-	ui.thruster_val_6->setText(QString::number(msg->speed6));
-	ui.thruster_val_7->setText(QString::number(msg->speed7));
-	ui.thruster_val_8->setText(QString::number(msg->speed8));
+	thruster1 = msg->speed1;
+	thruster2 = msg->speed2;
+	thruster3 = msg->speed3;
+	thruster4 = msg->speed4;
+	thruster5 = msg->speed5;
+	thruster6 = msg->speed6;
+	thruster7 = msg->speed7;
+	thruster8 = msg->speed8;
 }
 
 void ControlUI::loadControlParams() {
@@ -335,7 +318,19 @@ void ControlUI::loadControlParams() {
 /////////////////////////
 
 void updateStatus() {
+	controlUI->error = controlUI->graphOut - controlUI->graphSetPt;
 	controlUI->ui.error_val->setText(QString::fromStdString(roundString(controlUI->error, 4)));
+	controlUI->ui.setpt_val->setText(QString::fromStdString(roundString(controlUI->graphSetPt, 4)));
+	controlUI->ui.sensor_val->setText(QString::fromStdString(roundString(controlUI->graphOut, 4)));
+
+	controlUI->ui.thruster_val_1->setText(QString::number(controlUI->thruster1));
+	controlUI->ui.thruster_val_2->setText(QString::number(controlUI->thruster2));
+	controlUI->ui.thruster_val_3->setText(QString::number(controlUI->thruster3));
+	controlUI->ui.thruster_val_4->setText(QString::number(controlUI->thruster4));
+	controlUI->ui.thruster_val_5->setText(QString::number(controlUI->thruster5));
+	controlUI->ui.thruster_val_6->setText(QString::number(controlUI->thruster6));
+	controlUI->ui.thruster_val_7->setText(QString::number(controlUI->thruster7));
+	controlUI->ui.thruster_val_8->setText(QString::number(controlUI->thruster8));
 }
 
 void updateGraph() {
@@ -352,9 +347,6 @@ void updateGraph() {
 	controlUI->ui.graph_canvas->graph(1)->addData(x_val, controlUI->graphOut);//Output
 	controlUI->ui.graph_canvas->rescaleAxes();
 	controlUI->ui.graph_canvas->replot();
-
-	controlUI->ui.setpt_val->setText(QString::fromStdString(roundString(controlUI->graphSetPt, 4)));
-	controlUI->ui.sensor_val->setText(QString::fromStdString(roundString(controlUI->graphOut, 4)));
 }
 
 string getdate() {
@@ -416,12 +408,22 @@ void openTheFile() {
 
 //To enable all the check boxes
 void enableButton(){
-	controlUI->enable = !controlUI->enable;
+	//controlUI->enable = !controlUI->enable;
 	if (controlUI->enable){
 		controlUI->ui.fwd_check->setChecked(true);
 		controlUI->ui.depth_check->setChecked(true);
 		controlUI->ui.yaw_check->setChecked(true);
 		controlUI->ui.sm_check->setChecked(true);
+
+		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	    bbauv_msgs::set_controller srv;
+	    srv.request.depth = true;
+	    srv.request.forward = true;
+	    srv.request.heading = true;
+	    srv.request.pitch = true;
+	    srv.request.roll= true;
+	    srv.request.sidemove = true;
+	    controlClient.call(srv);
 	}
 	else {
 		controlUI->ui.fwd_check->setChecked(false);
@@ -452,25 +454,42 @@ void fire() {
 		dynamic_reconfigure::ReconfigureResponse srv_resp;
 		dynamic_reconfigure::Config conf;
 
+	    ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+
+	    bbauv_msgs::set_controller srv;
+	    srv.request.depth = false;
+	    srv.request.forward = false;
+	    srv.request.heading = false;
+	    srv.request.pitch = false;
+	    srv.request.roll= false;
+	    srv.request.sidemove = false;
+
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
+			srv.request.depth = true;
 			controlUI->updateParameter("depth_setpoint", value, conf);
 		} else if (controlUI->graphType == "Pitch") {
+			srv.request.pitch = true;
 			controlUI->updateParameter("pitch_setpoint", value, conf);
 		} else if (controlUI->graphType == "Heading") {
+			srv.request.heading = true;
 			controlUI->updateParameter("heading_setpoint", value, conf);
 		} else if (controlUI->graphType == "Roll") {
+			srv.request.roll = true;
 			controlUI->updateParameter("roll_setpoint", value, conf);
 		} else if (controlUI->graphType == "Side") {
+			srv.request.sidemove = true;
 			controlUI->updateParameter("sidemove_setpoint", value, conf);
 		} else if (controlUI->graphType == "Forward") {
+			srv.request.forward = true;
 			controlUI->updateParameter("forward_setpoint", value, conf);
 		}
 
+		controlClient.call(srv);
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
-		ros::spinOnce();
+		controlUI->ui.statusbar->showMessage("Goal setpoint sent!", 3);
 	}
 }
 
@@ -479,13 +498,13 @@ void doneCb(const actionlib::SimpleClientGoalState& state,
             const bbauv_msgs::ControllerResultConstPtr& result) {
 	const char* status = state.toString().c_str();
 	ROS_INFO("Finished in state [%s]", status);
-	controlUI->ui.statusbar->showMessage(status);
+	controlUI->ui.statusbar->showMessage(status, 3);
 }
 
 // Called once when the goal becomes active
 void activeCb() {
   ROS_INFO("Goal just went active");
-  controlUI->ui.statusbar->showMessage("Goal just went active");
+  controlUI->ui.statusbar->showMessage("Goal just went active", 3);
 }
 
 // Called every time feedback is received for the goal
@@ -523,10 +542,10 @@ void sendButton(){
 
 		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
 		ROS_INFO("Waiting for action server to start.");
-		controlUI->ui.statusbar->showMessage("Waiting for action server to start.");
+		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
 		ac.waitForServer();
 		ROS_INFO("Action server started, sending goal.");
-		controlUI->ui.statusbar->showMessage("Action server started, sending goal.");
+		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
 
 		//Send goal and publish to topics to controller.msgs
 		bbauv_msgs::ControllerGoal goal;
@@ -556,7 +575,6 @@ void sendButton(){
 		}
 
 		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
-		ros::spinOnce();
 
 //		bool finished_before_timeout = ac.waitForResult(ros::Duration(3.0));
 //		if (finished_before_timeout){
@@ -594,7 +612,7 @@ void tuneButton(){
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
-		controlUI->ui.statusbar->showMessage("Status: Finished Tuning");
+		controlUI->ui.statusbar->showMessage("Status: Finished Tuning", 3);
 	}
 }
 
@@ -650,8 +668,39 @@ void graphTypeChanged(const QString& type) {
 	controlUI->loadControlParams();
 }
 
+void disableButton() {
+	controlUI->ui.fwd_check->setChecked(false);
+	controlUI->ui.depth_check->setChecked(false);
+	controlUI->ui.yaw_check->setChecked(false);
+	controlUI->ui.sm_check->setChecked(false);
+
+	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+    bbauv_msgs::set_controller srv;
+    srv.request.depth = false;
+    srv.request.forward = false;
+    srv.request.heading = false;
+    srv.request.pitch = false;
+    srv.request.roll= false;
+    srv.request.sidemove = false;
+    controlClient.call(srv);
+}
+
+void refreshButton() {
+	controlUI->graph_update.shutdown();
+	controlUI->thruster_sub.shutdown();
+	controlUI->errorSub.shutdown();
+	controlUI->subscribeToData();
+}
+
+void quit(int sig)
+{
+	std::cout<<"Quiting"<<std::endl;
+	ros::shutdown();
+	QApplication::quit();
+}
+
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "controlui");
+	ros::init(argc, argv, "controlui", ros::init_options::AnonymousName);
 
 	//Initiate QAppication and UI
 	QApplication app(argc, argv);
@@ -668,6 +717,8 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.graphType,
 					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
 					 graphTypeChanged);
+	QObject::connect(controlUI->ui.disableButton, &QAbstractButton::released, disableButton);
+	QObject::connect(controlUI->ui.refreshButton, &QAbstractButton::released, refreshButton);
 
 	controlUI->ui.depth_check->setChecked(false);
 	controlUI->ui.depth_check->setDisabled(true);
@@ -686,6 +737,7 @@ int main(int argc, char **argv) {
 
 	controlUI->window->show();
 
+	signal(SIGINT, quit);
 	int status = app.exec();
 	delete timer;
 	delete statusTimer;

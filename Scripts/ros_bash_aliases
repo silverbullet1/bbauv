@@ -59,7 +59,7 @@ runPIDUI(){
 	check_process "roscore"
 	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
 	[ $? -eq 1 ] && echo "roscore running..."
-	rosrun GUI Control_node
+	rosrun gui Control_node
 }
 
 #MINI SCRIPTS/CONFIG
