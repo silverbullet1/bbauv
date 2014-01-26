@@ -35,7 +35,7 @@ const static int PSI30 = 206842;
 const static int PSI100 = 689475;
 const static int ATM = 99974; //Pascals or 14.5PSI
 
-double thruster3_ratio,thruster4_ratio,thruster5_ratio,thruster6_ratio;
+double thruster3_ratio =1,thruster4_ratio = 1,thruster5_ratio,thruster6_ratio;
 
 bbauv_msgs::controller ctrl;
 bbauv_msgs::thruster thrusterSpeed;
@@ -408,6 +408,9 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inHovermode = config.hovermode;
   thruster5_ratio = config.thruster5_ratio;
   thruster6_ratio = config.thruster6_ratio;
+  thruster3_ratio = config.thruster3_ratio;
+  thruster4_ratio = config.thruster4_ratio;
+
 
   ctrl.heading_setpoint = config.heading_setpoint;
   ctrl.depth_setpoint = config.depth_setpoint;
