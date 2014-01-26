@@ -1,4 +1,4 @@
-float32 val
-float32 kp
-float32 ki
-float32 kd
+float32 total
+float32 p
+float32 i
+float32 d
