@@ -32,6 +32,8 @@
 #include <bbauv_msgs/ControllerAction.h>
 #include <bbauv_msgs/ControllerGoal.h>
 #include <bbauv_msgs/set_controller.h>
+#include <bbauv_msgs/pid_info.h>
+#include <bbauv_msgs/ControlData.h>
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>

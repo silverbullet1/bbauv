@@ -72,6 +72,7 @@ public:
 	ros::Subscriber thruster_sub;
 	ros::Subscriber errorSub;
 	ros::Subscriber graph_update;
+	ros::Subscriber pidInfoSub;
 
 	Ui::ControlSysUI ui;
 	QMainWindow *window;
@@ -93,6 +94,8 @@ public:
 	int thruster1, thruster2, thruster3, thruster4,
 		thruster5, thruster6, thruster7, thruster8;
 
+	double total, p, i, d;
+
 	void initialiseParameters();
 	void autoSave();
 	void loadControlParams();
@@ -103,6 +106,7 @@ public:
 	void thruster_val_callback(const bbauv_msgs::thruster::ConstPtr& msg);
 	void controllerPointsCallBack(const bbauv_msgs::controller::ConstPtr& data);
 	void errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr& feedback);
+	void pidInfoCallback(const bbauv_msgs::pid_infoConstPtr& pidInfo);
 
 	//Helper functions to update Dynamic Reconfigure params
 	void updateParameter(string paramName, bool val, dynamic_reconfigure::Config&);
@@ -161,6 +165,40 @@ void ControlUI::errorCallBack(const bbauv_msgs::ControllerActionFeedbackConstPtr
 	}
 }
 
+void ControlUI::pidInfoCallback(const bbauv_msgs::pid_infoConstPtr& info) {
+	if (graphType == "Depth") {
+		p = info->depth.p;
+		i = info->depth.i;
+		d = info->depth.d;
+		total = info->depth.total;
+	} else if (graphType == "Heading") {
+		p = info->heading.p;
+		i = info->heading.i;
+		d = info->heading.d;
+		total = info->heading.total;
+	} else if (graphType == "Forward") {
+		p = info->forward.p;
+		i = info->forward.i;
+		d = info->forward.d;
+		total = info->forward.total;
+	} else if (graphType == "Side") {
+		p = info->sidemove.p;
+		i = info->sidemove.i;
+		d = info->sidemove.d;
+		total = info->sidemove.total;
+	} else if (graphType == "Roll") {
+		p = info->roll.p;
+		i = info->roll.i;
+		d = info->roll.d;
+		total = info->roll.total;
+	} else if (graphType == "Pitch") {
+		p = info->pitch.p;
+		i = info->pitch.i;
+		d = info->pitch.d;
+		total = info->pitch.total;
+	}
+}
+
 void ControlUI::subscribeToData() {
 	//Thrusters Subscriber [thrusters.msg]
 	thruster_sub = nh.subscribe("/thruster_speed", 1, &ControlUI::thruster_val_callback, this);
@@ -169,6 +207,8 @@ void ControlUI::subscribeToData() {
 
 	//Graph controller points
 	graph_update = nh.subscribe("/controller_points", 1, &ControlUI::controllerPointsCallBack, this);
+
+	pidInfoSub = nh.subscribe("/pid_info", 1, &ControlUI::pidInfoCallback, this);
 }
 
 //Helper functions to update Dynamic Reconfigure params
@@ -352,6 +392,11 @@ void updateStatus() {
 	controlUI->ui.thruster_val_6->setText(QString::number(controlUI->thruster6));
 	controlUI->ui.thruster_val_7->setText(QString::number(controlUI->thruster7));
 	controlUI->ui.thruster_val_8->setText(QString::number(controlUI->thruster8));
+
+	controlUI->ui.p_val->setText(QString::number(controlUI->p));
+	controlUI->ui.i_val->setText(QString::number(controlUI->i));
+	controlUI->ui.d_val->setText(QString::number(controlUI->d));
+	controlUI->ui.total_val->setText(QString::number(controlUI->total));
 }
 
 void updateGraph() {
@@ -746,6 +791,7 @@ void refreshButton() {
 	controlUI->graph_update.shutdown();
 	controlUI->thruster_sub.shutdown();
 	controlUI->errorSub.shutdown();
+	controlUI->pidInfoSub.shutdown();
 	controlUI->subscribeToData();
 
 	controlUI->loadPIDChecks();
