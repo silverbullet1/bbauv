@@ -725,6 +725,10 @@ void refreshButton() {
 	controlUI->thruster_sub.shutdown();
 	controlUI->errorSub.shutdown();
 	controlUI->subscribeToData();
+
+	controlUI->loadPIDChecks();
+	controlUI->loadDynamicParams();
+	controlUI->loadControlParams();
 }
 
 void quit(int sig)
