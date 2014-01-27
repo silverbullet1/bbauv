@@ -514,10 +514,12 @@ class AUV_gui(QMainWindow):
         
         self.saPanel1.setText("<b>THR1: " + str(self.data['thrusters'].speed1) + 
                               "<br> THR2: " + str(self.data['thrusters'].speed2) +
-                              "<br> THR3: " + str(self.data['thrusters'].speed3) + "</b>")
-        self.saPanel2.setText("<b>THR4: " + str(self.data['thrusters'].speed4) +
-                              "<br> THR5: " + str(self.data['thrusters'].speed5) +
-                              "<br> THR6: " + str(self.data['thrusters'].speed6) + "</b>")
+                              "<br> THR3: " + str(self.data['thrusters'].speed3) +
+                              "<br> THR4: " + str(self.data['thrusters'].speed4) + "</b>")
+        self.saPanel2.setText("<b>THR5: " + str(self.data['thrusters'].speed5) +
+                              "<br> THR6: " + str(self.data['thrusters'].speed6) +
+                              "<br> THR7: " + str(self.data['thrusters'].speed7) +
+                              "<br> THR8: " + str(self.data['thrusters'].speed8) + "</b>")
         
         mani_name = ["","","","","","",""]
         if self.data['manipulators'].servo1:
@@ -585,9 +587,7 @@ class AUV_gui(QMainWindow):
             batt_state.append("LOADING")
         else:
             batt_state.append(self.data['openups'].charge2) 
-
-        else:
-            batt_state.append(self.data['openups'].charge4)
+        
         
         if self.data['openups'].charge1 < 10 and self.data['openups'].charge1 > -1 and self.isAlert[0] == False:
             self.showDialog(1)
