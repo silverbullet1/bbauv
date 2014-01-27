@@ -807,12 +807,12 @@ void updateIncomingParams() {
 	for (int i = 0; i < numParams; i++) {
 		string strVal = "";
 		if (paramsTypes[i%5] == "double_t") {
-			double val;
-			ros::param::param<double>("/Controller/" + dynamicParams[i], val, 0.0);
+			double val = 0.0;
+			ros::param::getCached("/Controller/" + dynamicParams[i], val);
 			strVal = boost::lexical_cast<string>(val);
 		} else if (paramsTypes[i%5] == "int_t") {
-			int val;
-			ros::param::param<int>("/Controller/" + dynamicParams[i], val, 0);
+			int val = 0;
+			ros::param::getCached("/Controller/" + dynamicParams[i], val);
 			strVal = boost::lexical_cast<string>(val);
 		}
 

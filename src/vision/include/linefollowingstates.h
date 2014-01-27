@@ -11,7 +11,12 @@
 #define LINEFOLLOWINGSTATES_H_
 
 #include <ros/ros.h>
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/terminal_state.h>
+
 #include <bbauv_msgs/controller.h>
+#include <bbauv_msgs/ControllerAction.h>
+#include <bbauv_msgs/ControllerActionGoal.h>
 
 #include <boost/enable_shared_from_this.hpp>
 
@@ -23,11 +28,15 @@
 extern const int DEPTH_POINT;
 extern const double secondsToRun;
 extern const double x_strip_threshold;
-extern ros::Publisher movementPub;
+extern actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac;
 
-inline void publishMovement(const bbauv_msgs::controller& movement){
- 	movementPub.publish(movement);
+inline void publishMovement(const bbauv_msgs::ControllerGoal goal) {
+	ac.sendGoal(goal);
 }
+
+//inline void publishMovement(const bbauv_msgs::controller goal) {
+//	movementPub.publish(goal);
+//}
 
 //Function to normalise heading in degrees
 inline double normHeading(double heading)

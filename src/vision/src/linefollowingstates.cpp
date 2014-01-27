@@ -26,7 +26,7 @@ boost::shared_ptr<State> LookForLineState::gotFrame(cv::Mat image, RectData rect
 	if (rectData.detected)
 		return boost::shared_ptr<State>(new StraightLineState());
 
-	bbauv_msgs::controller msg;
+	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
 	//msg.heading_setpoint = rectData.heading + 10;
 	publishMovement(msg);
@@ -47,7 +47,7 @@ boost::shared_ptr<State> TemporaryState::gotFrame(cv::Mat image, RectData rectDa
 	if (ros::Time::now().toSec() > transitionTime)
 		return nextState;
 
-	bbauv_msgs::controller msg;
+	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
 	msg.heading_setpoint = rectData.heading;
 	msg.forward_setpoint = speed;
@@ -67,7 +67,7 @@ boost::shared_ptr<State> DiveState::gotFrame(cv::Mat image, RectData rectData) {
 		return nextState;
 
 	//Dive
-	bbauv_msgs::controller msg;
+	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
 	msg.heading_setpoint = rectData.heading;
 	publishMovement(msg);
@@ -78,7 +78,7 @@ boost::shared_ptr<State> DiveState::gotFrame(cv::Mat image, RectData rectData) {
 SurfaceState::SurfaceState (double heading) {
 	ROS_INFO("Surfacing");
 
-    bbauv_msgs::controller msg;
+    bbauv_msgs::ControllerGoal msg;
     msg.depth_setpoint = 0.2;
     msg.heading_setpoint = heading;
     publishMovement(msg);
@@ -104,7 +104,7 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 
 	double delta_x = (double) (rectData.center.x - screen_center_x) / screen_width;
 
-	bbauv_msgs::controller msg;
+	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
 
     //if the rect is too far off centre, do aggressive sidemove

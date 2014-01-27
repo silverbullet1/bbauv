@@ -33,6 +33,7 @@ const int DEPTH_POINT = 1.1;
 const double secondsToRun = 2.25 * 60;
 const double x_strip_threshold = 0.2;
 ros::Publisher movementPub;
+actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac("LocomotionServer", true);
 
 //Main class for linefollower node
 class LineFollower
@@ -104,6 +105,7 @@ LineFollower::~LineFollower() {
 }
 
 void LineFollower::start() {
+	ac.waitForServer();
 	boost::shared_ptr<State> nextState(new StraightLineState());
 	state = boost::shared_ptr<State>(new DiveState(0.2, nextState));
 	enabled = true;
