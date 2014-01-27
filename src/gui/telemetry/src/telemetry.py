@@ -524,38 +524,48 @@ class AUV_gui(QMainWindow):
                               "<br> THR8: " + str(self.data['thrusters'].speed8) + "</b>")
         
         mani_name = ["","","","","","",""]
-        if self.data['manipulators'].servo1:
+        if self.data['manipulators'].mani_data & 1:
             mani_name[0] = "OPEN"
         else:
             mani_name[0] = "CLOSED"
         
-        if self.data['manipulators'].servo2:
+        if self.data['manipulators'].mani_data & 2:
             mani_name[1] = "OPEN"
         else:
             mani_name[1] = "CLOSED"
         
-        if self.data['manipulators'].servo3:
+        if self.data['manipulators'].mani_data & 4:
             mani_name[2] = "FIRED"
         else:
             mani_name[2] = "NONE"
         
-        if self.data['manipulators'].servo4:
+        if self.data['manipulators'].mani_data & 8:
             mani_name[3] = "FIRED"
         else:
             mani_name[3] = "NONE"
             
-        if self.data['manipulators'].servo5:
+        if self.data['manipulators'].mani_data & 16:
             mani_name[4] = "CLOSED"
         else:
             mani_name[4] = "OPENED"
+
+        if self.data['manipulators'].mani_data & 32:
+            mani_name[5] = "TRUE"
+        else:
+            mani_name[5] = "FALSE"
+
+        if self.data['manipulators'].mani_data & 64:
+            mani_name[6] = "TRUE"
+        else:
+            mani_name[6] = "FALSE"
         
         self.saPanel3.setText("<b>LD: " + mani_name[0] + 
                               "<br> RD: " + mani_name[1] +
                               "<br> LT: " + mani_name[2] + 
                               "<br> RT: " + mani_name[3] +
                               "<br> GA: " + mani_name[4] +
-                              #"<br> LACT: " + str(self.data['manipulators'].servo6) + 
-                              #"<br> RACT: " + str(self.data['manipulators'].servo7) +
+                              #"<br> LACT: " + mani[5] + 
+                              #"<br> RACT: " + mani[6] +
                               "</b>")
     
         self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
@@ -753,37 +763,24 @@ class AUV_gui(QMainWindow):
     def fireBtnHandler(self):
         if(self.isArmed):
             #_manipulator = manipulator()
+            servo_state = 0
             
             if(self.check1.checkState()):
-                servo1 = 1
-            else:
-                servo1 = 0
+                servo_state |= 1
             if(self.check2.checkState()):
-                servo2 = 1
-            else:
-                servo2 = 0
+                servo_state |= 2
             if(self.check3.checkState()):
-                servo3 = 1
-            else:
-                servo3 = 0
+                servo_state |= 4
             if(self.check4.checkState()):
-                servo4 = 1
-            else:
-                servo4 = 0
+                servo_state |= 8
             if(self.check5.checkState()):
-                servo5 = 1
-            else:
-                servo5 = 0
+                servo_state |= 16
             if(self.check6.checkState()):
-                servo6 = 1
-            else:
-                servo6 = 0
+                servo_state |= 32
             if(self.check7.checkState()):
-                servo7 = 1
-            else:
-                servo7 = 0
+                servo_state |= 64
             
-            self.mani_pub.publish(servo1,servo2,servo3,servo4,servo5,servo6,servo7)
+            self.mani_pub.publish(servo_state)
         
     def armBtnHandler(self):
         if(self.isArmed):
