@@ -24,8 +24,6 @@
 
 using namespace cv;
 
-//static double heading = 0.0;
-
 //Utility function
 double radianToDegree(double degree);
 

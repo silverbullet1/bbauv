@@ -27,6 +27,7 @@ inline void publishMovement(const bbauv_msgs::controller& movement){
 //Structure for bounding box
 struct RectData{
 	bool detected;
+	double heading, angle;
 	cv::Point2f center;
 	cv::RotatedRect maxRect;
 };
@@ -50,6 +51,13 @@ public:
 class LostFlareState : public State{
 public:
 	LostFlareState();
+	boost::shared_ptr<State> gotFrame(cv::Mat, RectData);
+};
+
+//Surface
+class SurfaceState : public State {
+public:
+	SurfaceState(double heading);
 	boost::shared_ptr<State> gotFrame(cv::Mat, RectData);
 };
 

@@ -30,4 +30,13 @@ boost::shared_ptr<State> LostFlareState::gotFrame(cv::Mat image, RectData rectDa
 		return shared_from_this();
 }
 
+//Surface State
+SurfaceState::SurfaceState(double heading){
+	ROS_INFO("Surfacing");
+}
+
+boost::shared_ptr<State> SurfaceState::gotFrame(cv::Mat image, RectData rectData){
+		return shared_from_this();
+}
+
 

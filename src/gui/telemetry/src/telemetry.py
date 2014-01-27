@@ -864,7 +864,7 @@ class AUV_gui(QMainWindow):
 #            qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
 #        finally:
 #            bbLock.release()
-        self.vision_filter_frame.update_image_visual(image)
+        self.vision_filter_frame.update_image_visual(self.drawReticle(image))
         self.vision_filter_frame.update_image_filter(image)
         
     def update_video_bot(self,image):
@@ -934,6 +934,116 @@ class AUV_gui(QMainWindow):
         
     def manipulators_callback(self,mani):
         self.q_mani.put(mani)
+
+    def drawReticle(self, origimg):
+        yaw, pitch, roll = self.yaw, self.pitch, self.roll
+
+        DEGREE_PIXEL_RATIO = 0.1
+        H_DEGREE_PIXEL_RATIO = 0.3
+        height, width, _ = origimg.shape
+        colour = (255, 255, 255)
+        pitch_start, pitch_end = 40, height-40
+        yaw_start, yaw_end = 40, width-40
+
+        img = origimg
+
+        mid_x, mid_y = width/2, height/2
+
+        # Draw indicators
+        cv2.line(img, (mid_x-70, mid_y), (mid_x-50, mid_y), (0, 0, 255), 1)
+        cv2.line(img, (mid_x+50, mid_y), (mid_x+70, mid_y), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, 33), (mid_x-5, 38), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, 33), (mid_x+5, 38), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, pitch_end+13), (mid_x-5, pitch_end+10), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, pitch_end+13), (mid_x+5, pitch_end+10), (0, 0, 255), 1)
+
+        # Multiply by 10 to work in integers
+        origin_pitch = int(10 * (DEGREE_PIXEL_RATIO * (mid_y-pitch_start) + pitch))
+        # Round to multiple of 25 lower than this
+        BASE = 25
+        closest_pitch = int(BASE * round(float(origin_pitch)/BASE))
+        closest_pitch -= BASE if closest_pitch > origin_pitch else 0
+
+        pitch_y = pitch_start + int((origin_pitch - closest_pitch) / (10 * DEGREE_PIXEL_RATIO))
+        pitch_inc = int(BASE / (10 * DEGREE_PIXEL_RATIO))
+        current_pitch = closest_pitch
+
+        # Draw horizontal lines
+        while pitch_y < pitch_end:
+            thickness = 1
+            offset = 6
+            if current_pitch % 50 == 0:
+                offset = 10
+            if current_pitch % 100 == 0:
+                offset = 18
+     
+            pt1 = (mid_x-offset, pitch_y)
+            pt2 = (mid_x+offset, pitch_y)
+            cv2.line(img, pt1, pt2, colour, thickness)
+
+            if current_pitch % 100 == 0:
+                txt = str(abs(current_pitch)/10)
+                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+                pt = (mid_x-offset-txt_w-2, pitch_y + txt_h/2)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+
+                pt = (mid_x+offset+2, pitch_y + txt_h/2)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+     
+            current_pitch -= BASE
+            pitch_y += pitch_inc
+
+        # Draw arc
+        angle = int(180 - roll)
+        cv2.ellipse(img, (mid_x, 140), (180, 120), angle, 75, 105, colour)
+        arcpts = cv2.ellipse2Poly((mid_x, 140), (180, 120), angle, 75, 105, 15)
+        for i, pt in enumerate(arcpts):
+            disp_angle = (i-1) * 15
+            txt = str(abs(disp_angle))
+            txt_angle = np.deg2rad(-roll - 90 + disp_angle)
+            (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+            txt_x = int(pt[0] + 6 * math.cos(txt_angle)) - txt_w/2
+            txt_y = int(pt[1] + 6 * math.sin(txt_angle))
+
+            cv2.putText(img, txt, (txt_x, txt_y), cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+            cv2.ellipse(img, (pt[0], pt[1]), (1,1), 0, 0, 360, colour)
+
+        # Draw horizontal band
+        CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+
+        origin_yaw = int(-H_DEGREE_PIXEL_RATIO * (mid_x-yaw_start) + yaw)
+        # Round to multiple of 5 greater than this
+        H_BASE = 5
+        closest_yaw = int(H_BASE * round(float(origin_yaw)/H_BASE))
+        closest_yaw += H_BASE if closest_yaw < origin_yaw else 0
+
+        yaw_x = 5 + yaw_start + int((closest_yaw - origin_yaw) / float(H_DEGREE_PIXEL_RATIO))
+        yaw_inc = int(H_BASE / float(H_DEGREE_PIXEL_RATIO))
+        current_yaw = closest_yaw
+
+        yaw_bottom = pitch_end + 30
+
+        while yaw_x < yaw_end:
+            thickness = 1
+            offset = 3 if current_yaw % 15 else 6
+     
+            pt1 = (yaw_x, yaw_bottom)
+            pt2 = (yaw_x, yaw_bottom - offset)
+            cv2.line(img, pt1, pt2, colour, thickness)
+
+            if current_yaw % 15 == 0:
+                disp_yaw = current_yaw if current_yaw >= 0 else current_yaw + 360
+                disp_yaw = disp_yaw if current_yaw < 360 else current_yaw - 360
+                txt = str(disp_yaw) if current_yaw % 45 else CARDINALS[disp_yaw / 45]
+                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+                pt = (yaw_x-txt_w/2, yaw_bottom - txt_h)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+     
+            current_yaw += H_BASE
+            yaw_x += yaw_inc
+
+        return img
+
         
 if __name__ == "__main__":
     rospy.init_node('Telemetry', anonymous=True)
