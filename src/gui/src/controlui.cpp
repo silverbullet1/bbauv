@@ -24,9 +24,6 @@
 #include <termios.h>
 #include <signal.h>
 
-#include <dynamic_reconfigure/server.h>
-#include <controls/PID_ControllerConfig.h>
-
 #include "controlui_add.h"
 
 //Convenient stuffs for dynamic reconfiguring
@@ -799,6 +796,28 @@ void refreshButton() {
 	controlUI->loadControlParams();
 }
 
+void updateIncomingParams() {
+	for (int i = 0; i < numParams; i++) {
+		string strVal = "";
+		if (paramsTypes[i%5] == "double_t") {
+			double val;
+			ros::param::param<double>("/Controller/" + dynamicParams[i], val, 0.0);
+			strVal = boost::lexical_cast<string>(val);
+		} else if (paramsTypes[i%5] == "int_t") {
+			int val;
+			ros::param::param<int>("/Controller/" + dynamicParams[i], val, 0);
+			strVal = boost::lexical_cast<string>(val);
+		}
+
+		if (controlUI->params[dynamicParams[i]] != strVal) {
+			controlUI->params[dynamicParams[i]] = strVal;
+			if (i >= controlUI->startIndex && i < controlUI->endIndex) {
+				controlUI->configureWidgets[i % 5]->setText(QString::fromStdString(strVal));
+			}
+		}
+	}
+}
+
 void quit(int sig)
 {
 	std::cout<<"Quiting"<<std::endl;
@@ -837,6 +856,10 @@ int main(int argc, char **argv) {
 	QTimer *statusTimer = new QTimer();
 	QObject::connect(statusTimer, &QTimer::timeout, updateStatus);
 	statusTimer->start(50);
+
+	QTimer *paramsTimer = new QTimer();
+	QObject::connect(paramsTimer, &QTimer::timeout, updateIncomingParams);
+	paramsTimer->start(300);
 
 	ros::AsyncSpinner spinner(4);
 	spinner.start();

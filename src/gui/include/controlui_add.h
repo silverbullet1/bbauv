@@ -80,6 +80,7 @@ string getdate();
 //Qt UI callbacks
 void updateStatus();
 void updateGraph();
+void updateIncomingParams();
 void saveFile();
 void openTheFile();
 void fire();
