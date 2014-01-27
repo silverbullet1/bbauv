@@ -114,7 +114,7 @@ include_directories(
 add_executable(linefollower_node src/linefollower.cpp src/linefollowingstates.cpp)
 add_executable(red_bucket_detection src/red_bucket_detection.cpp src/bucketstates.cpp)
 add_executable(flaredetection_node src/flaredetection.cpp src/flarestates.cpp)
-#add_executable(blob_node src/blob.cpp)
+add_executable(blob_node src/blob.cpp)
 
 
 ## Add cmake target dependencies of the executable/library
