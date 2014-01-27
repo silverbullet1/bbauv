@@ -484,6 +484,8 @@ void enableButton(){
 		controlUI->ui.depth_check->setChecked(true);
 		controlUI->ui.yaw_check->setChecked(true);
 		controlUI->ui.sm_check->setChecked(true);
+		controlUI->ui.roll_check->setChecked(true);
+		controlUI->ui.pitch_check->setChecked(true);
 
 		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 	    bbauv_msgs::set_controller srv;

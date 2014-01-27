@@ -7,9 +7,6 @@
 	Author: Lynnette & Thein
 */
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-
 #include <string.h>
 #include <queue>
 
@@ -18,26 +15,29 @@
 std::queue<double> hist; //queue to store previous angles;
 
 // Look for line state
-LookForLineState::LookForLineState() {
+LookForLineState::LookForLineState(LineFollower* fl) {
 	ROS_INFO("Looking for line");
+	follower = fl;
 }
 
 boost::shared_ptr<State> LookForLineState::gotFrame(cv::Mat image, RectData rectData) {
 	if (rectData.detected)
-		return boost::shared_ptr<State>(new StraightLineState());
+		return boost::shared_ptr<State>(new StraightLineState(follower));
 
 	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
 	//msg.heading_setpoint = rectData.heading + 10;
-	publishMovement(msg);
+	follower->publishMovement(msg);
 	return shared_from_this();
 }
 
 //Temporary State
-TemporaryState::TemporaryState(double secondsToReverse,
+TemporaryState::TemporaryState(LineFollower* fl,
+							   double secondsToReverse,
 							   boost::shared_ptr<State> nextState,
 							   double speed = -0.6) {
 	ROS_INFO("Reversing for %lf secs", secondsToReverse);
+	follower = fl;
 	transitionTime = ros::Time::now().toSec() + secondsToReverse;
 	this->nextState = nextState;
 	this->speed = speed;
@@ -51,13 +51,14 @@ boost::shared_ptr<State> TemporaryState::gotFrame(cv::Mat image, RectData rectDa
 	msg.depth_setpoint = DEPTH_POINT;
 	msg.heading_setpoint = rectData.heading;
 	msg.forward_setpoint = speed;
-	publishMovement(msg);
+	follower->publishMovement(msg);
 	return shared_from_this();
 }
 
 //Dive State
-DiveState::DiveState (double secondsToDive, boost::shared_ptr<State> nextState) {
+DiveState::DiveState (LineFollower* fl, double secondsToDive, boost::shared_ptr<State> nextState) {
 	ROS_INFO("Diving for %lf secs", secondsToDive);
+	follower = fl;
 	transitionTime = ros::Time::now().toSec() + secondsToDive;
 	this->nextState = nextState;
 }
@@ -70,18 +71,19 @@ boost::shared_ptr<State> DiveState::gotFrame(cv::Mat image, RectData rectData) {
 	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
 	msg.heading_setpoint = rectData.heading;
-	publishMovement(msg);
+	follower->publishMovement(msg);
 	return shared_from_this();
 }
 
 //Surface State
-SurfaceState::SurfaceState (double heading) {
+SurfaceState::SurfaceState (LineFollower* fl, double heading) {
 	ROS_INFO("Surfacing");
 
+	follower = fl;
     bbauv_msgs::ControllerGoal msg;
     msg.depth_setpoint = 0.2;
     msg.heading_setpoint = heading;
-    publishMovement(msg);
+    follower->publishMovement(msg);
 }
 
 boost::shared_ptr<State> SurfaceState::gotFrame(cv::Mat, RectData) {
@@ -89,14 +91,15 @@ boost::shared_ptr<State> SurfaceState::gotFrame(cv::Mat, RectData) {
 }
 
 //Straight Line State
-StraightLineState::StraightLineState() {
+StraightLineState::StraightLineState(LineFollower* fl) {
 	ROS_INFO("Following a straight line");
+	follower = fl;
 }
 
 boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rectData) {
 	if (!rectData.detected) {
-		boost::shared_ptr<State> lNextState(new LookForLineState());
-		return boost::shared_ptr<State>(new TemporaryState(0.5, lNextState));
+		boost::shared_ptr<State> lNextState(new LookForLineState(follower));
+		return boost::shared_ptr<State>(new TemporaryState(follower, 0.5, lNextState));
 	}
 
 	int screen_width = image.cols;
@@ -112,7 +115,7 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 		ROS_INFO("Box too far off centre! Aggressive sidemove");
 		msg.heading_setpoint = normHeading(rectData.heading - rectData.angle);
 		msg.sidemove_setpoint = delta_x < 0 ? 1.0 : -1.0;
-		publishMovement(msg);
+		follower->publishMovement(msg);
 		return shared_from_this();
 	}
 
@@ -150,6 +153,6 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 		}
 		msg.heading_setpoint = normHeading(rectData.heading - angle_diff);
 	}
-	publishMovement(msg);
+	follower->publishMovement(msg);
 	return shared_from_this();
 }
