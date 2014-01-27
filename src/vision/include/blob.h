@@ -30,19 +30,23 @@ struct RectData {
 	cv::RotatedRect maxRect;
 };
 
-//Global callback functions
-void lowerHCallback(int val, void *params);
-void higherHCallback(int val, void *params);
-void lowerSCallback(int val, void *params);
-void higherSCallback(int val, void *params);
-void lowerVCallback(int val, void *params);
-void higherVCallback(int val, void *params);
+
 
 //We call this class blob!
 class Blob {
 public:
-	Blob() {}
-	virtual ~Blob() {}
+	Blob(){
+		RectData rectdata;
+
+		//Initialise display windows; for debugging
+		cv::namedWindow("input");
+		cv::namedWindow("output");
+		cv::namedWindow("trackbar");
+	}
+	~Blob(){
+		cv::destroyWindow("input");
+		cv::destroyWindow("output");
+	}
 
 	void setLowerH(int lowerH);
 	int getLowerH();
@@ -57,39 +61,42 @@ public:
 	void setHigherV(int higherV);
 	int getHigherV();
 
+	//Global callback functions
+	static void lowerHCallback(int val, void *params);
+	static void higherHCallback(int val, void *params);
+	static void lowerSCallback(int val, void *params);
+	static void higherSCallback(int val, void *params);
+	static void lowerVCallback(int val, void *params);
+	static void higherVCallback(int val, void *params);
+
 	static int lowerH, higherH, lowerS, higherS, lowerV, higherV;
-
-private:
+	static cv::Mat convertROStoCV(const sensor_msgs::ImageConstPtr& msg);
 	RectData rectData;
-};
-
-//Convert ROS Image to cv image
-class convertROStoCV : public Blob{
-public:
-	cv::Mat convertROStoCV(const sensor_msgs::ImageConstPtr& msg);
+	
 };
 
 //Colour detection
-class colourDetection : public Blob{
+class ColorDetector : public Blob{
 public:
-	colourDetection();
+	ColorDetector();
 	cv::Mat colourDetection(cv::Mat img, int colour);
 	cv::Mat colourDetection(cv::Mat img, int colour, int lowerH, int higherH,
 					int lowerS, int higherS, int lowerV, int higherV);
 
-	void reDraw();
+	cv::Mat reDraw(cv::Mat img);
+	cv::Mat reDraw();
 	void drawImage();
 	void setWindowSettings();
-	cv::Mat drawBoundingBox(cv::Mat img);
-	void findBoundingBox(cv::Mat img);
+	void drawBoundingBox(cv::Mat img);
+	cv::Mat findBoundingBox(cv::Mat img);
 
 private:
 	cv::Mat image;
 	cv::Mat outImg;
 	int colour;
 	//Values are initialised as lowerH, lowerS, lowerV, higherH, higherS, higherV
-	int yellow_values[6];
-	int red_values[6];
+	int yellow_values[];
+	int red_values[];
 	//For bounding box
 	double max_area, areaThresh;
 
