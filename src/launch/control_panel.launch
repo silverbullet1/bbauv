@@ -1,0 +1,11 @@
+<!-- Launch the bbauv control panel -->
+
+<launch>
+
+	<node name="PID" pkg="controls" type="PID_Controller" respawn="false">
+	</node>
+
+	<node name="ControlPanel" pkg="gui" type="telemetry.py" respawn="false">
+	</node>
+
+</launch>
