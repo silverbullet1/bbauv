@@ -12,6 +12,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
 from bbauv_msgs.msg import openups_stats
+from bbauv_msgs.msg import manipulator
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -277,21 +278,15 @@ class AUV_gui(QMainWindow):
         saBox.setLayout(sa_layout)
         
         #OpenUPS Information
-        oBox = QGroupBox("OpenUPS Information")
+        oBox = QGroupBox("Battery Information")
         self.oPanel1 = QTextBrowser()
         self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.oPanel2 = QTextBrowser()
         self.oPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
-        self.oPanel3 = QTextBrowser()
-        self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white;font-size : 8; }")
-        self.oPanel4 = QTextBrowser()
-        self.oPanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
-        
+
         o_layout = QHBoxLayout()
         o_layout.addWidget(self.oPanel1)
         o_layout.addWidget(self.oPanel2)
-        o_layout.addWidget(self.oPanel3)
-        o_layout.addWidget(self.oPanel4)
         oBox.setLayout(o_layout)
         
         display_layout = QVBoxLayout()
@@ -638,12 +633,6 @@ class AUV_gui(QMainWindow):
         self.oPanel2.setText("<b>OUPS2: " + str(batt_state[1]) + 
                               "%<br> CUR2: " + str(round(self.data['openups'].current2,2)) +
                               "<br> VOLT2: " + str(round(self.data['openups'].voltage2,2))+ "</b>")
-        self.oPanel3.setText("<b>OUPS3: " + str(batt_state[2]) + 
-                              "%<br> CUR3: " + str(round(self.data['openups'].current3,2)) +
-                              "<br> VOLT3: " + str(round(self.data['openups'].voltage3,2))+ "</b>")
-        self.oPanel4.setText("<b>OUPS4: " + str(batt_state[3]) + 
-                              "%<br> CUR4: " + str(round(self.data['openups'].current4,2)) +
-                              "<br> VOLT4: " + str(round(self.data['openups'].voltage4,2))+ "</b>")
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
@@ -673,9 +662,9 @@ class AUV_gui(QMainWindow):
         
     def initImage(self):
         self.bridge = CvBridge()
-        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
+        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color/image_raw"),Image, self.front_callback)
         #frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
-        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
+        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_cam/camera/image_rect_color/image_raw"),Image, self.bottom_callback)
         filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
     def initSub(self):
