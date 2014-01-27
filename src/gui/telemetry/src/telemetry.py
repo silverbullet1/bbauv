@@ -108,6 +108,7 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
+        disablePIDButton = QPushButton("DisablePID")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
@@ -156,7 +157,7 @@ class AUV_gui(QMainWindow):
         #hbox.addStretch(1)
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
-        
+        vbox3.addWidget(disablePIDButton)
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
