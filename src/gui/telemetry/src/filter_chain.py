@@ -41,6 +41,8 @@ class Vision_filter(QWidget):
         self.thresholder = Thresholding()
         self.bridge = CvBridge()
         self.initUI()
+
+
         
     def initUI(self):
         label_arr = [QLabel(),QLabel(),QLabel(),QLabel(),QLabel(),QLabel(),QLabel()]
@@ -149,12 +151,13 @@ class Vision_filter(QWidget):
         self.video_filter.setPixmap(qpm.scaledToHeight(300))
         
     ### Update Vision Filter top video
-    def update_image_visual(self,image):
-        cvRGBImg_top = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+    def update_image_visual(self,image, isRosImg=False):
+        image = image if isRosImg else self.rosimg2cv(image)
+        cvRGBImg_top = cv2.cvtColor(image, cv2.cv.CV_BGR2RGB)
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
         qpm = QPixmap.fromImage(qimg)
-        self.hist.updateHist(self.rosimg2cv(image))
+        #self.hist.updateHist(image) #TODO: put this back
         self.video_top.setPixmap(qpm.scaledToHeight(250))
     ### Update Vision Filter filter video
     def update_image_filter(self,image):

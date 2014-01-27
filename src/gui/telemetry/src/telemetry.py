@@ -12,6 +12,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
 from bbauv_msgs.msg import openups_stats
+import math
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -847,7 +848,7 @@ class AUV_gui(QMainWindow):
     
     def update_video_front(self,image):
         #convert numpy mat to pixmap image
-        cvRGBImg_front = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+        cvRGBImg_front = cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
@@ -864,7 +865,7 @@ class AUV_gui(QMainWindow):
 #            qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
 #        finally:
 #            bbLock.release()
-        self.vision_filter_frame.update_image_visual(self.drawReticle(image))
+        self.vision_filter_frame.update_image_visual(image)
         self.vision_filter_frame.update_image_filter(image)
         
     def update_video_bot(self,image):
@@ -936,7 +937,7 @@ class AUV_gui(QMainWindow):
         self.q_mani.put(mani)
 
     def drawReticle(self, origimg):
-        yaw, pitch, roll = self.yaw, self.pitch, self.roll
+        yaw, pitch, roll = self.data['yaw'], self.data['pitch'], self.data['roll']
 
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
