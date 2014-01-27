@@ -9,11 +9,26 @@
 
 using namespace cv;
 
+int Blob::lowerH=0;
+static int Blob::higherH=0;
+static int Blob::lowerS=0;
+static int Blob::higherS=0;
+static int Blob::lowerV=0;
+static int Blob::higherV=0;
+
 Blob::Blob(){
-	int lowerH=0, higherH=0, lowerS=0, higherS=0, lowerV=0, higherV=0;
+	RectData rectdata;
+
+	//Initialise display windows; for debugging
+	namedWindow("input");
+	namedWindow("output");
+	namedWindow("trackbar");
 }
 
-Blob::~Blob(){}
+Blob::~Blob(){
+	cv::destroyWindow("input");
+	cv::destroyWindow("output");
+}
 
 /*
  * Getter and setter methods
@@ -31,7 +46,7 @@ int Blob::getLowerV() { return this->lowerV; }
 void Blob::setHigherV(int higherV) { this->higherV = higherV; }
 int Blob::getHigherV() { return this->higherV; }
 
-//Converts ROS image to CV image
+/*Converts ROS image to CV image*/
 
 cv::Mat convertROStoCV::convertROStoCV(const sensor_msgs::ImageConstPtr& msg){
 	cv_bridge::CvImagePtr cv_ptr;
@@ -44,18 +59,19 @@ cv::Mat convertROStoCV::convertROStoCV(const sensor_msgs::ImageConstPtr& msg){
 	return cv_ptr->image;
 }
 
-/* Colour detection class */
+/* Colour detection values */
 colourDetection::colourDetection(){
 	//Values are initialised as lowerH, lowerS, lowerV, higherH, higherS, higherV
 	int yellow_values[6]{10, 0, 0, 79, 148, 255};
 	int red_values[6]{0, 0, 100, 77, 195, 251};
 
-	//Initialise display windows; may not be needed
-	namedWindow("input");
-	namedWindow("output");
-	namedWindow("trackbar");
+	//For bounding box
+	double max_area = 0;
+	double areaThresh = 3000;
+
 }
 
+/* Detect colour values */
 cv::Mat colourDetection::colourDetection(cv::Mat img, int colour){
 	this->image = img;
 	this->colour = colour;
@@ -96,8 +112,9 @@ cv::Mat colourDetection::colourDetection(cv::Mat img, int colour, int lowerH, in
 
 }
 
+/* Perform colour detection */
 cv::Mat colourDetection::reDraw(cv::Mat img){
-	cv::Mat out;
+	Mat out;
 	cvtColor(img, out, CV_BGR2HSV);
 	inRange(img, Scalar(lowerH,lowerS,lowerV), Scalar(higherH,higherS,higherV), out);
 	Mat erodeEl = getStructuringElement(MORPH_RECT, cv::Size(9, 9));
@@ -107,11 +124,66 @@ cv::Mat colourDetection::reDraw(cv::Mat img){
 	return out;
 }
 
+/* Find Bounding Box */
+cv::Mat colourDetection::findBoundingBox(cv::Mat img){
+	Mat out = image.clone();
+
+	//Find x-center
+	vector< cv::vector<Point> > contours;
+	vector<cv::Vec4i> hierachy;
+
+	findContours(out, contours, hierachy,
+				 CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+	Point2f center_max;
+	for (size_t i = 0; i < contours.size(); i++) {
+		double area = contourArea(contours[i]);
+		if (area > areaThresh && area > max_area) {
+			//Find the center using moments
+			Moments mu;
+			mu = moments(contours[i], false);
+			double mu_area = mu.m00;
+			center_max.x = mu.m10/mu_area;
+			center_max.y = mu.m01/mu_area;
+			max_area = area;
+
+			//Find the bounding rect
+			rectData.maxRect = minAreaRect(contours[i]);
+		}
+	}
+
+	if (max_area > 0) {
+		rectData.detected = true;
+		rectData.center = center_max;
+
+		Point2f points[4];
+		rectData.maxRect.points(points);
+
+
+	}
+	return out;
+}
+
+/* Draw bounding box */
+void colourDetection::drawBoundingBox(cv::Mat img){
+	if (max_area > 0){
+		circle(img, rectData.center, 20, Scalar(255, 255, 255));
+		for (int i = 0; i < 4; i++) {
+			Point2i pt1(int(points[i].x), int(points[i].y));
+			Point2i pt2(int(points[(i+1)%4].x), int(points[(i+1)%4].y));
+			line(img, pt1, pt2, Scalar(255, 255, 255));
+		}
+	}
+	outImg = img;
+}
+
+/* Display images and windows */
 void colourDetection::drawImage(){
 	imshow("input", image);
 	imshow("output", outImg);
 }
 
+/* Set up window settings */
 void colourDetection::setWindowSettings(){
 	createTrackbar("LowerH", "trackbar", &lowerH, 180, lowerHCallback, NULL);
     createTrackbar("UpperH", "trackbar", &higherH, 180, higherHCallback, NULL);
@@ -123,20 +195,20 @@ void colourDetection::setWindowSettings(){
     createTrackbar("UpperV", "trackbar", &higherV, 256, higherVCallback, NULL);
 }
 
-//Callback methods
-void colourDetection::lowerHCallback(int val, void *params) {
-	this->lowerH = val;
-	reDraw();
+/** Callback methods **/
+void lowerHCallback(int val, void *params) {
+	Blob::lowerH = val;
+	colourDetection::reDraw();
 }
-void colourDetection::higherHCallback(int val, void *params){
+void higherHCallback(int val, void *params){
 	this->higherH = val;
 	reDraw();
 }
-void colourDetection::lowerSCallback(int val, void *params){
+void lowerSCallback(int val, void *params){
 	this->lowerS = val;
 	reDraw();
 }
-void colourDetection::higherSCallback(int val, void *params){
+void higherSCallback(int val, void *params){
 	this->higherS = val;
 	reDraw();
 }

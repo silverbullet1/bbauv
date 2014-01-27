@@ -20,14 +20,30 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 
-#define YELLOW 1;
-#define RED 2;
+#define YELLOW 1
+#define RED 2
+
+//Structure for drawing bounding box
+struct RectData {
+	bool detected;
+	cv::Point2f center;
+	cv::RotatedRect maxRect;
+};
+
+//Global callback functions
+void lowerHCallback(int val, void *params);
+void higherHCallback(int val, void *params);
+void lowerSCallback(int val, void *params);
+void higherSCallback(int val, void *params);
+void lowerVCallback(int val, void *params);
+void higherVCallback(int val, void *params);
 
 //We call this class blob!
 class Blob {
 public:
 	Blob() {}
 	virtual ~Blob() {}
+
 	void setLowerH(int lowerH);
 	int getLowerH();
 	void setHigherH(int higherH);
@@ -40,9 +56,11 @@ public:
 	int getLowerV();
 	void setHigherV(int higherV);
 	int getHigherV();
-private:
-	int lowerH, higherH, lowerS, higherS, lowerV, higherV;
 
+	static int lowerH, higherH, lowerS, higherS, lowerV, higherV;
+
+private:
+	RectData rectData;
 };
 
 //Convert ROS Image to cv image
@@ -62,12 +80,9 @@ public:
 	void reDraw();
 	void drawImage();
 	void setWindowSettings();
-	void lowerHCallback(int val, void *params);
-	void higherHCallback(int val, void *params);
-	void lowerSCallback(int val, void *params);
-	void higherSCallback(int val, void *params);
-	void lowerVCallback(int val, void *params);
-	void higherVCallback(int val, void *params);
+	cv::Mat drawBoundingBox(cv::Mat img);
+	void findBoundingBox(cv::Mat img);
+
 private:
 	cv::Mat image;
 	cv::Mat outImg;
@@ -75,6 +90,8 @@ private:
 	//Values are initialised as lowerH, lowerS, lowerV, higherH, higherS, higherV
 	int yellow_values[6];
 	int red_values[6];
+	//For bounding box
+	double max_area, areaThresh;
 
 };
 
