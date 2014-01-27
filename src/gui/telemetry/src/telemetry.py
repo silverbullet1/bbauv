@@ -109,6 +109,7 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
+        disablePIDButton = QPushButton("DisablePID")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
@@ -157,6 +158,7 @@ class AUV_gui(QMainWindow):
         #hbox.addStretch(1)
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
+        vbox3.addWidget(disablePIDButton)
         
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
@@ -515,10 +517,12 @@ class AUV_gui(QMainWindow):
         
         self.saPanel1.setText("<b>THR1: " + str(self.data['thrusters'].speed1) + 
                               "<br> THR2: " + str(self.data['thrusters'].speed2) +
-                              "<br> THR3: " + str(self.data['thrusters'].speed3) + "</b>")
-        self.saPanel2.setText("<b>THR4: " + str(self.data['thrusters'].speed4) +
-                              "<br> THR5: " + str(self.data['thrusters'].speed5) +
-                              "<br> THR6: " + str(self.data['thrusters'].speed6) + "</b>")
+                              "<br> THR3: " + str(self.data['thrusters'].speed3) +
+                              "<br> THR4: " + str(self.data['thrusters'].speed4) + "</b>")
+        self.saPanel2.setText("<b>THR5: " + str(self.data['thrusters'].speed5) +
+                              "<br> THR6: " + str(self.data['thrusters'].speed6) +
+                              "<br> THR7: " + str(self.data['thrusters'].speed7) + 
+                              "<br> THR8: " + str(self.data['thrusters'].speed8) +  "</b>")
         
         mani_name = ["","","","","","",""]
         if self.data['manipulators'].servo1:
