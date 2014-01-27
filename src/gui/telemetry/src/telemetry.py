@@ -12,7 +12,6 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
 from bbauv_msgs.msg import openups_stats
-from bbauv_msgs.msg import manipulator
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -586,22 +585,7 @@ class AUV_gui(QMainWindow):
             batt_state.append("LOADING")
         else:
             batt_state.append(self.data['openups'].charge2) 
-        
-        if self.data['openups'].charge3== -1:
-            batt_state.append("DISCON")
-        elif self.data['openups'].charge3== -2:
-            batt_state.append("OFF")
-        elif self.data['openups'].charge3== -3:
-            batt_state.append("LOADING")
-        else:
-            batt_state.append(self.data['openups'].charge3)
-            
-        if self.data['openups'].charge4== -1:
-            batt_state.append("DISCON")
-        elif self.data['openups'].charge4== -2:
-            batt_state.append("OFF")
-        elif self.data['openups'].charge4== -3:
-            batt_state.append("LOADING")
+
         else:
             batt_state.append(self.data['openups'].charge4)
         
@@ -611,21 +595,12 @@ class AUV_gui(QMainWindow):
         if self.data['openups'].charge2 < 10 and self.data['openups'].charge2 > -1 and self.isAlert[1] == False:
             self.showDialog(2)
             self.isAlert[1] = True
-        if self.data['openups'].charge3 < 10 and self.data['openups'].charge3 > -1 and self.isAlert[2] == False:
-            self.showDialog(3)
-            self.isAlert[2] = True
-        if self.data['openups'].charge4 < 10 and self.data['openups'].charge4 > -1 and self.isAlert[3] == False:
-            self.showDialog(4)
-            self.isAlert[3] = True
-            
+          
         if self.data['openups'].charge1 > 10:
             self.isAlert[0] = False
         if self.data['openups'].charge2 > 10:
             self.isAlert[1] = False
-        if self.data['openups'].charge3 > 10:
-            self.isAlert[2] = False
-        if self.data['openups'].charge4 > 10:
-            self.isAlert[3] = False
+
         
         self.oPanel1.setText("<b>OUPS1: " + str(batt_state[0]) + 
                               "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +
@@ -673,8 +648,8 @@ class AUV_gui(QMainWindow):
         orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
-        self.mani_pub = rospy.Publisher("/manipulators",manipulator)
-        self.mani_sub = rospy.Subscriber("/manipulators",manipulator,self.manipulators_callback)
+        self.mani_pub = rospy.Publisher("/manipulator",manipulator)
+        self.mani_sub = rospy.Subscriber("/manipulator",manipulator,self.manipulators_callback)
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)

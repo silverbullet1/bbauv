@@ -1,5 +1,0 @@
-<launch>
-	<node name="dvl" pkg="sensors" type="dvl">
-		<remap from="WH_DVL_data" to="vo"/>
-	</node>
-</launch>
