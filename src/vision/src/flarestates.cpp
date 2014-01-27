@@ -18,7 +18,9 @@ LookForFlareState::LookForFlareState(){
 }
 
 boost::shared_ptr<State> LookForFlareState::gotFrame(cv::Mat image, RectData rectData){
-		return shared_from_this();
+	bbauv_msgs::controller msg;
+	publishMovement(msg);
+	return shared_from_this();
 }
 
 //Lost flare - should keep turning around
@@ -27,6 +29,20 @@ LostFlareState::LostFlareState(){
 }
 
 boost::shared_ptr<State> LostFlareState::gotFrame(cv::Mat image, RectData rectData){
+		return shared_from_this();
+}
+
+//Surface State
+SurfaceState::SurfaceState(double heading){
+	ROS_INFO("Surfacing...");
+
+	bbauv_msgs::controller msg;
+	msg.depth_setpoint = 0.2;
+	msg.heading_setpoint = heading;
+	publishMovement(msg);
+}
+
+boost::shared_ptr<State> SurfaceState::gotFrame(cv::Mat image, RectData rectData){
 		return shared_from_this();
 }
 

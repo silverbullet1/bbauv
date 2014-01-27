@@ -423,49 +423,56 @@ string getdate() {
 }
 
 void saveFile() {
-	//Open a .txt file
-	string filename = "controls";
-	filename.append("_");
-	filename.append(getdate());
-	filename.append(".txt");
-	ofstream file;
-	file.open(filename.c_str());
+	QString selfilter = QString("*.bag");
+	QString filename = QFileDialog::getSaveFileName(controlUI->window, QString("Open controls file"), QDir::currentPath(),
+	QString(".txt files (*.txt);; All files (*.*)"), &selfilter);
 
-	file << "con_KP_val " << controlUI->ui.conKpVal->text().toUtf8().constData() << "\n";
-	file << "con_KI_val " << controlUI->ui.conTiVal->text().toUtf8().constData() << "\n";
-	file << "con_KD_val " << controlUI->ui.conTdVal->text().toUtf8().constData()<< "\n";
-	file << "actmin_val " << controlUI->ui.conMinVal->text().toUtf8().constData() << "\n";
-	file << "actmax_val " << controlUI->ui.conMaxVal->text().toUtf8().constData()<< "\n";
+	try {
+		string strFilename = filename.toUtf8().constData();
+		if (strFilename != "") {
+			ROS_INFO("%s", strFilename.c_str());
+			FILE* output;
+			output = fopen(strFilename.c_str(), "w");
+			for (int i = 0; i < numParams; i++) {
+				string curParam = dynamicParams[i];
+				fprintf(output, (curParam + ": %s\n").c_str(), controlUI->params[curParam].c_str());
+			}
+			fclose(output);
+		} else {
+			return;
+		}
+	} catch (int e) {
+		QMessageBox::critical(controlUI->ui.centralwidget, "Error", "Something goes wrong!");
+	}
 
-	file.close();
-	QMessageBox::information(controlUI->ui.centralwidget, "File saved", "File successfully saved! :)");
+	QMessageBox::information(controlUI->ui.centralwidget, "Information", "File successfully saved!");
 }
 
 void openTheFile() {
-	string line;
-	vector<string> tokens;
 	QString selfilter = QString("*.bag");
 	QString filename = QFileDialog::getOpenFileName(controlUI->window, QString("Open controls file"), QDir::currentPath(),
 	QString(".txt files (*.txt);; All files (*.*)"), &selfilter);
 
-	string filename_string = filename.toUtf8().constData();
-	ifstream file;
-	file.open(filename_string.c_str());
-	if (file.is_open()){
-		string msg = "Loading file " + filename_string + "...";
-		ROS_INFO("%s", msg.c_str());
+	string strFilename = filename.toUtf8().constData();
+	FILE* in;
+	in = fopen(strFilename.c_str(), "r");
+	if (in != NULL){
+		string msg = "Loading file " + strFilename + "...";
+		controlUI->ui.statusbar->showMessage(msg.c_str(), 3000);
 
-		while (getline(file, line)) {
-			boost::algorithm::split(tokens, line, boost::algorithm::is_any_of(" "));
-			controlUI->params[tokens[0]] = tokens[1];
+		try {
+			for (int i = 0; i < numParams; i++) {
+				char val[256];
+				fscanf(in, (dynamicParams[i] + ": %s").c_str(), &val);
+				controlUI->params[dynamicParams[i]] = string(val);
+			}
+		} catch (int e) {
+			QMessageBox::critical(controlUI->ui.centralwidget, "Error", "File's data is not correct");
 		}
-
-		controlUI->initialiseParameters();
-		file.close();
-		}
-	else {
-		QMessageBox::critical(controlUI->ui.centralwidget, "Error", "Could not open file");
-		return;
+		controlUI->loadControlParams();
+		fclose(in);
+	} else {
+		controlUI->ui.statusbar->showMessage("Cannot open file", 3000);
 	}
 }
 
@@ -477,6 +484,8 @@ void enableButton(){
 		controlUI->ui.depth_check->setChecked(true);
 		controlUI->ui.yaw_check->setChecked(true);
 		controlUI->ui.sm_check->setChecked(true);
+		controlUI->ui.roll_check->setChecked(true);
+		controlUI->ui.pitch_check->setChecked(true);
 
 		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 	    bbauv_msgs::set_controller srv;
@@ -800,12 +809,12 @@ void updateIncomingParams() {
 	for (int i = 0; i < numParams; i++) {
 		string strVal = "";
 		if (paramsTypes[i%5] == "double_t") {
-			double val;
-			ros::param::param<double>("/Controller/" + dynamicParams[i], val, 0.0);
+			double val = 0.0;
+			ros::param::getCached("/Controller/" + dynamicParams[i], val);
 			strVal = boost::lexical_cast<string>(val);
 		} else if (paramsTypes[i%5] == "int_t") {
-			int val;
-			ros::param::param<int>("/Controller/" + dynamicParams[i], val, 0);
+			int val = 0;
+			ros::param::getCached("/Controller/" + dynamicParams[i], val);
 			strVal = boost::lexical_cast<string>(val);
 		}
 

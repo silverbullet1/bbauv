@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   sensor_msgs
+  bbauv_msgs
+  actionlib
 )
 
 ## System dependencies are found with CMake's conventions
@@ -87,7 +89,7 @@ find_package(OpenCV)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vision
-  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime actionlib
   DEPENDS system_lib
 )
 
@@ -114,6 +116,7 @@ include_directories(
 add_executable(linefollower_node src/linefollower.cpp src/linefollowingstates.cpp)
 add_executable(red_bucket_detection src/red_bucket_detection.cpp src/bucketstates.cpp)
 add_executable(flaredetection_node src/flaredetection.cpp src/flarestates.cpp)
+
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes

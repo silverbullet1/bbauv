@@ -4,27 +4,14 @@
 	Author: Lynnette & Thien
 */
 
-#include <ros/ros.h>
-#include "bbauv_msgs/compass_data.h"
-#include "bbauv_msgs/controller.h"
-#include <sensor_msgs/image_encodings.h>
-
 #include <stdio.h>
 #include <termios.h>
 #include <signal.h>
 #include <cmath>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <cv_bridge/cv_bridge.h>
-#include <image_transport/image_transport.h>
-
 #include "linefollowingstates.h"
 
 using namespace cv;
-
-//static double heading = 0.0;
 
 //Utility function
 double radianToDegree(double degree);
@@ -36,51 +23,11 @@ const double secondsToRun = 2.25 * 60;
 const double x_strip_threshold = 0.2;
 ros::Publisher movementPub;
 
-//Main class for linefollower node
-class LineFollower
-{
-public:
-	LineFollower();
-	~LineFollower();
-
-	int loopRateHz;
-
-	void start();
-	void stop();
-
-	void compassCallback(const bbauv_msgs::compass_data& msg);
-	void publishMovement(const bbauv_msgs::controller& movement);
-	double normHeading(double heading);	
-	void bottomCamCallback(const sensor_msgs::ImageConstPtr& msg);
-
-	//Fill rectData structure with necessary data
-	void prepareBlackLineParams(Mat inImage);
-private:
-	bool enabled;
-
-	ros::NodeHandle nh;
-	ros::NodeHandle private_nh;
-	//Subscribers to respective topic
-	image_transport::Subscriber imageSub;
-	ros::Subscriber compassSub;
-	//ros::Publisher movementPub;
-	image_transport::ImageTransport it;
-
-	//Center detection parameter
-	double thVal;
-	double areaThresh;
-	RectData rectData;
-	cv::Size screen;
-
-	//States
-	boost::shared_ptr<State> state;
-};
-
 double radianToDegree(double degree) {
 	return degree / M_PI * 180;
 }
 
-LineFollower::LineFollower() : it(nh), private_nh("~")
+LineFollower::LineFollower() : it(nh), private_nh("~"), ac("LocomotionServer", true)
 {
 	enabled = false;
 
@@ -105,14 +52,24 @@ LineFollower::~LineFollower() {
 	cv::destroyWindow("test");
 }
 
+void LineFollower::publishMovement(bbauv_msgs::ControllerGoal goal) {
+	ac.sendGoal(goal);
+}
+
 void LineFollower::start() {
-	boost::shared_ptr<State> nextState(new StraightLineState());
-	state = boost::shared_ptr<State>(new DiveState(0.2, nextState));
+	ac.waitForServer();
+	bool hasServer = ac.waitForResult(ros::Duration(3));
+	if (!hasServer) {
+		ROS_INFO("Locomotion Server does not response. Quiting...");
+		return;
+	}
+	boost::shared_ptr<State> nextState(new StraightLineState(this));
+	state = boost::shared_ptr<State>(new DiveState(this, 0.2, nextState));
 	enabled = true;
 }
 
 void LineFollower::stop() {
-	state = boost::shared_ptr<State>(new SurfaceState(rectData.heading));
+	state = boost::shared_ptr<State>(new SurfaceState(this, rectData.heading));
 	enabled = false;
 }
 

@@ -1,7 +1,0 @@
-<launch>
-  <node name="core" pkg="core" type="core" respawn="true">
-    <param name="tasks_descriptor_path" type="string" value="$(find mission_plans)"/>
-    <param name="mission_plan" type="string" value="sauvc.txt"/>
-    <param name="running_mode" type="string" value="MANUAL"/>
-  </node>
-</launch>

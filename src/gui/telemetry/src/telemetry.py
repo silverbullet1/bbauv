@@ -12,6 +12,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
 from bbauv_msgs.msg import openups_stats
+import math
 from math import pi
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -158,7 +159,6 @@ class AUV_gui(QMainWindow):
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
         vbox3.addWidget(disablePIDButton)
-        
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
@@ -279,21 +279,15 @@ class AUV_gui(QMainWindow):
         saBox.setLayout(sa_layout)
         
         #OpenUPS Information
-        oBox = QGroupBox("OpenUPS Information")
+        oBox = QGroupBox("Battery Information")
         self.oPanel1 = QTextBrowser()
         self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.oPanel2 = QTextBrowser()
         self.oPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
-        self.oPanel3 = QTextBrowser()
-        self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white;font-size : 8; }")
-        self.oPanel4 = QTextBrowser()
-        self.oPanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
-        
+
         o_layout = QHBoxLayout()
         o_layout.addWidget(self.oPanel1)
         o_layout.addWidget(self.oPanel2)
-        o_layout.addWidget(self.oPanel3)
-        o_layout.addWidget(self.oPanel4)
         oBox.setLayout(o_layout)
         
         display_layout = QVBoxLayout()
@@ -526,8 +520,8 @@ class AUV_gui(QMainWindow):
                               "<br> THR4: " + str(self.data['thrusters'].speed4) + "</b>")
         self.saPanel2.setText("<b>THR5: " + str(self.data['thrusters'].speed5) +
                               "<br> THR6: " + str(self.data['thrusters'].speed6) +
-                              "<br> THR7: " + str(self.data['thrusters'].speed7) + 
-                              "<br> THR8: " + str(self.data['thrusters'].speed8) +  "</b>")
+                              "<br> THR7: " + str(self.data['thrusters'].speed7) +
+                              "<br> THR8: " + str(self.data['thrusters'].speed8) + "</b>")
         
         mani_name = ["","","","","","",""]
         if self.data['manipulators'].servo1:
@@ -596,23 +590,6 @@ class AUV_gui(QMainWindow):
         else:
             batt_state.append(self.data['openups'].charge2) 
         
-        if self.data['openups'].charge3== -1:
-            batt_state.append("DISCON")
-        elif self.data['openups'].charge3== -2:
-            batt_state.append("OFF")
-        elif self.data['openups'].charge3== -3:
-            batt_state.append("LOADING")
-        else:
-            batt_state.append(self.data['openups'].charge3)
-            
-        if self.data['openups'].charge4== -1:
-            batt_state.append("DISCON")
-        elif self.data['openups'].charge4== -2:
-            batt_state.append("OFF")
-        elif self.data['openups'].charge4== -3:
-            batt_state.append("LOADING")
-        else:
-            batt_state.append(self.data['openups'].charge4)
         
         if self.data['openups'].charge1 < 10 and self.data['openups'].charge1 > -1 and self.isAlert[0] == False:
             self.showDialog(1)
@@ -620,21 +597,12 @@ class AUV_gui(QMainWindow):
         if self.data['openups'].charge2 < 10 and self.data['openups'].charge2 > -1 and self.isAlert[1] == False:
             self.showDialog(2)
             self.isAlert[1] = True
-        if self.data['openups'].charge3 < 10 and self.data['openups'].charge3 > -1 and self.isAlert[2] == False:
-            self.showDialog(3)
-            self.isAlert[2] = True
-        if self.data['openups'].charge4 < 10 and self.data['openups'].charge4 > -1 and self.isAlert[3] == False:
-            self.showDialog(4)
-            self.isAlert[3] = True
-            
+          
         if self.data['openups'].charge1 > 10:
             self.isAlert[0] = False
         if self.data['openups'].charge2 > 10:
             self.isAlert[1] = False
-        if self.data['openups'].charge3 > 10:
-            self.isAlert[2] = False
-        if self.data['openups'].charge4 > 10:
-            self.isAlert[3] = False
+
         
         self.oPanel1.setText("<b>OUPS1: " + str(batt_state[0]) + 
                               "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +
@@ -642,12 +610,6 @@ class AUV_gui(QMainWindow):
         self.oPanel2.setText("<b>OUPS2: " + str(batt_state[1]) + 
                               "%<br> CUR2: " + str(round(self.data['openups'].current2,2)) +
                               "<br> VOLT2: " + str(round(self.data['openups'].voltage2,2))+ "</b>")
-        self.oPanel3.setText("<b>OUPS3: " + str(batt_state[2]) + 
-                              "%<br> CUR3: " + str(round(self.data['openups'].current3,2)) +
-                              "<br> VOLT3: " + str(round(self.data['openups'].voltage3,2))+ "</b>")
-        self.oPanel4.setText("<b>OUPS4: " + str(batt_state[3]) + 
-                              "%<br> CUR4: " + str(round(self.data['openups'].current4,2)) +
-                              "<br> VOLT4: " + str(round(self.data['openups'].voltage4,2))+ "</b>")
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
@@ -677,9 +639,9 @@ class AUV_gui(QMainWindow):
         
     def initImage(self):
         self.bridge = CvBridge()
-        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/stereo_camera/left/image_rect_color_opt"),Image, self.front_callback)
+        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color/image_raw"),Image, self.front_callback)
         #frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
-        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bottomcam/camera/image_rect_color_opt"),Image, self.bottom_callback)
+        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_cam/camera/image_rect_color/image_raw"),Image, self.bottom_callback)
         filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
     def initSub(self):
@@ -688,8 +650,8 @@ class AUV_gui(QMainWindow):
         orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
         position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
-        self.mani_pub = rospy.Publisher("/manipulators",manipulator)
-        self.mani_sub = rospy.Subscriber("/manipulators",manipulator,self.manipulators_callback)
+        self.mani_pub = rospy.Publisher("/manipulator",manipulator)
+        self.mani_sub = rospy.Subscriber("/manipulator",manipulator,self.manipulators_callback)
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
@@ -886,7 +848,7 @@ class AUV_gui(QMainWindow):
     
     def update_video_front(self,image):
         #convert numpy mat to pixmap image
-        cvRGBImg_front = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+        cvRGBImg_front = cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
@@ -973,6 +935,116 @@ class AUV_gui(QMainWindow):
         
     def manipulators_callback(self,mani):
         self.q_mani.put(mani)
+
+    def drawReticle(self, origimg):
+        yaw, pitch, roll = self.data['yaw'], self.data['pitch'], self.data['roll']
+
+        DEGREE_PIXEL_RATIO = 0.1
+        H_DEGREE_PIXEL_RATIO = 0.3
+        height, width, _ = origimg.shape
+        colour = (255, 255, 255)
+        pitch_start, pitch_end = 40, height-40
+        yaw_start, yaw_end = 40, width-40
+
+        img = origimg
+
+        mid_x, mid_y = width/2, height/2
+
+        # Draw indicators
+        cv2.line(img, (mid_x-70, mid_y), (mid_x-50, mid_y), (0, 0, 255), 1)
+        cv2.line(img, (mid_x+50, mid_y), (mid_x+70, mid_y), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, 33), (mid_x-5, 38), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, 33), (mid_x+5, 38), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, pitch_end+13), (mid_x-5, pitch_end+10), (0, 0, 255), 1)
+        cv2.line(img, (mid_x, pitch_end+13), (mid_x+5, pitch_end+10), (0, 0, 255), 1)
+
+        # Multiply by 10 to work in integers
+        origin_pitch = int(10 * (DEGREE_PIXEL_RATIO * (mid_y-pitch_start) + pitch))
+        # Round to multiple of 25 lower than this
+        BASE = 25
+        closest_pitch = int(BASE * round(float(origin_pitch)/BASE))
+        closest_pitch -= BASE if closest_pitch > origin_pitch else 0
+
+        pitch_y = pitch_start + int((origin_pitch - closest_pitch) / (10 * DEGREE_PIXEL_RATIO))
+        pitch_inc = int(BASE / (10 * DEGREE_PIXEL_RATIO))
+        current_pitch = closest_pitch
+
+        # Draw horizontal lines
+        while pitch_y < pitch_end:
+            thickness = 1
+            offset = 6
+            if current_pitch % 50 == 0:
+                offset = 10
+            if current_pitch % 100 == 0:
+                offset = 18
+     
+            pt1 = (mid_x-offset, pitch_y)
+            pt2 = (mid_x+offset, pitch_y)
+            cv2.line(img, pt1, pt2, colour, thickness)
+
+            if current_pitch % 100 == 0:
+                txt = str(abs(current_pitch)/10)
+                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+                pt = (mid_x-offset-txt_w-2, pitch_y + txt_h/2)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+
+                pt = (mid_x+offset+2, pitch_y + txt_h/2)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+     
+            current_pitch -= BASE
+            pitch_y += pitch_inc
+
+        # Draw arc
+        angle = int(180 - roll)
+        cv2.ellipse(img, (mid_x, 140), (180, 120), angle, 75, 105, colour)
+        arcpts = cv2.ellipse2Poly((mid_x, 140), (180, 120), angle, 75, 105, 15)
+        for i, pt in enumerate(arcpts):
+            disp_angle = (i-1) * 15
+            txt = str(abs(disp_angle))
+            txt_angle = np.deg2rad(-roll - 90 + disp_angle)
+            (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+            txt_x = int(pt[0] + 6 * math.cos(txt_angle)) - txt_w/2
+            txt_y = int(pt[1] + 6 * math.sin(txt_angle))
+
+            cv2.putText(img, txt, (txt_x, txt_y), cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+            cv2.ellipse(img, (pt[0], pt[1]), (1,1), 0, 0, 360, colour)
+
+        # Draw horizontal band
+        CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+
+        origin_yaw = int(-H_DEGREE_PIXEL_RATIO * (mid_x-yaw_start) + yaw)
+        # Round to multiple of 5 greater than this
+        H_BASE = 5
+        closest_yaw = int(H_BASE * round(float(origin_yaw)/H_BASE))
+        closest_yaw += H_BASE if closest_yaw < origin_yaw else 0
+
+        yaw_x = 5 + yaw_start + int((closest_yaw - origin_yaw) / float(H_DEGREE_PIXEL_RATIO))
+        yaw_inc = int(H_BASE / float(H_DEGREE_PIXEL_RATIO))
+        current_yaw = closest_yaw
+
+        yaw_bottom = pitch_end + 30
+
+        while yaw_x < yaw_end:
+            thickness = 1
+            offset = 3 if current_yaw % 15 else 6
+     
+            pt1 = (yaw_x, yaw_bottom)
+            pt2 = (yaw_x, yaw_bottom - offset)
+            cv2.line(img, pt1, pt2, colour, thickness)
+
+            if current_yaw % 15 == 0:
+                disp_yaw = current_yaw if current_yaw >= 0 else current_yaw + 360
+                disp_yaw = disp_yaw if current_yaw < 360 else current_yaw - 360
+                txt = str(disp_yaw) if current_yaw % 45 else CARDINALS[disp_yaw / 45]
+                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+                pt = (yaw_x-txt_w/2, yaw_bottom - txt_h)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+     
+            current_yaw += H_BASE
+            yaw_x += yaw_inc
+
+        return img
+
         
 if __name__ == "__main__":
     rospy.init_node('Telemetry', anonymous=True)
