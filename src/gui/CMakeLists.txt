@@ -135,7 +135,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 
 ## Declare a cpp executable
 add_executable(vision_gui_node src/vision_gui.cpp src/filters.cpp)
-add_executable(Control_node src/controlui.cpp)
+add_executable(Control_node src/tuning_ui.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes

@@ -16,7 +16,7 @@
 #include <QTimer>
 #include <QObject>
 
-#include "../src/controlui.h"
+#include "../src/tuning_ui.h"
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>

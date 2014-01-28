@@ -8,7 +8,7 @@
 	Author: Jason & Lynnette & Thien
 */
 
-#include "controlui.h"
+#include "tuning_ui.h"
 
 #include <ros/ros.h>
 
@@ -27,7 +27,7 @@
 #include <termios.h>
 #include <signal.h>
 
-#include "controlui_add.h"
+#include "tuning_ui_add.h"
 
 //Convenient stuffs for dynamic reconfiguring
 #define numParams 30
