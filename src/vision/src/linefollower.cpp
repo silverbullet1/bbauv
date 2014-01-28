@@ -32,20 +32,21 @@ LineFollower::LineFollower() : it(nh), private_nh("~"), ac("/LocomotionServer", 
 	enabled = false;
 
 	private_nh.param<int>("loopHz", loopRateHz, 20);
-	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_rect_color");
-	string compassTopic; private_nh.param<string>("compass", compassTopic, "/compass");
+	string imageTopic; private_nh.param<string>("image", imageTopic, "/bot_camera/camera/image_rect_color_opt");
+	string compassTopic; private_nh.param<string>("compass", compassTopic, "/euler");
 
 	imageSub = it.subscribe(imageTopic, 1, &LineFollower::bottomCamCallback, this);
 	compassSub = nh.subscribe(compassTopic, 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 
-	thVal = 80;
+	thVal = 50;
 	areaThresh = 5000;
 	rectData.detected = false;
 	screen.width = 640;
 	screen.height = 480;
 
 	namedWindow("test");
+	ROS_INFO("Done intialising");
 }
 
 LineFollower::~LineFollower() {
@@ -53,18 +54,20 @@ LineFollower::~LineFollower() {
 }
 
 void LineFollower::publishMovement(bbauv_msgs::ControllerGoal goal) {
-	ac.sendGoal(goal);
-	bool hasServer = ac.waitForResult(ros::Duration(3));
-	if (!hasServer) {
-		ROS_INFO("Locomotion Server does not response. Quiting...");
-	}
+//	ROS_INFO("Sending goal...");
+//	ac.sendGoal(goal);
+//	bool hasServer = ac.waitForResult(ros::Duration(3));
+//	if (!hasServer) {
+//		ROS_INFO("Locomotion Server does not response. Quiting...");
+//	}
 }
 
 void LineFollower::start() {
-	ac.waitForServer();
+	//ac.waitForServer();
 	boost::shared_ptr<State> nextState(new StraightLineState(this));
 	state = boost::shared_ptr<State>(new DiveState(this, 0.2, nextState));
 	enabled = true;
+	ROS_INFO("Started...");
 }
 
 void LineFollower::stop() {
@@ -90,6 +93,7 @@ void LineFollower::bottomCamCallback(const sensor_msgs::ImageConstPtr& msg){
 }
 
 void LineFollower::prepareBlackLineParams(Mat inImage) {
+	ROS_INFO("Processing frame...");
 	//Ignore blue stuffs
 	Mat channels[3];
 	split(inImage, channels);
