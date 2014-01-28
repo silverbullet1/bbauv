@@ -13,13 +13,14 @@
 #include "flarestates.h"
 
 //Look for flare state
-LookForFlareState::LookForFlareState(){
+LookForFlareState::LookForFlareState(FlareDetection *fd){
 	ROS_INFO("Looking for yellow flare");
+	this->detector = fd;
 }
 
 boost::shared_ptr<State> LookForFlareState::gotFrame(cv::Mat image, RectData rectData){
-	bbauv_msgs::controller msg;
-	publishMovement(msg);
+	bbauv_msgs::ControllerGoal msg;
+	//detector->publishMovement(msg);
 	return shared_from_this();
 }
 
@@ -39,7 +40,7 @@ SurfaceState::SurfaceState(double heading){
 	bbauv_msgs::controller msg;
 	msg.depth_setpoint = 0.2;
 	msg.heading_setpoint = heading;
-	publishMovement(msg);
+	//publishMovement(msg);
 }
 
 boost::shared_ptr<State> SurfaceState::gotFrame(cv::Mat image, RectData rectData){

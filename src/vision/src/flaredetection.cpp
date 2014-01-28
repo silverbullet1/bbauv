@@ -36,53 +36,11 @@ ros::Publisher movementPub;
 static int yellow_params[6] = {10, 0, 0, 79, 148, 255};
 
 //Utility function
-double radianToDegree(double degree);
-
-class FlareDetection
-{
-public:
-	FlareDetection();
-	~FlareDetection();
-
-	int loopRateHz;
-
-	void start();
-	void stop();
-
-	void compassCallback(const bbauv_msgs::compass_data& msg);
-	double normHeading(double heading);
-	void imageCallback(const sensor_msgs::ImageConstPtr& msg);
-
-	//Fill rectData structure with necessary data
-	void prepareFlareParams(Mat inImage);
-
-	//Threshold parameters
-	int lowerH, higherH, lowerS, higherS, lowerV, higherV;
-private:
-	bool enabled;
-
-	ros::NodeHandle nh;
-	ros::NodeHandle private_nh;
-
-	image_transport::Subscriber imageSub;
-	ros::Subscriber compassSub;
-	image_transport::ImageTransport it;
-
-	//States
-	boost::shared_ptr<State> state;
-
-	//Center detection parameter
-	double areaThresh;
-	RectData rectData;
-	cv::Size screen;
-
-};
-
 double radianToDegree(double degree) {
 	return degree / M_PI * 180;
 }
 
-FlareDetection::FlareDetection(): it(nh), private_nh("~") {
+FlareDetection::FlareDetection(): it(nh), private_nh("~"), ac("LocomotionServer", true) {
 	enabled = false;
 
 	private_nh.param<int>("loopHz", loopRateHz, 20);
@@ -115,7 +73,7 @@ FlareDetection::~FlareDetection() {
 }
 
 void FlareDetection::start() {
-	state = boost::shared_ptr<State> (new LookForFlareState());
+	state = boost::shared_ptr<State> (new LookForFlareState(this));
 	enabled = true;
 }
 
