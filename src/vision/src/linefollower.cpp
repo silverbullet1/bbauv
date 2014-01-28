@@ -2,7 +2,7 @@
 	linefollower.cpp
 	Date created: 10 Jan 2014
 	Author: Lynnette & Thien
-*/
+ */
 
 #include <stdio.h>
 #include <termios.h>
@@ -27,7 +27,7 @@ double radianToDegree(double degree) {
 	return degree / M_PI * 180;
 }
 
-LineFollower::LineFollower() : it(nh), private_nh("~"), ac("LocomotionServer", true)
+LineFollower::LineFollower() : it(nh), private_nh("~"), ac("/LocomotionServer", true)
 {
 	enabled = false;
 
@@ -35,8 +35,8 @@ LineFollower::LineFollower() : it(nh), private_nh("~"), ac("LocomotionServer", t
 	string imageTopic; private_nh.param<string>("image", imageTopic, "/bottomcam/camera/image_rect_color");
 	string compassTopic; private_nh.param<string>("compass", compassTopic, "/compass");
 
- 	imageSub = it.subscribe(imageTopic, 1, &LineFollower::bottomCamCallback, this);
-    compassSub = nh.subscribe(compassTopic, 1, &LineFollower::compassCallback, this);
+	imageSub = it.subscribe(imageTopic, 1, &LineFollower::bottomCamCallback, this);
+	compassSub = nh.subscribe(compassTopic, 1, &LineFollower::compassCallback, this);
 	movementPub = nh.advertise<bbauv_msgs::controller>("/movement", 1);
 
 	thVal = 80;
@@ -54,15 +54,14 @@ LineFollower::~LineFollower() {
 
 void LineFollower::publishMovement(bbauv_msgs::ControllerGoal goal) {
 	ac.sendGoal(goal);
+	bool hasServer = ac.waitForResult(ros::Duration(3));
+	if (!hasServer) {
+		ROS_INFO("Locomotion Server does not response. Quiting...");
+	}
 }
 
 void LineFollower::start() {
 	ac.waitForServer();
-	bool hasServer = ac.waitForResult(ros::Duration(3));
-	if (!hasServer) {
-		ROS_INFO("Locomotion Server does not response. Quiting...");
-		return;
-	}
 	boost::shared_ptr<State> nextState(new StraightLineState(this));
 	state = boost::shared_ptr<State>(new DiveState(this, 0.2, nextState));
 	enabled = true;
@@ -110,9 +109,9 @@ void LineFollower::prepareBlackLineParams(Mat inImage) {
 	erode(greyImg, greyImg, erodeEl);
 	dilate(greyImg, greyImg, dilateEl);
 
-//	Mat roiImg;
-//	Rect roi(0, 190, 640, 100);
-//	greyImg(roi).copyTo(roiImg);
+	//	Mat roiImg;
+	//	Rect roi(0, 190, 640, 100);
+	//	greyImg(roi).copyTo(roiImg);
 
 	//Testing Mat
 	cv::Mat out = inImage.clone();
@@ -123,7 +122,7 @@ void LineFollower::prepareBlackLineParams(Mat inImage) {
 	cv::vector<cv::Vec4i> hierachy;
 
 	findContours(greyImg, contours, hierachy,
-				 CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+			CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
 	double max_area = 0;
 	Point2f center_max;

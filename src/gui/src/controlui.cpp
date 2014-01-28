@@ -3,7 +3,7 @@
 	A GUI for tuning the control systems
 	Date created: 8 Jan 2014
 	Author: Jason & Lynnette & Thien
-*/
+ */
 
 #include "controlui.h"
 
@@ -30,17 +30,17 @@
 #define numParams 30
 string dynamicParams[31] =
 {
-"depth_Kp", "depth_Ti", "depth_Td", "depth_min", "depth_max",
-"pitch_Kp", "pitch_Ti",	"pitch_Td", "pitch_min", "pitch_max",
-"roll_Kp", "roll_Ti", "roll_Td", "roll_min", "roll_max",
-"heading_Kp", "heading_Ti", "heading_Td", "heading_min", "heading_max",
-"forward_Kp", "forward_Ti", "forward_Td", "forward_min", "forward_max",
-"sidemove_Kp", "sidemove_Ti", "sidemove_Td", "sidemove_min", "sidemove_max"
+		"depth_Kp", "depth_Ti", "depth_Td", "depth_min", "depth_max",
+		"pitch_Kp", "pitch_Ti",	"pitch_Td", "pitch_min", "pitch_max",
+		"roll_Kp", "roll_Ti", "roll_Td", "roll_min", "roll_max",
+		"heading_Kp", "heading_Ti", "heading_Td", "heading_min", "heading_max",
+		"forward_Kp", "forward_Ti", "forward_Td", "forward_min", "forward_max",
+		"sidemove_Kp", "sidemove_Ti", "sidemove_Td", "sidemove_min", "sidemove_max"
 };
 
 //index for each DOF in the dynamicParams array
 int depthIndex = 0, pitchIndex = 5, rollIndex = 10,
-	headingIndex = 15, forwardIndex = 20, sidemoveIndex = 25;
+		headingIndex = 15, forwardIndex = 20, sidemoveIndex = 25;
 
 //Types for each DOF params
 string paramsTypes[] = {"double_t", "double_t", "double_t", "int_t", "int_t"};
@@ -89,7 +89,7 @@ public:
 	double x_org;
 
 	int thruster1, thruster2, thruster3, thruster4,
-		thruster5, thruster6, thruster7, thruster8;
+	thruster5, thruster6, thruster7, thruster8;
 
 	double total, p, i, d;
 
@@ -109,6 +109,7 @@ public:
 	void updateParameter(string paramName, bool val, dynamic_reconfigure::Config&);
 	void updateParameter(string paramName, double val, dynamic_reconfigure::Config&);
 	void updateParameter(string paramName, int val, dynamic_reconfigure::Config&);
+	void updatePIDChecks(bool depth, bool heading, bool forward, bool sidemove, bool roll, bool pitch);
 	void loadPIDChecks();
 	void loadDynamicParams();
 
@@ -225,10 +226,6 @@ void ControlUI::updateParameter(string paramName, double val, dynamic_reconfigur
 	double_param.name = paramName;
 	double_param.value = val;
 	conf.doubles.push_back(double_param);
-
-	srv_req.config = conf;
-
-	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 }
 
 void ControlUI::updateParameter(string paramName, int val, dynamic_reconfigure::Config& conf) {
@@ -239,10 +236,23 @@ void ControlUI::updateParameter(string paramName, int val, dynamic_reconfigure::
 	integer_param.name = paramName;
 	integer_param.value = val;
 	conf.ints.push_back(integer_param);
+}
+
+void ControlUI::updatePIDChecks(bool depth, bool heading, bool forward, bool sidemove, bool roll, bool pitch) {
+	dynamic_reconfigure::ReconfigureRequest srv_req;
+	dynamic_reconfigure::ReconfigureResponse srv_resp;
+	dynamic_reconfigure::Config conf;
+
+	updateParameter("depth_PID", depth, conf);
+	updateParameter("heading_PID", heading, conf);
+	updateParameter("forward_PID", forward, conf);
+	updateParameter("sidemove_PID", sidemove, conf);
+	updateParameter("roll_PID", roll, conf);
+	updateParameter("pitch_PID", pitch, conf);
 
 	srv_req.config = conf;
-
 	ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
+	controlUI->ui.statusbar->showMessage("PID Checks sent!", 3000);
 }
 
 void ControlUI::loadDynamicParams() {
@@ -425,7 +435,7 @@ string getdate() {
 void saveFile() {
 	QString selfilter = QString("*.bag");
 	QString filename = QFileDialog::getSaveFileName(controlUI->window, QString("Open controls file"), QDir::currentPath(),
-	QString(".txt files (*.txt);; All files (*.*)"), &selfilter);
+			QString(".txt files (*.txt);; All files (*.*)"), &selfilter);
 
 	try {
 		string strFilename = filename.toUtf8().constData();
@@ -451,7 +461,7 @@ void saveFile() {
 void openTheFile() {
 	QString selfilter = QString("*.bag");
 	QString filename = QFileDialog::getOpenFileName(controlUI->window, QString("Open controls file"), QDir::currentPath(),
-	QString(".txt files (*.txt);; All files (*.*)"), &selfilter);
+			QString(".txt files (*.txt);; All files (*.*)"), &selfilter);
 
 	string strFilename = filename.toUtf8().constData();
 	FILE* in;
@@ -487,15 +497,16 @@ void enableButton(){
 		controlUI->ui.roll_check->setChecked(true);
 		controlUI->ui.pitch_check->setChecked(true);
 
-		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
-	    bbauv_msgs::set_controller srv;
-	    srv.request.depth = true;
-	    srv.request.forward = true;
-	    srv.request.heading = true;
-	    srv.request.pitch = true;
-	    srv.request.roll= true;
-	    srv.request.sidemove = true;
-	    controlClient.call(srv);
+//		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+//		bbauv_msgs::set_controller srv;
+//		srv.request.depth = true;
+//		srv.request.forward = true;
+//		srv.request.heading = true;
+//		srv.request.pitch = true;
+//		srv.request.roll= true;
+//		srv.request.sidemove = true;
+//		controlClient.call(srv);
+		controlUI->updatePIDChecks(true, true, true, true, true, true);
 	}
 }
 
@@ -505,10 +516,10 @@ void mouseMoved(QMouseEvent *event) {
 	oss << std::fixed << std::setprecision(3);
 
 	double x = controlUI->ui.graph_canvas->xAxis->pixelToCoord(event->x());
- 	double y = controlUI->ui.graph_canvas->yAxis->pixelToCoord(event->y());
+	double y = controlUI->ui.graph_canvas->yAxis->pixelToCoord(event->y());
 
- 	oss << "Graph values: x: " << x << "\ty: " << y ;
- 	controlUI->ui.graphvalues->setText(QString::fromStdString(oss.str()));
+	oss << "Graph values: x: " << x << "\ty: " << y ;
+	controlUI->ui.graphvalues->setText(QString::fromStdString(oss.str()));
 }
 
 //To send goal value
@@ -521,7 +532,7 @@ void fire() {
 		dynamic_reconfigure::ReconfigureResponse srv_resp;
 		dynamic_reconfigure::Config conf;
 
-	    ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+		//ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 		bool forward, sidemove, heading, depth, pitch, roll;
 		ros::param::get("/Controller/forward_PID", forward);
 		ros::param::get("/Controller/sidemove_PID", sidemove);
@@ -536,36 +547,37 @@ void fire() {
 		pitch = pitch || controlUI->ui.pitch_check->isChecked();
 		roll = roll || controlUI->ui.roll_check->isChecked();
 
-	    bbauv_msgs::set_controller srv;
-	    srv.request.depth = depth;
-	    srv.request.forward = forward;
-	    srv.request.heading = heading;
-	    srv.request.pitch = pitch;
-	    srv.request.roll= roll;
-	    srv.request.sidemove = sidemove;
+//		bbauv_msgs::set_controller srv;
+//		srv.request.depth = depth;
+//		srv.request.forward = forward;
+//		srv.request.heading = heading;
+//		srv.request.pitch = pitch;
+//		srv.request.roll= roll;
+//		srv.request.sidemove = sidemove;
 
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
-			srv.request.depth = true;
+			depth = true;
 			controlUI->updateParameter("depth_setpoint", value, conf);
 		} else if (controlUI->graphType == "Pitch") {
-			srv.request.pitch = true;
+			pitch = true;
 			controlUI->updateParameter("pitch_setpoint", value, conf);
 		} else if (controlUI->graphType == "Heading") {
-			srv.request.heading = true;
+			heading = true;
 			controlUI->updateParameter("heading_setpoint", value, conf);
 		} else if (controlUI->graphType == "Roll") {
-			srv.request.roll = true;
+			roll = true;
 			controlUI->updateParameter("roll_setpoint", value, conf);
 		} else if (controlUI->graphType == "Side") {
-			srv.request.sidemove = true;
+			sidemove = true;
 			controlUI->updateParameter("sidemove_setpoint", value, conf);
 		} else if (controlUI->graphType == "Forward") {
-			srv.request.forward = true;
+			forward = true;
 			controlUI->updateParameter("forward_setpoint", value, conf);
 		}
 
-		controlClient.call(srv);
+		//controlClient.call(srv);
+		controlUI->updatePIDChecks(depth, heading, forward, sidemove, roll, pitch);
 		srv_req.config = conf;
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 
@@ -575,7 +587,7 @@ void fire() {
 
 // Called once when the goal completes
 void doneCb(const actionlib::SimpleClientGoalState& state,
-            const bbauv_msgs::ControllerResultConstPtr& result) {
+		const bbauv_msgs::ControllerResultConstPtr& result) {
 	const char* status = state.toString().c_str();
 	ROS_INFO("Finished in state [%s]", status);
 	controlUI->ui.statusbar->showMessage(status, 3000);
@@ -583,8 +595,8 @@ void doneCb(const actionlib::SimpleClientGoalState& state,
 
 // Called once when the goal becomes active
 void activeCb() {
-  ROS_INFO("Goal just went active");
-  controlUI->ui.statusbar->showMessage("Goal just went active", 3000);
+	ROS_INFO("Goal just went active");
+	controlUI->ui.statusbar->showMessage("Goal just went active", 3000);
 }
 
 // Called every time feedback is received for the goal
@@ -617,17 +629,19 @@ void sendButton(){
 		pitch = pitch || controlUI->ui.pitch_check->isChecked();
 		roll = roll || controlUI->ui.roll_check->isChecked();
 
-	    ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+		//ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 
-	    bbauv_msgs::set_controller srv;
-	    srv.request.depth = depth;
-	    srv.request.forward = forward;
-	    srv.request.heading = heading;
-	    srv.request.pitch = pitch;
-	    srv.request.roll= roll;
-	    srv.request.sidemove = sidemove;
+//		bbauv_msgs::set_controller srv;
+//		srv.request.depth = depth;
+//		srv.request.forward = forward;
+//		srv.request.heading = heading;
+//		srv.request.pitch = pitch;
+//		srv.request.roll= roll;
+//		srv.request.sidemove = sidemove;
 
-	    controlClient.call(srv);
+		//controlClient.call(srv);
+
+		controlUI->updatePIDChecks(depth, heading, forward, sidemove, roll, pitch);
 
 		if (depth) {
 			controlUI->updateParameter("depth_setpoint", controlUI->ui.depth_val->text().toDouble(), conf);
@@ -652,41 +666,41 @@ void sendButton(){
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->ui.statusbar->showMessage("Advanced goals sent!", 3000);
 
-//		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
-//		ROS_INFO("Waiting for action server to start.");
-//		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
-//		ac.waitForServer();
-//		ROS_INFO("Action server started, sending goal.");
-//		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
-//
-//		//Send goal and publish to topics to controller.msgs
-//		bbauv_msgs::ControllerGoal goal;
-//
-//		if (heading) {
-//			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
-//		} else {
-//			goal.heading_setpoint = 0.0;
-//		}
-//
-//		if (forward) {
-//			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
-//		} else {
-//			goal.forward_setpoint = 0.0;
-//		}
-//
-//		if (depth) {
-//			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
-//		} else {
-//			goal.depth_setpoint = 0.0;
-//		}
-//
-//		if (sidemove){
-//			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
-//		} else {
-//			goal.sidemove_setpoint = 0.0;
-//		}
-//
-//		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
+		//		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
+		//		ROS_INFO("Waiting for action server to start.");
+		//		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
+		//		ac.waitForServer();
+		//		ROS_INFO("Action server started, sending goal.");
+		//		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
+		//
+		//		//Send goal and publish to topics to controller.msgs
+		//		bbauv_msgs::ControllerGoal goal;
+		//
+		//		if (heading) {
+		//			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
+		//		} else {
+		//			goal.heading_setpoint = 0.0;
+		//		}
+		//
+		//		if (forward) {
+		//			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
+		//		} else {
+		//			goal.forward_setpoint = 0.0;
+		//		}
+		//
+		//		if (depth) {
+		//			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
+		//		} else {
+		//			goal.depth_setpoint = 0.0;
+		//		}
+		//
+		//		if (sidemove){
+		//			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
+		//		} else {
+		//			goal.sidemove_setpoint = 0.0;
+		//		}
+		//
+		//		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
 	}
 }
 
@@ -782,15 +796,23 @@ void graphTypeChanged(const QString& type) {
 }
 
 void disableButton() {
-	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
-    bbauv_msgs::set_controller srv;
-    srv.request.depth = false;
-    srv.request.forward = false;
-    srv.request.heading = false;
-    srv.request.pitch = false;
-    srv.request.roll= false;
-    srv.request.sidemove = false;
-    controlClient.call(srv);
+//	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+//	bbauv_msgs::set_controller srv;
+//	srv.request.depth = false;
+//	srv.request.forward = false;
+//	srv.request.heading = false;
+//	srv.request.pitch = false;
+//	srv.request.roll= false;
+//	srv.request.sidemove = false;
+//	controlClient.call(srv);
+	controlUI->ui.fwd_check->setChecked(false);
+	controlUI->ui.depth_check->setChecked(false);
+	controlUI->ui.yaw_check->setChecked(false);
+	controlUI->ui.sm_check->setChecked(false);
+	controlUI->ui.roll_check->setChecked(false);
+	controlUI->ui.pitch_check->setChecked(false);
+
+	controlUI->updatePIDChecks(false, false, false, false, false, false);
 }
 
 void refreshButton() {
@@ -850,8 +872,8 @@ int main(int argc, char **argv) {
 	QObject::connect(controlUI->ui.tuneButton, &QAbstractButton::released, tuneButton);
 	QObject::connect(controlUI->ui.sendButton, &QAbstractButton::released, sendButton);
 	QObject::connect(controlUI->ui.graphType,
-					 static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
-					 graphTypeChanged);
+			static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::currentIndexChanged),
+			graphTypeChanged);
 	QObject::connect(controlUI->ui.disableButton, &QAbstractButton::released, disableButton);
 	QObject::connect(controlUI->ui.refreshButton, &QAbstractButton::released, refreshButton);
 
