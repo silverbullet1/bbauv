@@ -495,7 +495,7 @@ class AUV_gui(QMainWindow):
         elif self.data['mode'] == 2:
             self.l_mode.setText("Sidemove")
         
-        self.attitudePanel1.setText("<b>YAW: " + str(round(self.data['yaw'],2)) + 
+        self.attitudePanel1.setText("<b>YAW: <br>" + str(round(self.data['yaw'],2)) + 
                                     "<br> PIT: " + str(round(self.data['pitch'],2)) +
                                     "<br>RLL: "+ str(round(self.data['roll'],2)) + "</b>")
         
@@ -573,7 +573,7 @@ class AUV_gui(QMainWindow):
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                               "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
         
-        if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB or self.data['hull_status'].WaterDetC) and not self.isLeak:
+        if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB ) and not self.isLeak:
             n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
             if not n.show():
                 print "Failed to send notification"
@@ -633,7 +633,6 @@ class AUV_gui(QMainWindow):
                                     "<br>DEP ERR: "+ str(round(self.data ['depth_error'],2)) + "</b>")
         
     def showDialog(self,ups):
-        #QMessageBox.about(self,"Battery Low",)
         n = pynotify.Notification("Battery Low", "OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
         if not n.show():
             print "Failed to send notification"
@@ -643,14 +642,13 @@ class AUV_gui(QMainWindow):
         rospy.loginfo("set_controller Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         
-        #rospy.wait_for_service('locomotion_mode_srv')
+        rospy.wait_for_service('locomotion_mode_srv')
         rospy.loginfo("Locomotion Mode Service ready.")
         self.locomotion_mode_request = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
         
     def initImage(self):
         self.bridge = CvBridge()
         frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color/image_raw"),Image, self.front_callback)
-        #frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
         botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_cam/camera/image_rect_color/image_raw"),Image, self.bottom_callback)
         filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
@@ -696,7 +694,7 @@ class AUV_gui(QMainWindow):
     def homeBtnHandler(self):
         movebaseGoal = MoveBaseGoal()
         x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
-        resp = self.set_controller_request(True, True, True, True, False, False,True)
+        resp = self.set_controller_request(True, True, True, True, False, False,True,False)
         #Execute Nav
         movebaseGoal.target_pose.header.frame_id = 'map'
         movebaseGoal.target_pose.header.stamp = rospy.Time.now()
@@ -709,7 +707,7 @@ class AUV_gui(QMainWindow):
         self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
         #movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
     def hoverBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, True, False,False)
+        resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -718,7 +716,7 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, False, False,False)
+        resp = self.set_controller_request(True, True, True, True, False, False,False,False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -746,7 +744,7 @@ class AUV_gui(QMainWindow):
 
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
-        resp = self.set_controller_request(True, True, True, True, True, False,False)
+        resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
         if self.rel_depth_chkbox.checkState():
             goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
@@ -802,14 +800,14 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Action Client ended goal.")
         #resp = self.set_controller_request(False, False, False, False, False, True, False)
     def initAction(self):
-        self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
+        self.client = actionlib.SimpleActionClient('/LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
         self.status_text.setText("Waiting for Action Server to connect.")
-        #self.client.wait_for_server()
+        self.client.wait_for_server()
         rospy.loginfo("Action Server connected.")
         self.status_text.setText("Action Server connected.")
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        #self.movebase_client.wait_for_server()
+        self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
