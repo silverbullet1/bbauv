@@ -13,7 +13,7 @@
 #include <QPixmap>
 #include <QDebug>
 
-#include "auv_gui.h"
+#include "vision_gui.h"
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <image_transport/image_transport.h>
