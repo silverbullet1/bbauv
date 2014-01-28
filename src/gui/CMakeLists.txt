@@ -99,7 +99,7 @@ find_package(OpenCV)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES GUI
+  LIBRARIES gui
   CATKIN_DEPENDS roscpp rospy std_msgs actionlib message_runtime bbauv_msgs
   DEPENDS system_lib
  )
@@ -134,16 +134,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 #)
 
 ## Declare a cpp executable
-add_executable(GUI_node src/auv_gui.cpp src/filters.cpp)
-add_executable(Control_node src/controlui.cpp)
+add_executable(vision_gui_node src/vision_gui.cpp src/filters.cpp)
+add_executable(Control_node src/tuning_ui.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(Control_node bbauv_msgs_generate_messages_cpp)
-add_dependencies(GUI_node bbauv_msgs_generate_messages_cpp)
+add_dependencies(vision_gui_node bbauv_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(GUI_node
+target_link_libraries(vision_gui_node
   ${catkin_LIBRARIES}
   Qt5::Widgets
   ${OpenCV_LIBRARIES}
@@ -154,7 +154,7 @@ target_link_libraries(Control_node
   qcustomplot
 )
 ##Required for QT5
-qt5_use_modules( GUI_node Widgets )
+qt5_use_modules( vision_gui_node Widgets )
 qt5_use_modules( Control_node Widgets PrintSupport)
 
 #############
