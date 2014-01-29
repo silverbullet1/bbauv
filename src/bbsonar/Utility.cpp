@@ -30,13 +30,12 @@ int Utility::initSonar() {
 		cout << "error retrieving head, exiting now: " << BVTError_GetString(retVal) << endl;
 		return retVal;
 	}
-	if((retVal = BVTHead_GetPing(head, PING_NUM,  &ping)) != 0) {
+	if((retVal = BVTHead_GetPing(head, PING_NUM, &ping)) != 0) {
 		cout << "error retrieving ping: "  << BVTError_GetString(retVal) << endl;
 		return retVal;
 	}
 	return 0;
 }
-
 
 int Utility::setHeadParams() {
 	startRange = BVTHead_GetStartRange(head);
@@ -99,7 +98,7 @@ int Utility::writeIntensities() {
 
 	imgBuffer = BVTMagImage_GetBits(magImg);
 	if (imgBuffer == NULL) cout << "imgBuf null" << endl;
-	cv::Mat matImg = Mat(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1, imgBuffer);
+	matImg = Mat(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1, imgBuffer);
 //	cout  << "matImg depth, channel: " << matImg.depth() << " " << matImg.channels() << endl;
 
 	imwrite("newIntensities.png", matImg);
@@ -109,19 +108,17 @@ int Utility::writeIntensities() {
 	for(int row=0; row < matImg.rows; ++row) {
 		for(int col=0; col < matImg.cols; ++col) {
 			cv::Scalar intensity = matImg.at<uchar>(col, row);
-			iOut << (unsigned short)(intensity.val[0] > GRAYSCALE_THRESH ? intensity.val[0] : 0) ;
+			iOut << (uchar)(intensity.val[0] > GRAYSCALE_THRESH ? intensity.val[0] : 0) ;
 			iOut << " " ;
 		}
 		iOut << endl;
 	}
 	iOut.close();
 
-	for(int row=0; row < matImg.rows; ++row) {
-		for(int col=0; col < matImg.cols; ++col) {
-			cv::Scalar intensity = matImg.at<uchar>(col, row);
-			intensity.val[0] = (unsigned short)(intensity.val[0] > GRAYSCALE_THRESH ? intensity.val[0] : 0);
-		}
-	}
+//	backup data storage in xml format
+	cv::FileStorage storage("store.yml", cv::FileStorage::WRITE);
+	storage << "mat" << matImg;
+	storage.release();
 
 	imshow("matImg", matImg);
 	cv::waitKey(0);
@@ -133,68 +130,70 @@ int Utility::writeIntensities() {
 	return 0;
 }
 
-
 int Utility::processImage() {
-//	cv::Mat matImg(image, true);
-//	cv::Mat matImg(grayImg, true);
-//	cv::imwrite("somefile.png", matImg);
-//
-//	int matR = matImg.rows;
-//	int matC = matImg.cols;
-//	cout << "rows: " << matR << "\t" << "columns: " << matC << endl;
-
 //	ifstream intensityIn;
-////	all processing stuffs with the grayscale image
+
+//	reading the image from the stored xml file
+//	cv::Mat grayImg = Mat::zeros(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1);
+//	cv::FileStorage storage("store.yml", cv::FileStorage::READ);
+//	storage["mat"] >> grayImg;
+//	storage.release();
+
+//	hardcoded read : beware of the image's path
+//	cv::Mat grayImg = Mat::zeros(316, 250, CV_16UC1);
+	cv::Mat grayImg = imread("newIntensities.png", 0);
+
+//	all processing stuffs with the saved grayscale image
 //	cv::Mat grayImg = matImg.clone();
-//	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, labelledImg;
-//
-////	smoothened
-//	cv::medianBlur(grayImg, smoothImg, 3);
-//
-////	thresholded
-////	double threshVal = getGlobalThreshold(grayImg);
-//	double threshVal = 100;
+	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, labelledImg;
+
+//	initializing the image matrices with zeros
+	smoothImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
+	threshImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
+	edgedImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
+	morphOImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
+	morphCImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
+
+//	smoothened
+	cv::medianBlur(grayImg, smoothImg, 3);
+
+//	thresholded : hardcoded for testing
+//	double threshVal = getGlobalThreshold(grayImg);
+	double threshVal = 150;
 //	cout << "global threshold value: " << threshVal << endl;
-//	cv::threshold(smoothImg, threshImg, threshVal, 255, CV_THRESH_BINARY);
-//
-////	morphology : opening and closing
-//	morphOImg = threshImg.clone();
-//	morphCImg = threshImg.clone();
-//	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
-//	morphologyEx(threshImg, morphOImg, CV_MOP_OPEN, element);
-//	morphologyEx(threshImg, morphCImg, CV_MOP_CLOSE, element);
-//
-////	applying canny filter for detecting edges
-//	cv::Canny(morphOImg, edgedImg, 1.0, 3.0, 3);
-//
-////	labelled image
-////	vector<vector<Point> > contours;
-////	vector<Vec4i> hierarchy;
-////	Rect boundingRect;
-////	cv::findContours(edgedImg, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-////	Scalar color(255,255,255);
-////	for(int i = 0; i< contours.size(); ++i) {
-////		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-////		drawContours(labelledImg, contours, i, color, 2, 8, hierarchy, 0, Point());
-////	}
-////	for( int i = 0; i<contours.size(); i++ ) {
-////		drawContours(drawing, contours, i, color, CV_FILLED, 8, hierarchy);
-////	}
-//
-//	imshow("grayImg", grayImg);
-//	imshow("smoothened", smoothImg);
-//	imshow("thresholded", threshImg);
-//	imshow("morphOpened", morphOImg);
-//	imshow("morphClosed", morphCImg);
-//	imshow("edged", edgedImg);
-////	imshow("labelled", drawing);
-//
-//
-//	cvWaitKey(0);
-//	cvReleaseImage(& image);
+	cv::threshold(smoothImg, threshImg, threshVal, 255, CV_THRESH_BINARY);
+
+//	morphology : opening and closing
+	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
+	morphologyEx(threshImg, morphOImg, CV_MOP_OPEN, element);
+	morphologyEx(threshImg, morphCImg, CV_MOP_CLOSE, element);
+
+//	applying canny filter for detecting edges
+	Canny(morphOImg, edgedImg, 1.0, 3.0, 3);
+
+//	labelled image
+//	RNG rng;
+//	vector<vector<Point> > contours;
+//	vector<Vec4i> hierarchy;
+//	findContours(edgedImg, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+//	labelledImg = Mat::zeros(edgedImg.size(), CV_16UC1);
+//	for(int i = 0; i< contours.size(); i++) {
+//		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+//		drawContours(labelledImg, contours, i, color, 2, 8, hierarchy, 0, Point());
+//	}
+
+	imshow("grayImg", grayImg);
+	imshow("smoothened", smoothImg);
+	imshow("thresholded", threshImg);
+	imshow("morphOpened", morphOImg);
+	imshow("morphClosed", morphCImg);
+	imshow("edged", edgedImg);
+//	imshow("labelled", labelledImg);
+
+	cvWaitKey(0);
+
 	return 0;
 }
-
 
 double Utility::getGlobalThreshold(cv::Mat gImg) {
 	cv::Mat g, ginv;
