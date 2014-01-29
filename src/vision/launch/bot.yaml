@@ -1,0 +1,6 @@
+guid: 000a47010f0a557e
+video_mode: 640x480_mono8
+frame_rate: 15
+bayer_pattern: rggb
+bayer_method: Bilinear
+

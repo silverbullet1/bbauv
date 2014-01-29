@@ -50,6 +50,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   TimeElapsed.msg
+  ControlData.msg
+  pid_info.msg
   ##Old msg files start
   acoustic_control.msg
   circles.msg
@@ -72,6 +74,8 @@ add_message_files(
 add_service_files(
   FILES
   TaskStatus.srv
+  SimpleMovement.srv
+  DVL.srv
   ##Old srv files start
   locomotion_mode.srv
   mission_to_lane.srv
@@ -109,7 +113,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES msgs
 #  CATKIN_DEPENDS roscpp rospy std_msgs
-   CATKIN_DEPENDS message_runtime
+   CATKIN_DEPENDS message_generation message_runtime roscpp rospy std_msgs actionlib actionlib_msgs geometry_msgs
 #  DEPENDS system_lib
 )
 

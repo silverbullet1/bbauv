@@ -23,7 +23,7 @@ alias bag='rqt_bag &'
 alias sparams=ros_service_list_params
 alias params='rosparam get /' 	 	 	
 alias rec='rosbag record -a'
-alias sshbb='sshpass -p bb ssh bbauvsbc1@bbauv'
+alias sshbb='sshpass -p bb ssh bbauvsbc1@192.168.1.100'
 alias catm='catkin_make'
 alias cati='catkin_make install'
 ##cd to Arduino sketchbook libraries and run this command to generate
@@ -31,7 +31,8 @@ alias rosserial_make='rosrun rosserial_arduino make_libraries.py'
 alias sim=runSim
 alias vision=runVisionUI
 alias PID=runPIDUI
-
+alias cor='coriander'
+alias dri='roslaunch launch drivers.launch'
 
 #MINI Functions 
 check_process() {
@@ -58,7 +59,7 @@ runPIDUI(){
 	check_process "roscore"
 	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
 	[ $? -eq 1 ] && echo "roscore running..."
-	rosrun GUI Control_node
+	rosrun gui Control_node
 }
 
 #MINI SCRIPTS/CONFIG

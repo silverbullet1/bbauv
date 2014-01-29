@@ -10,6 +10,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   cv_bridge
   image_transport
+  sensor_msgs
+  bbauv_msgs
+  actionlib
 )
 
 ## System dependencies are found with CMake's conventions
@@ -86,7 +89,7 @@ find_package(OpenCV)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vision
-  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime actionlib
   DEPENDS system_lib
 )
 
@@ -110,11 +113,16 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(linefollower_node src/linefollower.cpp)
+add_executable(linefollower_node src/linefollower.cpp src/linefollowingstates.cpp)
+add_executable(red_bucket_detection src/red_bucket_detection.cpp src/bucketstates.cpp)
+add_executable(flaredetection_node src/flaredetection.cpp src/flarestates.cpp)
+
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
+add_dependencies(red_bucket_detection bbauv_msgs_generate_messages_cpp)
+add_dependencies(flaredetection_node bbauv_msgs_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -124,6 +132,15 @@ add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
  target_link_libraries(linefollower_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
+ )
+ target_link_libraries(red_bucket_detection
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+ )
+ 
+ target_link_libraries(flaredetection_node 
+     ${catkin_LIBRARIES}
+     ${OpenCV_LIBRARIES}
  )
 
 #############
