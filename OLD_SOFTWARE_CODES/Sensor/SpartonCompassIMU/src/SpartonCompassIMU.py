@@ -43,7 +43,6 @@
 #
 
 
-import roslib; roslib.load_manifest('SpartonCompassIMU')
 import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Float32
