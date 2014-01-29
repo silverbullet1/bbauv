@@ -50,6 +50,7 @@ class AUV_gui(QMainWindow):
     update_freq = 40
     vision_filter_frame = None
     filter_image = None
+    isPIDon = True;
     q_orientation = Queue.Queue()
     q_depth = Queue.Queue() 
     q_earth_pos = Queue.Queue()
@@ -72,6 +73,25 @@ class AUV_gui(QMainWindow):
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
             'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
     counter = 0
+    
+    #Initialise subscribers/publishers
+    thruster_sub = None
+    orientation_sub = None
+    thruster_sub = None
+    depth_sub = None
+    orientation_sub = None
+    position_sub = None
+    controller_sub = None
+    mani_pub = None
+    mani_sub = None
+    earth_sub = None
+    feedback_sub = None
+    hull_status_sub = None
+    openups_sub = None
+    temp_sub = None
+    altitude_sub = None
+    mode_sub = None
+    
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
         
@@ -109,7 +129,7 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
-        disablePIDButton = QPushButton("DisablePID")
+        self.disablePIDButton = QPushButton("Disable PID")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
@@ -144,6 +164,7 @@ class AUV_gui(QMainWindow):
         hoverButton.clicked.connect(self.hoverBtnHandler)
         homeButton.clicked.connect(self.homeBtnHandler)
         self.modeButton.clicked.connect(self.modeBtnHandler)
+        self.disablePIDButton.clicked.connect(self.disablePIDHandler)
         vbox = QVBoxLayout()
         #hbox.addStretch(1)
         vbox.addWidget(okButton)
@@ -158,7 +179,7 @@ class AUV_gui(QMainWindow):
         #hbox.addStretch(1)
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
-        vbox3.addWidget(disablePIDButton)
+        vbox3.addWidget(self.disablePIDButton)
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
@@ -564,8 +585,6 @@ class AUV_gui(QMainWindow):
                               "<br> LT: " + mani_name[2] + 
                               "<br> RT: " + mani_name[3] +
                               "<br> GA: " + mani_name[4] +
-                              #"<br> LACT: " + mani[5] + 
-                              #"<br> RACT: " + mani[6] +
                               "</b>")
     
         self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
@@ -631,8 +650,9 @@ class AUV_gui(QMainWindow):
                                     "<br> FWD ERR: " + str(round(self.data['forward_error'],2)) + 
                                     "<br>SIDE ERR: "+ str(round(self.data['sidemove_error'],2)) + 
                                     "<br>DEP ERR: "+ str(round(self.data ['depth_error'],2)) + "</b>")
-        
+
     def showDialog(self,ups):
+        #QMessageBox.about(self,"Battery Low",)
         n = pynotify.Notification("Battery Low", "OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
         if not n.show():
             print "Failed to send notification"
@@ -642,31 +662,51 @@ class AUV_gui(QMainWindow):
         rospy.loginfo("set_controller Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
         
-        rospy.wait_for_service('locomotion_mode_srv')
+        #rospy.wait_for_service('locomotion_mode_srv')
         rospy.loginfo("Locomotion Mode Service ready.")
         self.locomotion_mode_request = rospy.ServiceProxy('locomotion_mode_srv',locomotion_mode)
         
     def initImage(self):
         self.bridge = CvBridge()
-        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color/image_raw"),Image, self.front_callback)
-        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_cam/camera/image_rect_color/image_raw"),Image, self.bottom_callback)
+        frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color_opt"),Image, self.front_callback)
+        #frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
+        botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_camera/camera/image_rect_color_opt"),Image, self.bottom_callback)
         filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
+    def unsubscribe(self):
+        rospy.loginfo("Unsubscribe from PID")
+        self.thruster_sub.unregister()
+        self.depth_sub.unregister()
+        self.orientation_sub.unregister()
+        self.position_sub.unregister()
+        self.controller_sub.unregister()
+        self.mani_pub.unregister()
+        self.mani_sub.unregister()
+        self.earth_sub.unregister()
+        self.feedback_sub.unregister()
+        self.hull_status_sub.unregister()
+        self.openups_sub.unregister()
+        self.temp_sub.unregister()
+        self.altitude_sub.unregister()
+        self.mode_sub.unregister()
+        
     def initSub(self):
-        thruster_sub = rospy.Subscriber("/thruster_speed",thruster, self.thruster_callback)
-        depth_sub = rospy.Subscriber("/depth", depth ,self.depth_callback)
-        orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
-        position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
-        controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
+        rospy.loginfo("Subscribe to PID")
+        self.thruster_sub = rospy.Subscriber("/thruster_speed",thruster, self.thruster_callback)
+        self.depth_sub = rospy.Subscriber("/depth", depth ,self.depth_callback)
+        self.orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
+        self.position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
+        self.controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
         self.mani_pub = rospy.Publisher("/manipulator",manipulator)
         self.mani_sub = rospy.Subscriber("/manipulator",manipulator,self.manipulators_callback)
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
-        feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
+        self.feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
-        openups_sub = rospy.Subscriber("/openups_stats",openups_stats,self.openups_callback)
-        temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
-        altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
-        mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
+        self.openups_sub = rospy.Subscriber("/openups_stats",openups_stats,self.openups_callback)
+        self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
+        self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
+        self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
+
     def get_status(self,val):
         if val == -1:
             return "NONE"
@@ -691,10 +731,20 @@ class AUV_gui(QMainWindow):
         if val == 9:
             return "LOST"
 
+    def disablePIDHandler(self):
+        if self.isPIDon: 
+            self.disablePIDButton.setText("Disable PID")
+            self.unsubscribe()
+        else:
+            self.disablePIDButton.setText("Enable PID")
+            self.initSub()
+        self.isPIDon = not self.isPIDon
+
+
     def homeBtnHandler(self):
         movebaseGoal = MoveBaseGoal()
         x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
-        resp = self.set_controller_request(True, True, True, True, False, False,True,False)
+        resp = self.set_controller_request(True, True, True, True, False, False,True)
         #Execute Nav
         movebaseGoal.target_pose.header.frame_id = 'map'
         movebaseGoal.target_pose.header.stamp = rospy.Time.now()
@@ -716,7 +766,7 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, False, False,False,False)
+        resp = self.set_controller_request(True, True, True, True, False, False,False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -800,14 +850,14 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Action Client ended goal.")
         #resp = self.set_controller_request(False, False, False, False, False, True, False)
     def initAction(self):
-        self.client = actionlib.SimpleActionClient('/LocomotionServer', ControllerAction)
+        self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
         self.status_text.setText("Waiting for Action Server to connect.")
-        self.client.wait_for_server()
+        #self.client.wait_for_server()
         rospy.loginfo("Action Server connected.")
         self.status_text.setText("Action Server connected.")
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        self.movebase_client.wait_for_server()
+        #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
     def valueChanged(self,value):
         self.heading_box.setText(str(value))

@@ -12,10 +12,9 @@
   <remap from="/bottomcam/camera/image_rect_color/" to="/front_camera/camera/image_rect_color/image_raw"/>
   </node>
   
-  <!--
   <node name="frontRepublish" pkg="image_transport" type="republish" output="screen" args="compressed in:=/front_camera/camera/image_rect_color/image_raw raw out:=/front_camera/camera/image_rect_color/image_raw">
   <remap from="/front_camera/camera/image_rect_color/image_raw" to="/front_camera/camera/image_rect_color/image_raw"/> 
-  </node>-->
+  </node>
 
 
 </launch>
