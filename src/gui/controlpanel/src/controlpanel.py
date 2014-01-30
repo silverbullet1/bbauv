@@ -79,6 +79,7 @@ class AUV_gui(QMainWindow):
     counter = 0
     
     #Initialise subscribers/publishers
+    isSubscribed = True
     thruster_sub = None
     orientation_sub = None
     thruster_sub = None
@@ -96,7 +97,7 @@ class AUV_gui(QMainWindow):
     altitude_sub = None
     mode_sub = None
     frontcam_sub = None
-    bottomcam_sub = None
+    botcam_sub = None
     filter_sub = None
     frontfilter_sub = None
     botfilter_sub = None
@@ -139,6 +140,7 @@ class AUV_gui(QMainWindow):
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
         self.disablePIDButton = QPushButton("Disable PID")
+        self.unsubscribeButton = QPushButton("Unsubscribe")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
@@ -174,6 +176,7 @@ class AUV_gui(QMainWindow):
         homeButton.clicked.connect(self.homeBtnHandler)
         self.modeButton.clicked.connect(self.modeBtnHandler)
         self.disablePIDButton.clicked.connect(self.disablePIDHandler)
+        self.unsubscribeButton.clicked.connect(self.unsubscribeHandler)
         vbox = QVBoxLayout()
         #hbox.addStretch(1)
         vbox.addWidget(okButton)
@@ -188,6 +191,7 @@ class AUV_gui(QMainWindow):
         #hbox.addStretch(1)
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
+        vbox3.addWidget(self.unsubscribeButton)
         vbox3.addWidget(self.disablePIDButton)
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
@@ -725,10 +729,10 @@ class AUV_gui(QMainWindow):
         self.mode_sub.unregister()
 
         self.frontcam_sub.unregister()
-        self.bottomcam_sub.unregister()
+        self.botcam_sub.unregister()
         self.filter_sub.unregister()
-        frontfilter_sub.unregister()
-        botfilter_sub.unregister()
+        self.frontfilter_sub.unregister()
+        self.botfilter_sub.unregister()
         
     def initSub(self):
         rospy.loginfo("Subscribe to PID")
@@ -771,14 +775,20 @@ class AUV_gui(QMainWindow):
         if val == 9:
             return "LOST"
 
+    def unsubscribeHandler(self):
+        if self.isSubscribed:
+            self.unsubscribeButton.setText("Subscribe")
+            self.unsubscribe()
+        else:
+            self.unsubscribeButton.setText("Unsubscribe")
+        self.isSubscribed = not self.isSubscribed
+
     def disablePIDHandler(self):
         if self.isPIDon: 
             self.disablePIDButton.setText("Disable PID")
-            self.unsubscribe()
+            resp = self.set_controller_request(False, False, False, False, False, False,False,False)
         else:
             self.disablePIDButton.setText("Enable PID")
-            self.initSub()
-            self.initImage()
         self.isPIDon = not self.isPIDon
 
 
