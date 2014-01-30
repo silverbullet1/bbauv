@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tasks
+  bbauv_msgs
 )
 
 ## System dependencies are found with CMake's conventions
