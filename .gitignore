@@ -4,6 +4,8 @@ install/
 *.pyc
 .pydevproject
 *.bag
+*.bag.org.active
+*.bag.active
 *~
 *.bak
 *.swp
