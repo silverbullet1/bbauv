@@ -39,8 +39,7 @@ extern const double secondsToRun;
 extern const double x_strip_threshold;
 
 //Function to normalise heading in degrees
-inline double normHeading(double heading)
-{
+inline double normHeading(double heading) {
 	if (heading > 360.0) { return heading - 360.0; }
 	else if (heading < 0.0) { return heading + 360.0; }
 	else { return heading; }
@@ -78,7 +77,6 @@ public:
 	void publishMovement(bbauv_msgs::ControllerGoal goal);
 
 	void compassCallback(const bbauv_msgs::compass_data& msg);
-	double normHeading(double heading);
 	void bottomCamCallback(const sensor_msgs::ImageConstPtr& msg);
 
 	//Fill rectData structure with necessary data
@@ -92,6 +90,9 @@ private:
 	image_transport::Subscriber imageSub;
 	ros::Subscriber compassSub;
 	image_transport::ImageTransport it;
+
+        //Publisher
+        ros::Publisher outputPub;
 
 	//Actionlib
 	actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac;
