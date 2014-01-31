@@ -2,7 +2,6 @@
 
 from bbauv_msgs.msg import compass_data
 from bbauv_msgs.msg import controller
-from bbauv_msgs.srv import *
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
 
@@ -18,10 +17,8 @@ class Flare:
     yellow_params = {'lowerH': 10, 'lowerS': 0, 'lowerV': 0, 'higherH': 79, 'higherS':148, 'higherV':255 }
     yellow_hist = None
     
-    isAimState = False
     isCenteringState = False
     isAlignState = True
-    isLoweringState = True
     
     bridge = None
     image_speed = None
@@ -33,7 +30,6 @@ class Flare:
     centroidy_list = None
     angleList = None
     max_area = 0
-    counter = 0                 #Counter for number of times the image is being processed
     
     #Necessary published methods 
     image_pub = None
@@ -52,7 +48,7 @@ class Flare:
     '''
     Flare Node vision methods
     '''
-    def __init__(selfself, debug_state):
+    def __init__(self, debug_state):
         self.debug = debug_state
         self.image_speed = rospy.get_param('~image', '/front_cam/camera/image_rect_color')
         #TODO: Add histogram modes for debug
@@ -190,6 +186,22 @@ class Flare:
           y_ave = np.ave(centroid_y, None, None)
           return x_ave, y_ave
           
-          
+    def processImage(self, data):
+        try:
+            cv_image = self.rosimg2cv(data)
+        except CvBridgeError, e:
+            print e
         
+        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
+        hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
+        
+        centroid_image = self.findTheFlare(hsv_image)
+        
+        try:
+            if (centroid_image != None):
+                centroid_image = cv2.cv.fromarray(centroid_image)
+                if (self.image_pub != None):
+                    self.image_pub.publish(self.bridge.cv_to_imgmsg(centroid_image, encoding="bgr8"))
+        except CvBridgeError, e:
+            print e
         
