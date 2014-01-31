@@ -1,6 +1,5 @@
 import roslib; roslib.load_manifest('vision')
 import rospy
-
 import actionlib
 from sensor_msgs.msg import Image
 import sensor_msgs
@@ -11,9 +10,12 @@ from bbauv_msgs.srv import *
 
 import cv2
 
+import math
+import numpy as np
+
 class LineFollower():
-    thval = 30
-    areaThresh = 9000
+    thval = 15
+    areaThresh = 10000
     screen = {}
     screen['width'] = 640
     screen['height'] = 480
@@ -65,16 +67,63 @@ class LineFollower():
                 dsize=(self.screen['width'], self.screen['height']))
 
         #Thresholding and noise removal
-        cv2.GaussianBlur(grayImg, ksize=(5, 5), sigmaX=0)
-        cv2.threshold(grayImg, thval, 255, cv2.THRESH_BINARY_INV) 
+        grayImg = cv2.GaussianBlur(grayImg, ksize=(5, 5), sigmaX=0)
+        grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         
         #Find centroid and bouding box
-        contours = cv2.findContours(grayImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-       
-        #Testing
-        out = grayImg.copy()
-        self.outPub.publish(self.cvbridge.cv2_to_imgmsg(img, encoding="bgr8"))
+        pImg = grayImg.copy()
+        contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+        maxArea = 0
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > self.areaThresh and area > maxArea:
+                #Find the center using moments
+                mu = cv2.moments(contour, False) 
+                centroidx = mu['m10']/mu['m00']
+                centroidy = mu['m01']/mu['m00']
+                maxArea = area
+                
+                self.rectData['centroid'] = (centroidx, centroidy)
+                self.rectData['rect'] = cv2.minAreaRect(contour)
+
+        if maxArea > 0:
+            self.rectData['detected'] = True;
+            points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
+
+            #Find the blackline heading
+            edge1 = points[1] - points[0] 
+            edge2 = points[2] - points[1]
+            #Choose the vertical edge
+            if cv2.norm(edge1) > cv2.norm(edge2):
+                self.rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
+            else:
+                self.rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
+            #Choose angle to turn if horizontal
+
+            #Chose angle to turn if horizontal
+            if self.rectData['angle'] == 90:
+                if self.rectData['centroid'][0] > self.screen['width'] / 2:
+                    self.rectData['angle'] = -90
+            elif self.rectData['angle'] == -90:
+                if self.rectData['centroid'][0] < self.screen['width'] / 2:
+                    self.rectData['angle'] = 90
+      
+            #Testing
+            out = img.copy()
+            centerx = int(self.rectData['centroid'][0])
+            centery = int(self.rectData['centroid'][1])
+            cv2.circle(out, (centerx, centery), 5, (0, 255, 0)) 
+            for i in range(4):
+                pt1 = (int(points[i][0]), int(points[i][1]))
+                pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
+                cv2.line(out, pt1, pt2, (0, 0, 255))
+            cv2.putText(out, str(self.rectData['angle']), (30, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
+            #For gray scale testing
+            #out.shape = (out.shape[0], out.shape[1], 1)
+            self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
