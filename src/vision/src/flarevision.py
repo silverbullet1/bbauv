@@ -204,4 +204,20 @@ class Flare:
                     self.image_pub.publish(self.bridge.cv_to_imgmsg(centroid_image, encoding="bgr8"))
         except CvBridgeError, e:
             print e
+            
+if __name__ == '__main__':
+    rospy.init_node('Flare Vision', anonymous=False)
+    rosRate = rospy.Rate(20)
+    fv = flarevision(False)
+    rospy.loginfo("Flare loaded!")
+    
+    register()
+    img = findTheFlare()
+    processImage(img)    
+    
+    try:
+        rospy.spin()
+    except KeyboardInterrupt:
+        rospy.loginfo("Shutting down flare")
+    pass
         
