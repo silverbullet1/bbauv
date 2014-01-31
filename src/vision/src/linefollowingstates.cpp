@@ -9,10 +9,12 @@
 
 #include <string.h>
 #include <queue>
+#include <stack>
 
 #include "linefollowingstates.h"
 
 std::queue<double> hist; //queue to store previous angles;
+std::stack<double> actionsHist; //stack to store previous movements;
 
 // Look for line state
 LookForLineState::LookForLineState(LineFollower* fl) {
@@ -106,6 +108,7 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 	int screen_center_x = screen_width / 2;
 
 	double delta_x = (double) (rectData.center.x - screen_center_x) / screen_width;
+	ROS_INFO("x-offset: %lf", delta_x);
 
 	bbauv_msgs::ControllerGoal msg;
 	msg.depth_setpoint = DEPTH_POINT;
@@ -129,6 +132,7 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 		}
 	}
 
+	if ((int) hist.size() > 100) hist.pop();
 	hist.push(rectData.angle);
 
 	if (delta_x < -x_strip_threshold) {
@@ -141,7 +145,7 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 		//Keep moving forward
 		msg.heading_setpoint = rectData.heading;
 		msg.forward_setpoint = 0.9;
-		ROS_INFO("Forward!");
+		ROS_INFO("Forward! Heading: %lf, sidemove: %lf", msg.heading_setpoint, msg.sidemove_setpoint);
 	} else {
 		if (msg.sidemove_setpoint == 0 && abs(rectData.angle > 10)) {
 			msg.sidemove_setpoint = rectData.angle / 60 * 0.2;
@@ -152,6 +156,7 @@ boost::shared_ptr<State> StraightLineState::gotFrame(cv::Mat image, RectData rec
 			angle_diff = rectData.angle > 0 ? 30.0 : -30.0;
 		}
 		msg.heading_setpoint = normHeading(rectData.heading - angle_diff);
+		ROS_INFO("Moving: %lf side, %lf heading", msg.sidemove_setpoint, msg.heading_setpoint);
 	}
 	follower->publishMovement(msg);
 	return shared_from_this();

@@ -20,7 +20,7 @@ double radianToDegree(double degree);
 //const int endTime = 0;
 const int DEPTH_POINT = 1.1;
 const double secondsToRun = 2.25 * 60;
-const double x_strip_threshold = 0.2;
+const double x_strip_threshold = 0.15;
 ros::Publisher cameraOut;
 
 double radianToDegree(double degree) {
@@ -39,7 +39,7 @@ LineFollower::LineFollower() : it(nh), private_nh("~"), ac("LocomotionServer", t
     outputPub = nh.advertise<sensor_msgs::Image>("/linefollower/camera", 1);
 
     thVal = 30;
-    areaThresh = 8000;
+    areaThresh = 9000;
     rectData.detected = false;
     screen.width = 640;
     screen.height = 480;
@@ -62,7 +62,7 @@ void LineFollower::publishMovement(bbauv_msgs::ControllerGoal goal) {
 }
 
 void LineFollower::start() {
-    //ac.waitForServer();
+    ac.waitForServer();
     boost::shared_ptr<State> nextState(new StraightLineState(this));
     state = boost::shared_ptr<State>(new DiveState(this, 0.2, nextState));
     enabled = true;
