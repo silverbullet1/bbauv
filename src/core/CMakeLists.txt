@@ -54,11 +54,12 @@ find_package(Boost REQUIRED COMPONENTS system)
 #)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+#add_service_files(
+#  FILES
+#  #mission_linefollower.srv
+#  #mission_flare.srv
+#  #mission_to_lane.srv
+#)
 
 ## Generate actions in the 'action' folder
 # add_action_files(

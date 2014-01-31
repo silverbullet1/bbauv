@@ -2,6 +2,7 @@
 
 import roslib; roslib.load_manifest('core')
 import rospy, actionlib
+from std_msgs.msg import String
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 
@@ -27,6 +28,8 @@ class InitialState(smach.State):
             self.execute()
 
     def execute(self, userdata):
+        return 'initialized' # temporary pass through to test linefollower
+        status = 'mission_planer.init.start'
         self.actionClient.wait_for_server()
         #self.actionClient.send_goal(self.goal, self.done)
         #self.actionClient.wait_for_result()
@@ -43,6 +46,12 @@ class Gate(smach.State):
 
     def execute(self, userdata):
         ##call linefollower here
+        rospy.wait_for_service('linefollower_service')
+        service = rospy.ServiceProxy('linefollower_service',
+                                     mission_linefollower)
+        resp = service(True, True)
+        rospy.loginfo(resp.start_response)
+        rospy.loginfo(resp.abort_response)
         return 'gate_passed'
 
 class Bucket(smach.State):
