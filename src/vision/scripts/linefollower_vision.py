@@ -20,17 +20,23 @@ class LineFollower():
     screen['width'] = 640
     screen['height'] = 480
     
-    #Defualt setpoints
-    f_setpoint = 0; h_setpoint = 0; sm_setpoint = 0;
-    d_setpoint = 0; r_setpoint = 0; p_setpoint = 0;
-
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
 
+    curHeading = 0.0
+    depth_setpoint = 0.2
+
     def __init__(self):
+        self.isAborted = False 
         self.cvbridge = CvBridge()
         self.rectData = {'detected':False}
 
+        self.registerSubscribers()
+        #Wait for locomotion server to start
+        rospy.loginfo("Waiting for Locomotion Server")
+        #self.locomotionClient.wait_for_server()
+    
+    def registerSubscribers(self):
         #Subscribe to camera
         self.imgSub = rospy.Subscriber("/bot_camera/camera/image_rect_color_opt",
                                         Image,
@@ -41,6 +47,13 @@ class LineFollower():
                                         self.compassCallback)
         #Publisher for testing output image
         self.outPub = rospy.Publisher("/botcam/filterimage", Image)
+
+    def unregisterSubscribers(self):
+        self.imgSub.unregister()
+        self.comSub.unregister()
+        self.outPub.unregister()
+        self.rectData['detected'] = False
+        
     
     #ROS callback functions
     def cameraCallback(self, image):
@@ -48,17 +61,20 @@ class LineFollower():
         self.detectBlackLine(cvImg)
     
     def compassCallback(self, data):
-        h_setpoint = data.yaw
-        r_setpoint = data.roll
-        p_setpoint = data.pitch
+        self.curHeading = data.yaw
 
     #Utility function to send movements throught locomotion server
-    def sendMovement(f=f_setpoint, h=h_setpoint, sm=sm_setpoint, d=d_setpoint,
-                     r=r_setpoint, p=p_setpoint):
+    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
+        d = d if d else self.depth_setpoint
+        h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
-                                             sidemove_setpoint=sm, depth_setpoint=d,
-                                             roll_setpoint=r, pitch_setpoint=p)
-        locomotionClient.sendGoal(goal)
+                                             sidemove_setpoint=sm, depth_setpoint=d)
+                                             
+        self.locomotionClient.send_goal(goal)
+
+    def abortMission(self):
+        #TODO Notify mission planner service
+        self.isAborted = True
 
     #Main filters chain
     def detectBlackLine(self, img):
@@ -103,7 +119,6 @@ class LineFollower():
                 self.rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
             else:
                 self.rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
-            #Choose angle to turn if horizontal
 
             #Chose angle to turn if horizontal
             if self.rectData['angle'] == 90:
@@ -123,7 +138,9 @@ class LineFollower():
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                 cv2.line(out, pt1, pt2, (0, 0, 255))
             cv2.putText(out, str(self.rectData['angle']), (30, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
             #For gray scale testing
             #out.shape = (out.shape[0], out.shape[1], 1)
             self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
+        else:
+            self.rectData['detected'] = False
