@@ -17,8 +17,11 @@ class Flare:
     debug = True
     yellow_params = {'lowerH': 10, 'lowerS': 0, 'lowerV': 0, 'higherH': 79, 'higherS':148, 'higherV':255 }
     yellow_hist = None
-    isAim = False
-    isCentering = False
+    
+    isAimState = False
+    isCenteringState = False
+    isAlignState = True
+    isLoweringState = True
     
     bridge = None
     image_speed = None
@@ -29,6 +32,7 @@ class Flare:
     centroidx_list = None
     centroidy_list = None
     angleList = None
+    max_area = 0
     counter = 0                 #Counter for number of times the image is being processed
     
     #Necessary published methods 
@@ -84,7 +88,7 @@ class Flare:
           contourImg = np.zeros((rows, cols, 3), dtype=np.uint8)
           centroidx = list()
           centroidy = list()
-          binList = list()
+          contourRectList = list()
           self.angleList = list()
           max_area = 0
           areaThresh = 3000
@@ -92,20 +96,99 @@ class Flare:
           
           if (contours != None):
               for i in range (0, len(contours)):
-                  area = cv2.contourarea(contours[i])
-                  if (area > areaThresh and area > max_area):
-                      #Find the center using moments 
-                      mu = cv2.moments(contours[i], binaryImage=False)
-                      mu_area = mu['m00']
-                      center_max.x = mu['m10']/mu_area
-                      center_max.y = mu['m01']/mu_area
-                      max_area = area
-                      
+                  #Find the center using moments 
+                  mu = cv2.moments(contours[i], binaryImage=False)
+                  humoments = cv2.HuMoments(mu)  
+
+                  mu_area = mu['m00']
+                  if (mu_area > 700):
+                      #center_max.x = mu['m10']/mu_area
+                      #center_max.y = mu['m01']/mu_area
+                      #max_area = area
+                                            
                       #Find bounding rect 
-                      maxRect = cv2.minAreaRect(contours[i])
+                      cv2.drawContours(contourImg, contours, i, (100, 255, 100), lineType=8, thickness=1, maxLevel=0)
+                      countourRect = cv2.minAreaRect(contours[i])
+                      pos,size,theta = contourRect
+                      contourRectList.append(contourRect)
+                      
+                      #Find the corners of the box
+                      points = cv2.cv.BoxPoints(contourRect)
+                      longest_pt1 = None
+                      longest_pt2 = None
+                      longest_norm = 0
+                      for i in range(4):
+                          pt1 = (int(points[i][0]), int(points[i][1]))
+                          pt2 = (int(point[(i+1)%4][0]), int(points[(i+1)%4][1]))
+                          norm = math.sqrt(pow((pt1[0]-pt2[0]),2) + pow((pt1[1]-pt2[1]),2))
+                          if (norm > longest_norm):
+                              longest = longest_norm = norm
+                              longest_pt1 = pt1
+                              longest_pt2 = pt2
+                          cv2.line(contourImg, pt1, pt2, 255, 1)
+                          
+                      if (abs(humoments[0] - 0.202) < 0.01):
+                          if (longest_pt2[1] < longest_pt1[1]):
+                              temp = longest_pt2        #Swap the two points
+                              longest_pt2 = longest_pt1
+                              longest_pt1 = temp
+                              cv.line(contourImg, longest_pt1, longest_pt2, (0,0,255), 2)
+                              rect_y = longest_pt2[1] - longest_pt1[1]
+                              rect_x = longest_pt2[0] - longest_pt1[0]
+                              angle_hori = math.degrees(math.atan2(rect_y, rect_x))
+                              #normalise angle
+                              if angle_hori == 0.0:
+                                  angle_hori = 90      
+                              self.angleList.append(angle_hori)
+                      
+                      if (self.isAlignState):
+                          centroidx.append(center_max.x)
+                          centroidy.append(center_max.y)
+                          cv2.circle(contourImg, (int(centroidx[len(centroidx)-1]), int(centroidy[len(centroidy)-1])), 2, (0,0,255), thickness=1)
+                          #TODO: CHANGE THE COLOURS OF THE BOX AND CIRCLE DRAWN TO SUIT ACTUAL IMAGE
+                          
+          else:
+              self.centroidx = 0  
+              self.centroidy = 0
                   
-          
-          
+          #Central centroid for veicle centering
+          if len(centroidx) > 0:
+              self.centroidx = centroidx
+              self.centroidy = centroidy
+              self.centroidx, self.centroidy = self.computeCenter(centroidx, cenroidy)
+              cv2.circle(contourImg, (int(self.centroidx), int(self.centroidy)),2,(0,0,255), thickness=1)
+          else:
+              self.centroidx = 0
+              self.centroidy = 0
+              
+          #Compute angle correction for vehicle orientation
+          if len(self.angleList) > 1:
+              self.isCenteringState = True
+              self.orientation = self.angleList[1]
+          elif len(self.angleList) == 1:
+              self.isCenteringState = True
+              self.orientation = self.angleList[0]
+          else:
+              self.isCenteringState = False
+          if self.orientation != None:
+              cv2.putText(contourImg, str(np.round(self.orientation,1)) + " " + str(np.round(self.yaw,1)), 
+                          (int(self.centroidx), int(self.centroidy)), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))    
+              
+          #pos, size, theta
+          if len(contourRectList) > 0:
+              for rect in contourRectList:
+                  temp_area = int(rect[1][0]) * int(rect[1][1])
+                  if temp_area > max_area:
+                      max_area = temp_area
+              self.max_area = max_area
+              
+              
+          return contourImg
+              
+    def computeCenter(self, centroid_x, centroid_y):
+          x_ave = np.ave(centroid_x, None, None)
+          y_ave = np.ave(centroid_y, None, None)
+          return x_ave, y_ave
           
           
         
