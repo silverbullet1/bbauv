@@ -34,7 +34,7 @@ class LineFollower():
         self.registerSubscribers()
         #Wait for locomotion server to start
         rospy.loginfo("Waiting for Locomotion Server")
-        #self.locomotionClient.wait_for_server()
+        self.locomotionClient.wait_for_server()
     
     def registerSubscribers(self):
         #Subscribe to camera
@@ -46,7 +46,7 @@ class LineFollower():
                                         compass_data,
                                         self.compassCallback)
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/botcam/filterimage", Image)
+        self.outPub = rospy.Publisher("/bot_camera/filter", Image)
 
     def unregisterSubscribers(self):
         self.imgSub.unregister()
