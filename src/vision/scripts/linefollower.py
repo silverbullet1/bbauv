@@ -138,12 +138,12 @@ def main():
     
 
     #Creating a State Machine Container
-    sm = smach.StateMachine(outcomes=['complete_task', 'aborted']) 
+    sm = smach.StateMachine(outcomes=['complete_line', 'aborted']) 
 
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(linefollower),
                                transitions={'start_complete':'SEARCHING',
-                                            'complete_outcome':'complete_task',
+                                            'complete_outcome':'complete_line',
                                             'aborted':'aborted'})
 
         smach.StateMachine.add("SEARCHING", Searching(linefollower),

@@ -28,25 +28,16 @@ class Flare:
     isAborted = False
     screen = {'width': 640, 'height': 480}
     
-    #Necessary published methods 
+    #Necessary publisher and subscribers
     image_pub = None
     image_sub = None
     yaw_sub = None
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", bbauv_msgs.msg.ControllerAction)
-        
-    '''
-    Utility Methods 
-    '''
-    
-    #Convert ROS image to Numpy matrix for cv2 functions 
-    def rosimg2cv(self, ros_image):
-        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
-        return np.array(frame, dtype = np.uint8)
     
     '''
     Flare Node vision methods
     '''
-    def __init__(self, debug_state):
+    def __init__(self):
         self.image_topic = rospy.get_param('~image', '/front_cam/camera/image_rect_color')
         #TODO: Add histogram modes for debug
         self.bridge = CvBridge()
@@ -73,8 +64,6 @@ class Flare:
     
     def yaw_callback(self, msg):
         self.yaw = msg.yaw
-    
-    
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
@@ -156,7 +145,11 @@ class Flare:
                   
           return out
               
-          
+    #Convert ROS image to Numpy matrix for cv2 functions 
+    def rosimg2cv(self, ros_image):
+        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        return np.array(frame, dtype = np.uint8)
+    
     def processImage(self, data):
         try:
             cv_image = self.rosimg2cv(data)
