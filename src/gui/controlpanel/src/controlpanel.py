@@ -69,8 +69,6 @@ class AUV_gui(QMainWindow):
     q_image_bot = None
     q_image_front = None
     q_image_rfront = None
-    q_image_f_front = None
-    q_image_f_bottom = None
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups_stats(),
@@ -353,18 +351,7 @@ class AUV_gui(QMainWindow):
         video_layout.addWidget(self.video_bot)
         #video_layout.addStretch(1)
         main_layout.addLayout(video_layout)
-
-        filtered_video_layout = QVBoxLayout()
-        self.f_video_top = QLabel()
-        self.f_video_bot = QLabel()
-        f_video_top_l = QLabel("<b>Filtered Front</b>")
-        f_video_bot_l = QLabel("<b>Filtered Bottom</b>")
-        filtered_video_layout.addWidget(f_video_top_l)
-        filtered_video_layout.addWidget(self.f_video_top)
-        filtered_video_layout.addWidget(f_video_bot_l)
-        filtered_video_layout.addWidget(self.f_video_bot)
-        main_layout.addLayout(filtered_video_layout)
-        
+      
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
         self.setGeometry(300, 300, 1090, 760)
@@ -484,10 +471,6 @@ class AUV_gui(QMainWindow):
             image_bot = self.q_image_bot
         except Exception,e:
             pass
-        try:
-            f_image_bot = self.q_image_f_bottom
-        except Exception, e:
-            pass
         '''If data in queue is available store it into data'''
         if temp!= None:
             self.data['temp'] = temp.data
@@ -536,11 +519,6 @@ class AUV_gui(QMainWindow):
         if self.filter_image != None:
             self.vision_filter_frame.update_image_filterchain(self.filter_image)
         
-        if self.q_image_f_bottom != None:
-            self.update_video_f_bot(self.q_image_f_bottom)
-        if self.q_image_f_front != None:
-            self.update_video_f_front(self.q_image_f_front)
-
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
         
@@ -708,8 +686,8 @@ class AUV_gui(QMainWindow):
         self.botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_camera/camera/image_rect_color_opt"),Image, self.bottom_callback)
         self.filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
-        self.frontfilter_sub = rospy.Subscriber(rospy.get_param('~bot_filter', "/bot_camera/filter"), Image, self.botfilter_callback)
-        self.botfilter_sub = rospy.Subscriber(rospy.get_param('~front_filter', "/front_camera/filter"), Image, self.frontfilter_callback)
+        #self.frontfilter_sub = rospy.Subscriber(rospy.get_param('~bot_filter', "/bot_camera/filter"), Image, self.botfilter_callback)
+        #self.botfilter_sub = rospy.Subscriber(rospy.get_param('~front_filter', "/front_camera/filter"), Image, self.frontfilter_callback)
 
     def unsubscribe(self):
         rospy.loginfo("Unsubscribe from PID")
@@ -718,7 +696,7 @@ class AUV_gui(QMainWindow):
         self.orientation_sub.unregister()
         self.position_sub.unregister()
         self.controller_sub.unregister()
-        self.mani_pub.unregister()
+        #self.mani_pub.unregister()
         self.mani_sub.unregister()
         self.earth_sub.unregister()
         self.feedback_sub.unregister()
@@ -974,18 +952,6 @@ class AUV_gui(QMainWindow):
         if self.vision_filter_frame.isFront == 1:
             self.vision_filter_frame.update_image_visual(image)
             self.vision_filter_frame.update_image_filter(image)
-    
-    def update_video_f_front(self, image):
-        cvRGBImg_f_frt = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
-        qimg = QImage(cvRGBImg_f_frt.data,cvRGBImg_f_frt.shape[1], cvRGBImg_f_frt.shape[0], QImage.Format_RGB888)
-        qpm = QPixmap.fromImage(qimg)
-        self.f_video_front.setPixmap(qpm.scaledToHeight(250))
-
-    def update_video_f_bottom(self, image):
-        cvRGBImg_f_bot = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
-        qimg = QImage(cvRGBImg_f_bot.data,cvRGBImg_f_bot.shape[1], cvRGBImg_f_bot.shape[0], QImage.Format_RGB888)
-        qpm = QPixmap.fromImage(qimg)
-        self.f_video_bot.setPixmap(qpm.scaledToHeight(250))
         
     def front_rcallback(self,image):
         try:
@@ -1043,18 +1009,6 @@ class AUV_gui(QMainWindow):
         
     def manipulators_callback(self,mani):
         self.q_mani.put(mani)
-
-    def botfilter_callback(self, image):
-        try:
-            self.q_image_f_bottom = image
-        except CvBridgeError, e:
-            print e
-
-    def frontfilter_callback(self, image):
-        try:
-            self.q_image_f_front = image
-        except CvBridgeError, e:
-            print e
 
     def drawReticle(self, origimg):
         yaw, pitch, roll = self.data['yaw'], self.data['pitch'], self.data['roll']

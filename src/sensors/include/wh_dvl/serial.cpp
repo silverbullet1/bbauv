@@ -253,7 +253,8 @@ void Serial::getBytesAvailable() {
 } // end getBytesAvailable()
 
 void Serial::sendHardBreak() {
-    if ( ioctl(fd, TCSBRK, 0) == -1 )
+    const int term_tcsbrk = 0X5425;
+    if ( ioctl(fd, term_tcsbrk, 0) == -1 )
         perror("Send hard break");
     cout << "Sending hard break" << endl;
     //tcsendbreak(fd, 0);
