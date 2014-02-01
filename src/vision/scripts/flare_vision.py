@@ -8,6 +8,7 @@ from nav_msgs.msg import Odometry
 import roslib; roslib.load_manifest('vision')
 import rospy
 import math
+import actionlib
 import cv2 as cv2
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -38,15 +39,16 @@ class Flare:
     Flare Node vision methods
     '''
     def __init__(self):
-        self.image_topic = rospy.get_param('~image', '/front_cam/camera/image_rect_color')
+        self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         #TODO: Add histogram modes for debug
         self.bridge = CvBridge()
+        self.register()
         rospy.loginfo("Flare ready")
             
     def register(self):
         self.image_pub = rospy.Publisher("/front_camera/filter" , Image)
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
-        self.yaw_sub = rospy.Subsriber('/euler', compass_data, self.yaw_callback)
+        self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
@@ -75,13 +77,11 @@ class Flare:
         
     def abortMission(self):
         self.isAborted = True
-        #Inform mission planner 
-    
     
     def findTheFlare(self, image):
           #Perform yellow thresholding
-          lowerBound = np.array([yellow_params['lowerH'], yellow_params['lowerS'], yellow_params['lowerV']],np.uint8)
-          higherBound = np.array([yellow_params['higherH'], yellow_params['higherS'], yellow_params['higherV']],np.uint8)
+          lowerBound = np.array([self.yellow_params['lowerH'], self.yellow_params['lowerS'], self.yellow_params['lowerV']],np.uint8)
+          higherBound = np.array([self.yellow_params['higherH'], self.yellow_params['higherS'], self.yellow_params['higherV']],np.uint8)
           contourImg = cv2.inRange(image, lowerBound, higherBound)
           
           #Noise removal
@@ -97,12 +97,12 @@ class Flare:
           max_area = 0
           for contour in contours:
               area = cv2.contourArea(contour)
-              if area > self.areaThresh and area > maxArea:
+              if area > self.areaThresh and area > max_area:
                   # Find center with moments
                   mu = cv2.moments(contour, False)
                   mu_area = mu['m00']
-                  centroidx = mu['10']/mu_area
-                  centroidy = mu['01']/mu_area
+                  centroidx = mu['m10']/mu_area
+                  centroidy = mu['m01']/mu_area
                   max_area = area
                   
                   self.rectData['centroids'] = (centroidx, centroidy)
