@@ -30,7 +30,7 @@ class LineFollower():
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
 
-        self.isAborted = False 
+        self.isAborted = True 
         self.isKilled = False
         self.cvbridge = CvBridge()
         self.rectData = {'detected':False}
@@ -41,13 +41,22 @@ class LineFollower():
         self.outPub = rospy.Publisher("/bot_camera/filter", Image)
         
         #Initialize mission planner communication server and client
-        #rospy.wait_for_service("/linefollower/mission_to_vision")
-        #self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+        rospy.loginfo("Waiting for mission_to_vision server...")
+        try:
+            rospy.wait_for_service("/linefollower/mission_to_vision", timeout=2)
+        except:
+            rospy.logerr("mission_to_vision service timeout!")
+            self.isKilled = True
+        self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
 
         #Wait for locomotion server to start
-        rospy.loginfo("Waiting for Locomotion Server")
-        self.locomotionClient.wait_for_server()
-    
+        try:
+            rospy.loginfo("Waiting for Locomotion Server", timeout=2)
+            self.locomotionClient.wait_for_server()
+        except:
+            rospy.loginfo("Locomotion Server timeout!")
+            self.isKilled = True  
+
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
