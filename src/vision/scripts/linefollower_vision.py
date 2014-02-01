@@ -2,7 +2,6 @@ import roslib; roslib.load_manifest('vision')
 import rospy
 import actionlib
 from sensor_msgs.msg import Image
-import sensor_msgs
 from cv_bridge import CvBridge, CvBridgeError
 
 from bbauv_msgs.msg import *
@@ -12,6 +11,7 @@ import cv2
 
 import math
 import numpy as np
+import signal
 
 class LineFollower():
     thval = 15
@@ -27,15 +27,40 @@ class LineFollower():
     depth_setpoint = 0.2
 
     def __init__(self):
-        self.isAborted = False 
+        #Handle signal
+        signal.signal(signal.SIGINT, self.userQuit)
+
+        self.isAborted = True 
+        self.isKilled = False
         self.cvbridge = CvBridge()
         self.rectData = {'detected':False}
 
         self.registerSubscribers()
+        
+        #Publisher for testing output image
+        self.outPub = rospy.Publisher("/Vision/image_filter_opt", Image)
+        
+        #Initialize mission planner communication server and client
+        rospy.loginfo("Waiting for mission_to_vision server...")
+        try:
+            rospy.wait_for_service("/linefollower/mission_to_vision", timeout=5)
+        except:
+            rospy.logerr("mission_to_vision service timeout!")
+            #self.isKilled = True
+        self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+
         #Wait for locomotion server to start
-        rospy.loginfo("Waiting for Locomotion Server")
-        #self.locomotionClient.wait_for_server()
-    
+        try:
+            rospy.loginfo("Waiting for Locomotion Server", timeout=5)
+            self.locomotionClient.wait_for_server()
+        except:
+            rospy.loginfo("Locomotion Server timeout!")
+            #self.isKilled = True  
+
+    def userQuit(self, signal, frame):
+        self.isAborted = True
+        self.isKilled = True
+
     def registerSubscribers(self):
         #Subscribe to camera
         self.imgSub = rospy.Subscriber("/bot_camera/camera/image_rect_color_opt",
@@ -45,25 +70,33 @@ class LineFollower():
         self.comSub = rospy.Subscriber("/euler",
                                         compass_data,
                                         self.compassCallback)
-        #Publisher for testing output image
-        self.outPub = rospy.Publisher("/Vision/image_filter_opt", Image)
 
     def unregisterSubscribers(self):
         self.imgSub.unregister()
         self.comSub.unregister()
-        self.outPub.unregister()
         self.rectData['detected'] = False
-        
-    
+
+    #Handle communication service with mission planner    
+    def handleSrv(self, req):
+        if req.start_request:
+            self.isAborted = False
+        elif req.abort_request:
+            self.isAborted = True
+        return mission_to_visionResponse(True, True)
+
     #ROS callback functions
     def cameraCallback(self, image):
-        cvImg = self.cvbridge.imgmsg_to_cv2(image, image.encoding)
+        try:
+            cvImg = self.cvbridge.imgmsg_to_cv2(image, image.encoding)
+        except CvBridgeError as e:
+            rospy.logerr(str(e))
+
         self.detectBlackLine(cvImg)
     
     def compassCallback(self, data):
         self.curHeading = data.yaw
 
-    #Utility function to send movements throught locomotion server
+    #Utility function to send movements through locomotion server
     def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
         d = d if d else self.depth_setpoint
         h = h if h else self.curHeading
@@ -73,8 +106,13 @@ class LineFollower():
         self.locomotionClient.send_goal(goal)
 
     def abortMission(self):
-        #TODO Notify mission planner service
-        self.isAborted = True
+        #Notify mission planner service
+        try:
+            abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
+                                              vision_to_mission)
+            abortRequest(task_complete_request=True)
+        except rospy.ServiceException, e:
+            rospy.logerr(str(e))
 
     #Main filters chain
     def detectBlackLine(self, img):
@@ -141,6 +179,9 @@ class LineFollower():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
             #For gray scale testing
             #out.shape = (out.shape[0], out.shape[1], 1)
-            self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
+            try:
+                self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
+            except CvBridgeError as e:
+                rospy.logerr(str(e))
         else:
             self.rectData['detected'] = False

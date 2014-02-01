@@ -3,22 +3,16 @@
 import roslib; roslib.load_manifest('vision')
 import rospy
 
-import sys
 import smach
-import smach_ros
 import math
-import os
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 
-import numpy as np
-from rospy.timer import sleep
-
 from linefollower_vision import LineFollower
 
 class Disengage(smach.State):
-    timeout = 1500
+    timeout = 1500 
 
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'])
@@ -30,7 +24,7 @@ class Disengage(smach.State):
         #timeout after waiting for too long
         timecount = 0
         while self.linefollower.isAborted:
-            if timecount > self.timeout:
+            if timecount > self.timeout or self.linefollower.isKilled:
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1)) 
             timecount += 1
@@ -155,8 +149,7 @@ def main():
                                              'lost_line':'SEARCHING',
                                              'aborted':'DISENGAGE'})
     outcomes = sm.execute()
-
-    rospy.spin()
+    rospy.loginfo(outcomes)
 
 if __name__ == "__main__":
     main()
