@@ -80,9 +80,10 @@ class LineFollower():
     def handleSrv(self, req):
         if req.start_request:
             self.isAborted = False
+            self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, True)
+        return mission_to_visionResponse(True, False)
 
     #ROS callback functions
     def cameraCallback(self, image):
