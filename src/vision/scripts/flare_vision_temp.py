@@ -1,10 +1,12 @@
 ## Flare vision class
+# Borrowed from EW code
 
 from bbauv_msgs.msg import compass_data
 from bbauv_msgs.msg import controller
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
 
+import roslib; roslib.load_manifest('vision')
 import rospy
 import math
 import cv2 as cv2
@@ -13,7 +15,6 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 
 class Flare:
-    debug = True
     yellow_params = {'lowerH': 10, 'lowerS': 0, 'lowerV': 0, 'higherH': 79, 'higherS':148, 'higherV':255 }
     yellow_hist = None
     
