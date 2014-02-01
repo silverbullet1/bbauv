@@ -3,17 +3,11 @@
 import roslib; roslib.load_manifest('vision')
 import rospy
 
-import sys
 import smach
-import smach_ros
 import math
-import os
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
-
-import numpy as np
-from rospy.timer import sleep
 
 from linefollower_vision import LineFollower
 
@@ -155,8 +149,8 @@ def main():
                                              'lost_line':'SEARCHING',
                                              'aborted':'DISENGAGE'})
     outcomes = sm.execute()
-
     rospy.spin()
+    rospy.loginfo(outcomes)
 
 if __name__ == "__main__":
     main()

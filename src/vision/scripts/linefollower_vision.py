@@ -2,7 +2,6 @@ import roslib; roslib.load_manifest('vision')
 import rospy
 import actionlib
 from sensor_msgs.msg import Image
-import sensor_msgs
 from cv_bridge import CvBridge, CvBridgeError
 
 from bbauv_msgs.msg import *
@@ -32,6 +31,9 @@ class LineFollower():
         self.rectData = {'detected':False}
 
         self.registerSubscribers()
+        
+        #TODO: Initialize mission planner communication server and client
+
         #Wait for locomotion server to start
         rospy.loginfo("Waiting for Locomotion Server")
         self.locomotionClient.wait_for_server()
@@ -53,11 +55,18 @@ class LineFollower():
         self.comSub.unregister()
         self.outPub.unregister()
         self.rectData['detected'] = False
-        
+
+    #Handle communication service with mission planner    
+    def handleSrv(self):
+        pass
     
     #ROS callback functions
     def cameraCallback(self, image):
-        cvImg = self.cvbridge.imgmsg_to_cv2(image, image.encoding)
+        try:
+            cvImg = self.cvbridge.imgmsg_to_cv2(image, image.encoding)
+        except CvBridgeError as e:
+            rospy.logerr(str(e))
+
         self.detectBlackLine(cvImg)
     
     def compassCallback(self, data):
@@ -141,6 +150,9 @@ class LineFollower():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
             #For gray scale testing
             #out.shape = (out.shape[0], out.shape[1], 1)
-            self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
+            try:
+                self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
+            except CvBridgeError as e:
+                rospy.logerr(str(e))
         else:
             self.rectData['detected'] = False
