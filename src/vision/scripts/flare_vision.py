@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Flare computer vision task
 
 from bbauv_msgs.msg import *

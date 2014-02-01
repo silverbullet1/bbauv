@@ -718,7 +718,7 @@ class AUV_gui(QMainWindow):
         self.orientation_sub.unregister()
         self.position_sub.unregister()
         self.controller_sub.unregister()
-        self.mani_pub.unregister()
+        #self.mani_pub.unregister()
         self.mani_sub.unregister()
         self.earth_sub.unregister()
         self.feedback_sub.unregister()

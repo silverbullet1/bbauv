@@ -40,9 +40,7 @@ flare_params = {'flare_area':0, 'centering_x':0, 'centering_y':0}
 
 #Starts off in disengage class
 class Disengage(smach.State):
-    client = None
-<<<<<<< HEAD
-    
+    client = None   
     def __init__(self, flare):
         smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'], input_keys=['complete'])
         self.flare = flare
@@ -69,30 +67,75 @@ class Disengage(smach.State):
             r.sleep()
         
         return 'aborted'
-=======
-    def __init__(self, flare_task):
-        smach.State.__init__(self, outcomes=['start', 'complete_outcome', 'aborted'], input_keys=['complete'])
-    
-    def execute(self, userdata):
-        #do stuff
-        return 'start'
->>>>>>> ff0bc449458335b1146a867a7ceccc199f7979fa
     
 #Searches for the flare
 class Search(smach.State):
-    def __init__(self, flare_task):
+    timeout = 50    #5s timeout before aborting task
+    def __init__(self, flare):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'mission_abort'])
+        self.flare = flare
     
     def execute(self, userdata):
-        #do stuff
+        #Check for abort signal
+        if self.flare.isAborted:
+            return 'aborted'
+        
+        while not rospy.is_shutdown():
+            if isAbort:
+                rospy.loginfo("Flare aborted by Mission Planner")
+                return "mission_abort"
+        
+        #Check if flare found or timeout already
+        timecount = 0
+        while not self.flare.rectData['detected']:
+            if timecount > self.timeout or rospy.is_shutdown():
+                self.flare.abortMission()
+                return 'aborted'
+            elif isTest == False:
+                try:
+                    #TO DO: Change to the actual mission request 
+                    resp = mission_srv_request(True, False, None)
+                except rospy.ServiceException, e:
+                    print "Service call failed: %s" % e
+            rospy.sleep(rospy.Duration(0.1))
+            timecount += 1
+        
         return 'search_complete'
 
 #Bash towards the flare!
 class Manuoevre(smach.State):
-    def __init__(self, flare_task):
-        smach.State.__init__(self, outcomes=['manuoevre_complete', 'lost_flare', 'aborted', 'mission_abort'])
+    def __init__(self, flare):
+        smach.State.__init__(self, outcomes=['manuoevring', 'manuoevre_complete', 'lost_flare', 'aborted', 'mission_abort'])
+        self.flare = flare
+        self.deltaThresh = 0.15
+        self.prevAngle = []
+        
     def execute(self,userdata):
-        #do stuff
+        #Check for aborted signal
+        if self.flare.isAborted:
+            return 'aborted'
+        
+        #Check for flare found
+        if not self.flare.rectData['detected']:
+            self.prevAngle = []
+            return 'lost_flare'
+        
+        #Get to the flare: Modified Thien's line follower 
+        screenWidth = self.flare.screen['width']
+        screenCenterX = screenWidth / 2
+        deltaX = (rectData['centroids'][0] - screenCenterX) / screenWidth
+        angle = rectData['angle']
+        
+        #Aggressive side move if rect too far off center
+        if abs(deltaX) > 0.3:
+            rospy.loginfo("Too far off center! Aggresive sidemove")
+            heading = normHeading(self.flare.curHeading - angle)
+            sidemove = math.copysign(1.0, -deltaX)
+            self.flare.sendMovement(heading=heading, sidemove=sidemove)
+            return 'manuoevring'
+
+        #Moving forward: Not sure, to complete 
+
         return 'manuoevre_complete'
 
 '''
@@ -176,7 +219,8 @@ if __name__ == '__main__':
                                             'mission_abort': "DISENGAGE"})
     
         smach.StateMachine.add("MANUOEVRE", Manuoevre(flare_task),
-                               transitions = {'manuoevre_complete': "DISENGAGE",
+                               transitions = {'manuoevring': "MANUOEVRE",
+                                              'manuoevre_complete': "DISENGAGE",
                                               'lost_flare': "SEARCH",
                                               'aborted': 'aborted',
                                               'mission_abort': "DISENGAGE"})
