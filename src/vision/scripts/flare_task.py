@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 '''
 State Machine for the Flare task
 '''
@@ -40,6 +41,7 @@ flare_params = {'flare_area':0, 'centering_x':0, 'centering_y':0}
 #Starts off in disengage class
 class Disengage(smach.State):
     client = None
+<<<<<<< HEAD
     
     def __init__(self, flare):
         smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'], input_keys=['complete'])
@@ -67,11 +69,19 @@ class Disengage(smach.State):
             r.sleep()
         
         return 'aborted'
+=======
+    def __init__(self, flare_task):
+        smach.State.__init__(self, outcomes=['start', 'complete_outcome', 'aborted'], input_keys=['complete'])
+    
+    def execute(self, userdata):
+        #do stuff
+        return 'start'
+>>>>>>> ff0bc449458335b1146a867a7ceccc199f7979fa
     
 #Searches for the flare
 class Search(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['search_complete', 'aborted', 'mission_abort'])
+    def __init__(self, flare_task):
+        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'mission_abort'])
     
     def execute(self, userdata):
         #do stuff
@@ -79,8 +89,8 @@ class Search(smach.State):
 
 #Bash towards the flare!
 class Manuoevre(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['manuoevre_complete', 'lost_flare', 'aborted', 'mission_abort'])
+    def __init__(self, flare_task):
+        smach.State.__init__(self, outcomes=['manuoevre_complete', 'lost_flare', 'aborted', 'mission_abort'])
     def execute(self,userdata):
         #do stuff
         return 'manuoevre_complete'
@@ -131,7 +141,7 @@ if __name__ == '__main__':
     rospy.init_node("Flare", anonymous=False)
     isTestMode = rospy.get_param("~testmode", False)
     rosRate = rospy.Rate(20)
-    flare = Flare()
+    flare_task = Flare()
     rospy.loginfo("Flare loaded!")
     
     #Link to motion
@@ -147,7 +157,7 @@ if __name__ == '__main__':
     #Not testing, then wait for mission's call
     if not isTestMode: 
         rospy.loginfo("Waiting for mission service")
-        rospy.wait_for_service("mission_srv")
+        #rospy.wait_for_service("mission_srv")
         mission_srv_request = rospy.ServiceProxy('mission_srv', vision_to_mission, headers={'id':'3'})
         rospy.loginfo("Connected to mission srv!")
     
@@ -162,14 +172,14 @@ if __name__ == '__main__':
                                             'aborted': 'aborted'})
         
         smach.StateMachine.add("SEARCH", Search(flare_task),
-                               transitions={'search_complete': MANUOEVRE, 'aborted': 'aborted', 
-                                            'mission_abort': DISENGAGED})
+                               transitions={'search_complete': "MANUOEVRE", 'aborted': 'aborted', 
+                                            'mission_abort': "DISENGAGE"})
     
         smach.StateMachine.add("MANUOEVRE", Manuoevre(flare_task),
-                               transitions = {'manuoevre_complete': DISENGAGED,
-                                              'lost_flare': SEARCH,
+                               transitions = {'manuoevre_complete': "DISENGAGE",
+                                              'lost_flare': "SEARCH",
                                               'aborted': 'aborted',
-                                              'mission_abort': DISENGAGED})
+                                              'mission_abort': "DISENGAGE"})
     
     outcomes = sm.execute()
     
