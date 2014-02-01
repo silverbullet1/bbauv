@@ -79,13 +79,13 @@ add_service_files(
   ##Old srv files start
   locomotion_mode.srv
   #mission_to_lane.srv
-  #mission_to_vision.srv
+  mission_to_vision.srv
   PID.srv
   set_controller.srv
   #vision_to_mission.srv
   ##Old srv files end
-  mission_linefollower.srv
-  mission_flare.srv
+  #mission_linefollower.srv
+  #mission_flare.srv
 )
 
 ## Generate actions in the 'action' folder
