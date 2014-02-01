@@ -1,5 +1,0 @@
-bool start_request
-bool abort_request
----
-bool start_response
-bool abort_response
