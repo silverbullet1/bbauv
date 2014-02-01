@@ -46,7 +46,7 @@ class LineFollower():
                                         compass_data,
                                         self.compassCallback)
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/botcam/filterimage", Image)
+        self.outPub = rospy.Publisher("/Vision/image_filter_opt", Image)
 
     def unregisterSubscribers(self):
         self.imgSub.unregister()
