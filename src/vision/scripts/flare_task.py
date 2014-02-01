@@ -22,15 +22,51 @@ from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from flare_vision import Flare
 
+#Global variables 
+isStart = False 
+isAbort = False
+isEnd = False
+isTestMode = False                  #If test mode then don't wait for mission call  
+rosRate = None 
+flare = None
+VisionLoopCount = 0                 #Counter for number of times the image is being processed
+
+mani_pub = None
+movement_client = None
+locomotionGoal = None
+
+flare_params = {'flare_area':0, 'centering_x':0, 'centering_y':0}
+
 #Starts off in disengage class
 class Disengage(smach.State):
     client = None
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['start', 'complete_outcome', 'aborted'], input_keys=['complete'])
+    
+    def __init__(self, flare):
+        smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'], input_keys=['complete'])
+        self.flare = flare
     
     def execute(self, userdata):
-        #do stuff
-        return 'complete'
+        if userdata.complete == True:
+            isStart = False
+            isEnd = False
+            
+            try: 
+                if isTestMode == False:
+                    resp = mission_srv_request(False, True, locomotionGoal)
+                    rospy.loginfo("Flare task completed")
+            except rospy.ServiceExeption, e:
+                print "Service call failed: %s" % e
+        
+        while not rospy.is_shutdown():
+            if isEnd:
+                rospy.signal_shutdown("Shutting down Flare Node")
+            if isStart:
+                flare.register()
+                rospy.info("Starting Flare")
+                return 'start_complete'
+            r.sleep()
+        
+        return 'aborted'
     
 #Searches for the flare
 class Search(smach.State):
@@ -75,21 +111,6 @@ def handle_srv(req):
     #To fill accordingly
     return mission_to_visionResponse(isStart, isAbort)
     
-#Global variables 
-isStart = False 
-isAbort = False
-isEnd = False
-isTestMode = False                  #If test mode then don't wait for mission call  
-rosRate = None 
-flare = None
-VisionLoopCount = 0                 #Counter for number of times the image is being processed
-
-mani_pub = None
-movement_client = None
-locomotionGoal = None
-
-flare_params = {'flare_area':0, 'centering_x':0, 'centering_y':0}
-
 #Param config callback
 def flareCallback(conig, level):
     for param in flare.yellow_params:
@@ -136,7 +157,7 @@ if __name__ == '__main__':
     #Disengage, Search, Manuoevre
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(flare_task),
-                               transitions={'start': SEARCH, 
+                               transitions={'start_complete': SEARCH, 
                                             'complete_outcome': 'complete_flare', 
                                             'aborted': 'aborted'})
         
