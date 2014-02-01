@@ -108,7 +108,7 @@ class LineFollower():
                 self.rectData['rect'] = cv2.minAreaRect(contour)
 
         if maxArea > 0:
-            self.rectData['detected'] = True;
+            self.rectData['detected'] = True
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
 
             #Find the blackline heading
