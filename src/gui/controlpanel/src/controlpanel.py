@@ -598,6 +598,8 @@ class AUV_gui(QMainWindow):
                               "<br> LT: " + mani_name[2] + 
                               "<br> RT: " + mani_name[3] +
                               "<br> GA: " + mani_name[4] +
+                              "<br> : " + mani_name[5] +
+                              "<br> : " + mani_name[6] +
                               "</b>")
     
         self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
@@ -709,8 +711,6 @@ class AUV_gui(QMainWindow):
         self.frontcam_sub.unregister()
         self.botcam_sub.unregister()
         self.filter_sub.unregister()
-        self.frontfilter_sub.unregister()
-        self.botfilter_sub.unregister()
         
     def initSub(self):
         rospy.loginfo("Subscribe to PID")
@@ -1121,7 +1121,7 @@ class AUV_gui(QMainWindow):
 
         
 if __name__ == "__main__":
-    rospy.init_node('Telemetry', anonymous=True)
+    rospy.init_node('Control_Panel', anonymous=True)
     app = QApplication(sys.argv)
     form = AUV_gui()
     form.show()
