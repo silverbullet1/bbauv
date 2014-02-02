@@ -65,7 +65,7 @@ double getHeadingPIDUpdate();
 
 //Need to change these two functions for new configuration
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
-void setVertThrustSpeed(double depthPID_output,double pitchPID_output);
+void setVertThrustSpeed(double depthPID_output,double pitchPID_output,double rollPID_output);
 
 double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 /**********************Publisher**********************************/
@@ -301,7 +301,7 @@ int main(int argc, char **argv)
 		
 		//need to modify these two lines
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
-		setVertThrustSpeed(depthPID_output,pitchPID_output);
+		setVertThrustSpeed(depthPID_output,pitchPID_output,rollPID_output);
 
 		/*Update Action Server Positions*/
 		if(!inNavigation && !inTopside)
@@ -344,12 +344,12 @@ void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,doubl
       //ROS_INFO("o:%d",-(double)headingPID_output-(double)sidemovePID_output);
     }
 
-void setVertThrustSpeed(double depthPID_output,double pitchPID_output)
+void setVertThrustSpeed(double depthPID_output,double pitchPID_output, double rollPID_output)
   {
-	double speed3_output = thruster3_ratio*(- depthPID_output + pitchPID_output);
-	double speed4_output = thruster4_ratio*(- depthPID_output + pitchPID_output);
-	double speed5_output = thruster5_ratio*(- depthPID_output - pitchPID_output);
-	double speed6_output = thruster6_ratio*(- depthPID_output - pitchPID_output);
+	double speed3_output = thruster3_ratio*(- depthPID_output + pitchPID_output - rollPID_output);
+	double speed4_output = thruster4_ratio*(- depthPID_output + pitchPID_output + rollPID_output);
+	double speed5_output = thruster5_ratio*(- depthPID_output - pitchPID_output + rollPID_output);
+	double speed6_output = thruster6_ratio*(- depthPID_output - pitchPID_output - rollPID_output);
 
     if(speed3_output < -3200) thrusterSpeed.speed3 = -3200;
     else if(speed3_output >3200) thrusterSpeed.speed3 = 3200;
@@ -454,7 +454,7 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   inDepthPID = config.depth_PID;
   inSidemovePID = config.sidemove_PID;
   inPitchPID = config.pitch_PID;
-  inRollPID = config.pitch_PID;
+  inRollPID = config.roll_PID;
   inNavigation = config.navigation;
   inHovermode = config.hovermode;
   thruster5_ratio = config.thruster5_ratio;
