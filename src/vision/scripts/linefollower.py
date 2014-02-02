@@ -83,7 +83,7 @@ class FollowingLine(smach.State):
         if abs(deltaX) > 0.3:
             rospy.loginfo("Too far of center! Argressive sidemove")
             heading = normHeading(self.linefollower.curHeading - angle)
-            sidemove = math.copysign(1.0, -deltaX)
+            sidemove = math.copysign(1.0, deltaX)
             self.linefollower.sendMovement(h=heading, sm=sidemove)
             return 'following_line'
 
@@ -96,13 +96,13 @@ class FollowingLine(smach.State):
             self.prevAngle.append(angle)
 
         if deltaX < -self.deltaThresh:
-            sidemove = 0.5
-        elif deltaX > self.deltaThresh:
             sidemove = -0.5
+        elif deltaX > self.deltaThresh:
+            sidemove = 0.5
         else:
             sidemove = 0.0
 
-        if abs(angle) < 10:
+        if abs(angle) < 7:
             self.linefollower.sendMovement(f=0.9, sm=sidemove)
             rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
         else:
@@ -149,6 +149,7 @@ def main():
                                              'lost_line':'SEARCHING',
                                              'aborted':'DISENGAGE'})
     outcomes = sm.execute()
+    rospy.spin()
     rospy.loginfo(outcomes)
 
 if __name__ == "__main__":
