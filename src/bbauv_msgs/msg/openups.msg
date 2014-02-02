@@ -1,4 +1,2 @@
-int8 battery1
-int8 battery2
-int8 battery3
-int8 battery4
+uint8 battery1
+uint8 battery2
