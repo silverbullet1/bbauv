@@ -19,57 +19,128 @@ class Interaction(object):
     the boolean values are checked in states
     """
     def __init__(self):
-        self.linefollower_done = False
-        self.flare_found = False
-        self.flare_ended = False
-        self.vision_serviceproxy = rospy.ServiceProxy('/linefollower/mission_to_vision',
-                                                 mission_to_vision)
-        self.vision_serviceserver = rospy.Service('/linefollower/vision_to_mission', 
-                                                  vision_to_mission,
-                                                  self.linefollower)
+        self.heading = None
 
-        self.flare_serviceproxy = rospy.ServiceProxy('/flare/mission_to_flare',
-                                                     mission_to_vision)
-        self.flare_serviceserver = rospy.Service('/flare/flare_to_mission',
-                                                 vision_to_mission,
-                                                 self.flareState)
+        """
+        THESE VARIABLES ARE INITIAL STATES BUT WILL GET OVEWRITTEN BY THE SAME
+        SHIT IF EVERYTHING GOES RIGHT
+        THERE ARE DEFAULTS IN PLACE FOR SAFETY
+        """
+        self.depth = None
+        self.forward = None
 
-    def flareState(self, req):
-        if req.search_request:
-            self.flare_found = True
-        if req.task_complete_request:
-            self.flare_ended = True
-    def linefollower(self, req):
-        rospy.loginfo(req.task_complete_request)
-        if req.task_complete_request:
-            self.linefollower_done = True
+        rospy.loginfo("Initializing mission planner interaction module")
+
+        try:
+            self.ControllerSettings = rospy.ServiceProxy("/set_controller_srv",
+                                                        set_controller)
+            rospy.loginfo("Waiting for Controller Service")
+            self.ControllerSettings.wait_for_service()
+            rospy.loginfo("Got Controller Service, asking for forward, heading, \
+                        depth control and pitch")
+            self.ControllerSettings(forward=True, sidemove=False, heading=True,
+                                    depth=True, roll=False, topside=False,
+                                    navigation=False)
+        except rospy.ServiceException, e:
+            rospy.logerr("Error while subscribing to the Controller service: %s"
+                         % (str(e)))
+        self.initCompass()
+
+    def initCompass(self):
+        rospy.loginfo("Subscribing to the compass service")
+        try:
+            self.compassService = rospy.Subscriber("/euler", compass_data,
+                                                   self.compassCallback)
+        except rospy.ServiceException, e:
+            rospy.logerr("Error while subscribing to the compass service: %s" %
+                        (str(e)))
+
+    def compassCallback(self, data):
+        self.heading = data
+
 
 class InitialState(smach.State):
     """
     Initial state of the mission controller.
     We dive 0.1m and start the LineFollower node.
     """
-    def __init__(self):
-        self.isDone = False
+    def __init__(self, world):
+        self.world = world
+        self.DoneDiving = False
+        self.DoneMoving = False
         smach.State.__init__(self, outcomes=['initialized', 'failed'])
-        self.actionClient = actionlib.SimpleActionClient('LocomotionServer',
-                                                    ControllerAction)
-        self.goal = ControllerGoal(depth_setpoint=0.0)
 
-    def done(self, status, result):
+    def dive(self, depth=0.1):
+        self.world.depth = depth
+        rospy.loginfo("Subscribing to the LocomotionServer to dive.")
+        self.actionClient = actionlib.SimpleActionClient('LocomotionServer',
+                                                         ControllerAction)
+        self.goal = ControllerGoal(depth_setpoint=depth,
+                                   heading_setpoint=self.world.heading)
+        rospy.loginfo("Waiting for Actionlib")
+        self.actionClient.wait_for_server()
+        rospy.loginfo("Got Actionlib server, sending goal")
+        self.actionClient.send_goal(self.goal, self.diveCallback)
+        self.actionClient.wait_for_result()
+
+    def diveCallback(self, status, result):
         if status == actionlib.GoalStatus.SUCCEEDED:
-            self.isDone = True
+            rospy.loginfo("Dive successfull")
+            self.DoneDiving = True
         elif status == actionlib.GoalStatus.PREEMPTED:
-            self.execute()
+            rospy.loginfo("Diving preempted by actionlib server, waiting 10\
+                          seconds")
+            try:
+                rospy.sleep(rospy.Duration(10))
+            except rospy.ROSInterruptException, e:
+                rospy.logerr("Sleep interrupted: %s" % str(e))
+            self.dive() #may need to unsub from the actionlib server first
+        else:
+            rospy.loginfo("Unknown status caught: %s" % (str(status)))
+
+    def goForward(self, distance=0.7):
+        """
+        we assume that this is only called when the dive is complete
+        """
+        self.goal = ControllerGoal(depth_setpoint=self.world.depth,
+                                   heading_setpoint=self.world.heading,
+                                   forward_setpoint=distance)
+        rospy.loginfo("Waiting for Actionlib before moving forward")
+        self.actionClient.wait_for_server()
+        rospy.loginfo("Got actionlib server, sending goal to move forward")
+        self.actionClient.send_goal(self.goal, self.forwardCallback)
+        self.actionClient.wait_for_result()
+
+    def forwardCallback(self, status, result):
+        if status == actionlib.GoalStatus.SUCCEEDED:
+            rospy.loginfo("We have successfully moved ahead")
+            self.DoneMoving = True
+        elif status == actionlib.GoalStatus.PREEMPTED:
+            rospy.loginfo("Moving forward preempted by actionlib, waiting 10\
+                          seconds")
+            try:
+                rospy.sleep(rospy.Duration(10))
+            except rospy.ROSInterruptException, e:
+                rospy.logerr("Sleep interrupted: %s" % (str(e)))
+            self.goForward()
+
+    def done(self):
+        #self.actionClient.unsubscribe()
+        #there does not seem to be an unsubscribe method
+        #raise NotImplementedException
+        pass
 
     def execute(self, userdata):
-        self.actionClient.wait_for_server()
+        rospy.loginfo("Executing INIT state")
         while not rospy.is_shutdown():
-            if self.isDone:
+            if self.DoneDiving and self.DoneMoving:
+                rospy.loginfo("Done diving and moving forward. End of state.")
+                self.done()
                 return 'initialized'
-            else:
-                self.actionClient.send_goal(self.goal, self.done)
-                self.actionClient.wait_for_result()
+            if not self.DoneDiving and not self.DoneMoving:
+                self.dive(self.world.depth)
+            if self.DoneDiving and not self.DoneMoving:
+                self.goForward(0)
 
 class Gate(smach.State):
     """
@@ -78,16 +149,55 @@ class Gate(smach.State):
     """
     def __init__(self, world):
         self.world = world
+        self.visionDone = False
+        self.visionActive = False
         smach.State.__init__(self, outcomes=['gate_passed', 'gate_failed'])
 
+    def activateVisionNode(self):
+        rospy.loginfo("Trying to activate Vision node")
+        try:
+            self.visionService =\
+            rospy.ServiceProxy("/linefollower/mission_to_vision",
+                               mission_to_vision)
+            rospy.loginfo("Waiting for vision node service")
+            self.visionService.wait_for_service()
+            response = self.visionService(start_request=True,
+                               start_ctrl=controller(depth_setpoint=self.world.depth,
+                                                     heading_setpoint=self.world.heading),
+                               abort_request=False)
+            if response.start_response:
+                self.visionActive = True
+                rospy.loginfo("Vision node replied TRUE, activated")
+        except rospy.ServiceException, e:
+            rospy.logerr("Service exception thrown: %s" % (str(e)))
+
+        rospy.loginfo("Starting server for vision node to report to")
+        try:
+            self.visionServer = rospy.Service("/linefollower/vision_to_mission",
+                                              vision_to_mission,
+                                              self.visionCallback)
+        except rospy.ServiceException, e:
+            rospy.loginfo("Service exception thrown: %s" % (str(e)))
+
+    def visionCallback(self, req):
+        if req.task_complete_request:
+            self.visionDone = True
+        elif req.search_request and not self.visionActive:
+            self.activateVisionNode()
+
+    def shutdownVision(self):
+        rospy.loginfo("Shutting down vision node if active.")
+        if self.visionActive:
+            self.visionService(start_request=False, start_ctrl=controller(),
+                               abort_request=True)
+            rospy.loginfo("Shutdown request sent")
+
     def execute(self, userdata):
-        ##call linefollower here
-        rospy.wait_for_service('/linefollower/mission_to_vision')
-        self.world.vision_serviceproxy(start_request=True,
-                                       start_ctrl=controller(depth_setpoint=0.1),
-                                       abort_request=False)
+        if not self.visionActive:
+            self.activateVisionNode()
         while not rospy.is_shutdown():
-            if self.world.linefollower_done:
+            if self.visionDone:
+                self.shutdownVision()
                 return 'gate_passed'
 
 
@@ -143,7 +253,7 @@ class Mission_planner(object):
 
     def add_missions(self):
         with self.missions:
-            smach.StateMachine.add('INIT', InitialState(), transitions={
+            smach.StateMachine.add('INIT', InitialState(self.interact), transitions={
                 'initialized' : 'GATE',
                 'failed' : 'ACST'
             })
