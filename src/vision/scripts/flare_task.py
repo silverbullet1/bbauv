@@ -46,6 +46,7 @@ class Disengage(smach.State):
         self.flare = flare_task
     
     def execute(self, userdata):
+            #self.flare.unregister()
             while not rospy.is_shutdown():
                 if isEnd:
                     rospy.signal_shutdown("Shutting down Flare Node")
@@ -55,7 +56,8 @@ class Disengage(smach.State):
                     return 'start_complete'
                 rospy.sleep(rospy.Duration(0.1))
         
-            return 'aborted'
+            self.flare.register()
+            return 'start_complete'
     
 #Searches for the flare
 class Search(smach.State):

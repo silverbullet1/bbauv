@@ -9,12 +9,13 @@ from nav_msgs.msg import Odometry
 
 import roslib; roslib.load_manifest('vision')
 import rospy
-import math
 import actionlib
 import cv2 as cv2
 from cv_bridge import CvBridge, CvBridgeError
 
+import math
 import numpy as np
+import signal
 
 class Flare:
     yellow_params = {'lowerH': 56, 'lowerS': 105, 'lowerV': 50, 'higherH': 143, 'higherS':251, 'higherV':255 } 
@@ -41,11 +42,34 @@ class Flare:
     Flare Node vision methods
     '''
     def __init__(self):
+#         self.isAborted = True
+#         self.isKilled = False
+#         #Handle signal
+#         signal.signal(signal.SIGINT, self.userQuit)
+        
         self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         #TODO: Add histogram modes for debug
         self.bridge = CvBridge()
         self.register()
         rospy.loginfo("Flare ready")
+        
+        #Initialise mission planner communication server and client
+#         rospy.loginfo("Waiting for mission_to_vision server...")
+#         try:
+#             rospy.wait_for_service("/flare/mission_to_vision", timeout=5)
+#         except:
+#             rospy.kklogerr("mission_to_vision timeout!")
+#         self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
+#         
+#         try:
+#             rospy.loginfo("Waiting for Locomotion Server", timeout=5)
+#             self.locomotionClient.wait_fo_server()
+#         except:
+#             rospy.loginfo("Locomotion Server timeout!")
+        
+        def userQuit(self, signal, frame):
+            self.isAborted = True
+            self.isKilled = True
             
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter_opt" , Image)
@@ -67,7 +91,8 @@ class Flare:
             if (out_image != None):
                 out_image = cv2.cv.fromarray(out_image)
                 if (self.image_pub != None):
-                    self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="bgr8"))
+                    self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="rgb8"))
+                    #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
             print e
            
@@ -91,18 +116,18 @@ class Flare:
             cv_image = self.rosimg2cv(image)
         except CvBridgeError, e:
             print e
+        out = cv_image.copy()                                   #Copy of image for display later
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
-        out = hsv_image.copy()                                      #Copy of image for display later
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
 
         #Perform yellow thresholding
         lowerBound = np.array([self.yellow_params['lowerH'], self.yellow_params['lowerS'], self.yellow_params['lowerV']],np.uint8)
         higherBound = np.array([self.yellow_params['higherH'], self.yellow_params['higherS'], self.yellow_params['higherV']],np.uint8)
         contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
-      
+        
         #Noise removal
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
       
@@ -147,19 +172,25 @@ class Flare:
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
             centery = int(self.rectData['centroids'][1])
+            contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
+            cv2.circle(contourImg, (centerx, centery), 5, (255,0,0))
             cv2.circle(out, (centerx, centery), 5, (255,255,255))
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                cv2.line(out, pt1, pt2, (255,255,255))
+                cv2.line(contourImg, pt1, pt2, (255,0,0))
+                cv2.line(out, pt1, pt2, (0,0,255))
             cv2.putText(out, str(self.rectData['angle']), (30,30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
           
         else:
             self.rectData['detected'] = False 
               
-        return out
-              
+        #return out
+        return contourImg
+       
     #Convert ROS image to Numpy matrix for cv2 functions 
     def rosimg2cv(self, ros_image):
         frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)

@@ -12,6 +12,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 
 from bbauv_msgs.msg import openups_stats
+from bbauv_msgs.msg import openups
 import math
 from math import pi
 from PyQt4.QtCore import *
@@ -71,7 +72,7 @@ class AUV_gui(QMainWindow):
     q_image_rfront = None
     data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
-            'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups_stats(),
+            'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(), 
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
             'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
     counter = 0
@@ -99,6 +100,7 @@ class AUV_gui(QMainWindow):
     filter_sub = None
     frontfilter_sub = None
     botfilter_sub = None
+    battery_sub = None
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
@@ -597,13 +599,12 @@ class AUV_gui(QMainWindow):
                               "<br> RD: " + mani_name[1] +
                               "<br> LT: " + mani_name[2] + 
                               "<br> RT: " + mani_name[3] +
-                              "<br> GA: " + mani_name[4] +
                               "</b>")
     
-        self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
-                              "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
-                              "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
-                              "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
+        self.saPanel4.setText("<b>GA: " + mani_name[4] +
+                              "<br>LR: " + mani_name[5] +
+                              "<br>ROT: " + mani_name[6] +
+                              "</b>")
         
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB ) and not self.isLeak:
             n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
@@ -613,45 +614,19 @@ class AUV_gui(QMainWindow):
         else:
             self.isLeak = False
         
-        batt_state = list()
-        if self.data['openups'].charge1== -1:
-            batt_state.append("DISCON")
-        elif self.data['openups'].charge1== -2:
-            batt_state.append("OFF")
-        elif self.data['openups'].charge1== -3:
-            batt_state.append("LOADING")
-        else:
-            batt_state.append(self.data['openups'].charge1)
-        
-        if self.data['openups'].charge2== -1:
-            batt_state.append("DISCON")
-        elif self.data['openups'].charge2== -2:
-            batt_state.append("OFF")
-        elif self.data['openups'].charge2== -3:
-            batt_state.append("LOADING")
-        else:
-            batt_state.append(self.data['openups'].charge2) 
-        
-        
-        if self.data['openups'].charge1 < 10 and self.data['openups'].charge1 > -1 and self.isAlert[0] == False:
-            self.showDialog(1)
-            self.isAlert[0] = True
-        if self.data['openups'].charge2 < 10 and self.data['openups'].charge2 > -1 and self.isAlert[1] == False:
-            self.showDialog(2)
-            self.isAlert[1] = True
-          
-        if self.data['openups'].charge1 > 10:
-            self.isAlert[0] = False
-        if self.data['openups'].charge2 > 10:
-            self.isAlert[1] = False
 
         
-        self.oPanel1.setText("<b>OUPS1: " + str(batt_state[0]) + 
-                              "%<br> CUR1: " + str(round(self.data['openups'].current1,2)) +
-                              "<br> VOLT1: " + str(round(self.data['openups'].voltage1,2))+ "</b>")
-        self.oPanel2.setText("<b>OUPS2: " + str(batt_state[1]) + 
-                              "%<br> CUR2: " + str(round(self.data['openups'].current2,2)) +
-                              "<br> VOLT2: " + str(round(self.data['openups'].voltage2,2))+ "</b>")
+        self.oPanel1.setText("<b>BATT1: " +
+                              "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
+                              "<br>BATT2: " + 
+                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ "</b>")
+        
+        self.oPanel2.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
+                              "<br> TMP1: " + str(round(self.data['hull_status'].Temp0,2)) + 
+                              "<br> HUM: " + str(round(self.data['hull_status'].Humidity,2)) +
+                              "<br> W1: " + str(self.data['hull_status'].WaterDetA) +  
+                              "&nbsp;&nbsp;&nbsp;&nbsp; W2: " + str(self.data['hull_status'].WaterDetB) +
+                              "</b>")
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
@@ -709,8 +684,6 @@ class AUV_gui(QMainWindow):
         self.frontcam_sub.unregister()
         self.botcam_sub.unregister()
         self.filter_sub.unregister()
-        self.frontfilter_sub.unregister()
-        self.botfilter_sub.unregister()
         
     def initSub(self):
         rospy.loginfo("Subscribe to PID")
@@ -724,7 +697,7 @@ class AUV_gui(QMainWindow):
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         self.feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
-        self.openups_sub = rospy.Subscriber("/openups_stats",openups_stats,self.openups_callback)
+        self.openups_sub = rospy.Subscriber("/battery_voltage",openups,self.openups_callback)
         self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
@@ -762,12 +735,12 @@ class AUV_gui(QMainWindow):
         self.isSubscribed = not self.isSubscribed
 
     def disablePIDHandler(self):
+        self.isPIDon = not self.isPIDon
         if self.isPIDon: 
             self.disablePIDButton.setText("Disable PID")
             resp = self.set_controller_request(False, False, False, False, False, False,False,False)
         else:
             self.disablePIDButton.setText("Enable PID")
-        self.isPIDon = not self.isPIDon
 
 
     def homeBtnHandler(self):
@@ -922,7 +895,8 @@ class AUV_gui(QMainWindow):
     
     def update_video_front(self,image):
         #convert numpy mat to pixmap image
-        cvRGBImg_front = cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
+        cvRGBImg_front = self.drawReticle(self.rosimg2cv(image))
+        #cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
@@ -972,7 +946,8 @@ class AUV_gui(QMainWindow):
             print e
             
     def mode_callback(self,mode):
-        self.q_mode.put(mode)
+        self.q_mode.put(mode) 
+        
     def thruster_callback(self,thruster):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):
@@ -1121,7 +1096,7 @@ class AUV_gui(QMainWindow):
 
         
 if __name__ == "__main__":
-    rospy.init_node('Telemetry', anonymous=True)
+    rospy.init_node('Control_Panel', anonymous=True)
     app = QApplication(sys.argv)
     form = AUV_gui()
     form.show()

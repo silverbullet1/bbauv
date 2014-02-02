@@ -144,7 +144,8 @@ class Vision_filter(QWidget):
         if image.encoding == "8UC1":
             cvRGBImg_top = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_GRAY2RGB)
         else:
-            cvRGBImg_top = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+            cvRGBImg_top = self.rosimg2cv(image)
+            #cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
         qpm = QPixmap.fromImage(qimg)
@@ -153,7 +154,8 @@ class Vision_filter(QWidget):
     ### Update Vision Filter top video
     def update_image_visual(self,image, isRosImg=False):
         image = image if isRosImg else self.rosimg2cv(image)
-        cvRGBImg_top = cv2.cvtColor(image, cv2.cv.CV_BGR2RGB)
+        cvRGBImg_top = image
+        #cv2.cvtColor(image, cv2.cv.CV_BGR2RGB)
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
         qpm = QPixmap.fromImage(qimg)
