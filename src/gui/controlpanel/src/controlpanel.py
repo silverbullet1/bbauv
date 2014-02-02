@@ -20,6 +20,8 @@ from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
 import Queue
 import threading
+import signal
+import sys
 
 import cv2 as cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -139,8 +141,8 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("Default")
-        self.disablePIDButton = QPushButton("Disable PID")
-        self.unsubscribeButton = QPushButton("Unsubscribe")
+        self.disablePIDButton = QPushButton("&Disable PID")
+        self.unsubscribeButton = QPushButton("&Unsubscribe")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
@@ -316,13 +318,15 @@ class AUV_gui(QMainWindow):
         oBox = QGroupBox("Battery Information")
         self.oPanel1 = QTextBrowser()
         self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
-        oBox = QGroupBox("Temp & Humidity")
         self.oPanel2 = QTextBrowser()
         self.oPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.oPanel3 = QTextBrowser()
+        self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
 
         o_layout = QHBoxLayout()
         o_layout.addWidget(self.oPanel1)
         o_layout.addWidget(self.oPanel2)
+        o_layout.addWidget(self.oPanel3)
         oBox.setLayout(o_layout)
         
         display_layout = QVBoxLayout()
@@ -376,6 +380,7 @@ class AUV_gui(QMainWindow):
         n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
         if not n.show():
             print "Failed to send notification"
+    
     def on_timer(self):
         yaw = None
         depth = None
@@ -462,14 +467,6 @@ class AUV_gui(QMainWindow):
             self.q_earth_pos = Queue.Queue()
         except Exception,e:
             pass
-#        try:
-#            image_rfront = self.q_image_rfront.get(False, 0)
-#        except Exception,e:
-#            pass
-#        try:
-#            image_front = self.q_image_front.get(False,0)
-#        except Exception,e:
-#            pass
         try:
             image_bot = self.q_image_bot
         except Exception,e:
@@ -615,19 +612,22 @@ class AUV_gui(QMainWindow):
         else:
             self.isLeak = False
         
-
         
         self.oPanel1.setText("<b>BATT1: " +
                               "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
                               "&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
-                              "<br>BATT2: " + 
-                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
-                               "&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
-                              # str(self.data['openups'].current2 +
+                              
                               "</b>")
         
-        self.oPanel2.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
+        self.oPanel2.setText("<b>BATT2: " +
+                             "<br>BATT2: " + 
+                             "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
+                             "&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
+                             # str(self.data['openups'].current2 +
+                             "</b>")
+        
+        self.oPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> TMP1: " + str(round(self.data['hull_status'].Temp0,2)) + 
                               "<br> HUM: " + str(round(self.data['hull_status'].Humidity,2)) +
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +  
@@ -663,13 +663,9 @@ class AUV_gui(QMainWindow):
     def initImage(self):
         self.bridge = CvBridge()
         self.frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color_opt"),Image, self.front_callback)
-        #frontcam_sub = rospy.Subscriber(rospy.get_param('~front_right',"/stereo_camera/right/image_rect_color_opt"),Image, self.front_rcallback)
         self.botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_camera/camera/image_rect_color_opt"),Image, self.bottom_callback)
         self.filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
         
-        #self.frontfilter_sub = rospy.Subscriber(rospy.get_param('~bot_filter', "/bot_camera/filter"), Image, self.botfilter_callback)
-        #self.botfilter_sub = rospy.Subscriber(rospy.get_param('~front_filter', "/front_camera/filter"), Image, self.frontfilter_callback)
-
     def unsubscribe(self):
         rospy.loginfo("Unsubscribe from PID")
         self.thruster_sub.unregister()
@@ -1101,10 +1097,14 @@ class AUV_gui(QMainWindow):
 
         return img
 
+    def signal_handler(self, signal, frame):
+        sys.exit(0)
         
 if __name__ == "__main__":
     rospy.init_node('Control_Panel', anonymous=True)
     app = QApplication(sys.argv)
     form = AUV_gui()
+    signal.signal(signal.SIGINT, form.signal_handler)
     form.show()
     app.exec_()
+
