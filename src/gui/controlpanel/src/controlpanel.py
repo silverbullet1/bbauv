@@ -316,6 +316,7 @@ class AUV_gui(QMainWindow):
         oBox = QGroupBox("Battery Information")
         self.oPanel1 = QTextBrowser()
         self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        oBox = QGroupBox("Temp & Humidity")
         self.oPanel2 = QTextBrowser()
         self.oPanel2.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
 
@@ -618,8 +619,13 @@ class AUV_gui(QMainWindow):
         
         self.oPanel1.setText("<b>BATT1: " +
                               "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
+                              "&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
+                              # str(self.data['openups'].current1 +
                               "<br>BATT2: " + 
-                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ "</b>")
+                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
+                               "&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
+                              # str(self.data['openups'].current2 +
+                              "</b>")
         
         self.oPanel2.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> TMP1: " + str(round(self.data['hull_status'].Temp0,2)) + 
@@ -917,7 +923,8 @@ class AUV_gui(QMainWindow):
         self.vision_filter_frame.update_image_filter(image)
         
     def update_video_bot(self,image):
-        cvRGBImg_bot = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
+        cvRGBImg_bot = self.rosimg2cv(image)
+        #cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
         ####
         qimg = QImage(cvRGBImg_bot.data,cvRGBImg_bot.shape[1], cvRGBImg_bot.shape[0], QImage.Format_RGB888)
         qpm = QPixmap.fromImage(qimg)
