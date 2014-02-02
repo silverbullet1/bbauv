@@ -2,25 +2,17 @@
 Bucket task state machine 
 '''
 
-import roslib
+import roslib; roslib.load_manifest("vision")
 import rospy
 import actionlib
-from rospy.timer import sleep
 
 import smach
-import smach_ros
-
-from dynamic_reconfigure.server import Server
-#from Vision.cfg import bucketTaskConfig
 
 import math
-import os
-import sys
-import numpy as np
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
-import bucketvision
+import bucket_vision
 
 #Starts off in disengage class
 class Disengage(smach.State):

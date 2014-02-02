@@ -38,7 +38,7 @@ class LineFollower():
         self.registerSubscribers()
         
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/Vision/image_filter_opt_thien", Image)
+        self.outPub = rospy.Publisher("/Vision/image_filter_opt_line", Image)
         
         #Initialize mission planner communication server and client
         rospy.loginfo("Waiting for mission_to_vision server...")
@@ -82,7 +82,7 @@ class LineFollower():
         self.rectData['detected'] = False
 
     #Handle communication service with mission planner    
-    def handleSrv(self, req):#     outcomes = sm.execute()
+    def handleSrv(self, req):
         if req.start_request:
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
@@ -187,10 +187,12 @@ class LineFollower():
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
             cv2.circle(out, (centerx, centery), 5, (0, 255, 0)) 
+
             for i in range(4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                 cv2.line(out, pt1, pt2, (0, 0, 255))
+
             cv2.putText(out, str(self.rectData['angle']), (30, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
         else:
