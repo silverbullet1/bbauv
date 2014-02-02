@@ -72,110 +72,93 @@ class Flare:
     
     #Perform red thresholding
     def findTheBucket(self, image):
-#         if self.debug:
-#         TODO: Prepare Histogram to display on control panel
+        #Convert ROS to CV image 
+        try:
+            cv_image = self.rosimg2cv(image)
+        except CvBridgeError, e:
+            print e
+        out = cv_image.copy()                                   #Copy of image for display later
+        cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
+        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
+        hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
 
-          kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-          kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-          cv_single = cv2.morphologyEx(cv_single, cv2.MORPH_CLOSE, kernel_close, iterations=1)
-          contours, hierachy = cv2.findContours(cv_single, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-          
-          rows, cols, val = image.shape
-          contourImg = np.zeros((rows, cols, 3), dtype=np.uint8)
-          centroidx = list()
-          centroidy = list()
-          contourRectList = list()
-          self.angleList = list()
-          max_area = 0
-          areaThresh = 3000
-          maxRect = None
-          
-          if (contours != None):
-              for i in range (0, len(contours)):
-                  #Find the center using moments 
-                  mu = cv2.moments(contours[i], binaryImage=False)
-                  humoments = cv2.HuMoments(mu)  
+        #Perform yellow thresholding
+        lowerBound = np.array([self.red_params['lowerH'], self.red_params['lowerS'], self.red_params['lowerV']],np.uint8)
+        higherBound = np.array([self.red_params['higherH'], self.red_params['higherS'], self.red_params['higherV']],np.uint8)
+        contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
+        
+        #Noise removal
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13,13))
+        contourImg = cv2.erode(contourImg, erodeEl)
+        contourImg = cv2.dilate(contourImg, dilateEl)
+      
+        #Find centroids
+        pImg = contourImg.copy()
+        contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-                  mu_area = mu['m00']
-                  if (mu_area > 700):                                            
-                      #Find bounding rect 
-                      cv2.drawContours(contourImg, contours, i, (100, 255, 100), lineType=8, thickness=1, maxLevel=0)
-                      countourRect = cv2.minAreaRect(contours[i])
-                      pos,size,theta = contourRect
-                      contourRectList.append(contourRect)
-                      
-                      #Find the corners of the box
-                      points = cv2.cv.BoxPoints(contourRect)
-                      longest_pt1 = None
-                      longest_pt2 = None
-                      longest_norm = 0
-                      for i in range(4):
-                          pt1 = (int(points[i][0]), int(points[i][1]))
-                          pt2 = (int(point[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                          norm = math.sqrt(pow((pt1[0]-pt2[0]),2) + pow((pt1[1]-pt2[1]),2))
-                          if (norm > longest_norm):
-                              longest = longest_norm = norm
-                              longest_pt1 = pt1
-                              longest_pt2 = pt2
-                          cv2.line(contourImg, pt1, pt2, 255, 1)
-                          
-                      if (abs(humoments[0] - 0.202) < 0.01):
-                          if (longest_pt2[1] < longest_pt1[1]):
-                              temp = longest_pt2        #Swap the two points
-                              longest_pt2 = longest_pt1
-                              longest_pt1 = temp
-                              cv.line(contourImg, longest_pt1, longest_pt2, (0,0,255), 2)
-                              rect_y = longest_pt2[1] - longest_pt1[1]
-                              rect_x = longest_pt2[0] - longest_pt1[0]
-                              angle_hori = math.degrees(math.atan2(rect_y, rect_x))
-                              #normalise angle
-                              if angle_hori == 0.0:
-                                  angle_hori = 90      
-                              self.angleList.append(angle_hori)
-                      
-                      if (self.isAlignState):
-                          centroidx.append(center_max.x)
-                          centroidy.append(center_max.y)
-                          cv2.circle(contourImg, (int(centroidx[len(centroidx)-1]), int(centroidy[len(centroidy)-1])), 2, (0,0,255), thickness=1)
-                          #TODO: CHANGE THE COLOURS OF THE BOX AND CIRCLE DRAWN TO SUIT ACTUAL IMAGE
-                          
-          else:
-              self.centroidx = 0  
-              self.centroidy = 0
-                  
-          #Central centroid for veicle centering
-          if len(centroidx) > 0:
-              self.centroidx = centroidx
-              self.centroidy = centroidy
-              self.centroidx, self.centroidy = self.computeCenter(centroidx, cenroidy)
-              cv2.circle(contourImg, (int(self.centroidx), int(self.centroidy)),2,(0,0,255), thickness=1)
-          else:
-              self.centroidx = 0
-              self.centroidy = 0
+        rectList = []
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > self.areaThresh:
+                # Find center with moments
+                mu = cv2.moments(contour, False)
+                mu_area = mu['m00']
+                centroidx = mu['m10']/mu_area
+                centroidy = mu['m01']/mu_area
+                
+                self.rectData['area'] = area
+                self.rectData['centroids'] = (centroidx, centroidy)
+                self.rectData['rect'] = cv2.minAreaRect(contour)
+    
+                points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
               
-          #Compute angle correction for vehicle orientation
-          if len(self.angleList) > 1:
-              self.isCenteringState = True
-              self.orientation = self.angleList[1]
-          elif len(self.angleList) == 1:
-              self.isCenteringState = True
-              self.orientation = self.angleList[0]
-          else:
-              self.isCenteringState = False
-          if self.orientation != None:
-              cv2.putText(contourImg, str(np.round(self.orientation,1)) + " " + str(np.round(self.yaw,1)), 
-                          (int(self.centroidx), int(self.centroidy)), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))    
+                #Find angle
+                edge1 = points[1] - points[0]
+                edge2 = points[2] - points[1]
+                if cv2.norm(edge1) > cv2.norm(edge2):
+                    edge1[1] = edge2[1] if edge2[1] is not 0 else 0.01
+                    self.rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
+                else:
+                    edge1[1] = edge2[1] if edge2[1] is not 0 else 0.01
+                    self.rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
+            
+                #rospy.loginfo(self.rectData['angle'])
+         
+                rectList.append(self.rectData)
+        
+        #Find the largest rect area
+        rectList.sort(cmp=None, key=lambda x: x['area'], reverse=True)
+        if rectList:
+            self.rectData = rectList[0]
+            self.rectData['detected'] = True
+            
+            #Draw output image 
+            centerx = int(self.rectData['centroids'][0])
+            centery = int(self.rectData['centroids'][1])
+            contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
+            cv2.circle(contourImg, (centerx, centery), 5, (255,0,0))
+            cv2.circle(out, (centerx, centery), 5, (255,255,255))
+            for i in range (4):
+                pt1 = (int(points[i][0]), int(points[i][1]))
+                pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
+                length = int(points[i][0]) - int(points[(i+1)%4][0])
+                width = int(points[i][1]) - int(points[(i+1)%4][1])
+                #print length
+                #print width
+                cv2.line(contourImg, pt1, pt2, (255,0,0))
+                cv2.line(out, pt1, pt2, (0,0,255))
+            cv2.putText(out, str(self.rectData['angle']), (30,30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
+            
+        else:
+            self.rectData['detected'] = False 
+            contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)            
               
-          #pos, size, theta
-          if len(contourRectList) > 0:
-              for rect in contourRectList:
-                  temp_area = int(rect[1][0]) * int(rect[1][1])
-                  if temp_area > max_area:
-                      max_area = temp_area
-              self.max_area = max_area
-              
-              
-          return contourImg
+        #return out
+        return contourImg
               
     def computeCenter(self, centroid_x, centroid_y):
           x_ave = np.ave(centroid_x, None, None)

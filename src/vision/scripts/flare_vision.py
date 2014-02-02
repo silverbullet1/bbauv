@@ -72,7 +72,7 @@ class Flare:
             self.isKilled = True
             
     def register(self):
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt/lynnette" , Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter_opt/" , Image)
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
@@ -157,10 +157,6 @@ class Flare:
                 #Find angle
                 edge1 = points[1] - points[0]
                 edge2 = points[2] - points[1]
-#                 if cv2.norm(edge1) < cv2.norm(edge2):
-#                     self.rectData['angle'] = math.degrees(math.atan2(edge1[0],edge1[1]))
-#                 else:
-    #                 self.rectData['angle'] = math.degrees(math.atan2(edge2[0],edge2[1]))
                 if cv2.norm(edge1) > cv2.norm(edge2):
                     edge1[1] = edge2[1] if edge2[1] is not 0 else 0.01
                     self.rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
@@ -201,16 +197,7 @@ class Flare:
             
         else:
             self.rectData['detected'] = False 
-            contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
-            
-#                 if self.rectData['angle'] == 90:
-#                     if self.rectData['centroids'][0] > self.screen['width']/2:
-#                         self.rectData['angle'] = -90
-#                 elif self.rectData['angle'] == -90:
-#                     if self.rectData['centroids'][1] < self.screen['width']/2:
-#                         self.rectData['angle'] = 90
-#                 
-          
+            contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)            
               
         #return out
         return contourImg
