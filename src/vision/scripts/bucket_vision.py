@@ -3,16 +3,22 @@
 import roslib; roslib.load_manifest('vision')
 
 from bbauv_msgs.msg import * 
+from bbauv_msgs.srv import *
 from sensor_msgs.msg import Image
 
 import rospy
 import cv2 
 from cv_bridge import CvBridge, CvBridgeError
+import actionlib
 
 import numpy as np
 
 class BucketDetector:
-    red_params = {'lowerH' : 0, 'lowerS' : 0, 'lowerV' : 100, 'higherH' : 77, 'higherS' : 195, 'higherV' : 251 }
+    #HSV thresholds for red color
+    lowThresh1 = np.array([ 0, 0, 0 ])
+    hiThresh1 = np.array([ 10, 255, 255 ]) 
+    lowThresh2 = np.array([ 240, 0, 0 ])
+    hiThresh2 = np.array([ 255, 255, 255 ])
     areaThresh = 50000
 
     bridge = None
@@ -24,6 +30,8 @@ class BucketDetector:
     screen = {}
     screen['width'] = 640
     screen['height'] = 480
+    
+    locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
     '''
     Utility Methods 
@@ -47,13 +55,25 @@ class BucketDetector:
         self.rectData = { 'detected' : False }
         self.bridge = CvBridge()
 
+        #Initialize Subscribers and Publishers
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
         self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket" , Image)
         self.register()
 
+        #Make sure locomotion server is up
+        try:
+            self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
+        except:
+            rospy.logerr("Locomotion server timeout!")
+            self.isKilled = True
+
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")
             
+    def userQuit(self, signal, frame):
+        self.isAborted = True
+        self.isKilled = True
+
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
@@ -72,16 +92,15 @@ class BucketDetector:
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV) #Convert to HSV image
 
-        #Perform yellow thresholding
-        lowerBound = np.array([self.red_params['lowerH'],
-                               self.red_params['lowerS'],
-                               self.red_params['lowerV']], 
-                               np.uint8)
-        higherBound = np.array([self.red_params['higherH'],
-                                self.red_params['higherS'],
-                                self.red_params['higherV']],
-                                np.uint8)
-        contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
+        #Histogram Equalization to remove reflection and illumination
+        hsv_image = cv2.merge([cv2.equalizeHist(hsv_image[:,:,0]),
+                               cv2.equalizeHist(hsv_image[:,:,1]),
+                               hsv_image[:,:,2]])
+
+        #Perform red thresholding
+        threshImg1 = cv2.inRange(hsv_image, self.lowThresh1, self.hiThresh1)
+        threshImg2 = cv2.inRange(hsv_image, self.lowThresh2, self.hiThresh2)
+        contourImg = cv2.bitwise_or(threshImg1, threshImg2) 
         
         #Noise removal
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -126,10 +145,6 @@ class BucketDetector:
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                 cv2.line(contourImg, pt1, pt2, (255,0,0))
                 cv2.line(out, pt1, pt2, (0, 0, 255))
-
-            cv2.putText(out, str(self.rectData['angle']), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
-            
         else:
             self.rectData['detected'] = False 
               
