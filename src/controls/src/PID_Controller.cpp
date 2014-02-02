@@ -331,7 +331,7 @@ double getHeadingPIDUpdate()
 	//Fix wrap around for angles
 	wrappedHeading = headingPID.wrapAngle360(error,(double) ctrl.heading_input);
 	//cout<<"yaw: "<<ctrl.heading_input<<" e: "<<error<<" hd: "<<wrappedHeading<<endl;
-	ROS_INFO("val: %f, set: %f, err: %f",wrappedHeading, ctrl.heading_input,error);
+	//ROS_INFO("val: %f, set: %f, err: %f",wrappedHeading, ctrl.heading_input,error);
 	return headingPID.computePID(ctrl.heading_setpoint,wrappedHeading);
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
