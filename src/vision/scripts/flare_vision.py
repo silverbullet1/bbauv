@@ -20,7 +20,7 @@ import signal
 class Flare:
     yellow_params = {'lowerH': 56, 'lowerS': 105, 'lowerV': 50, 'higherH': 143, 'higherS':251, 'higherV':255 } 
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0}
-    areaThresh = 10000
+    areaThresh = 3000
     
     bridge = None
     image_topic = None
@@ -92,6 +92,7 @@ class Flare:
                 out_image = cv2.cv.fromarray(out_image)
                 if (self.image_pub != None):
                     self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="rgb8"))
+                    #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
             print e
            
@@ -123,10 +124,10 @@ class Flare:
         lowerBound = np.array([self.yellow_params['lowerH'], self.yellow_params['lowerS'], self.yellow_params['lowerV']],np.uint8)
         higherBound = np.array([self.yellow_params['higherH'], self.yellow_params['higherS'], self.yellow_params['higherV']],np.uint8)
         contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
-      
+        
         #Noise removal
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
       
@@ -171,19 +172,25 @@ class Flare:
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
             centery = int(self.rectData['centroids'][1])
+            contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
+            cv2.circle(contourImg, (centerx, centery), 5, (255,0,0))
             cv2.circle(out, (centerx, centery), 5, (255,255,255))
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
+                cv2.line(contourImg, pt1, pt2, (255,0,0))
                 cv2.line(out, pt1, pt2, (0,0,255))
             cv2.putText(out, str(self.rectData['angle']), (30,30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
           
         else:
             self.rectData['detected'] = False 
               
-        return out
-              
+        #return out
+        return contourImg
+       
     #Convert ROS image to Numpy matrix for cv2 functions 
     def rosimg2cv(self, ros_image):
         frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
