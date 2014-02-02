@@ -93,34 +93,16 @@ def handle_srv(req):
     #To fill accordingly
     return mission_to_visionResponse(isStart, isAbort)
     
-#Global variables 
-isStart = False 
-isAbort = False
-isEnd = False 
-rosRate = None 
-isTest = False
-bkt = None
-VisionLoopCount = 0                 #Counter for number of times the image is being processed
-
-bucket_params = {'bucket_area':0, 'firing_x':10, 'firing_y':10, 'centering_x':0, 'centering_y':0, 'aiming_x':0, 'aiming_y':0}
-mani_pub = None
-movement_client = None
-locomotionGoal = None
-
-#Then set up the param configuration window
-def bucketCallback(config, level):
-    return config
-
 if __name__ == '__main__':
     rospy.init_node('Bucket', anonymous=False)
     isTest = rospy.get_param('~testmode', False)
     rosRate = rospy.Rate(20)
-    bkt = Bucket(False)
+    bucketDetector = BucketDetector(False)
     rospy.loginfo("Bucket loaded!")
     
     if isTestMode:
-        isStart = True
-    
+        bucketDector.isAborted = False
+            
     #Link to motion
     movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
     movement_client.wait_for_server()
@@ -131,8 +113,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         rospy.loginfo("Shutting down flare")
     pass
-    
-
-
-
-

@@ -31,7 +31,7 @@ class BucketDetector:
     #Convert ROS image to Numpy matrix for cv2 functions 
     def rosimg2cv(self, ros_image):
         try:
-            frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+            frame = self.bridge.imgmsg_to_cv2(ros_image, ros_image.encoding)
         except CvBridgeError as e:
             rospy.logerr(e)
 
@@ -41,18 +41,21 @@ class BucketDetector:
     Bucket Node vision methods
     '''
     def __init__(self):
-        self.rectData = { 'detected' : False }
+        self.isAborted = True 
+        self.isKilled = False
 
-        self.image_topic = rospy.get_param('~image', '/bot_cam/camera/image_rect_color_opt')
+        self.rectData = { 'detected' : False }
+        self.bridge = CvBridge()
+
+        self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
         self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket" , Image)
         self.register()
 
         #TODO: Add histogram modes for debug
-        self.bridge = CvBridge()
         rospy.loginfo("Bucket ready")
             
     def register(self):
-        self.image_sub = rospy.Subscriber(self.image_topic, Image, self.processImage)
+        self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
         rospy.loginfo("Topics registered")
         
@@ -65,10 +68,7 @@ class BucketDetector:
         self.curHeading = data.yaw
     
     #Perform red thresholding
-    def findTheBucket(self, image):
-        #Convert ROS to CV image 
-        cv_image = self.rosimg2cv(image)
-        
+    def findTheBucket(self, cv_image):
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV) #Convert to HSV image
 
@@ -89,7 +89,7 @@ class BucketDetector:
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
 
-        out = cvtColor(contourImg, cv2.cv.CV_GRAY2BGR)
+        out = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2BGR)
       
         #Find centroid
         pImg = contourImg.copy()
@@ -117,8 +117,8 @@ class BucketDetector:
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
             
             #Testing
-            centerx = int(self.rectData['centroids'][0])
-            centery = int(self.rectData['centroids'][1])
+            centerx = int(self.rectData['centroid'][0])
+            centery = int(self.rectData['centroid'][1])
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
             cv2.circle(out, (centerx, centery), 5, (0, 255, 0))
             for i in range (4):
@@ -140,15 +140,14 @@ class BucketDetector:
           y_ave = np.ave(centroid_y, None, None)
           return x_ave, y_ave
           
-    def processImage(self, data):
-        cv_image = self.rosimg2cv(data)
+    def cameraCallback(self, ros_image):
+        cv_image = self.rosimg2cv(ros_image)
         
         centroid_image = self.findTheBucket(cv_image)
         
         try:
-            if centroid_image:
-                self.image_pub.publish(self.bridge.cv_to_imgmsg(centroid_image, encoding="bgr8"))
-        except CvBridgeError, e:
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
+        except CvBridgeError as e:
             rospy.logerr(e) 
 
 if __name__ == "__main__":

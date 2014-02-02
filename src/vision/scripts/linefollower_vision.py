@@ -98,7 +98,7 @@ class LineFollower():
         try:
             cvImg = self.cvbridge.imgmsg_to_cv2(image, image.encoding)
         except CvBridgeError as e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
 
         self.detectBlackLine(cvImg)
     
@@ -125,7 +125,7 @@ class LineFollower():
             self.isAborted = True
             self.isKilled = True
         except rospy.ServiceException, e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
 
     #Main filters chain
     def detectBlackLine(self, img):
@@ -201,4 +201,4 @@ class LineFollower():
         try:
             self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
         except CvBridgeError as e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
