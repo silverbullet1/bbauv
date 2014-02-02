@@ -605,7 +605,7 @@ class AUV_gui(QMainWindow):
         self.saPanel4.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +
                               "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
-                              "<br> W3: " + str(self.data['hull_status'].WaterDetC) + "</b>")
+                              "</b>")
         
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB ) and not self.isLeak:
             n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
@@ -922,7 +922,8 @@ class AUV_gui(QMainWindow):
     
     def update_video_front(self,image):
         #convert numpy mat to pixmap image
-        cvRGBImg_front = cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
+        cvRGBImg_front = self.drawReticle(self.rosimg2cv(image))
+        #cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
