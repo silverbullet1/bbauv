@@ -149,7 +149,6 @@ def main():
                                              'lost_line':'SEARCHING',
                                              'aborted':'DISENGAGE'})
     outcomes = sm.execute()
-    rospy.spin()
     rospy.loginfo(outcomes)
 
 if __name__ == "__main__":

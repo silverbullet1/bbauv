@@ -28,9 +28,9 @@ class LineFollower():
 
     def __init__(self):
         #Handle signal
-#         signal.signal(signal.SIGINT, self.userQuit)
+        signal.signal(signal.SIGINT, self.userQuit)
 
-        self.isAborted = False 
+        self.isAborted = True 
         self.isKilled = False
         self.cvbridge = CvBridge()
         self.rectData = {'detected':False}
@@ -41,21 +41,22 @@ class LineFollower():
         self.outPub = rospy.Publisher("/Vision/image_filter_opt_thien", Image)
         
         #Initialize mission planner communication server and client
-#         rospy.loginfo("Waiting for mission_to_vision server...")
-#         try:
-#             rospy.wait_for_service("/linefollower/mission_to_vision", timeout=2)
-#         except:
-#             rospy.logerr("mission_to_vision service timeout!")
-#             #self.isKilled = True
-#         self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+        rospy.loginfo("Waiting for mission_to_vision server...")
+        try:
+            rospy.wait_for_service("/linefollower/mission_to_vision", timeout=5)
+        except:
+            rospy.logerr("mission_to_vision service timeout!")
+            #self.isKilled = True
+        self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
 
+        #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=False, pitch=False, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
         try:
-            rospy.loginfo("Waiting for Locomotion Server", timeout=2)
+            rospy.loginfo("Waiting for Locomotion Server", timeout=5)
             self.locomotionClient.wait_for_server()
         except:
             rospy.loginfo("Locomotion Server timeout!")
@@ -116,9 +117,9 @@ class LineFollower():
     def abortMission(self):
         #Notify mission planner service
         try:
-#             abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
-#                                               vision_to_mission)
-#             abortRequest(task_complete_request=True)
+            abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
+                                              vision_to_mission)
+            abortRequest(task_complete_request=True)
             self.stopRobot()
             self.isAborted = True
             self.isKilled = True
