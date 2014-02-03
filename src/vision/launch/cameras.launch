@@ -1,8 +1,6 @@
 <launch>
-<<<<<<< HEAD
-  <include file="$(find vision)/launch/front_camera.launch"/>
-  <include file="$(find vision)/launch/bot_camera.launch"/>
-=======
+  <!--<include file="$(find vision)/launch/front_camera.launch"/>-->
+  <!--<include file="$(find vision)/launch/bot_camera.launch"/>-->
   <arg name="camera" default="front" />
   <arg name="camera2" default="bot" />
   
@@ -34,6 +32,5 @@
   <node pkg="image_proc" type="image_proc" name="bot_camera_image_proc" ns="bot_camera/camera">
   </node>
   
->>>>>>> f5243a00d3fe0770de4e9a37715e8dc64aaee329
 </launch>
 
