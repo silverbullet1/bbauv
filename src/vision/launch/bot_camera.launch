@@ -1,0 +1,16 @@
+<launch>
+  <arg name="camera2" default="bot" />
+
+  <node pkg="camera1394" type="camera1394_node" name="bot_camera" ns="bot_camera">
+    <rosparam file="$(find vision)/launch/$(arg camera2).yaml" />
+	<param name="frame_rate" value="7"/>
+	<param name="iso_speed" value="400"/>
+	<param name="camera_info_url" value="package://vision/launch/bot_calibration.yaml"/>
+	<param name="frame_id" value="botty" />
+	<param name="auto_white_balance" value="2"/>
+	<param name="shutter" value="2000"/>
+  </node>
+  
+  <node pkg="image_proc" type="image_proc" name="bot_camera_image_proc" ns="bot_camera/camera">
+  </node>
+</launch>
