@@ -33,6 +33,7 @@ alias vision=runVisionUI
 alias PID=runPIDUI
 alias cor='coriander'
 alias dri='roslaunch launch drivers.launch'
+alias batt='rostopic list /battery_voltage'
 
 #MINI Functions 
 check_process() {

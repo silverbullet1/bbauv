@@ -42,7 +42,7 @@ class Flare:
     Flare Node vision methods
     '''
     def __init__(self):
-        self.isAborted = True
+        self.isAborted = False
         self.isKilled = False
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
@@ -53,24 +53,24 @@ class Flare:
         rospy.loginfo("Flare ready")
         
         #Initialise mission planner communication server and client
-        rospy.loginfo("Waiting for mission_to_vision server...")
-        try:
-            rospy.wait_for_service("/flare/mission_to_vision", timeout=5)
-        except:
-            rospy.logerr("mission_to_vision timeout!")
-        self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
-        
-        # Setup controller server
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                  topside=False, navigation=False) 
-         
-        # Set up locomotion server
-        try:
-            rospy.loginfo("Waiting for Locomotion Server", timeout=5)
-            self.locomotionClient.wait_fo_server()
-        except:
-            rospy.loginfo("Locomotion Server timeout!")
+#         rospy.loginfo("Waiting for mission_to_vision server...")
+#         try:
+#             rospy.wait_for_service("/flare/mission_to_vision", timeout=5)
+#         except:
+#             rospy.logerr("mission_to_vision timeout!")
+#         self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
+#         
+#         # Setup controller server
+#         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+#         setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+#                   topside=False, navigation=False) 
+#          
+#         # Set up locomotion server
+#         try:
+#             rospy.loginfo("Waiting for Locomotion Server", timeout=5)
+#             self.locomotionClient.wait_fo_server()
+#         except:
+#             rospy.loginfo("Locomotion Server timeout!")
         
     def userQuit(self, signal, frame):
         self.isAborted = True
