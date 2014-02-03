@@ -55,7 +55,7 @@ class LineFollower():
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
@@ -137,11 +137,8 @@ class LineFollower():
         grayImg = cv2.cvtColor(img, cv2.cv.CV_BGR2GRAY)
         grayImg = cv2.resize(grayImg, dsize=(self.screen['width'], self.screen['height']))
 
-        #Remove illumination and reflection
-        grayImg = cv2.equalizeHist(grayImg)
-
         #Thresholding and noise removal
-        grayImg = cv2.GaussianBlur(grayImg, ksize=(11, 11), sigmaX=0)
+        img = cv2.GaussianBlur(img, ksize=(7, 7), sigmaX=0)
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))

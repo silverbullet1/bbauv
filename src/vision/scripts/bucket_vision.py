@@ -24,8 +24,7 @@ class BucketDetector:
     bridge = None
     
     curHeading = 0
-    angleList = None
-    max_area = 0
+    depth_setpoint = 0.2
     
     screen = {}
     screen['width'] = 640
@@ -33,10 +32,7 @@ class BucketDetector:
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
-    '''
-    Utility Methods 
-    '''
-    #Convert ROS image to Numpy matrix for cv2 functions 
+    #Utility Methods  
     def rosimg2cv(self, ros_image):
         try:
             frame = self.bridge.imgmsg_to_cv2(ros_image, ros_image.encoding)
@@ -45,9 +41,6 @@ class BucketDetector:
 
         return frame 
 
-    '''
-    Bucket Node vision methods
-    '''
     def __init__(self):
         self.isAborted = True 
         self.isKilled = False
@@ -59,6 +52,11 @@ class BucketDetector:
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
         self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket" , Image)
         self.register()
+        
+        #Initializing controller service
+        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
+                         topside=False, navigation=False)
 
         #Make sure locomotion server is up
         try:
@@ -89,13 +87,9 @@ class BucketDetector:
     
     #Perform red thresholding
     def findTheBucket(self, cv_image):
+        cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV) #Convert to HSV image
-
-        #Histogram Equalization to remove reflection and illumination
-        hsv_image = cv2.merge([cv2.equalizeHist(hsv_image[:,:,0]),
-                               cv2.equalizeHist(hsv_image[:,:,1]),
-                               hsv_image[:,:,2]])
 
         #Perform red thresholding
         threshImg1 = cv2.inRange(hsv_image, self.lowThresh1, self.hiThresh1)
