@@ -1,4 +1,6 @@
 <launch>
+  <!--<include file="$(find vision)/launch/front_camera.launch"/>-->
+  <!--<include file="$(find vision)/launch/bot_camera.launch"/>-->
   <arg name="camera" default="front" />
   <arg name="camera2" default="bot" />
   

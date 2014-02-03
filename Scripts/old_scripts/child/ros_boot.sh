@@ -23,8 +23,9 @@ tmux new-window -tbbauv:4
 tmux rename-window 'arduino'
 tmux send-keys 'roslaunch launch embedded.launch' C-m
 tmux new-window -tbbauv:5
-tmux rename-window 'iptraf'
+tmux rename-window 'cameras'
 #tmux send-keys 'rostopic pub -1 /lcd_commands std_msgs/Int8 -- 1' C-m
+tmux send-keys 'roslaunch vision cameras.launch' C-m
 tmux new-window -tbbauv:6
 tmux rename-window 'rosbridge'
 tmux send-keys 'rosrun rosbridge rosbridge.py' C-m
