@@ -42,37 +42,42 @@ class Flare:
     Flare Node vision methods
     '''
     def __init__(self):
-#         self.isAborted = True
-#         self.isKilled = False
-#         #Handle signal
-#         signal.signal(signal.SIGINT, self.userQuit)
+        self.isAborted = True
+        self.isKilled = False
+        #Handle signal
+        signal.signal(signal.SIGINT, self.userQuit)
         
         self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color')
-        #TODO: Add histogram modes for debug
         self.bridge = CvBridge()
         self.register()
         rospy.loginfo("Flare ready")
         
         #Initialise mission planner communication server and client
-#         rospy.loginfo("Waiting for mission_to_vision server...")
-#         try:
-#             rospy.wait_for_service("/flare/mission_to_vision", timeout=5)
-#         except:
-#             rospy.kklogerr("mission_to_vision timeout!")
-#         self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
-#         
-#         try:
-#             rospy.loginfo("Waiting for Locomotion Server", timeout=5)
-#             self.locomotionClient.wait_fo_server()
-#         except:
-#             rospy.loginfo("Locomotion Server timeout!")
+        rospy.loginfo("Waiting for mission_to_vision server...")
+        try:
+            rospy.wait_for_service("/flare/mission_to_vision", timeout=5)
+        except:
+            rospy.logerr("mission_to_vision timeout!")
+        self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
         
-        def userQuit(self, signal, frame):
-            self.isAborted = True
-            self.isKilled = True
+        # Setup controller server
+        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                  topside=False, navigation=False) 
+         
+        # Set up locomotion server
+        try:
+            rospy.loginfo("Waiting for Locomotion Server", timeout=5)
+            self.locomotionClient.wait_fo_server()
+        except:
+            rospy.loginfo("Locomotion Server timeout!")
+        
+    def userQuit(self, signal, frame):
+        self.isAborted = True
+        self.isKilled = True
             
     def register(self):
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt/" , Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_lynnette" , Image)
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
@@ -82,12 +87,23 @@ class Flare:
         self.image_sub.unregister()
         self.yaw_sub.unregister()
         rospy.loginfo("Topics unregistered")
+        
+    # Handle srv
+    def handleSrv(self, req):
+        if req.start_request:
+            self.isAborted = False
+            self.depth_setpoint = req.start_ctrl.depth_setpoint
+        elif req.abort_request:
+            self.isAborted = True
+        return mission_to_visionResponse(True, False)
+
+    def stopRobot(self):
+        self.sendMovement(forward=0, heading=None, sidemove=0, depth=None)
     
     #Utility functions to process callback
     def camera_callback(self, image):
         out_image = self.findTheFlare(image)
         #self.image_pub.publish(image)
-
 
         try:
             if (out_image != None):
@@ -96,7 +112,7 @@ class Flare:
                     self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="rgb8"))
                     #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
-            print e
+            rospy.logerr(str(e))
               
     def yaw_callback(self, msg):
         self.yaw = msg.yaw
@@ -110,14 +126,23 @@ class Flare:
         self.locomotionClient.send_goal(goal)
         
     def abortMission(self):
-        self.isAborted = True
+        #Notify mission planner service
+        try:
+            abortRequest = rospy.ServiceProxy("/flare/vision_to_mission",
+                                              vision_to_mission)
+            abortRequest(task_complete_request=True)
+            self.stopRobot()
+            self.isAborted = True
+            self.isKilled = True
+        except rospy.ServiceException, e:
+            rospy.logerr(str(e))
     
     def findTheFlare(self, image):
         #Convert ROS to CV image 
         try:
             cv_image = self.rosimg2cv(image)
         except CvBridgeError, e:
-            print e
+            rospy.logerr(str(e))
         out = cv_image.copy()                                   #Copy of image for display later
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image

@@ -621,7 +621,6 @@ class AUV_gui(QMainWindow):
                               "</b>")
         
         self.oPanel2.setText("<b>BATT2: " +
-                             "<br>BATT2: " + 
                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
                              "&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
                              # str(self.data['openups'].current2 +
