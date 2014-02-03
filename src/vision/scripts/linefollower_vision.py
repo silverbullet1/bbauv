@@ -117,7 +117,7 @@ class LineFollower():
                                              sidemove_setpoint=sm, depth_setpoint=d)
                                              
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(1))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
 
     def abortMission(self):
         #Notify mission planner service

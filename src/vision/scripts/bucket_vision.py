@@ -10,15 +10,14 @@ import rospy
 import cv2 
 from cv_bridge import CvBridge, CvBridgeError
 import actionlib
+import signal
 
 import numpy as np
 
 class BucketDetector:
     #HSV thresholds for red color
-    lowThresh1 = np.array([ 0, 0, 0 ])
-    hiThresh1 = np.array([ 10, 255, 255 ]) 
-    lowThresh2 = np.array([ 240, 0, 0 ])
-    hiThresh2 = np.array([ 255, 255, 255 ])
+    lowThresh1 = np.array([ 92, 0, 10 ])
+    hiThresh1 = np.array([ 131, 255, 245 ]) 
     areaThresh = 50000
 
     bridge = None
@@ -44,6 +43,7 @@ class BucketDetector:
     def __init__(self):
         self.isAborted = True 
         self.isKilled = False
+        signal.signal(signal.SIGINT, self.userQuit)
 
         self.rectData = { 'detected' : False }
         self.bridge = CvBridge()
@@ -72,6 +72,18 @@ class BucketDetector:
         self.isAborted = True
         self.isKilled = True
 
+    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
+        d = d if d else self.depth_setpoint
+        h = h if h else self.curHeading
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
+                                             sidemove_setpoint=sm, depth_setpoint=d)
+
+        self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+
+    def stopRobot(self):
+        self.sendMovement(f=0.0, sm=0.0)
+
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
@@ -79,12 +91,12 @@ class BucketDetector:
         
     def unregister(self):
         self.image_sub.unregister()
-        self.curHeading.unregister()
+        self.headingSub.unregister()
         rospy.loginfo("Topics unregistered")
     
     def compassCallback(self, data):
         self.curHeading = data.yaw
-    
+
     #Perform red thresholding
     def findTheBucket(self, cv_image):
         cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))
@@ -92,12 +104,10 @@ class BucketDetector:
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV) #Convert to HSV image
 
         #Perform red thresholding
-        threshImg1 = cv2.inRange(hsv_image, self.lowThresh1, self.hiThresh1)
-        threshImg2 = cv2.inRange(hsv_image, self.lowThresh2, self.hiThresh2)
-        contourImg = cv2.bitwise_or(threshImg1, threshImg2) 
+        contourImg = cv2.inRange(hsv_image, self.lowThresh1, self.hiThresh1)
         
         #Noise removal
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
@@ -113,6 +123,7 @@ class BucketDetector:
             area = cv2.contourArea(contour)
             if area > self.areaThresh and area > maxArea:
                 maxArea = area
+                maxContour = contour
 
                 # Find center with moments
                 mu = cv2.moments(contour, False)
@@ -127,28 +138,18 @@ class BucketDetector:
         #Find the largest rect area
         if maxArea > 0: 
             self.rectData['detected'] = True
-            points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
             
             #Testing
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
             cv2.circle(out, (centerx, centery), 5, (0, 255, 0))
-            for i in range (4):
-                pt1 = (int(points[i][0]), int(points[i][1]))
-                pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                cv2.line(contourImg, pt1, pt2, (255,0,0))
-                cv2.line(out, pt1, pt2, (0, 0, 255))
+            cv2.drawContours(out, np.array([maxContour]), 0, (0, 0, 255), 3) 
         else:
             self.rectData['detected'] = False 
               
         return out 
               
-    def computeCenter(self, centroid_x, centroid_y):
-          x_ave = np.ave(centroid_x, None, None)
-          y_ave = np.ave(centroid_y, None, None)
-          return x_ave, y_ave
-          
     def cameraCallback(self, ros_image):
         cv_image = self.rosimg2cv(ros_image)
         
