@@ -41,7 +41,8 @@ class BucketDetector:
         return frame 
 
     def __init__(self):
-        self.isAborted = True 
+        self.testing = rospy.get_param("~testing", False)
+        self.isAborted = False 
         self.isKilled = False
         signal.signal(signal.SIGINT, self.userQuit)
 
@@ -50,8 +51,16 @@ class BucketDetector:
 
         #Initialize Subscribers and Publishers
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket" , Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket", Image)
         self.register()
+
+        #Initialize mission planner communication server and client
+        if not self.testing:
+            self.isAborted = True 
+            self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
+
+            self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
+            self.toMission.wait_for_service(timeout = 5)
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
@@ -87,6 +96,7 @@ class BucketDetector:
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
+        self.maniSub = rospy.Subscriber('/manipulator', manipulator, self.maniCallback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
@@ -94,8 +104,19 @@ class BucketDetector:
         self.headingSub.unregister()
         rospy.loginfo("Topics unregistered")
     
+    def handleSrv(self, req):
+        if req.start_request:
+            self.isAborted = False
+            self.depth_setpoint = req.start_ctrl.depth_setpoint
+        elif req.abort_request:
+            self.isAborted = True
+        return mission_to_visionResponse(True, False)
+    
     def compassCallback(self, data):
         self.curHeading = data.yaw
+
+    def maniCallback(self, data):
+        self.maniData = data
 
     #Perform red thresholding
     def findTheBucket(self, cv_image):
