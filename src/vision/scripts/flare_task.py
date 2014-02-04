@@ -12,7 +12,6 @@ import smach
 import smach_ros
 
 from dynamic_reconfigure.server import Server
-#from Vision.cfg import flareTaskConfig
 
 import math
 import os
@@ -46,9 +45,9 @@ class Disengage(smach.State):
         self.flare = flare_task
     
     def execute(self, userdata):
-            #self.flare.unregister()
+            self.flare.unregister()
             while not rospy.is_shutdown():
-                if isEnd:
+                if isEnd or self.flare.isAborted:
                     rospy.signal_shutdown("Shutting down Flare Node")
                 if isStart:
                     flare.register()
@@ -56,6 +55,8 @@ class Disengage(smach.State):
                     return 'start_complete'
                 rospy.sleep(rospy.Duration(0.1))
         
+            #Wait for mission to start call: How? :( 
+            
             self.flare.register()
             return 'start_complete'
     
@@ -82,12 +83,6 @@ class Search(smach.State):
             if timecount > self.timeout or rospy.is_shutdown():
                 self.flare.abortMission()
                 return 'aborted'
-#             elif isTest == False:
-#                 try:
-#                     #TO DO: Change to the actual mission request 
-#                     resp = mission_srv_request(True, False, None)
-#                 except rospy.ServiceException, e:
-#                     print "Service call failed: %s" % e
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
         
@@ -136,13 +131,13 @@ class Manuoevre(smach.State):
             self.prevAngle.append(angle)
             
         if deltaX < -self.deltaThresh:
-            sidemove = 0.5
-        elif deltaX > self.deltaThresh:
             sidemove = -0.5
+        elif deltaX > self.deltaThresh:
+            sidemove = 0.5
         else:
             sidemove = 0.0
             
-        if abs(angle) < 10:
+        if abs(angle) < 7:
             self.flare.sendMovement(forward=0.9, sidemove=sidemove)
             rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
         else:

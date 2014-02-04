@@ -14,8 +14,9 @@ import numpy as np
 import signal
 
 class LineFollower():
-    thval = 30
-    areaThresh = 5000
+    testing = False
+    thval = 25
+    areaThresh = 7000
     screen = {}
     screen['width'] = 640
     screen['height'] = 480
@@ -27,40 +28,43 @@ class LineFollower():
     depth_setpoint = 0.2
 
     def __init__(self):
+        self.testing = rospy.get_param("~testing", False)
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
 
-        self.isAborted = True 
+        self.isAborted = False 
         self.isKilled = False
         self.cvbridge = CvBridge()
         self.rectData = {'detected':False}
 
+        #Initialize Subscribers and Publishers
         self.registerSubscribers()
-        
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/Vision/image_filter_opt_thien", Image)
+        self.outPub = rospy.Publisher("/Vision/image_filter_opt_line", Image)
         
         #Initialize mission planner communication server and client
-        rospy.loginfo("Waiting for mission_to_vision server...")
-        try:
-            rospy.wait_for_service("/linefollower/mission_to_vision", timeout=5)
-        except:
-            rospy.logerr("mission_to_vision service timeout!")
-            #self.isKilled = True
-        self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+        if not self.testing:
+            self.isAborted = True 
+            rospy.loginfo("Waiting for mission_to_vision server...")
+            try:
+                rospy.wait_for_service("/linefollower/mission_to_vision", timeout=rospy.Duration(5))
+            except:
+                rospy.logerr("mission_to_vision service timeout!")
+                self.isKilled = True
+            self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
         try:
-            rospy.loginfo("Waiting for Locomotion Server", timeout=5)
-            self.locomotionClient.wait_for_server()
+            rospy.loginfo("Waiting for Locomotion Server...")
+            self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except:
             rospy.loginfo("Locomotion Server timeout!")
-            #self.isKilled = True  
+            self.isKilled = True  
 
     def userQuit(self, signal, frame):
         self.isAborted = True
@@ -82,7 +86,7 @@ class LineFollower():
         self.rectData['detected'] = False
 
     #Handle communication service with mission planner    
-    def handleSrv(self, req):#     outcomes = sm.execute()
+    def handleSrv(self, req):
         if req.start_request:
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
@@ -98,7 +102,7 @@ class LineFollower():
         try:
             cvImg = self.cvbridge.imgmsg_to_cv2(image, image.encoding)
         except CvBridgeError as e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
 
         self.detectBlackLine(cvImg)
     
@@ -113,19 +117,20 @@ class LineFollower():
                                              sidemove_setpoint=sm, depth_setpoint=d)
                                              
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(1))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
 
     def abortMission(self):
         #Notify mission planner service
         try:
-            abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
-                                              vision_to_mission)
-            abortRequest(task_complete_request=True)
+            if not self.testing:
+                abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
+                                                  vision_to_mission)
+                abortRequest(task_complete_request=True)
             self.stopRobot()
             self.isAborted = True
             self.isKilled = True
         except rospy.ServiceException, e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
 
     #Main filters chain
     def detectBlackLine(self, img):
@@ -133,7 +138,7 @@ class LineFollower():
         grayImg = cv2.resize(grayImg, dsize=(self.screen['width'], self.screen['height']))
 
         #Thresholding and noise removal
-        grayImg = cv2.GaussianBlur(grayImg, ksize=(5, 5), sigmaX=0)
+        img = cv2.GaussianBlur(img, ksize=(7, 7), sigmaX=0)
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
@@ -172,7 +177,7 @@ class LineFollower():
                 edge1[1] = edge1[1] if edge1[1] != 0.0 else math.copysign(0.01, edge1[1])
                 self.rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
             else:
-                edge2[1] = edge2[1] if edge2[1] != 0.0 else math.copysign(0.01, edge2[2])
+                edge2[1] = edge2[1] if edge2[1] != 0.0 else math.copysign(0.01, edge2[1])
                 self.rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
 
             #Chose angle to turn if horizontal
@@ -187,10 +192,12 @@ class LineFollower():
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
             cv2.circle(out, (centerx, centery), 5, (0, 255, 0)) 
+
             for i in range(4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                 cv2.line(out, pt1, pt2, (0, 0, 255))
+
             cv2.putText(out, str(self.rectData['angle']), (30, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
         else:
@@ -199,4 +206,4 @@ class LineFollower():
         try:
             self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
         except CvBridgeError as e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
