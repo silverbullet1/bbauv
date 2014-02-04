@@ -86,19 +86,20 @@ class Firing(smach.State):
     
     def execute(self, userdata):
         self.bucketDetector.stopRobot()
-        #TODO fire the ball 
+
+        firePub = rospy.Publisher("/manipulator", manipulator)
+        for i in range(10):
+            firePub.publish(self.bucketDetector.maniData & 64)
+            rospy.sleep(rospy.Duration(0.2))
+
         #TODO notify mission planner that bucket task is done
         return 'aborted'
 
 if __name__ == '__main__':
     rospy.init_node('bucketdetector')
-    isTestMode = rospy.get_param('~testing', False)
     bucketDetector = BucketDetector()
     rospy.loginfo("Bucket loaded!")
     
-    if isTestMode:
-        bucketDetector.isAborted = False
-        
     sm = smach.StateMachine(outcomes=['task_complete', 'aborted'])
     with sm:
         smach.StateMachine.add('DISENGAGE', Disengage(bucketDetector),
