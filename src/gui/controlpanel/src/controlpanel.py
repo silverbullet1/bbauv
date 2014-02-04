@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 import roslib
 import rospy
 import os
@@ -6,7 +6,7 @@ import os
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
-import pynotify 
+#import pynotify 
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
@@ -374,12 +374,12 @@ class AUV_gui(QMainWindow):
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
     
-        if not pynotify.init("Basics"):
-            sys.exit(1)
+        #if not pynotify.init("Basics"):
+        #    sys.exit(1)
  
-        n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
-        if not n.show():
-            print "Failed to send notification"
+        #n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
+        #if not n.show():
+        #    print "Failed to send notification"
     
     def on_timer(self):
         yaw = None
@@ -605,9 +605,9 @@ class AUV_gui(QMainWindow):
                               "</b>")
         
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB ) and not self.isLeak:
-            n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
-            if not n.show():
-                print "Failed to send notification"
+            #n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
+            #if not n.show():
+            #    print "Failed to send notification"
             self.isLeak = True
         else:
             self.isLeak = False
@@ -646,9 +646,10 @@ class AUV_gui(QMainWindow):
 
     def showDialog(self,ups):
         #QMessageBox.about(self,"Battery Low",)
-        n = pynotify.Notification("Battery Low", "OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
-        if not n.show():
-            print "Failed to send notification"
+        #n = pynotify.Notification("Battery Low", "OpenUPS " + str(ups) + " is low on battery.\n Replace now!")
+        #if not n.show():
+        #    print "Failed to send notification"
+        pass
         
     def initService(self):
         rospy.wait_for_service('set_controller_srv')
