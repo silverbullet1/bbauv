@@ -43,15 +43,13 @@ class LineFollower():
         self.outPub = rospy.Publisher("/Vision/image_filter_opt_line", Image)
         
         #Initialize mission planner communication server and client
+        self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+
         if not self.testing:
-            self.isAborted = True 
-            rospy.loginfo("Waiting for mission_to_vision server...")
-            try:
-                rospy.wait_for_service("/linefollower/mission_to_vision", timeout=rospy.Duration(5))
-            except:
-                rospy.logerr("mission_to_vision service timeout!")
-                self.isKilled = True
-            self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+            rospy.loginfo("Waiting for vision_to_mission server...")
+            self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
+                                                vision_to_mission)
+            self.toMission.wait_for_service(timeout = 5)
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
@@ -121,16 +119,11 @@ class LineFollower():
 
     def abortMission(self):
         #Notify mission planner service
-        try:
-            if not self.testing:
-                abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
-                                                  vision_to_mission)
-                abortRequest(task_complete_request=True)
-            self.stopRobot()
-            self.isAborted = True
-            self.isKilled = True
-        except rospy.ServiceException, e:
-            rospy.logerr(e)
+        if not self.testing:
+            self.toMission(task_complete_request=True)
+        self.stopRobot()
+        self.isAborted = True
+        self.isKilled = True
 
     #Main filters chain
     def detectBlackLine(self, img):
