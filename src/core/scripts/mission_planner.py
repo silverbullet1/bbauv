@@ -209,7 +209,6 @@ class Gate(smach.State):
             self.activateVisionNode()
         while not rospy.is_shutdown():
             if self.visionDone:
-                self.shutdownVision()
                 return 'gate_passed'
 
 
