@@ -1,146 +1,121 @@
-'''
-Bucket task state machine 
-'''
-
-import roslib
+#!/usr/bin/env python
+import roslib; roslib.load_manifest('vision')
 import rospy
-import actionlib
-from rospy.timer import sleep
 
 import smach
-import smach_ros
-
-from dynamic_reconfigure.server import Server
-#from Vision.cfg import bucketTaskConfig
-
-import math
-import os
-import sys
-import numpy as np
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
-import bucketvision
+from bucket_vision import BucketDetector
 
 #Starts off in disengage class
 class Disengage(smach.State):
-    client = None
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['start', 'complete', 'aborted'], input_keys=['complete'])
+    timeout = 1500
+    
+    def __init__(self, bucketDetector):
+        smach.State.__init__(self, outcomes=['start_complete', 'task_complete', 'aborted'])
+        self.bucketDetector = bucketDetector
     
     def execute(self, userdata):
-        #do stuff
-        return 'complete'
+        self.bucketDetector.unregister()
+
+        #Check for abort or kill signal
+        timecount = 0
+        while bucketDetector.isAborted:
+            if timecount > self.timeout or bucketDetector.isKilled:
+                return 'aborted' 
+            rospy.sleep(rospy.Duration(0.1))
+            timecount += 1
+
+        self.bucketDetector.register()
+        return 'start_complete'
 
 #Searches for the bucket
-class Search(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['search_complete', 'aborted', 'mission_abort'])
+class Searching(smach.State):
+    def __init__(self, bucketDetector):
+        smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
+        self.bucketDetector = bucketDetector
     
     def execute(self, userdata):
-        #do stuff
+        #Check for abort signal
+        if self.bucketDetector.isAborted:
+            return 'aborted'
+
+        while not self.bucketDetector.rectData['detected']: 
+            rospy.sleep(rospy.Duration(0.1))
+
+        #TODO Notify mission planner that bucket is found
         return 'search_complete'
 
 #Centers the robot to the bucket
 class Centering(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['centering_complete', 'aborted', 'mission_abort'], output_keys=['center_pos'])
+    def __init__(self, bucketDetector):
+        smach.State.__init__(self, outcomes=['centering_complete', 'centering',
+                                             'lost_bucket', 'aborted'])
+        self.bucketDetector = bucketDetector
     
     def execute(self, userdata):
-        #do stuff
-        return 'centering_complete'
+        if self.bucketDetector.isAborted:
+            return 'aborted'
 
-#Manuoevre the robot towards the bucket center  
-class Manuoevre(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['manuoevre_complete', 'aborted', 'mission_abort'])
-    def execute(self,userdata):
-        #do stuff
-        return 'manuoevre_complete'
+        rectData = self.bucketDetector.rectData
+        if not rectData['detected']:
+            return 'lost_bucket'
 
-#Aims the golf ball
-class Aiming(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['aiming_complete', 'aborted', 'mission_abort'], output_keys=['center_pos'])
-    
-    def execute(self, userdata):
-        #do stuff
-        return 'aiming_complete'
+        screenWidth = self.bucketDetector.screen['width']
+        screenCenterX = screenWidth / 2
+        screenHeight = self.bucketDetector.screen['height']
+        screenCenterY = screenHeight / 2
+        deltaX = (rectData['centroid'][0] - screenCenterX) / screenWidth
+        deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
+        rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
+        
+        if abs(deltaX) < 0.05 and abs(deltaY) < 0.05:
+            return 'centering_complete'
+
+        fwd_setpoint = -deltaY * 50.0
+        sm_setpoint = deltaX * 50.0
+        self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
+        return 'centering'
 
 #Fire the gold ball
 class Firing(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes['firing_complete', 'aborted', 'mission_abort'])
+    def __init__(self, bucketDetector):
+        smach.State.__init__(self, outcomes=['firing_complete', 'aborted'])
+        self.bucketDetector = bucketDetector
     
     def execute(self, userdata):
-        #do stuff
-        return 'firing_complete'
-'''
-Main python thread
-'''
-
-def handle_srv(req):
-    global isStart
-    global isAbort
-    global locomotionGoal
-    global bkt
-    
-    rospy.loginfo("Bucket service handled")
-    
-    if req.start_request:
-        rospy.loginfo("Bucket is Start")
-        isStart = True
-        isAbort = False 
-        #locomotionGoal = req.start_ctrl
-    if req.abort_reqest:
-        rospy.loginfo("Bucket abort received")
-        isAbort = True
-        isStart = False
-        bkt.unregister()
-    
-    #To fill accordingly
-    return mission_to_visionResponse(isStart, isAbort)
-    
-#Global variables 
-isStart = False 
-isAbort = False
-isEnd = False 
-rosRate = None 
-isTest = False
-bkt = None
-VisionLoopCount = 0                 #Counter for number of times the image is being processed
-
-bucket_params = {'bucket_area':0, 'firing_x':10, 'firing_y':10, 'centering_x':0, 'centering_y':0, 'aiming_x':0, 'aiming_y':0}
-mani_pub = None
-movement_client = None
-locomotionGoal = None
-
-#Then set up the param configuration window
-def bucketCallback(config, level):
-    return config
+        self.bucketDetector.stopRobot()
+        #TODO fire the ball 
+        #TODO notify mission planner that bucket task is done
+        return 'aborted'
 
 if __name__ == '__main__':
-    rospy.init_node('Bucket', anonymous=False)
-    isTest = rospy.get_param('~testmode', False)
-    rosRate = rospy.Rate(20)
-    bkt = Bucket(False)
+    rospy.init_node('bucketdetector')
+    isTestMode = rospy.get_param('~testing', False)
+    bucketDetector = BucketDetector()
     rospy.loginfo("Bucket loaded!")
     
     if isTestMode:
-        isStart = True
+        bucketDetector.isAborted = False
+        
+    sm = smach.StateMachine(outcomes=['task_complete', 'aborted'])
+    with sm:
+        smach.StateMachine.add('DISENGAGE', Disengage(bucketDetector),
+                               transitions={'start_complete' : 'SEARCHING',
+                                            'aborted':'aborted',
+                                            'task_complete':'task_complete'})
+        smach.StateMachine.add('SEARCHING', Searching(bucketDetector),
+                               transitions={'search_complete' : 'CENTERING',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTERING', Centering(bucketDetector),
+                               transitions={'centering_complete':'FIRING',
+                                            'centering':'CENTERING',
+                                            'lost_bucket':'SEARCHING',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('FIRING', Firing(bucketDetector),
+                               transitions={'firing_complete' : 'task_complete',
+                                            'aborted':'DISENGAGE'})
     
-    #Link to motion
-    movement_client = actionlib.SimpleActionClient('LocomotionServer', bbauv_msgs.msg.ControllerAction)
-    movement_client.wait_for_server()
-    mani_pub = rospy.Publisher("/manipulators", manipulator)
-    
-    try:
-        rospy.spin()
-    except KeyboardInterrupt:
-        rospy.loginfo("Shutting down flare")
-    pass
-    
-
-
-
-
+    outcomes = sm.execute()
+    rospy.loginfo(outcomes)
