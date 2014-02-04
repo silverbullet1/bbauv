@@ -107,7 +107,7 @@ class Manuoevre(smach.State):
             self.prevAngle = []
             return 'lost_flare'
         
-        #Get to the flare: Modified Thien's line follower 
+        #Get to the flare
         screenWidth = self.flare.screen['width']
         screenCenterX = screenWidth / 2
         deltaX = (rectData['centroids'][0] - screenCenterX) / screenWidth
