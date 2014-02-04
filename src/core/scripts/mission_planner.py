@@ -171,19 +171,31 @@ class Gate(smach.State):
         except rospy.ServiceException, e:
             rospy.logerr("Service exception thrown: %s" % (str(e)))
 
+        rospy.loginfo("Starting the bucket server to listen")
+        try:
+            self.bucketServer =\
+                    rospy.Service("/bucket/bucket_to_mission",
+                                  vision_to_mission, self.bucketCallback)
+        except rospy.ServiceException, e:
+            rospy.logerr("Service exception thrown: %s" % (str(e)))
+
         rospy.loginfo("Starting server for vision node to report to")
         try:
             self.visionServer = rospy.Service("/linefollower/vision_to_mission",
                                               vision_to_mission,
                                               self.visionCallback)
         except rospy.ServiceException, e:
-            rospy.loginfo("Service exception thrown: %s" % (str(e)))
+            rospy.logerr("Service exception thrown: %s" % (str(e)))
 
     def visionCallback(self, req):
         if req.task_complete_request:
             self.visionDone = True
         elif req.search_request and not self.visionActive:
             self.activateVisionNode()
+
+    def bucketCallback(self, req):
+        if req.start_request:
+            self.visionDone = True
 
     def shutdownVision(self):
         rospy.loginfo("Shutting down vision node if active.")
