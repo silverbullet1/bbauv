@@ -43,10 +43,10 @@ import sys
    
 if __name__=="__main__":
 
-    rospy.init_node("serial_node")
+    rospy.init_node("voltage_monitor")
     rospy.loginfo("ROS Serial Python Node")
 
-    port_name = rospy.get_param('~port','/dev/ttyUSB1')
+    port_name = rospy.get_param('~port','/dev/ttyBattery')
     baud = int(rospy.get_param('~baud','57600'))
 
     # TODO: should these really be global?

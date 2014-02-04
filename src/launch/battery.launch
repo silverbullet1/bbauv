@@ -1,0 +1,7 @@
+<launch>
+    <arg name="port" default="/dev/ttyBattery" />
+    <node
+        pkg="actuators" name="voltage_monitor" type="voltage_monitor.py" args="$(arg port)" >
+    </node>
+
+</launch>

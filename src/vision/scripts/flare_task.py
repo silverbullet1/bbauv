@@ -48,7 +48,7 @@ class Disengage(smach.State):
             self.flare.unregister()
             while not rospy.is_shutdown():
                 if isEnd or self.flare.isAborted:
-                    rospy.signal_shutdown("Shutting down Flare Node")
+                    return 'aborted'
                 if isStart:
                     flare.register()
                     rospy.info("Starting Flare")
@@ -113,23 +113,14 @@ class Manuoevre(smach.State):
         deltaX = (rectData['centroids'][0] - screenCenterX) / screenWidth
         angle = rectData['angle']
         
-        #Aggressive side move if rect too far off center
+        #Sidemove if too far off center 
         if abs(deltaX) > 0.3:
-            rospy.loginfo("Too far off center! Aggresive sidemove")
-            heading = normHeading(self.flare.curHeading - angle)
-            sidemove = math.copysign(1.0, -deltaX)
-            self.flare.sendMovement(heading=heading, sidemove=sidemove)
+            sidemove = math.copysign(1.0, deltaX)
+            self.flare.sendMovement(sidemove=sidemove)
+            rospy.loginfo("Sidemove {}".format(sidemove))
             return 'manuoevring'
-
-        #Moving forward
-        if len(self.prevAngle) > 1:
-            oppAngle = angle - 180 if angle > 0 else angle + 180
-            if abs(angle - self.prevAngle[0]) > abs(oppAngle - self.prevAngle[0]):
-                angle = oppAngle
-                self.prevAngle[0] = angle
-        else:
-            self.prevAngle.append(angle)
-            
+                    
+        #At center then move straight
         if deltaX < -self.deltaThresh:
             sidemove = -0.5
         elif deltaX > self.deltaThresh:
@@ -137,19 +128,10 @@ class Manuoevre(smach.State):
         else:
             sidemove = 0.0
             
-        if abs(angle) < 7:
-            self.flare.sendMovement(forward=0.9, sidemove=sidemove)
-            rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
-        else:
-            if sidemove == 0:
-                sidemove = angle / 60 * 0.2
-            else:
-                if angle > 30:          #Move diagonally back
-                    angle = math.copysign(30, angle)
-            heading = normHeading(self.flare.curHeading - angle)
-            self.flare.sendMovement(heading=heading, sidemove=sidemove)
-            rospy.loginfo("Moving: {} side, {} heading", format(heading, sidemove))
-
+        self.flare.sendMovement(forward=0.9, sidemove=sidemove)
+        rospy.loginfo("Forward {} sidemove {}".format(forward, sidemove))
+        return 'manuoevring'
+        
         return 'manuoevre_complete'
 
 '''
