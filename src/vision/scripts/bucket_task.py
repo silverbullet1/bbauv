@@ -114,7 +114,7 @@ class Firing(smach.State):
             rospy.sleep(rospy.Duration(0.2))
 
         self.bucketDetector.taskComplete()
-        return 'aborted'
+        return 'firing_complete'
 
 if __name__ == '__main__':
     rospy.init_node('bucketdetector')
@@ -124,9 +124,9 @@ if __name__ == '__main__':
     sm = smach.StateMachine(outcomes=['task_complete', 'aborted'])
     with sm:
         smach.StateMachine.add('DISENGAGE', Disengage(bucketDetector),
-                               transitions={'start_complete' : 'SEARCHING',
+                               transitions={'start_complete' : 'SEARCHING1',
                                             'aborted' : 'aborted',
-                                            'task_complete':'task_complete'})
+                                            'task_complete' : 'task_complete'})
         smach.StateMachine.add('SEARCHING1', Searching1(bucketDetector),
                                transitions={'search_complete' : 'CENTERING',
                                             'aborted' : 'DISENGAGE'})
@@ -137,7 +137,7 @@ if __name__ == '__main__':
                                transitions={'centering_complete' : 'FIRING',
                                             'centering' : 'CENTERING',
                                             'lost_bucket':'SEARCHING2',
-                                            'aborted':'DISENGAGE'})
+                                            'aborted' : 'DISENGAGE'})
         smach.StateMachine.add('FIRING', Firing(bucketDetector),
                                transitions={'firing_complete' : 'task_complete',
                                             'aborted':'DISENGAGE'})

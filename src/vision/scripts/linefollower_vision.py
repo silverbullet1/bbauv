@@ -15,7 +15,7 @@ import signal
 
 class LineFollower():
     testing = False
-    thval = 25
+    thval = 20
     areaThresh = 7000
     screen = {}
     screen['width'] = 640
