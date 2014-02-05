@@ -84,6 +84,7 @@ class Search(smach.State):
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
+            self.flare.failedTask();
         
         return 'search_complete'
 
@@ -101,8 +102,9 @@ class Manuoevre(smach.State):
         if self.flare.isAborted:
             return 'aborted'
         
-        #Check for flare found
+        #Cannot detect already
         if not self.flare.rectData['detected']:
+            self.flare.taskComplete()
             return 'manuoevre_complete'
         
         #Get to the flare

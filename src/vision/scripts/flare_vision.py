@@ -100,6 +100,12 @@ class Flare:
             self.isAborted = True
         return mission_to_visionResponse(True, False)
 
+    def failedTask(self):
+        self.toMission(fail_request=True)
+
+    def taskComplete(self):
+        self.toMission(task_complete_request=True)
+
     def stopRobot(self):
         self.sendMovement(forward=0.0, sidemove=0.0)
     
