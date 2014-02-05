@@ -738,11 +738,10 @@ class AUV_gui(QMainWindow):
     def disablePIDHandler(self):
         self.isPIDon = not self.isPIDon
         if self.isPIDon: 
-            self.disablePIDButton.setText("Disable PID")
-            resp = self.set_controller_request(False, False, False, False, False, False,False,False)
+            self.disablePIDButton.setText("&Disable PID")
         else:
-            self.disablePIDButton.setText("Enable PID")
-
+            self.disablePIDButton.setText("&Enable PID")
+            resp = self.set_controller_request(False, False, False, False, False, False,False,False)
 
     def homeBtnHandler(self):
         movebaseGoal = MoveBaseGoal()
@@ -758,7 +757,7 @@ class AUV_gui(QMainWindow):
         movebaseGoal.target_pose.pose.orientation.z = z
         movebaseGoal.target_pose.pose.orientation.w = w
         self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
-        #movebase_client.wait_for_result(rospy.Duration(self.nav_timeout,0))
+
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
@@ -799,16 +798,37 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Action Client executing goal...")
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
-        if self.rel_depth_chkbox.checkState():
-            goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
-        else:    
-            goal.depth_setpoint = float(self.depth_box.text())
-        goal.sidemove_setpoint = float(self.sidemove_box.text())
-        if self.rel_heading_chkbox.checkState():
-            goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
-        else:    
-            goal.heading_setpoint = float(self.heading_box.text())
+        
+        #Forward - works
+        if self.forward_box.text() == "":
+            self.forward_box.setText("0")
         goal.forward_setpoint = float(self.forward_box.text())
+        
+        #Sidemove
+        if self.sidemove_box.text() == "":
+            self.sidemove_box.setText("0")
+        goal.sidemove_setpoint = float(self.sidemove_box.text())
+        
+        #Heading - works
+        if self.heading_box.text() == "":
+            self.heading_box.setText(str(self.data['yaw']))
+            self.rel_heading_chkbox.setChecked(True)
+            goal.heading_setpoint = self.data['yaw']
+        elif self.rel_heading_chkbox.checkState():
+            goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
+        else:
+            goal.heading_setpoint = float(self.heading_box.text())
+                  
+        #Depth - works
+        if self.depth_box.text() == "":
+            self.depth_box.setText(str(self.data['depth']))
+            self.rel_depth_chkbox.setChecked(True)
+            goal.depth_setpoint = self.data['depth']
+        elif self.rel_depth_chkbox.checkState():
+            goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
+        else:
+            goal.depth_setpoint = float(self.depth_box.text())
+        
         self.client.send_goal(goal, self.done_cb)
         
     def fireBtnHandler(self):
