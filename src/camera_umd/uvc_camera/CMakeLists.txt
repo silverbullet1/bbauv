@@ -49,8 +49,8 @@ find_package(Boost REQUIRED COMPONENTS thread system)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-   LIBRARIES nodelet_uvc_camera
+   INCLUDE_DIRS include
+   #LIBRARIES nodelet_uvc_camera
    CATKIN_DEPENDS roscpp nodelet sensor_msgs
 #  DEPENDS system_lib
 )
@@ -83,14 +83,9 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_library(nodelet_uvc_camera src/nodelets.cpp src/camera.cpp src/stereo.cpp src/uvc_cam.cpp)
-target_link_libraries(nodelet_uvc_camera ${Boost_LIBRARIES} ${catkin_LIBRARIES})
-
 add_executable(uvc_camera_node src/camera_node.cpp src/camera.cpp src/uvc_cam.cpp)
 target_link_libraries(uvc_camera_node ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(uvc_stereo_node src/stereo_node.cpp src/stereo.cpp src/uvc_cam.cpp)
-target_link_libraries(uvc_stereo_node ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -107,16 +102,18 @@ target_link_libraries(uvc_stereo_node ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS nodelet_uvc_camera uvc_camera_node uvc_stereo_node
+install(
+  #TARGETS nodelet_uvc_camera uvc_camera_node uvc_stereo_node
+  TARGETS uvc_camera_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(FILES
-  nodelet_uvc_camera.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+#install(FILES
+#  nodelet_uvc_camera.xml
+#  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
