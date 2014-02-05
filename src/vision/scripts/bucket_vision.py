@@ -25,9 +25,7 @@ class BucketDetector:
     curHeading = 0
     depth_setpoint = 0.2
     
-    screen = {}
-    screen['width'] = 640
-    screen['height'] = 480
+    screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
@@ -55,10 +53,9 @@ class BucketDetector:
         self.register()
 
         #Initialize mission planner communication server and client
+        self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
         if not self.testing:
             self.isAborted = True 
-            self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
-
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
             self.toMission.wait_for_service(timeout = 5)
         
@@ -117,6 +114,24 @@ class BucketDetector:
 
     def maniCallback(self, data):
         self.maniData = data
+
+    def searchComplete(self):
+        if not self.testing:
+            self.toMission(start_request=True)
+
+    def abortMission(self):
+        if not self.testing:
+            self.toMission(fail_request=True)
+        self.isAborted = True
+        self.isKilled = True
+        self.stopRobot()
+
+    def taskComplete(self):
+        if not self.testing:
+            self.toMission(task_complete_request=True)
+        self.isAborted = True
+        self.isKilled = True
+        self.stopRobot()
 
     #Perform red thresholding
     def findTheBucket(self, cv_image):

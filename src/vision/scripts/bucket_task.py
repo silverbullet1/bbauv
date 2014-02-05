@@ -31,7 +31,7 @@ class Disengage(smach.State):
         return 'start_complete'
 
 #Searches for the bucket
-class Searching(smach.State):
+class Searching1(smach.State):
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
         self.bucketDetector = bucketDetector
@@ -44,7 +44,28 @@ class Searching(smach.State):
         while not self.bucketDetector.rectData['detected']: 
             rospy.sleep(rospy.Duration(0.1))
 
-        #TODO Notify mission planner that bucket is found
+        self.bucketDetector.searchComplete()
+        return 'search_complete'
+
+class Searching2(smach.State):
+    timeout = 50
+
+    def __init__(self, bucketDetector):
+        smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
+        self.bucketDetector = bucketDetector
+
+    def execute(self, userdata):
+        if self.bucketDetector.isAborted:
+            return 'aborted'
+
+        timecount = 0
+        while not self.bucketDetector.rectData['detected']:
+            if timecount > timeout:
+                self.bucketDetector.abortMission()
+                return 'aborted'
+            self.timecount += 1
+            rospy.sleep(rospy.Duration(0.1))
+
         return 'search_complete'
 
 #Centers the robot to the bucket
@@ -92,7 +113,7 @@ class Firing(smach.State):
             firePub.publish(self.bucketDetector.maniData & 64)
             rospy.sleep(rospy.Duration(0.2))
 
-        #TODO notify mission planner that bucket task is done
+        self.bucketDetector.taskComplete()
         return 'aborted'
 
 if __name__ == '__main__':
@@ -104,15 +125,18 @@ if __name__ == '__main__':
     with sm:
         smach.StateMachine.add('DISENGAGE', Disengage(bucketDetector),
                                transitions={'start_complete' : 'SEARCHING',
-                                            'aborted':'aborted',
+                                            'aborted' : 'aborted',
                                             'task_complete':'task_complete'})
-        smach.StateMachine.add('SEARCHING', Searching(bucketDetector),
+        smach.StateMachine.add('SEARCHING1', Searching1(bucketDetector),
                                transitions={'search_complete' : 'CENTERING',
-                                            'aborted':'DISENGAGE'})
+                                            'aborted' : 'DISENGAGE'})
+        smach.StateMachine.add('SEARCHING2', Searching2(bucketDetector),
+                               transitions={'search_complete' : 'CENTERING',
+                                            'aborted' : 'DISENGAGE'})
         smach.StateMachine.add('CENTERING', Centering(bucketDetector),
-                               transitions={'centering_complete':'FIRING',
-                                            'centering':'CENTERING',
-                                            'lost_bucket':'SEARCHING',
+                               transitions={'centering_complete' : 'FIRING',
+                                            'centering' : 'CENTERING',
+                                            'lost_bucket':'SEARCHING2',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('FIRING', Firing(bucketDetector),
                                transitions={'firing_complete' : 'task_complete',

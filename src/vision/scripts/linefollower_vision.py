@@ -120,10 +120,17 @@ class LineFollower():
     def abortMission(self):
         #Notify mission planner service
         if not self.testing:
-            self.toMission(task_complete_request=True)
-        self.stopRobot()
+            self.toMission(fail_request=True)
         self.isAborted = True
         self.isKilled = True
+        self.stopRobot()
+
+    def taskComplete(self):
+        if not self.testing:
+            self.toMission(task_complete_request=True)
+        self.isAborted = True
+        self.isKilled = True
+        self.stopRobot()
 
     #Main filters chain
     def detectBlackLine(self, img):
