@@ -48,8 +48,11 @@ Camera::Camera(ros::NodeHandle _comm_nh, ros::NodeHandle _param_nh) :
 
       pnode.getParam("frame_id", frame);
 
+      std::string topic;
+      pnode.getParam("topic", topic);
+
       /* advertise image streams and info streams */
-      pub = it.advertise("image_raw", 1);
+      pub = it.advertise(topic, 1);
 
       info_pub = node.advertise<CameraInfo>("camera_info", 1);
 
