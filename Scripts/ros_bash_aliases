@@ -44,8 +44,8 @@ check_process() {
 
 runSim() {
 	check_process "roscore"
-	[ $? -eq 0 ] && echo "roscore not running" &&  roscd Simulation && (roscore &) 
-	[ $? -eq 1 ] && echo "roscore running..." && roscd Simulation 
+	[ $? -eq 0 ] && echo "roscore not running" &&  roscd simulation && (roscore &) 
+	[ $? -eq 1 ] && echo "roscore running..." && roscd simulation 
 	rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
 }
 
@@ -53,7 +53,7 @@ runVisionUI(){
 	check_process "roscore"
 	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
 	[ $? -eq 1 ] && echo "roscore running..."
-	rosrun GUI GUI_node
+	rosrun gui vision_gui_node
 }
 
 runPIDUI(){
