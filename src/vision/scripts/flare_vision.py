@@ -18,9 +18,9 @@ import numpy as np
 import signal
 
 class Flare:
-    yellow_params = {'lowerH': 56, 'lowerS': 105, 'lowerV': 50, 'higherH': 143, 'higherS':251, 'higherV':255 } 
-    rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0}
-    areaThresh = 1000
+    yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
+    rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0}
+    areaThresh = 800
     
     bridge = None
     image_topic = None
@@ -44,28 +44,36 @@ class Flare:
     def __init__(self):
         self.isAborted = False
         self.isKilled = False
+        self.testing = rospy.get_param("~testing", False)
+        
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
         
-        self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color')
+        self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         self.bridge = CvBridge()
         self.register()
         rospy.loginfo("Flare ready")
         
         #Initialise mission planner communication server and client
-        self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
-         
-        # Setup controller server
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                  topside=False, navigation=False) 
-          
-        # Set up locomotion server
+        if not self.testing:
+            self.isAborted = True
+            self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
+            self.toMission = rospy.ServiceProxy("/flare/vision_to_mission", vision_to_mission)
+            self.toMission.wait_for_service(timeout=5)
+            
+        #Initialising controller service
+        controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
+                         topside=False, navigation=False)
+        
+        #Make sure locomotion server up
         try:
-            rospy.loginfo("Waiting for Locomotion Server", timeout=5)
-            self.locomotionClient.wait_fo_server()
+            self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except:
-            rospy.loginfo("Locomotion Server timeout!")
+            rospy.logerr("Locomotion server timeout!")
+            self.isKilled = True
+            
+        rospy.loginfo("Flare ready")
         
     def userQuit(self, signal, frame):
         self.isAborted = True
@@ -93,7 +101,7 @@ class Flare:
         return mission_to_visionResponse(True, False)
 
     def stopRobot(self):
-        self.sendMovement(forward=0, heading=None, sidemove=0, depth=None)
+        self.sendMovement(forward=0.0, sidemove=0.0)
     
     #Utility functions to process callback
     def camera_callback(self, image):
@@ -119,6 +127,7 @@ class Flare:
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
         self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
         
     def abortMission(self):
         #Notify mission planner service
@@ -139,6 +148,9 @@ class Flare:
         except CvBridgeError, e:
             rospy.logerr(str(e))
         out = cv_image.copy()                                   #Copy of image for display later
+        #cv_image = cv2.merge(np.array([cv2.equalizeHist(cv_image[:,:,0]),cv2.equalizeHist(cv_image[:,:,1]),
+        #                               cv2.equalizeHist(cv_image[:,:,2])]))
+        cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
@@ -149,10 +161,11 @@ class Flare:
         contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
         
         #Noise removal
+        #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13,13))
-        contourImg = cv2.erode(contourImg, erodeEl)
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (12,12))
         contourImg = cv2.dilate(contourImg, dilateEl)
+        contourImg = cv2.erode(contourImg, erodeEl, iterations=2)
       
         #Find centroids
         pImg = contourImg.copy()
@@ -160,6 +173,7 @@ class Flare:
 
         rectList = []
         for contour in contours:
+            rectData = {}
             area = cv2.contourArea(contour)
             if area > self.areaThresh:
                 # Find center with moments
@@ -168,32 +182,34 @@ class Flare:
                 centroidx = mu['m10']/mu_area
                 centroidy = mu['m01']/mu_area
                 
-                self.rectData['area'] = area
-                self.rectData['centroids'] = (centroidx, centroidy)
-                self.rectData['rect'] = cv2.minAreaRect(contour)
+                rectData['area'] = area
+                rectData['centroids'] = (centroidx, centroidy)
+                rectData['rect'] = cv2.minAreaRect(contour)
     
-                points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
+                points = np.array(cv2.cv.BoxPoints(rectData['rect']))
               
                 #Find angle
                 edge1 = points[1] - points[0]
                 edge2 = points[2] - points[1]
                 if cv2.norm(edge1) > cv2.norm(edge2):
-                    edge1[1] = edge2[1] if edge2[1] is not 0 else 0.01
-                    self.rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
+                    edge1[1] = edge1[1] if edge1[1] is not 0 else 0.01
+                    rectData['angle'] = math.degrees(math.atan(edge1[0]/edge1[1]))
                 else:
-                    edge1[1] = edge2[1] if edge2[1] is not 0 else 0.01
-                    self.rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
+                    edge2[1] = edge2[1] if edge2[1] is not 0 else 0.01
+                    rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
             
-                rospy.loginfo(self.rectData['angle'])
-
-                if -10 < self.rectData['angle'] < 10:                    
-                    rectList.append(self.rectData)
+                epislon = 10.0
+                if -epislon < rectData['angle'] < epislon:
+                    rectData['length'] = max(self.calculateLength(points[0], points[1]),
+                                                  self.calculateLength(points[1], points[2]))
+                    rectList.append(rectData)
         
         #Find the largest rect area
-        rectList.sort(cmp=None, key=lambda x: x['area'], reverse=True)
+        rectList.sort(cmp=None, key=lambda x: x['length'], reverse=True)
         if rectList:
             self.rectData = rectList[0]
             self.rectData['detected'] = True
+            rospy.loginfo(self.rectData['angle'])
             
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
@@ -204,10 +220,7 @@ class Flare:
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                length = int(points[i][0]) - int(points[(i+1)%4][0])
-                width = int(points[i][1]) - int(points[(i+1)%4][1])
-                #print length
-                #print width
+                              
                 cv2.line(contourImg, pt1, pt2, (255,0,0))
                 cv2.line(out, pt1, pt2, (0,0,255))
             cv2.putText(out, str(self.rectData['angle']), (30,30),
@@ -221,7 +234,10 @@ class Flare:
               
         #return out
         return contourImg
-       
+    
+    def calculateLength(self, pt1, pt2):
+        return (pt1[0]-pt2[0])**2 + (pt1[1]-pt2[1])**2
+    
     #Convert ROS image to Numpy matrix for cv2 functions 
     def rosimg2cv(self, ros_image):
         frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
@@ -238,3 +254,7 @@ class Flare:
         
         return hsv_image
         
+if __name__ == "__main__":
+    rospy.init_node("flare_vision")
+    flareDetection = Flare()
+    rospy.spin()
