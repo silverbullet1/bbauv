@@ -9,8 +9,11 @@
 #define UTILITY_H_
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <time.h>
+
 #include "bvt_sdk.h"
 #include "Config.h"
 
@@ -19,6 +22,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
 
 using namespace std;
 
@@ -35,9 +39,7 @@ public:
 	BVTColorImage colorImg;
 	BVTColorMapper colorMap;
 
-	IplImage* grayImg;
-	IplImage* grayImg8b;
-	IplImage* grayImg16b;
+	cv::Mat grayImg;
 
 	//	head params
 	float startRange;
@@ -52,6 +54,8 @@ public:
 	uShort *imgBuffer;
 	int retVal;
 
+	cv::Mat matImg;
+
 	Utility();
 	virtual ~Utility();
 
@@ -60,8 +64,14 @@ public:
 	int processImage();
 	int intensitiesToImage();
 	int writeIntensities();
+	int drawHistogram();
+
+	inline const std::string currentDateTime();
+	void delay(long delay);
 
 	double getGlobalThreshold(cv::Mat gImg);
+	void myAdaptiveThreshold(cv::Mat gImg, cv::Mat srcDilated, double maxValue, int method,
+			int type, int blockSize, double delta);
 
 private:
 	int imgWidth;

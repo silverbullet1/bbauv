@@ -9,7 +9,7 @@
 using namespace cv;
 
 Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL),
-		colorMap(NULL), grayImg(NULL), grayImg8b(NULL), grayImg16b(NULL), imgBuffer(NULL) {
+		colorMap(NULL), imgBuffer(NULL) {
 
 	retVal = startRange = stopRange = fluidType = soundSpeed = analogGain = tvGain =
 	pingCount = imgWidth = imgHeight = imgWidthStep = rangeValCount = 0;
@@ -75,6 +75,9 @@ int Utility::setHeadParams() {
 }
 
 int Utility::writeIntensities() {
+	std::string imgName = "-intensities.png";
+	std::string intensitiesName = "-intensities.txt";
+
 	if((retVal = BVTPing_GetImage(ping, &magImg)) != 0) {
 		cout << "error retrieving ping: " << BVTError_GetString(retVal) << endl;
 		return retVal;
@@ -101,14 +104,22 @@ int Utility::writeIntensities() {
 	matImg = Mat(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1, imgBuffer);
 //	cout  << "matImg depth, channel: " << matImg.depth() << " " << matImg.channels() << endl;
 
-	imwrite("newIntensities.png", matImg);
+	std::string timeString = currentDateTime();
+	std::string grayFile = timeString + imgName;
+	std::string intensitiesFile = timeString + intensitiesName;
+
+//	imwrite("newIntensities.png", matImg);
+	imwrite(grayFile, matImg);
+
 	cout << "matImg size: " << "height: " << matImg.rows << "  width: " << matImg.cols << endl;
 
-	ofstream iOut("newIntensities.txt");
+	ofstream iOut(intensitiesFile.c_str());
 	for(int row=0; row < matImg.rows; ++row) {
 		for(int col=0; col < matImg.cols; ++col) {
 			cv::Scalar intensity = matImg.at<uchar>(col, row);
-			iOut << (uchar)(intensity.val[0] > GRAYSCALE_THRESH ? intensity.val[0] : 0) ;
+			uInt intensityVal = (uInt)intensity.val[0];
+			intensityVal = intensityVal > (uInt)GRAYSCALE_THRESH ? intensityVal : 0;
+			iOut << intensityVal;
 			iOut << " " ;
 		}
 		iOut << endl;
@@ -120,8 +131,8 @@ int Utility::writeIntensities() {
 	storage << "mat" << matImg;
 	storage.release();
 
-	imshow("matImg", matImg);
-	cv::waitKey(0);
+//	imshow("matImg", matImg);
+//	cv::waitKey(0);
 
 	if (NULL != magImg) BVTMagImage_Destroy(magImg);
 	if (NULL != colorMap) BVTColorMapper_Destroy(colorMap);
@@ -133,7 +144,7 @@ int Utility::writeIntensities() {
 int Utility::processImage() {
 //	ifstream intensityIn;
 
-//	reading the image from the stored xml file
+//	hardcoded read : reading the image from the stored xml file
 //	cv::Mat grayImg = Mat::zeros(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1);
 //	cv::FileStorage storage("store.yml", cv::FileStorage::READ);
 //	storage["mat"] >> grayImg;
@@ -141,35 +152,42 @@ int Utility::processImage() {
 
 //	hardcoded read : beware of the image's path
 //	cv::Mat grayImg = Mat::zeros(316, 250, CV_16UC1);
-	cv::Mat grayImg = imread("newIntensities.png", 0);
+	grayImg = imread("newIntensities.png", 0);
+	cout << "grayImg size: " << grayImg.size() << endl;
+
+	Rect roiRect = Rect(Point(0, 25), Point(grayImg.cols, grayImg.rows - ROWS_CROPPED));
+	Mat roiImg = grayImg(roiRect).clone();
+	cout << "ROI size: " << roiImg.size() << endl;
 
 //	all processing stuffs with the saved grayscale image
 //	cv::Mat grayImg = matImg.clone();
-	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, labelledImg;
+	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, dilatedImg, labelledImg;
 
 //	initializing the image matrices with zeros
-	smoothImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
-	threshImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
-	edgedImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
-	morphOImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
-	morphCImg = Mat::zeros(grayImg.rows, grayImg.cols, CV_16UC1);
+	smoothImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
+	threshImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
+	edgedImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
+	morphOImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
+	morphCImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
+	dilatedImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
 
 //	smoothened
-	cv::medianBlur(grayImg, smoothImg, 3);
+	cv::medianBlur(roiImg, smoothImg, 3);
 
-//	thresholded : hardcoded for testing
-//	double threshVal = getGlobalThreshold(grayImg);
-	double threshVal = 150;
-//	cout << "global threshold value: " << threshVal << endl;
+	double threshVal = getGlobalThreshold(roiImg);
+//	double threshVal = 200;
+	cout << "global threshold value: " << threshVal << endl;
 	cv::threshold(smoothImg, threshImg, threshVal, 255, CV_THRESH_BINARY);
+//	cv::adaptiveThreshold(smoothImg, threshImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 23, 25);
 
-//	morphology : opening and closing
+//	morphology : opening, closing and dilating
 	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
 	morphologyEx(threshImg, morphOImg, CV_MOP_OPEN, element);
 	morphologyEx(threshImg, morphCImg, CV_MOP_CLOSE, element);
+	dilate(threshImg, dilatedImg, element);
 
 //	applying canny filter for detecting edges
-	Canny(morphOImg, edgedImg, 1.0, 3.0, 3);
+	Canny(dilatedImg, edgedImg, 1.0, 3.0, 3);
 
 //	labelled image
 //	RNG rng;
@@ -182,26 +200,132 @@ int Utility::processImage() {
 //		drawContours(labelledImg, contours, i, color, 2, 8, hierarchy, 0, Point());
 //	}
 
+//	cout << "image depth: " << (grayImg.dataend-grayImg.datastart) / (grayImg.cols*grayImg.rows*grayImg.channels()) * 8 << endl;
+
+	myAdaptiveThreshold(smoothImg, dilatedImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 5, 25);
+
 	imshow("grayImg", grayImg);
-	imshow("smoothened", smoothImg);
-	imshow("thresholded", threshImg);
-	imshow("morphOpened", morphOImg);
-	imshow("morphClosed", morphCImg);
+	imshow("ROI", roiImg);
+//	imshow("smoothened", smoothImg);
+//	imshow("thresholded", threshImg);
+//	imshow("morphOpened", morphOImg);
+//	imshow("morphClosed", morphCImg);
+	imshow("dilated", dilatedImg);
 	imshow("edged", edgedImg);
 //	imshow("labelled", labelledImg);
 
-	cvWaitKey(0);
+	imwrite("edged.png", edgedImg);
+	waitKey(0);
 
 	return 0;
 }
 
-double Utility::getGlobalThreshold(cv::Mat gImg) {
+int Utility::drawHistogram() {
+	Mat src, equalizedSrc;
+	src = imread("newIntensities.png", 0);
+
+//	without using opencv's calcHist method
+//    int bins = 256;             // number of bins
+//    int nc = src.channels();  	// number of channels
+//    vector<Mat> hist(nc);       // array for storing the histograms
+//    vector<Mat> canvas(nc);    	// images for displaying the histogram
+//    int hmax[3] = {0,0,0};     	// peak value for each histogram
+//
+//    for (int i = 0; i < hist.size(); i++)
+//        hist[i] = Mat::zeros(1, bins, CV_32SC1);
+//
+//    for (int i = 0; i < src.rows; i++) {
+//        for (int j = 0; j < src.cols; j++) {
+//            for (int k = 0; k < nc; k++) {
+//                uchar val = nc == 1 ? src.at<uchar>(i,j) : src.at<Vec3b>(i,j)[k];
+//                hist[k].at<int>(val) += 1;
+//            }
+//        }
+//    }
+//
+//    for (int i = 0; i < nc; i++) {
+//        for (int j = 0; j < bins-1; j++)
+//            hmax[i] = hist[i].at<int>(j) > hmax[i] ? hist[i].at<int>(j) : hmax[i];
+//    }
+//
+//    const char* wname[3] = { "blue", "green", "red" };
+//    Scalar colors[3] = { Scalar(255,0,0), Scalar(0,255,0), Scalar(0,0,255) };
+//
+//    for (int i = 0; i < nc; i++) {
+//        canvas[i] = Mat::ones(125, bins, CV_8UC3);
+//        for (int j = 0, rows = canvas[i].rows; j < bins-1; j++) {
+//            line(
+//                canvas[i],
+//                Point(j, rows),
+//                Point(j, rows - (hist[i].at<int>(j) * rows/hmax[i])),
+//                nc == 1 ? Scalar(200,200,200) : colors[i],
+//                1, 8, 0
+//            );
+//        }
+//        namedWindow("histogram", 0);
+////      imshow(nc == 1 ? "value" : wname[i], canvas[i]);
+//        imshow("histogram", canvas[i]);
+//    }
+
+	if(!src.data)
+		return -1;
+
+//	equalized image
+	equalizeHist(src, equalizedSrc);
+
+	vector<Mat> planes, eqPlanes;
+	split(src, planes);
+	split(equalizedSrc, eqPlanes);
+
+	int histSize = 256;
+	float range[] = {0, 256} ;
+	const float* histRange = { range };
+
+	bool uniform = true; bool accumulate = false;
+	Mat grayHist, grayEqHist;
+
+	calcHist(&planes[0], 1, 0, Mat(), grayHist, 1, &histSize, &histRange, uniform, accumulate);
+	calcHist(&eqPlanes[0], 1, 0, Mat(), grayEqHist, 1, &histSize, &histRange, uniform, accumulate);
+	int histWidth = 512; int histHeight = 400;
+	int bin_w = cvRound((double) histWidth/histSize );
+
+	Mat histImage(histHeight, histWidth, CV_8UC3, Scalar(0,0,0));
+	Mat histEqImage(histHeight, histWidth, CV_8UC3, Scalar(0,0,0));
+
+	normalize(grayHist, grayHist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+	normalize(grayEqHist, grayEqHist, 0, histEqImage.rows, NORM_MINMAX, -1, Mat());
+
+	for( int i = 1; i < histSize; i++ )
+	{
+	    line (	histImage,
+	    		Point(bin_w*(i-1), histHeight - cvRound(grayHist.at<float>(i-1))),
+	    		Point(bin_w*(i), histHeight - cvRound(grayHist.at<float>(i))),
+	    		Scalar(255, 255, 0), 2, 8, 0
+	    	  );
+
+	    line (	histEqImage,
+	   	    	Point(bin_w*(i-1), histHeight - cvRound(grayEqHist.at<float>(i-1))),
+	   	    	Point(bin_w*(i), histHeight - cvRound(grayEqHist.at<float>(i))),
+	   	    	Scalar(255, 255, 0), 2, 8, 0
+	    	  );
+	}
+
+	namedWindow("histogram", CV_WINDOW_AUTOSIZE);
+	namedWindow("equalized histogram", CV_WINDOW_AUTOSIZE);
+	imshow("histogram", histImage);
+	imshow("equalized histogram", histEqImage);
+
+    waitKey(0);
+	return 0;
+}
+
+double Utility::getGlobalThreshold(Mat gImg) {
 	cv::Mat g, ginv;
 	bool done;
 	double T, Tnext;
 	double min_val, max_val;
 
-	cv::minMaxLoc(gImg, &min_val, &max_val, NULL, NULL, NULL);
+	cv::minMaxLoc(gImg, &min_val, &max_val, 0, 0, noArray());
 	cout << "Min val: " << min_val << "\tMax val: " << max_val << endl;
 
 	T = 0.5 * (min_val + max_val);
@@ -211,8 +335,103 @@ double Utility::getGlobalThreshold(cv::Mat gImg) {
 		cv::threshold(gImg, g, T, 255, CV_THRESH_BINARY);
 		cv::bitwise_not(g, ginv);
 		Tnext = 0.5 * (cv::mean(gImg, g).val[0] + cv::mean(gImg, ginv).val[0]);
-		done = fabs(T-Tnext) < 5;
+		done = fabs(T-Tnext) < 100;
 		T = Tnext;
 	}
+
 	return T;
+}
+
+void Utility::myAdaptiveThreshold(Mat gImg, Mat srcDilated, double maxValue, int method,
+		int type, int blockSize, double delta) {
+
+		Mat src = gImg.clone();
+		Mat dst = Mat::zeros(src.size(), CV_8UC1);
+		Mat mean;
+		Size size = src.size();
+
+		if( src.data != dst.data )
+			mean = dst;
+
+		if(method == ADAPTIVE_THRESH_MEAN_C)
+			boxFilter( src, mean, src.type(), Size(blockSize, blockSize),
+					Point(-1,-1), true, BORDER_REPLICATE );
+		else if(method == ADAPTIVE_THRESH_GAUSSIAN_C)
+			GaussianBlur(src, mean, Size(blockSize, blockSize), 0, 0, BORDER_REPLICATE);
+
+		 int i, j;
+		 uchar imaxval = saturate_cast<uchar>(maxValue);
+		 int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
+		 uchar tab[768];
+
+		 if(type == CV_THRESH_BINARY)
+			 for( i = 0; i < 768; i++ )
+				 tab[i] = (uchar)(i - 255 > -idelta ? imaxval : 0);
+		 else if(type == CV_THRESH_BINARY_INV)
+			 for(i = 0; i < 768; i++)
+				 tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0);
+		 else
+			 CV_Error(CV_StsBadFlag, "Unknown/unsupported threshold type");
+
+		 if(src.isContinuous() && mean.isContinuous() && dst.isContinuous()) {
+			 cout << "continous!!" << endl;
+			 size.width *= size.height;
+			 size.height = 1;
+		 }
+
+		 for( i = 0; i < size.height; i++ ) {
+			 const uchar* sdata = src.data + src.step*i;
+			 const uchar* mdata = mean.data + mean.step*i;
+			 uchar* ddata = dst.data + dst.step*i;
+
+			 for( j = 0; j < size.width; j++ )
+				 ddata[j] = tab[sdata[j] - mdata[j] + 255];
+		 }
+
+		 Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
+		 Mat dstDilated = Mat::zeros(dst.size(), CV_8UC1);
+		 dilate(dst, dstDilated, element);
+
+		 Mat dstEdged = Mat::zeros(dst.size(), CV_8UC1);
+		 Canny(dstDilated, dstEdged, 1.0, 3.0, 3);
+		 imshow("dstEdged", dstEdged);
+
+//		 Bollean operations on src and dst image to be experimented here
+//		 Mat orImg = Mat::zeros(dst.size(), CV_8UC1);
+//		 for( i = 0; i < size.height; i++ ) {
+//			 const uchar* srcData = srcDilated.data + srcDilated.step*i ;
+//			 const uchar* dstData = dstDilated.data + dstDilated.step*i ;
+//			 uchar* andData = orImg.data + orImg.step*i ;
+//
+//			 for( j = 0; j < size.width; j++ ) {
+//				andData[j] = srcData[j] * dstData[j] ;
+//			 }
+//		 }
+//		 Canny(orImg, dstEdged, 1.0, 3.0, 3);
+//		 imshow("OREdged", dstEdged);
+
+		 imshow("dst", dst);
+		 imshow("dstDilated", dstDilated);
+
+//		 imwrite("dstEdged.png", dstEdged);
+		 waitKey(0);
+
+		 return;
+}
+
+// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
+inline const std::string Utility::currentDateTime() {
+    time_t now = time(0);
+    struct tm tstruct;
+    char buf[80];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%m-%d.%X", &tstruct);
+
+    return buf;
+}
+
+void Utility::delay(long delay)
+{
+	clock_t start = clock();
+	while(clock() - start < delay);
 }
