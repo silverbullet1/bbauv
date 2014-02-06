@@ -39,26 +39,27 @@ flare_params = {'flare_area':0, 'centering_x':0, 'centering_y':0}
 
 #Starts off in disengage class
 class Disengage(smach.State):
-    client = None   
+    
     def __init__(self, flare_task):
         smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'])
         self.flare = flare_task
     
     def execute(self, userdata):
-            self.flare.unregister()
-            while not rospy.is_shutdown():
-                if isEnd or self.flare.isAborted:
-                    return 'aborted'
-                if isStart:
-                    flare.register()
-                    rospy.info("Starting Flare")
-                    return 'start_complete'
-                rospy.sleep(rospy.Duration(0.1))
         
-            #Wait for mission to start call: How? :( 
-            
-            self.flare.register()
-            return 'start_complete'
+        self.flare.unregister()
+        if self.flare.testing:
+            isStart = True
+        while not rospy.is_shutdown():
+            if isEnd or self.flare.isAborted:
+                return 'aborted'
+            if isStart:
+                self.flare.register()
+                rospy.loginfo("Starting Flare")
+                return 'start_complete'
+            rospy.sleep(rospy.Duration(0.1))
+                
+        self.flare.register()
+        return 'start_complete'
     
 #Searches for the flare
 class Search(smach.State):
@@ -152,7 +153,7 @@ def handle_srv(req):
 def flareCallback(conig, level):
     for param in flare.yellow_params:
         flare.yellow_params[param] = config['yellow_' + param]
-    isTestMode = config["testmode"]
+    isTestMode = config["testing"]
     return config
 
 #Utility function for normalising heading 
@@ -166,7 +167,6 @@ def normHeading(heading):
 
 if __name__ == '__main__':
     rospy.init_node("Flare", anonymous=False)
-    isTestMode = rospy.get_param("~testmode", False)
     rosRate = rospy.Rate(20)
     flare_task = Flare()
     rospy.loginfo("Flare loaded!")

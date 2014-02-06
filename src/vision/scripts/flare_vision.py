@@ -13,13 +13,16 @@ import actionlib
 import cv2 as cv2
 from cv_bridge import CvBridge, CvBridgeError
 
+import collections
 import math
 import numpy as np
 import signal
 
 class Flare:
     yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0}
+    rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
+                'width':0, 'aspect':0.0}
+    previous_centroids = collections.deque(maxlen=7)
     areaThresh = 800
     
     bridge = None
@@ -216,18 +219,31 @@ class Flare:
                 if -epislon < rectData['angle'] < epislon:
                     rectData['length'] = max(self.calculateLength(points[0], points[1]),
                                                   self.calculateLength(points[1], points[2]))
-                    rectList.append(rectData)
+                    rectData['width'] = min(self.calculateLength(points[0], points[1]),
+                                                  self.calculateLength(points[1], points[2]))
+                    rectData['aspect'] = rectData['length']/rectData['width']
+                    
+                    #Find the median of the last four
+#                     if self.previous_centroids:
+#                         x_median, y_median = np.median(self.previous_centroids, axis=0)
+#                         if abs(rectData['centroids'][0]-x_median)< 0.3 and abs(rectData['centroids'][1]-y_median)<0.3:
+                    rectList.append(rectData)                            
+                    self.previous_centroids.append(rectData['centroids'])
+
         
-        #Find the largest rect area
-        rectList.sort(cmp=None, key=lambda x: x['length'], reverse=True)
+        #Find the largest rect length
+        rectList.sort(cmp=None, key=lambda x: x['aspect'], reverse=True)
         if rectList:
             self.rectData = rectList[0]
             self.rectData['detected'] = True
-            rospy.loginfo(self.rectData['angle'])
+            rospy.loginfo(self.rectData['angle'])            
             
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
             centery = int(self.rectData['centroids'][1])
+            #x_median, y_median = np.mean(self.previous_centroids, axis=0)
+            #centerx = int(x_median)
+            #centery = int(y_median) 
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
             cv2.circle(contourImg, (centerx, centery), 5, (255,0,0))
             cv2.circle(out, (centerx, centery), 5, (255,255,255))
