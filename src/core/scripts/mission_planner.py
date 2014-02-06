@@ -70,7 +70,7 @@ class InitialState(smach.State):
         self.DoneMoving = False
         smach.State.__init__(self, outcomes=['initialized', 'failed'])
 
-    def dive(self, depth=0.1):
+    def dive(self, depth=0.0):
         self.world.depth = depth
         rospy.loginfo("Subscribing to the LocomotionServer to dive.")
         self.actionClient = actionlib.SimpleActionClient('LocomotionServer',
@@ -98,7 +98,7 @@ class InitialState(smach.State):
         else:
             rospy.loginfo("Unknown status caught: %s" % (str(status)))
 
-    def goForward(self, distance=0.7):
+    def goForward(self, distance=0.0):
         """
         we assume that this is only called when the dive is complete
         """
@@ -174,7 +174,7 @@ class Gate(smach.State):
         rospy.loginfo("Starting the bucket server to listen")
         try:
             self.bucketServer =\
-                    rospy.Service("/bucket/bucket_to_mission",
+                    rospy.Service("/bucket/vision_to_mission",
                                   vision_to_mission, self.bucketCallback)
         except rospy.ServiceException, e:
             rospy.logerr("Service exception thrown: %s" % (str(e)))
@@ -209,6 +209,7 @@ class Gate(smach.State):
             self.activateVisionNode()
         while not rospy.is_shutdown():
             if self.visionDone:
+                self.shutdownVision()
                 return 'gate_passed'
 
 
