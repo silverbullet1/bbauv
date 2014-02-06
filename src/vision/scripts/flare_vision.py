@@ -101,10 +101,16 @@ class Flare:
         return mission_to_visionResponse(True, False)
 
     def failedTask(self):
-        self.toMission(fail_request=True)
+        if not self.testing:
+            self.toMission(fail_request=True)
 
     def taskComplete(self):
-        self.toMission(task_complete_request=True)
+        if not self.testing:
+            self.toMission(task_complete_request=True)
+        self.sendMovement(heading=85.0)
+        self.stopRobot()
+        self.isAborted = True
+        self.isKilled = True
 
     def stopRobot(self):
         self.sendMovement(forward=0.0, sidemove=0.0)
@@ -137,15 +143,17 @@ class Flare:
         
     def abortMission(self):
         #Notify mission planner service
-        try:
-            abortRequest = rospy.ServiceProxy("/flare/vision_to_mission",
-                                              vision_to_mission)
-            abortRequest(task_complete_request=True)
-            self.stopRobot()
-            self.isAborted = True
-            self.isKilled = True
-        except rospy.ServiceException, e:
-            rospy.logerr(str(e))
+        if not self.testing:
+            try:
+                abortRequest = rospy.ServiceProxy("/flare/vision_to_mission",
+                                                  vision_to_mission)
+                abortRequest(task_complete_request=True)
+            except rospy.ServiceException, e:
+                rospy.logerr(str(e))
+        self.stopRobot()
+        self.isAborted = True
+        self.isKilled = True
+        
     
     def findTheFlare(self, image):
         #Convert ROS to CV image 
