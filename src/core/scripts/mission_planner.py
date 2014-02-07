@@ -28,6 +28,9 @@ class Interaction(object):
         """
         self.depth = None
         self.forward = None
+        self.flare_done = False
+        self.startBucket = False
+        self.flare_failed = False
 
         rospy.loginfo("Initializing mission planner interaction module")
 
@@ -41,6 +44,8 @@ class Interaction(object):
             self.ControllerSettings(forward=True, sidemove=False, heading=True,
                                     depth=True, roll=False, topside=False,
                                     navigation=False)
+            self.flareService = rospy.Service('/flare/vision_to_mission',
+                                              vision_to_mission, self.flareCallback)
         except rospy.ServiceException, e:
             rospy.logerr("Error while subscribing to the Controller service: %s"
                          % (str(e)))
@@ -58,6 +63,14 @@ class Interaction(object):
     def compassCallback(self, data):
         self.heading = data
 
+    def flareCallback(self, data):
+        if data.task_complete_request:
+            self.flare_done = True
+            return vision_to_missionResponse(False, True)
+        if data.fail_request:
+            self.flare_failed = True
+            return vision_to_missionResponse(False, True)
+
 
 class InitialState(smach.State):
     """
@@ -70,7 +83,7 @@ class InitialState(smach.State):
         self.DoneMoving = False
         smach.State.__init__(self, outcomes=['initialized', 'failed'])
 
-    def dive(self, depth=0.0):
+    def dive(self, depth=0):
         self.world.depth = depth
         rospy.loginfo("Subscribing to the LocomotionServer to dive.")
         self.actionClient = actionlib.SimpleActionClient('LocomotionServer',
@@ -108,7 +121,8 @@ class InitialState(smach.State):
         rospy.loginfo("Waiting for Actionlib before moving forward")
         self.actionClient.wait_for_server()
         rospy.loginfo("Got actionlib server, sending goal to move forward")
-        self.actionClient.send_goal(self.goal, self.forwardCallback)
+        #self.actionClient.send_goal(self.goal, self.forwardCallback)
+        self.DoneMoving = True
         self.actionClient.wait_for_result()
 
     def forwardCallback(self, status, result):
@@ -138,7 +152,7 @@ class InitialState(smach.State):
                 self.done()
                 return 'initialized'
             if not self.DoneDiving and not self.DoneMoving:
-                self.dive(self.world.depth)
+                self.dive()
             if self.DoneDiving and not self.DoneMoving:
                 self.goForward(0)
 
@@ -151,6 +165,7 @@ class Gate(smach.State):
         self.world = world
         self.visionDone = False
         self.visionActive = False
+        self.visionFailed = False
         smach.State.__init__(self, outcomes=['gate_passed', 'gate_failed'])
 
     def activateVisionNode(self):
@@ -190,12 +205,17 @@ class Gate(smach.State):
     def visionCallback(self, req):
         if req.task_complete_request:
             self.visionDone = True
+            return vision_to_missionResponse(False, True)
+        if req.fail_request:
+            self.visionFailed = True
+            return vision_to_missionResponse(False, True)
         elif req.search_request and not self.visionActive:
             self.activateVisionNode()
 
     def bucketCallback(self, req):
         if req.start_request:
             self.visionDone = True
+            self.world.startBucket = True
 
     def shutdownVision(self):
         rospy.loginfo("Shutting down vision node if active.")
@@ -209,24 +229,27 @@ class Gate(smach.State):
             self.activateVisionNode()
         while not rospy.is_shutdown():
             if self.visionDone:
-                self.shutdownVision()
                 return 'gate_passed'
-
+            if self.visionFailed:
+                return 'gate_failed'
 
 class Bucket(smach.State):
     """
     dropping ball in bucket
-    must be activated and start and will send a request to the mission
-    controller when linefollower detects a curve of more than 45degs
-    then must be handed control to
+
+    bucket node is initialized from linefollower
     """
     def __init__(self, world):
         self.world = world
         smach.State.__init__(self, outcomes=['ball_dropped', 'ball_failed'])
 
+    def initBucketServer(self):
+        self.bucketServer
+
     def execute(self, userdata):
-        self.world.vision_serviceproxy(abort_request=True)
-        if self.world.linefollower_done:
+        #self.world.vision_serviceproxy(abort_request=True)
+        #if self.world.linefollower_done:
+        if not rospy.is_shutdown():
             return 'ball_dropped'
 
 class Flare(smach.State):
@@ -238,9 +261,19 @@ class Flare(smach.State):
     def __init__(self, world):
         self.world = world
         smach.State.__init__(self, outcomes=['flare_done', 'flare_failed'])
+    
+    def flareCallback(self, data):
+        pass
 
     def execute(self, userdata):
-        return 'flare_done'
+        self.flareService = rospy.ServiceProxy('/flare/mission_to_vision',
+                                               mission_to_vision)
+        self.flareService(start_request=True, start_ctrl=controller(), abort_request=False)
+        while not rospy.is_shutdown():
+            if self.world.flare_done:
+                return 'flare_done'
+            if self.world.flare_failed:
+                return 'flare_failed'
 
 class Acoustics(smach.State):
     """

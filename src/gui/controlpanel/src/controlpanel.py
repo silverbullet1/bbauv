@@ -55,7 +55,6 @@ class AUV_gui(QMainWindow):
     update_freq = 40
     vision_filter_frame = None
     filter_image = None
-    isPIDon = True;
     q_orientation = Queue.Queue()
     q_depth = Queue.Queue() 
     q_earth_pos = Queue.Queue()
@@ -736,12 +735,7 @@ class AUV_gui(QMainWindow):
         self.isSubscribed = not self.isSubscribed
 
     def disablePIDHandler(self):
-        self.isPIDon = not self.isPIDon
-        if self.isPIDon: 
-            self.disablePIDButton.setText("&Disable PID")
-        else:
-            self.disablePIDButton.setText("&Enable PID")
-            resp = self.set_controller_request(False, False, False, False, False, False,False,False)
+          resp = self.set_controller_request(False, False, False, False, False, False,False,False)
 
     def homeBtnHandler(self):
         movebaseGoal = MoveBaseGoal()
