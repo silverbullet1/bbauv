@@ -23,8 +23,7 @@ from bbauv_msgs.srv import *
 from flare_vision import Flare
 
 #Global variables 
-isStart = False 
-isAbort = False
+isStart = False
 isEnd = False
 isTestMode = False                  #If test mode then don't wait for mission call  
 rosRate = None 
@@ -45,20 +44,13 @@ class Disengage(smach.State):
         self.flare = flare_task
     
     def execute(self, userdata):
-        
         self.flare.unregister()
-        if self.flare.testing:
-            isStart = True
-        while not rospy.is_shutdown():
-            if isEnd or self.flare.isAborted:
-                return 'aborted'
-            if isStart:
-                self.flare.register()
-                rospy.loginfo("Starting Flare")
-                return 'start_complete'
-            rospy.sleep(rospy.Duration(0.1))
-                
+
+        while self.flare.isAborted:
+            rospy.sleep(rospy.Duration(0.2))
+        
         self.flare.register()
+        rospy.loginfo("Starting Flare")
         return 'start_complete'
     
 #Searches for the flare
@@ -73,14 +65,10 @@ class Search(smach.State):
         if self.flare.isAborted:
             return 'aborted'
         
-        while not rospy.is_shutdown():
-            if isAbort:
-                rospy.loginfo("Flare aborted by Mission Planner")
-                return "mission_abort"
-        
         #Check if flare found or timeout already
+        timecount = 0
         while not self.flare.rectData['detected']:
-            if timecount > self.timeout or rospy.is_shutdown():
+            if timecount > self.timeout or rospy.is_shutdown() or self.flare.isKilled:
                 self.flare.abortMission()
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
@@ -192,10 +180,4 @@ if __name__ == '__main__':
                                               'mission_abort': "DISENGAGE"})
     
     outcomes = sm.execute()
-    
-    try:
-        rospy.spin()
-    except KeyboardInterrupt:
-        rospy.loginfo("Shutting down flare")
-    pass
     

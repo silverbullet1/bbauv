@@ -83,7 +83,7 @@ class Flare:
         self.isKilled = True
             
     def register(self):
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_lynnette" , Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_flare" , Image)
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
@@ -105,7 +105,7 @@ class Flare:
 
     def failedTask(self):
         if not self.testing:
-            self.toMission(fail_request=True)
+            self.toMission(fail_request=True, task_complete_request=False)
 
     def taskComplete(self):
         if not self.testing:
@@ -137,6 +137,7 @@ class Flare:
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
+        #pass
         depth = depth if depth else self.depth_setpoint
         heading = heading if heading else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
@@ -144,15 +145,17 @@ class Flare:
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.3))
         
+        
     def abortMission(self):
-        #Notify mission planner service
+        #Receive mission planner service
         if not self.testing:
             try:
                 abortRequest = rospy.ServiceProxy("/flare/vision_to_mission",
                                                   vision_to_mission)
-                abortRequest(task_complete_request=True)
+                result = abortRequest(task_complete_request=True)
+                #rospy.loginfo(str(result))
             except rospy.ServiceException, e:
-                rospy.logerr(str(e))
+                pass
         self.stopRobot()
         self.isAborted = True
         self.isKilled = True
