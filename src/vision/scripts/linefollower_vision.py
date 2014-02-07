@@ -113,14 +113,14 @@ class LineFollower():
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
-                                             
+                                              
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
 
     def abortMission(self):
         #Notify mission planner service
         if not self.testing:
-            self.toMission(fail_request=True)
+            self.toMission(fail_request=True, task_complete_request=False)
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()

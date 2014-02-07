@@ -40,7 +40,7 @@ class BucketDetector:
 
     def __init__(self):
         self.testing = rospy.get_param("~testing", False)
-        self.isAborted = False 
+        self.isAborted = False
         self.isKilled = False
         signal.signal(signal.SIGINT, self.userQuit)
 
@@ -54,8 +54,7 @@ class BucketDetector:
 
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
-        if not self.testing:
-            self.isAborted = True 
+        if not self.testing: 
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
             self.toMission.wait_for_service(timeout = 5)
         
@@ -83,7 +82,7 @@ class BucketDetector:
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
-
+ 
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.3))
 
@@ -121,7 +120,7 @@ class BucketDetector:
 
     def abortMission(self):
         if not self.testing:
-            self.toMission(fail_request=True)
+            self.toMission(fail_request=True, task_complete_request=False)
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()

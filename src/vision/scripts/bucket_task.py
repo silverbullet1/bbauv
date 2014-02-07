@@ -41,7 +41,9 @@ class Searching1(smach.State):
         if self.bucketDetector.isAborted:
             return 'aborted'
 
-        while not self.bucketDetector.rectData['detected']: 
+        while not self.bucketDetector.rectData['detected']:
+            if self.bucketDetector.isAborted:
+                return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
 
         self.bucketDetector.searchComplete()
