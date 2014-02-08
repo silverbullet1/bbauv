@@ -18,7 +18,7 @@ class BucketDetector:
     #HSV thresholds for red color
     lowThresh1 = np.array([ 92, 0, 10 ])
     hiThresh1 = np.array([ 131, 255, 245 ]) 
-    areaThresh = 50000
+    areaThresh = 30000
 
     bridge = None
     
@@ -60,7 +60,7 @@ class BucketDetector:
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up
@@ -144,8 +144,11 @@ class BucketDetector:
         #Noise removal
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
+        contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_OPEN, openEl)
 
         out = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2BGR)
       
