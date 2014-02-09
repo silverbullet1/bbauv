@@ -102,7 +102,7 @@ class FollowingLine(smach.State):
         else:
             sidemove = 0.0
 
-        if abs(angle) < 7:
+        if abs(angle) < 10:
             self.linefollower.sendMovement(f=0.9, sm=sidemove)
             rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
         else:
