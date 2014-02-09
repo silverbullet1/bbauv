@@ -83,7 +83,7 @@ class Flare:
         self.isKilled = True
             
     def register(self):
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_flare" , Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")

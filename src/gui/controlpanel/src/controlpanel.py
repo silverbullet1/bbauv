@@ -139,7 +139,7 @@ class AUV_gui(QMainWindow):
         hoverButton = QPushButton("&Hover")
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
-        self.modeButton = QPushButton("Default")
+        self.modeButton = QPushButton("De&fault")
         self.disablePIDButton = QPushButton("&Disable PID")
         self.unsubscribeButton = QPushButton("&Unsubscribe")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
@@ -793,17 +793,30 @@ class AUV_gui(QMainWindow):
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
         
+#         goal.forward_setpoint = float(self.forward_box.text())
+#         goal.sidemove_setpoint = float(self.sidemove_box.text())
+#         
+#         if self.rel_heading_chkbox.checkState():
+#             goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
+#         else:
+#             goal.heading_setpoint = float(self.heading_box.text())
+#             
+#         if self.rel_depth_chkbox.checkState():
+#             goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
+#         else:
+#             goal.depth_setpoint = float(self.depth_box.text())
+        
         #Forward - works
         if self.forward_box.text() == "":
-            self.forward_box.setText("0")
+             self.forward_box.setText("0")
         goal.forward_setpoint = float(self.forward_box.text())
-        
-        #Sidemove
+         
+         #Sidemove
         if self.sidemove_box.text() == "":
             self.sidemove_box.setText("0")
         goal.sidemove_setpoint = float(self.sidemove_box.text())
-        
-        #Heading - works
+         
+         #Heading - works
         if self.heading_box.text() == "":
             self.heading_box.setText(str(self.data['yaw']))
             self.rel_heading_chkbox.setChecked(True)
@@ -812,8 +825,8 @@ class AUV_gui(QMainWindow):
             goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
         else:
             goal.heading_setpoint = float(self.heading_box.text())
-                  
-        #Depth - works
+                   
+         #Depth - works
         if self.depth_box.text() == "":
             self.depth_box.setText(str(self.data['depth']))
             self.rel_depth_chkbox.setChecked(True)

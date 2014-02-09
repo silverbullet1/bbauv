@@ -1,0 +1,13 @@
+<!-- Please Launch Everything SAUVC 2014 -->
+<launch>
+	
+	<!--Launch Arduino & PID Controller--> 
+	<include file="$(find launch)/drivers.launch" />
+	
+	<!--Launch Cameras --> 
+	<include file="$(find vision)/launch/cameraswusb.launch" />
+	
+	<!--Launch acoustics-->
+	<!-- <include file="$(find launch)/acoustics.launch" />-->
+
+</launch>

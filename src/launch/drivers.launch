@@ -16,10 +16,4 @@
     <!-- Launch Sparton IMU -->
     <include file="$(find launch)/SpartonCompass.launch"/>
 
-    <!-- Launching cameras and image reducer -->
-    <!--<include file="$(find vision)/cameras.launch" />-->
-    
-    <!-- Launching acoustics -->
-   <!-- <include file="$(find launch)/acoustic.launch" />-->
-
 </launch> 
