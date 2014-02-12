@@ -118,8 +118,16 @@ class AUV_gui(QMainWindow):
         forward_l, self.forward_box,layout1 = self.make_data_box("Forward:   ")
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
         
-        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Relative:")
-        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Relative:")
+        self.depth_rev = QPushButton("Reverse")
+        layout4.addWidget(self.depth_rev)
+        self.heading_rev = QPushButton("Reverse")
+        layout3.addWidget(self.heading_rev)
+        
+        self.sidemove_rev = QPushButton("Reverse")
+        self.forward_rev = QPushButton("Reverse")
+        
+        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:")
+        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:")
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
         goal_heading_layout.addLayout(layout5)
@@ -127,20 +135,36 @@ class AUV_gui(QMainWindow):
         goal_depth_layout.addLayout(layout4)
         goal_depth_layout.addLayout(layout6)
         
+        goal_forward_layout = QHBoxLayout()
+        goal_forward_layout.addLayout(layout1)
+        goal_forward_layout.addWidget(self.forward_rev)
+        goal_forward_layout.addStretch()
+        
+        goal_sidemove_layout = QHBoxLayout()
+        goal_sidemove_layout.addLayout(layout2)
+        goal_sidemove_layout.addWidget(self.sidemove_rev)
+        goal_sidemove_layout.addStretch()
+                
         goal_layout = QVBoxLayout()
-        goal_layout.addLayout(layout1)
-        goal_layout.addLayout(layout2)
+        goal_layout.addLayout(goal_forward_layout)
+        goal_layout.addLayout(goal_sidemove_layout)
         goal_layout.addLayout(goal_heading_layout)
         goal_layout.addLayout(goal_depth_layout)
+        
+        self.sidemove_rev.clicked.connect(self.sidemove_revHandler)
+        self.depth_rev.clicked.connect(self.depth_revHandler)
+        self.forward_rev.clicked.connect(self.forward_revHandler)
+        self.heading_rev.clicked.connect(self.heading_revHandler)
+
         
         # Buttons Layout
         okButton = QPushButton("&Start Goal")
         cancelButton = QPushButton("&End Goal")
+        self.disablePIDButton = QPushButton("&Disable PID")
         hoverButton = QPushButton("&Hover")
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("De&fault")
-        self.disablePIDButton = QPushButton("&Disable PID")
         self.unsubscribeButton = QPushButton("&Unsubscribe")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
@@ -182,6 +206,7 @@ class AUV_gui(QMainWindow):
         #hbox.addStretch(1)
         vbox.addWidget(okButton)
         vbox.addWidget(cancelButton)
+        vbox.addWidget(self.disablePIDButton)
         vbox2 = QVBoxLayout()
         #hbox.addStretch(1)
         vbox2.addWidget(hoverButton)
@@ -193,7 +218,6 @@ class AUV_gui(QMainWindow):
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
         vbox3.addWidget(self.unsubscribeButton)
-        vbox3.addWidget(self.disablePIDButton)
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
@@ -734,6 +758,22 @@ class AUV_gui(QMainWindow):
             self.unsubscribeButton.setText("Unsubscribe")
         self.isSubscribed = not self.isSubscribed
 
+    def sidemove_revHandler(self):
+        rev_sidemove = -1.0 * float(self.sidemove_box.text())
+        self.sidemove_box.setText(str(rev_sidemove))
+    
+    def depth_revHandler(self):
+        rev_depth = -1.0 * float(self.depth_box.text())
+        self.depth_box.setText(str(rev_depth))
+        
+    def forward_revHandler(self):
+        rev_forward = -1.0 * float(self.forward_box.text())
+        self.forward_box.setText(str(rev_forward))
+    
+    def heading_revHandler(self):
+        rev_heading = -1.0 * float(self.heading_box.text())
+        self.heading_box.setText(str(rev_heading))
+
     def disablePIDHandler(self):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
 
@@ -793,20 +833,7 @@ class AUV_gui(QMainWindow):
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
         
-#         goal.forward_setpoint = float(self.forward_box.text())
-#         goal.sidemove_setpoint = float(self.sidemove_box.text())
-#         
-#         if self.rel_heading_chkbox.checkState():
-#             goal.heading_setpoint = (self.data['yaw'] + float(self.heading_box.text())) % 360
-#         else:
-#             goal.heading_setpoint = float(self.heading_box.text())
-#             
-#         if self.rel_depth_chkbox.checkState():
-#             goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
-#         else:
-#             goal.depth_setpoint = float(self.depth_box.text())
-        
-        #Forward - works
+        #Forward
         if self.forward_box.text() == "":
              self.forward_box.setText("0")
         goal.forward_setpoint = float(self.forward_box.text())
@@ -816,7 +843,7 @@ class AUV_gui(QMainWindow):
             self.sidemove_box.setText("0")
         goal.sidemove_setpoint = float(self.sidemove_box.text())
          
-         #Heading - works
+         #Heading 
         if self.heading_box.text() == "":
             self.heading_box.setText(str(self.data['yaw']))
             self.rel_heading_chkbox.setChecked(True)
@@ -826,7 +853,7 @@ class AUV_gui(QMainWindow):
         else:
             goal.heading_setpoint = float(self.heading_box.text())
                    
-         #Depth - works
+         #Depth 
         if self.depth_box.text() == "":
             self.depth_box.setText(str(self.data['depth']))
             self.rel_depth_chkbox.setChecked(True)
