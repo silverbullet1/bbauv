@@ -93,6 +93,8 @@ class BucketDetector:
         self.hiThresh1[1] = config['hiS']
         self.hiThresh1[2] = config['hiV']
         
+        self.areaThresh = config['area_thresh']
+        
         return config
 
     def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):

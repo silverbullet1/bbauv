@@ -81,6 +81,7 @@ find_package(OpenCV)
 ## Add dynamic reconfigure api
 generate_dynamic_reconfigure_options(
     cfg/bucket.cfg
+    cfg/linefollower.cfg
 )
 
 ###################################
