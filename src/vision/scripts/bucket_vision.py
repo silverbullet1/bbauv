@@ -2,14 +2,17 @@
 
 import roslib; roslib.load_manifest('vision')
 
-from bbauv_msgs.msg import * 
-from bbauv_msgs.srv import *
-from sensor_msgs.msg import Image
-
 import rospy
 import cv2 
 from cv_bridge import CvBridge, CvBridgeError
 import actionlib
+from dynamic_reconfigure.server import Server as DynServer
+
+from bbauv_msgs.msg import * 
+from bbauv_msgs.srv import *
+import vision.cfg.bucketConfig as Config
+from sensor_msgs.msg import Image
+
 import signal
 
 import numpy as np
@@ -51,6 +54,9 @@ class BucketDetector:
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
         self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket", Image)
         self.register()
+        
+        # Setup dynamic reconfigure server
+        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
 
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
@@ -76,6 +82,18 @@ class BucketDetector:
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+        
+    def reconfigure(self, config, level):
+        rospy.loginfo("Got reconfigure request!")
+        self.lowThresh1[0] = config['loH']
+        self.lowThresh1[1] = config['loS']
+        self.lowThresh1[2] = config['loV']
+        
+        self.hiThresh1[0] = config['hiH']
+        self.hiThresh1[1] = config['hiS']
+        self.hiThresh1[2] = config['hiV']
+        
+        return config
 
     def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
         d = d if d else self.depth_setpoint
@@ -166,8 +184,8 @@ class BucketDetector:
                 # Find center with moments
                 mu = cv2.moments(contour, False)
                 mu_area = mu['m00']
-                centroidx = mu['m10']/mu_area
-                centroidy = mu['m01']/mu_area
+                centroidx = mu['m10'] / mu_area
+                centroidy = mu['m01'] / mu_area
                 
                 self.rectData['area'] = area
                 self.rectData['centroid'] = (centroidx, centroidy)

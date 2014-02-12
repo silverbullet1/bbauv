@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   bbauv_msgs
   actionlib
+  dynamic_reconfigure
 )
 
 ## System dependencies are found with CMake's conventions
@@ -76,6 +77,11 @@ find_package(OpenCV)
 #   DEPENDENCIES
 #   std_msgs
 # )
+
+## Add dynamic reconfigure api
+generate_dynamic_reconfigure_options(
+    cfg/bucket.cfg
+)
 
 ###################################
 ## catkin specific configuration ##

@@ -109,7 +109,7 @@ class FollowingLine(smach.State):
             if sidemove == 0:
                 sidemove = angle / 60 * 0.2
             else:
-                if angle > 30:
+                if abs(angle) > 30:
                     angle = math.copysign(30, angle)
             
             heading = normHeading(self.linefollower.curHeading - angle)
