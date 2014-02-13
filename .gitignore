@@ -29,6 +29,11 @@ Icon
 ### /Users/alex/.gitignore-boilerplates/Global/Vim.gitignore
 
 *.s[a-w][a-z]
+
+#exclusion for srv files
+!*.srv
+#end exclude
+
 *.un~
 Session.vim
 .netrwhist
