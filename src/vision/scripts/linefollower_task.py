@@ -20,8 +20,8 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         self.linefollower.unregisterSubscribers()
-        #Stay in Disengage state until isAborted is False or
-        #timeout after waiting for too long
+        # Stay in Disengage state until isAborted is False or
+        # Timeout after waiting for too long
         timecount = 0
         while self.linefollower.isAborted:
             if timecount > self.timeout or self.linefollower.isKilled:
@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'start_complete'
 
 class Searching(smach.State):
-    timeout = 100 #5 seconds time out before aborting
+    timeout = 50 #5 seconds time out before aborting
     
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['line_found', 'aborted'])
@@ -109,7 +109,7 @@ class FollowingLine(smach.State):
             if sidemove == 0:
                 sidemove = angle / 60 * 0.2
             else:
-                if angle > 30:
+                if abs(angle) > 30:
                     angle = math.copysign(30, angle)
             
             heading = normHeading(self.linefollower.curHeading - angle)

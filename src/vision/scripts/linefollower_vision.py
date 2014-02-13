@@ -3,9 +3,11 @@ import rospy
 import actionlib
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
+import vision.cfg.linefollowerConfig as Config
 
 import cv2
 
@@ -17,7 +19,7 @@ class LineFollower():
     testing = False
     thval = 30
     upperThresh = 70
-    areaThresh = 7000
+    areaThresh = 8000
     screen = {}
     screen['width'] = 640
     screen['height'] = 480
@@ -42,6 +44,9 @@ class LineFollower():
         self.registerSubscribers()
         #Publisher for testing output image
         self.outPub = rospy.Publisher("/Vision/image_filter", Image)
+        
+        # Set up dynamic reconfigure for linefollower
+        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
         
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
@@ -68,6 +73,13 @@ class LineFollower():
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+
+    def reconfigure(self, config, level):
+        rospy.loginfo("Got dynamic reconfigure params")
+        self.areaThresh = config['area_thresh']
+        self.upperThresh = config['upper_thresh']
+        
+        return config
 
     def registerSubscribers(self):
         #Subscribe to camera
@@ -133,7 +145,7 @@ class LineFollower():
         self.isAborted = True
         self.isKilled = True
 
-    #Main filters chain
+    # Main filters chain
     def detectBlackLine(self, img):
         grayImg = cv2.cvtColor(img, cv2.cv.CV_BGR2GRAY)
         grayImg = cv2.resize(grayImg, dsize=(self.screen['width'], self.screen['height']))
@@ -158,7 +170,7 @@ class LineFollower():
 
         out = cv2.cvtColor(grayImg, cv2.cv.CV_GRAY2BGR)
         
-        #Find centroid and bounding box
+        # Find centroid and bounding box
         pImg = grayImg.copy()
         contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
