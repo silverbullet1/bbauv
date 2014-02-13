@@ -19,7 +19,7 @@ class BucketDetector:
     lowThresh1 = np.array([ 92, 0, 10 ])
     hiThresh1 = np.array([ 131, 255, 245 ]) 
     areaThresh = 30000
-
+    
     bridge = None
     
     curHeading = 0

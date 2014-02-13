@@ -18,7 +18,6 @@ class Disengage(smach.State):
     
     def execute(self, userdata):
         self.bucketDetector.unregister()
-
         #Check for abort or kill signal
         timecount = 0
         while bucketDetector.isAborted:

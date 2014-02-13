@@ -19,7 +19,9 @@ import numpy as np
 import signal
 
 class Flare:
-    yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
+    #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
+    highTresh = np.array([143, 255, 240])
+    lowThresh = np.array([56, 0, 80])
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -176,9 +178,7 @@ class Flare:
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
 
         #Perform yellow thresholding
-        lowerBound = np.array([self.yellow_params['lowerH'], self.yellow_params['lowerS'], self.yellow_params['lowerV']],np.uint8)
-        higherBound = np.array([self.yellow_params['higherH'], self.yellow_params['higherS'], self.yellow_params['higherV']],np.uint8)
-        contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
+        contourImg = cv2.inRange(hsv_image, lowThresh, highThresh)
         
         #Noise removal
         #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
