@@ -82,6 +82,7 @@ find_package(OpenCV)
 generate_dynamic_reconfigure_options(
     cfg/bucket.cfg
     cfg/linefollower.cfg
+    cfg/flare.cfg
 )
 
 ###################################
