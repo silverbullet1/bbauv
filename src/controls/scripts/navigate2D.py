@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import rospy, roslib
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from sensor_msgs.msg import Imu
@@ -20,8 +19,6 @@ TODO
     Change temporary lambdas to full fledged callbacks that actually check for
     status
     Test the Service node
-    When sending goal, SEND CURRENT DEPTH (IMPORTANT IMPORTANT etc)
-                       ============================================
 
     Check for Imu (vs imu_data) and Twist imports
     Ask TC how to reset the DVL
@@ -32,6 +29,7 @@ class Navigate2D(object):
         self.currPos = {'x' : 0,
                         'y' : 0}
         self.currHeading = {'yaw' : 0}
+        self.depth = 0
         self.WH_DVL = rospy.Subscriber('/WH_DVL_data', Odometry,
                                        self.DVLCallback)
         self.AHRS8 = rospy.Subscriber('/AHRS8_data_e', imu_data,
@@ -48,6 +46,8 @@ class Navigate2D(object):
                                     navigation=False)
         except rospy.ServiceException:
             rospy.logerr("Error subscribing to controller")
+
+        rospy.Subscriber("/depth", depth, lambda d: setattr(self, 'depth', d))
 
         try:
             self.actionClient = actionlib.SimpleActionClient('LocomotionServer',
@@ -71,70 +71,47 @@ class Navigate2D(object):
     def normalize_angle(angle):
         return (angle % 360 + 360) % 360
 
-    @staticmethod
-    def magnitude(x, y, z=0):
-        return np.sqrt((x * x) + (y * y) + (z * z))
-
-    @staticmethod
-    def dot(a, b):
-        """
-        vector dot product
-        a and b are lists
-        """
-        return sum((x * y) for x, y in zip(a, b))
+    def handleServer(self, r):
+        res = self.navigateToPoint(r.x, r.y)
+        return navigate2dResponse(done=res)
 
     def navigateToPoint(self, x, y):
-        """
-        distance to travel to is the magnitude of the direction vector
-        angle is absolute to true north.
-        always use atan2
-        atan2 syntax arctan2(y points, x points) -> radians
-        """
-        distance = self.magnitude(x - self.currPos['x'], y - self.currPos['y'])
-        #angle = 180.0 + np.rad2deg((np.arctan2(y - self.currPos['y'], x -
-        #                                       self.currPos['x'])))
-        angle = self.resolve_angle(list(self.currPos['x'], self.currPos['y']),
-                                   list(x, y))
-        rospy.loginfo("We are about to turn to %f degrees and move %f meteres\
-                      forward" % (angle, distance))
-
-        goal = ControllerGoal(heading_setpoint=angle)
-        
-        rospy.loginfo("Waiting for actionserver before turn goal")
-        self.actionClient.wait_for_server()
-        rospy.loginfo("sending goal to turn")
-        self.actionClient.send_goal(goal, lambda s, r:
-                                    rospy.loginfo(str(s)))
-        self.actionClient.wait_for_result()
-
-        goal = ControllerGoal(forward_setpoint=distance)
-        self.actionClient.wait_for_server()
-        self.actionClient.send_goal(goal, lambda s, r:
-                                    rospy.loginfo(str(s)))
-        self.actionClient.wait_for_result()
-
-    def returnToBase(self):
-        return self.navigateToPoint(0, 0)
-
-    def handleServer(self, r):
-        self.navigateToPoint(r.x, r.y)
-        return navigate2dResponse(done=True)
-
-    @staticmethod
-    def resolve_angle(initial, target):
+        initial = list(self.currPos['x'], self.currPos['y'])
+        target = list(x, y)
         magnitude = np.sqrt(sum(map(lambda k: k * k, list(i - j for i, j in zip(target,
                                                                     initial)))))
         n_vec = list((i - j) for i, j in zip([initial[0], initial[1] + 1], initial))
-        n_vec = [0, 1]
         dv = list((i - j) for i, j in zip(target, initial))
         mag_dv = np.sqrt(sum(map(lambda x: x * x, dv)))
         dotp = sum(list((i * j) for i, j in zip(n_vec, dv)))
         heading = np.rad2deg(np.arccos(dotp/mag_dv))
         if(target[0] < initial[0]):
             heading = 360.0 - heading
-        #print "turn %f degs and move %fm" % (heading,
-        #                                    magnitude)
-        return heading
+        rospy.loginfo("turn %f degs and move %fm" % (heading, magnitude))
+
+        rospy.loginfo("Waiting for actionclient before sending goal to turn")
+        self.actionClient.wait_for_server()
+        rospy.loginfo("sending turn setpoint")
+        goal = ControllerGoal(heading_setpoint=heading,
+                              depth_setpoint=self.depth)
+        self.actionClient.send_goal(goal, lambda st, res:
+                                    rospy.loginfo("done diving: %s %s" %
+                                                  (str(res),
+                                                   actionlib.GoalStatus.SUCCEEDED
+                                                   == st)))
+        self.actionClient.wait_for_result()
+
+        goal = ControllerGoal(forward_setpoint=magnitude,
+                              depth_setpoint=self.depth)
+        self.actionClient.wait_for_server()
+        self.actionClient.send_goal(goal, lambda st, res:
+                                    rospy.loginfo("dont moving forward?: %s %s" %
+                                                  (str(res),
+                                                   actionlib.GoalStatus.SUCCEEDED
+                                                  == st)))
+        self.actionClient.wait_for_result()
+        return True
+
 
 
 if __name__ == "__main__":
