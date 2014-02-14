@@ -757,6 +757,7 @@ class AUV_gui(QMainWindow):
         else:
             self.unsubscribeButton.setText("Unsubscribe")
         self.isSubscribed = not self.isSubscribed
+        
 
     def sidemove_revHandler(self):
         rev_sidemove = -1.0 * float(self.sidemove_box.text())

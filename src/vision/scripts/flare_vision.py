@@ -6,6 +6,8 @@ from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
+from dynamic_reconfigure.server import Server as DynServer
+import vision.cfg.flareConfig as Config
 
 import roslib; roslib.load_manifest('vision')
 import rospy
@@ -19,7 +21,9 @@ import numpy as np
 import signal
 
 class Flare:
-    yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
+    #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
+    highThresh = np.array([143, 255, 240])
+    lowThresh = np.array([56, 0, 80])
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -57,6 +61,9 @@ class Flare:
         self.register()
         rospy.loginfo("Flare ready")
         
+        # Dynamic reconfigure for flare
+        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+        
         #Initialise mission planner communication server and client
         if not self.testing:
             self.isAborted = True
@@ -82,6 +89,19 @@ class Flare:
         self.isAborted = True
         self.isKilled = True
             
+    def reconfigure(self, config, level):
+        rospy.loginfo("Got reconfigure request")
+        self.areaThresh = config['area_thresh']
+        
+        self.lowThresh[0] = config['lowH']
+        self.lowThresh[1] = config['lowS']
+        self.lowThresh[2] = config['lowV']
+        self.highThresh[0] = config['hiH']
+        self.highThresh[1] = config['hiS']
+        self.highThresh[2] = config['hiV']
+        
+        return config
+    
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
@@ -137,13 +157,13 @@ class Flare:
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
-        #pass
-        depth = depth if depth else self.depth_setpoint
-        heading = heading if heading else self.curHeading
-        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
-                                             sidemove_setpoint=sidemove, depth_setpoint=depth)
-        self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        pass
+#         depth = depth if depth else self.depth_setpoint
+#         heading = heading if heading else self.curHeading
+#         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
+#                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
+#         self.locomotionClient.send_goal(goal)
+#         self.locomotionClient.wait_for_result(rospy.Duration(0.3))
         
         
     def abortMission(self):
@@ -176,9 +196,7 @@ class Flare:
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
 
         #Perform yellow thresholding
-        lowerBound = np.array([self.yellow_params['lowerH'], self.yellow_params['lowerS'], self.yellow_params['lowerV']],np.uint8)
-        higherBound = np.array([self.yellow_params['higherH'], self.yellow_params['higherS'], self.yellow_params['higherV']],np.uint8)
-        contourImg = cv2.inRange(hsv_image, lowerBound, higherBound)
+        contourImg = cv2.inRange(hsv_image, self.lowThresh, self.highThresh)
         
         #Noise removal
         #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))

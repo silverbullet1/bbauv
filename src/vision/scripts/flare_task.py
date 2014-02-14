@@ -99,7 +99,7 @@ class Manuoevre(smach.State):
         #Get to the flare
         screenWidth = self.flare.screen['width']
         screenCenterX = screenWidth / 2
-        deltaX = (rectData['centroids'][0] - screenCenterX) / screenWidth
+        deltaX = (self.flare.rectData['centroids'][0] - screenCenterX) / screenWidth
         
         #Forward if center
         if abs(deltaX) < 0.3:
@@ -108,7 +108,7 @@ class Manuoevre(smach.State):
             #Sidemove if too far off center
             sidemove = deltaX * 30.0        #Random number
             self.flare.sendMovement(forward=0.2, sidemove=sidemove)
-        rospy.loginfo("Forward {} sidemove{}".format(forward,sidemove))
+            rospy.loginfo("Forward {} sidemove{}".format(0.2,sidemove))
         return 'manuoevring'
                        
 '''

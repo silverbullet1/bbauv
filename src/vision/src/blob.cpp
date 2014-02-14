@@ -52,7 +52,7 @@ ColorDetector::ColorDetector(){
 	//For bounding box
 	double max_area = 0;
 	double areaThresh = 3000;
-
+	
 }
 
 /* Detect colour values */
