@@ -91,9 +91,10 @@ class Navigate2D(object):
         atan2 syntax arctan2(y points, x points) -> radians
         """
         distance = self.magnitude(x - self.currPos['x'], y - self.currPos['y'])
-        angle = 180.0 + np.rad2deg((np.arctan2(y - self.currPos['y'], x -
-                                               self.currPos['x'])))
-
+        #angle = 180.0 + np.rad2deg((np.arctan2(y - self.currPos['y'], x -
+        #                                       self.currPos['x'])))
+        angle = self.resolve_angle(list(self.currPos['x'], self.currPos['y']),
+                                   list(x, y))
         rospy.loginfo("We are about to turn to %f degrees and move %f meteres\
                       forward" % (angle, distance))
 
@@ -119,10 +120,21 @@ class Navigate2D(object):
         self.navigateToPoint(r.x, r.y)
         return navigate2dResponse(done=True)
 
-    def alt_navigateToPoint(self, x, y):
-        #find direction vector parallel to y axis of current coord
-        dv = {'x' : self.currHeading['x'],
-              'y' : 0}
+    @staticmethod
+    def resolve_angle(initial, target):
+        magnitude = np.sqrt(sum(map(lambda k: k * k, list(i - j for i, j in zip(target,
+                                                                    initial)))))
+        n_vec = list((i - j) for i, j in zip([initial[0], initial[1] + 1], initial))
+        n_vec = [0, 1]
+        dv = list((i - j) for i, j in zip(target, initial))
+        mag_dv = np.sqrt(sum(map(lambda x: x * x, dv)))
+        dotp = sum(list((i * j) for i, j in zip(n_vec, dv)))
+        heading = np.rad2deg(np.arccos(dotp/mag_dv))
+        if(target[0] < initial[0]):
+            heading = 360.0 - heading
+        #print "turn %f degs and move %fm" % (heading,
+        #                                    magnitude)
+        return heading
 
 
 if __name__ == "__main__":
