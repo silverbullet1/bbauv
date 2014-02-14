@@ -75,6 +75,14 @@ class Navigate2D(object):
     def magnitude(x, y, z=0):
         return np.sqrt((x * x) + (y * y) + (z * z))
 
+    @staticmethod
+    def dot(a, b):
+        """
+        vector dot product
+        a and b are lists
+        """
+        return sum((x * y) for x, y in zip(a, b))
+
     def navigateToPoint(self, x, y):
         """
         distance to travel to is the magnitude of the direction vector
@@ -110,6 +118,12 @@ class Navigate2D(object):
     def handleServer(self, r):
         self.navigateToPoint(r.x, r.y)
         return navigate2dResponse(done=True)
+
+    def alt_navigateToPoint(self, x, y):
+        #find direction vector parallel to y axis of current coord
+        dv = {'x' : self.currHeading['x'],
+              'y' : 0}
+
 
 if __name__ == "__main__":
     rospy.init_node('navigate2d', anonymous=False)

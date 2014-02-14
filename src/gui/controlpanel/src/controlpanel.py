@@ -777,21 +777,28 @@ class AUV_gui(QMainWindow):
     def disablePIDHandler(self):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
 
+#    def homeBtnHandler(self):
+#        
+#        movebaseGoal = MoveBaseGoal()
+#        x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
+#        resp = self.set_controller_request(True, True, True, True, False, False,True)
+#        #Execute Nav
+#        movebaseGoal.target_pose.header.frame_id = 'map'
+#        movebaseGoal.target_pose.header.stamp = rospy.Time.now()
+#        movebaseGoal.target_pose.pose.position.x = 0
+#        movebaseGoal.target_pose.pose.position.y = 0 
+#        movebaseGoal.target_pose.pose.orientation.x = 0
+#        movebaseGoal.target_pose.pose.orientation.y = 0
+#        movebaseGoal.target_pose.pose.orientation.z = z
+#        movebaseGoal.target_pose.pose.orientation.w = w
+#        self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
+#
     def homeBtnHandler(self):
-        movebaseGoal = MoveBaseGoal()
-        x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
-        resp = self.set_controller_request(True, True, True, True, False, False,True)
-        #Execute Nav
-        movebaseGoal.target_pose.header.frame_id = 'map'
-        movebaseGoal.target_pose.header.stamp = rospy.Time.now()
-        movebaseGoal.target_pose.pose.position.x = 0
-        movebaseGoal.target_pose.pose.position.y = 0 
-        movebaseGoal.target_pose.pose.orientation.x = 0
-        movebaseGoal.target_pose.pose.orientation.y = 0
-        movebaseGoal.target_pose.pose.orientation.z = z
-        movebaseGoal.target_pose.pose.orientation.w = w
-        self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
-
+        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+        handle.wait_for_server()
+        res = handle(x=0, y=0)
+        return res
+        
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
         goal = ControllerGoal
