@@ -52,7 +52,7 @@ class BucketDetector:
 
         #Initialize Subscribers and Publishers
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket", Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter_opt", Image)
         self.register()
         
         # Setup dynamic reconfigure server

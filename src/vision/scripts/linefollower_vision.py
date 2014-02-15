@@ -20,9 +20,7 @@ class LineFollower():
     thval = 30
     upperThresh = 70
     areaThresh = 8000
-    screen = {}
-    screen['width'] = 640
-    screen['height'] = 480
+    screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
@@ -43,7 +41,7 @@ class LineFollower():
         #Initialize Subscribers and Publishers
         self.registerSubscribers()
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/Vision/image_filter", Image)
+        self.outPub = rospy.Publisher("/Vision/image_filter_opt", Image)
         
         # Set up dynamic reconfigure for linefollower
         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
@@ -155,7 +153,7 @@ class LineFollower():
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
         self.thval = min((mean + lowest) / 2.0, self.upperThresh)
-        rospy.loginfo(self.thval)
+        rospy.logdebug(self.thval)
 
         #Thresholding and noise removal
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
