@@ -20,8 +20,8 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         self.linefollower.unregisterSubscribers()
-        #Stay in Disengage state until isAborted is False or
-        #timeout after waiting for too long
+        # Stay in Disengage state until isAborted is False or
+        # Timeout after waiting for too long
         timecount = 0
         while self.linefollower.isAborted:
             if timecount > self.timeout or self.linefollower.isKilled:
@@ -102,14 +102,14 @@ class FollowingLine(smach.State):
         else:
             sidemove = 0.0
 
-        if abs(angle) < 7:
+        if abs(angle) < 10:
             self.linefollower.sendMovement(f=0.9, sm=sidemove)
             rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
         else:
             if sidemove == 0:
                 sidemove = angle / 60 * 0.2
             else:
-                if angle > 30:
+                if abs(angle) > 30:
                     angle = math.copysign(30, angle)
             
             heading = normHeading(self.linefollower.curHeading - angle)

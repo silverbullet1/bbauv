@@ -10,3 +10,49 @@ install/
 *.bak
 *.swp
 .png
+### /Users/alex/.gitignore-boilerplates/Global/OSX.gitignore
+
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+
+
+### /Users/alex/.gitignore-boilerplates/Global/Vim.gitignore
+
+*.s[a-w][a-z]
+
+#exclusion for srv files
+!*.srv
+#end exclude
+
+*.un~
+Session.vim
+.netrwhist
+*~
+
+
+### /Users/alex/.gitignore-boilerplates/Global/OSX.gitignore
+
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+
+

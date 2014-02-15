@@ -3,9 +3,11 @@ import rospy
 import actionlib
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
+import vision.cfg.linefollowerConfig as Config
 
 import cv2
 
@@ -15,24 +17,23 @@ import signal
 
 class LineFollower():
     testing = False
-    thval = 25
-    areaThresh = 7000
-    screen = {}
-    screen['width'] = 640
-    screen['height'] = 480
+    thval = 30
+    upperThresh = 70
+    areaThresh = 8000
+    screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
 
     def __init__(self):
         self.testing = rospy.get_param("~testing", False)
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
 
-        self.isAborted = False 
+        self.isAborted = False
         self.isKilled = False
         self.cvbridge = CvBridge()
         self.rectData = {'detected':False}
@@ -40,22 +41,23 @@ class LineFollower():
         #Initialize Subscribers and Publishers
         self.registerSubscribers()
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/Vision/image_filter_opt_line", Image)
+        self.outPub = rospy.Publisher("/Vision/image_filter_opt", Image)
+        
+        # Set up dynamic reconfigure for linefollower
+        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
         
         #Initialize mission planner communication server and client
+        self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+
         if not self.testing:
-            self.isAborted = True 
-            rospy.loginfo("Waiting for mission_to_vision server...")
-            try:
-                rospy.wait_for_service("/linefollower/mission_to_vision", timeout=rospy.Duration(5))
-            except:
-                rospy.logerr("mission_to_vision service timeout!")
-                self.isKilled = True
-            self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
+            rospy.loginfo("Waiting for vision_to_mission server...")
+            self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
+                                                vision_to_mission)
+            self.toMission.wait_for_service(timeout = 5)
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
@@ -69,6 +71,13 @@ class LineFollower():
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+
+    def reconfigure(self, config, level):
+        rospy.loginfo("Got dynamic reconfigure params")
+        self.areaThresh = config['area_thresh']
+        self.upperThresh = config['upper_thresh']
+        
+        return config
 
     def registerSubscribers(self):
         #Subscribe to camera
@@ -115,41 +124,53 @@ class LineFollower():
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
-                                             
+                                              
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
 
     def abortMission(self):
         #Notify mission planner service
-        try:
-            if not self.testing:
-                abortRequest = rospy.ServiceProxy("/linefollower/vision_to_mission",
-                                                  vision_to_mission)
-                abortRequest(task_complete_request=True)
-            self.stopRobot()
-            self.isAborted = True
-            self.isKilled = True
-        except rospy.ServiceException, e:
-            rospy.logerr(e)
+        if not self.testing:
+            self.toMission(fail_request=True, task_complete_request=False)
+        self.isAborted = True
+        self.isKilled = True
+        self.stopRobot()
 
-    #Main filters chain
+    def taskComplete(self):
+        if not self.testing:
+            self.toMission(task_complete_request=True)
+        self.stopRobot()
+        self.isAborted = True
+        self.isKilled = True
+
+    # Main filters chain
     def detectBlackLine(self, img):
         grayImg = cv2.cvtColor(img, cv2.cv.CV_BGR2GRAY)
         grayImg = cv2.resize(grayImg, dsize=(self.screen['width'], self.screen['height']))
+        grayImg = cv2.GaussianBlur(grayImg, ksize=(7, 7), sigmaX=0)
+
+        # Calculate adaptive threshold value
+        mean = cv2.mean(grayImg)[0]
+        lowest = cv2.minMaxLoc(grayImg)[0]
+        self.thval = min((mean + lowest) / 2.0, self.upperThresh)
+        rospy.logdebug(self.thval)
 
         #Thresholding and noise removal
-        img = cv2.GaussianBlur(img, ksize=(7, 7), sigmaX=0)
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
+
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        
         grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
-        
-        #Find centroid and bouding box
-        pImg = grayImg.copy()
-        contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 
         out = cv2.cvtColor(grayImg, cv2.cv.CV_GRAY2BGR)
+        
+        # Find centroid and bounding box
+        pImg = grayImg.copy()
+        contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         maxArea = 0
         for contour in contours:
@@ -157,8 +178,8 @@ class LineFollower():
             if area > self.areaThresh and area > maxArea:
                 #Find the center using moments
                 mu = cv2.moments(contour, False) 
-                centroidx = mu['m10']/mu['m00']
-                centroidy = mu['m01']/mu['m00']
+                centroidx = mu['m10'] / mu['m00']
+                centroidy = mu['m01'] / mu['m00']
                 maxArea = area
                 
                 self.rectData['centroid'] = (centroidx, centroidy)
@@ -172,6 +193,7 @@ class LineFollower():
             #Find the blackline heading
             edge1 = points[1] - points[0] 
             edge2 = points[2] - points[1]
+            
             #Choose the vertical edge
             if cv2.norm(edge1) > cv2.norm(edge2):
                 edge1[1] = edge1[1] if edge1[1] != 0.0 else math.copysign(0.01, edge1[1])

@@ -2,14 +2,17 @@
 
 import roslib; roslib.load_manifest('vision')
 
-from bbauv_msgs.msg import * 
-from bbauv_msgs.srv import *
-from sensor_msgs.msg import Image
-
 import rospy
 import cv2 
 from cv_bridge import CvBridge, CvBridgeError
 import actionlib
+from dynamic_reconfigure.server import Server as DynServer
+
+from bbauv_msgs.msg import * 
+from bbauv_msgs.srv import *
+import vision.cfg.bucketConfig as Config
+from sensor_msgs.msg import Image
+
 import signal
 
 import numpy as np
@@ -18,16 +21,14 @@ class BucketDetector:
     #HSV thresholds for red color
     lowThresh1 = np.array([ 92, 0, 10 ])
     hiThresh1 = np.array([ 131, 255, 245 ]) 
-    areaThresh = 50000
-
+    areaThresh = 30000
+    
     bridge = None
     
     curHeading = 0
     depth_setpoint = 0.2
     
-    screen = {}
-    screen['width'] = 640
-    screen['height'] = 480
+    screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
@@ -41,7 +42,8 @@ class BucketDetector:
         return frame 
 
     def __init__(self):
-        self.isAborted = True 
+        self.testing = rospy.get_param("~testing", False)
+        self.isAborted = False
         self.isKilled = False
         signal.signal(signal.SIGINT, self.userQuit)
 
@@ -50,12 +52,21 @@ class BucketDetector:
 
         #Initialize Subscribers and Publishers
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt_bucket" , Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter_opt", Image)
         self.register()
+        
+        # Setup dynamic reconfigure server
+        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+
+        #Initialize mission planner communication server and client
+        self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
+        if not self.testing: 
+            self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
+            self.toMission.wait_for_service(timeout = 5)
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up
@@ -71,13 +82,27 @@ class BucketDetector:
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+        
+    def reconfigure(self, config, level):
+        rospy.loginfo("Got reconfigure request!")
+        self.lowThresh1[0] = config['loH']
+        self.lowThresh1[1] = config['loS']
+        self.lowThresh1[2] = config['loV']
+        
+        self.hiThresh1[0] = config['hiH']
+        self.hiThresh1[1] = config['hiS']
+        self.hiThresh1[2] = config['hiV']
+        
+        self.areaThresh = config['area_thresh']
+        
+        return config
 
     def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
         d = d if d else self.depth_setpoint
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
-
+ 
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.3))
 
@@ -87,6 +112,7 @@ class BucketDetector:
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
+        self.maniSub = rospy.Subscriber('/manipulator', manipulator, self.maniCallback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
@@ -94,8 +120,37 @@ class BucketDetector:
         self.headingSub.unregister()
         rospy.loginfo("Topics unregistered")
     
+    def handleSrv(self, req):
+        if req.start_request:
+            self.isAborted = False
+            self.depth_setpoint = req.start_ctrl.depth_setpoint
+        elif req.abort_request:
+            self.isAborted = True
+        return mission_to_visionResponse(True, False)
+    
     def compassCallback(self, data):
         self.curHeading = data.yaw
+
+    def maniCallback(self, data):
+        self.maniData = data
+
+    def searchComplete(self):
+        if not self.testing:
+            self.toMission(start_request=True)
+
+    def abortMission(self):
+        if not self.testing:
+            self.toMission(fail_request=True, task_complete_request=False)
+        self.isAborted = True
+        self.isKilled = True
+        self.stopRobot()
+
+    def taskComplete(self):
+        if not self.testing:
+            self.toMission(task_complete_request=True)
+        self.isAborted = True
+        self.isKilled = True
+        self.stopRobot()
 
     #Perform red thresholding
     def findTheBucket(self, cv_image):
@@ -109,8 +164,11 @@ class BucketDetector:
         #Noise removal
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
+        contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_OPEN, openEl)
 
         out = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2BGR)
       
@@ -128,8 +186,8 @@ class BucketDetector:
                 # Find center with moments
                 mu = cv2.moments(contour, False)
                 mu_area = mu['m00']
-                centroidx = mu['m10']/mu_area
-                centroidy = mu['m01']/mu_area
+                centroidx = mu['m10'] / mu_area
+                centroidy = mu['m01'] / mu_area
                 
                 self.rectData['area'] = area
                 self.rectData['centroid'] = (centroidx, centroidy)

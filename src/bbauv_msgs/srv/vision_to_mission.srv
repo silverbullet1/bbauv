@@ -2,6 +2,8 @@ bool search_request
 
 bool task_complete_request
 controller task_complete_ctrl
+
+bool fail_request
 ---
 
 bool search_response

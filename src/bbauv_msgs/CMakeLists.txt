@@ -82,10 +82,13 @@ add_service_files(
   mission_to_vision.srv
   PID.srv
   set_controller.srv
-  #vision_to_mission.srv
+  vision_to_mission.srv
   ##Old srv files end
   #mission_linefollower.srv
   #mission_flare.srv
+
+  #navigate2d
+  navigate2d.srv
 )
 
 ## Generate actions in the 'action' folder

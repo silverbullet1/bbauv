@@ -23,7 +23,6 @@ alias bag='rqt_bag &'
 alias sparams=ros_service_list_params
 alias params='rosparam get /' 	 	 	
 alias rec='rosbag record -a'
-alias sshbb='sshpass -p bb ssh bbauvsbc1@192.168.1.100'
 alias catm='catkin_make'
 alias cati='catkin_make install'
 ##cd to Arduino sketchbook libraries and run this command to generate
@@ -44,8 +43,8 @@ check_process() {
 
 runSim() {
 	check_process "roscore"
-	[ $? -eq 0 ] && echo "roscore not running" &&  roscd Simulation && (roscore &) 
-	[ $? -eq 1 ] && echo "roscore running..." && roscd Simulation 
+	[ $? -eq 0 ] && echo "roscore not running" &&  roscd simulation && (roscore &) 
+	[ $? -eq 1 ] && echo "roscore running..." && roscd simulation 
 	rosrun uwsim uwsim --configfile ./scenes/sauv_scene.xml
 }
 
@@ -53,7 +52,7 @@ runVisionUI(){
 	check_process "roscore"
 	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
 	[ $? -eq 1 ] && echo "roscore running..."
-	rosrun GUI GUI_node
+	rosrun gui vision_gui_node
 }
 
 runPIDUI(){
