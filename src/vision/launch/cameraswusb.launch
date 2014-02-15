@@ -1,5 +1,5 @@
 <launch>
-  <include file="$(find vision)/launch/front_camera.launch"/>
+  <include file="$(find vision)/launch/front_usb_cam.launch"/>
   <include file="$(find vision)/launch/bot_usb_cam.launch"/>
   
   <node pkg="image_proc" type="image_proc" name="front_camera_image_proc" ns="front_camera/camera">

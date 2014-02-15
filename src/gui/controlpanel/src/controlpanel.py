@@ -119,15 +119,16 @@ class AUV_gui(QMainWindow):
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
         
         self.depth_rev = QPushButton("Reverse")
-        layout4.addWidget(self.depth_rev)
+        #layout4.addWidget(self.depth_rev)
         self.heading_rev = QPushButton("Reverse")
-        layout3.addWidget(self.heading_rev)
+        #layout3.addWidget(self.heading_rev)
         
         self.sidemove_rev = QPushButton("Reverse")
         self.forward_rev = QPushButton("Reverse")
         
         rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:")
         rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:")
+        
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
         goal_heading_layout.addLayout(layout5)
@@ -137,12 +138,12 @@ class AUV_gui(QMainWindow):
         
         goal_forward_layout = QHBoxLayout()
         goal_forward_layout.addLayout(layout1)
-        goal_forward_layout.addWidget(self.forward_rev)
+        #goal_forward_layout.addWidget(self.forward_rev)
         goal_forward_layout.addStretch()
         
         goal_sidemove_layout = QHBoxLayout()
         goal_sidemove_layout.addLayout(layout2)
-        goal_sidemove_layout.addWidget(self.sidemove_rev)
+        #goal_sidemove_layout.addWidget(self.sidemove_rev)
         goal_sidemove_layout.addStretch()
                 
         goal_layout = QVBoxLayout()
@@ -155,7 +156,6 @@ class AUV_gui(QMainWindow):
         self.depth_rev.clicked.connect(self.depth_revHandler)
         self.forward_rev.clicked.connect(self.forward_revHandler)
         self.heading_rev.clicked.connect(self.heading_revHandler)
-
         
         # Buttons Layout
         okButton = QPushButton("&Start Goal")
@@ -235,6 +235,23 @@ class AUV_gui(QMainWindow):
         #vbox2.addStretch(1)
         vbox3.addStretch(1)
         goalBox.setLayout(goalBox_layout)
+        
+        MoveTo = QGroupBox("Go to Pos")
+        xpos_l , self.xpos_box, layout6 = self.make_data_box("x pos:")
+        ypos_l, self.ypos_box,layout7 = self.make_data_box("y pos:")
+        self.goToPos = QPushButton("&Go!")
+        self.goToPos.clicked.connect(self.goToPosHandler)
+        layout8 = QHBoxLayout()
+        layout8.addWidget(self.goToPos)
+        layout8.addStretch()
+        
+        pos_layout = QVBoxLayout()
+        pos_layout.addLayout(layout6)
+        pos_layout.addLayout(layout7)
+        pos_layout.addLayout(layout8)
+        pos_layout.addStretch()
+        goal_gui_layout.addLayout(pos_layout)
+        
         self.compass = Qwt.QwtCompass()
         self.compass.setGeometry(0,0,200,200)
         self.compass.setLineWidth(4)
@@ -260,7 +277,6 @@ class AUV_gui(QMainWindow):
         compass_l.setAlignment(Qt.AlignHCenter)
         heading_l.setAlignment(Qt.AlignHCenter)
         compass_layout = QHBoxLayout()
-        #compass_layout.addWidget(compass_l)
         current_layout = QVBoxLayout()
         current_layout.addWidget(self.compass)
         current_layout.addWidget(compass_l)
@@ -794,6 +810,15 @@ class AUV_gui(QMainWindow):
 #        movebaseGoal.target_pose.pose.orientation.w = w
 #        self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
 #
+    
+    def goToPosHandler(self):
+        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+        handle.wait_for_server()
+        xpos = float(self.xpos_box.text())
+        ypos = float(self.ypos_box.text())
+        res = handle(x=xpos, y=ypos)
+        return res
+
     def homeBtnHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         handle.wait_for_server()
