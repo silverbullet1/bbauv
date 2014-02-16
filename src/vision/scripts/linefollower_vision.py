@@ -19,7 +19,7 @@ class LineFollower():
     testing = False
     thval = 30
     upperThresh = 70
-    areaThresh = 8000
+    areaThresh = 7000
     screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
@@ -39,9 +39,10 @@ class LineFollower():
         self.rectData = {'detected':False}
 
         #Initialize Subscribers and Publishers
+        self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_raw')
         self.registerSubscribers()
         #Publisher for testing output image
-        self.outPub = rospy.Publisher("/Vision/image_filter_opt", Image)
+        self.outPub = rospy.Publisher("/Vision/image_filter", Image)
         
         # Set up dynamic reconfigure for linefollower
         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
@@ -53,11 +54,11 @@ class LineFollower():
             rospy.loginfo("Waiting for vision_to_mission server...")
             self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout = 5)
+            self.toMission.wait_for_service(timeout = 10)
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
@@ -81,9 +82,9 @@ class LineFollower():
 
     def registerSubscribers(self):
         #Subscribe to camera
-        self.imgSub = rospy.Subscriber("/bot_camera/camera/image_rect_color_opt",
-                                        Image,
-                                        self.cameraCallback)
+        self.imgSub = rospy.Subscriber(self.image_topic,
+                                       Image,
+                                       self.cameraCallback)
         #Subscribe to compass
         self.comSub = rospy.Subscriber("/euler",
                                         compass_data,

@@ -20,13 +20,14 @@ import numpy as np
 class BucketDetector:
     #HSV thresholds for red color
     lowThresh1 = np.array([ 92, 0, 10 ])
-    hiThresh1 = np.array([ 131, 255, 245 ]) 
+    hiThresh1 = np.array([ 132, 255, 245 ]) 
     areaThresh = 30000
     
     bridge = None
     
     curHeading = 0
     depth_setpoint = 0.2
+    maniData = 0
     
     screen = { 'width' : 640, 'height' : 480 }
     
@@ -51,8 +52,8 @@ class BucketDetector:
         self.bridge = CvBridge()
 
         #Initialize Subscribers and Publishers
-        self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_rect_color_opt')
-        self.image_pub = rospy.Publisher("/Vision/image_filter_opt", Image)
+        self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_raw')
+        self.image_pub = rospy.Publisher("/Vision/image_filter_bucket", Image)
         self.register()
         
         # Setup dynamic reconfigure server
@@ -62,11 +63,11 @@ class BucketDetector:
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
         if not self.testing: 
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout = 5)
+            self.toMission.wait_for_service(timeout = 10)
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up
@@ -104,7 +105,7 @@ class BucketDetector:
                                              sidemove_setpoint=sm, depth_setpoint=d)
  
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
 
     def stopRobot(self):
         self.sendMovement(f=0.0, sm=0.0)
@@ -112,7 +113,7 @@ class BucketDetector:
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
-        self.maniSub = rospy.Subscriber('/manipulator', manipulator, self.maniCallback)
+        self.maniSub = rospy.Subscriber('/manipulators', manipulator, self.maniCallback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
@@ -136,7 +137,7 @@ class BucketDetector:
 
     def searchComplete(self):
         if not self.testing:
-            self.toMission(start_request=True)
+            self.toMission(search_request=True)
 
     def abortMission(self):
         if not self.testing:
