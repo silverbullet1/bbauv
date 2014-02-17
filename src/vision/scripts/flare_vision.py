@@ -30,14 +30,17 @@ class Flare:
     areaThresh = 800
     
     bridge = None
-    image_topic = None
     
     curHeading = 0.0
     depth_setpoint = 0.2
     yaw = 0.0
-    
-    isAborted = False
+        
     screen = {'width': 640, 'height': 480}
+    
+    deltaXMultiplier = 3.0
+    sidemoveMovementOffset = 0.1    #For sidemove plus straight
+    forwardOffset = 0.3     #For just shooting straight
+    headOnArea = 5000       #Area for shooting straight
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -56,7 +59,6 @@ class Flare:
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
         
-        self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         self.bridge = CvBridge()
         self.register()
         rospy.loginfo("Flare ready")
@@ -95,20 +97,24 @@ class Flare:
             
     def reconfigure(self, config, level):
         rospy.loginfo("Got reconfigure request")
-#         self.areaThresh = config['area_thresh']
-#         
-#         self.lowThresh[0] = config['lowH']
-#         self.lowThresh[1] = config['lowS']
-#         self.lowThresh[2] = config['lowV']
-#         self.highThresh[0] = config['hiH']
-#         self.highThresh[1] = config['hiS']
-#         self.highThresh[2] = config['hiV']
+        self.areaThresh = config['area_thresh']
+         
+        self.lowThresh[0] = config['lowH']
+        self.lowThresh[1] = config['lowS']
+        self.lowThresh[2] = config['lowV']
+        self.highThresh[0] = config['hiH']
+        self.highThresh[1] = config['hiS']
+        self.highThresh[2] = config['hiV']
+        self.deltaXMultiplier = config['deltaX_multiplier']
+        self.sidemoveMovementOffset = config['sidemove_movement_offset']
+        self.forwardOffset = config['forward_offset']
+        self.headOnArea = config['head_on_area']       
         
         return config
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         

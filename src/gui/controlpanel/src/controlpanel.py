@@ -218,6 +218,22 @@ class AUV_gui(QMainWindow):
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
         vbox3.addWidget(self.unsubscribeButton)
+        
+        Navigation = QLabel("<b>Navigation</b>")
+        xpos_l , self.xpos_box, layout6 = self.make_data_box("x coord:")
+        ypos_l, self.ypos_box,layout7 = self.make_data_box("y coord:")
+        self.goToPos = QPushButton("&Go!")
+        self.goToPos.clicked.connect(self.goToPosHandler)
+        layout8 = QHBoxLayout()
+        layout8.addWidget(self.goToPos)
+        layout8.addStretch()
+        
+        vbox4 = QVBoxLayout()
+        vbox4.addWidget(Navigation)
+        vbox4.addLayout(layout6)
+        vbox4.addLayout(layout7)
+        vbox4.addLayout(layout8)
+        
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
@@ -228,29 +244,14 @@ class AUV_gui(QMainWindow):
         goalBtn_layout.addLayout(vbox)
         goalBtn_layout.addLayout(vbox2)
         goalBtn_layout.addLayout(vbox3)
-        #goalBox_layout.addStretch(1)
+        #goalBox_layout.addStretch(50)
+        goalBtn_layout.addLayout(vbox4)
         goalBox_layout.addLayout(goalBtn_layout)
         
         #vbox.addStretch(1)
         #vbox2.addStretch(1)
         vbox3.addStretch(1)
         goalBox.setLayout(goalBox_layout)
-        
-        MoveTo = QGroupBox("Go to Pos")
-        xpos_l , self.xpos_box, layout6 = self.make_data_box("x pos:")
-        ypos_l, self.ypos_box,layout7 = self.make_data_box("y pos:")
-        self.goToPos = QPushButton("&Go!")
-        self.goToPos.clicked.connect(self.goToPosHandler)
-        layout8 = QHBoxLayout()
-        layout8.addWidget(self.goToPos)
-        layout8.addStretch()
-        
-        pos_layout = QVBoxLayout()
-        pos_layout.addLayout(layout6)
-        pos_layout.addLayout(layout7)
-        pos_layout.addLayout(layout8)
-        pos_layout.addStretch()
-        goal_gui_layout.addLayout(pos_layout)
         
         self.compass = Qwt.QwtCompass()
         self.compass.setGeometry(0,0,200,200)
@@ -322,8 +323,8 @@ class AUV_gui(QMainWindow):
         attitude_layout.addWidget(self.attitudePanel4)
         attitude_layout.addWidget(self.attitudePanel5)
         attitudeBox.setLayout(attitude_layout)
-        #Setpoint information
         
+        #Setpoint information
         setpointBox = QGroupBox("Setpoint Information")
         self.setpointPanel1 = QTextBrowser()
         self.setpointPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
