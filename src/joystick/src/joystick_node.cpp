@@ -27,8 +27,10 @@ double curDepth = 0.0;
 void initializeCom();
 void compassCallback(const bbauv_msgs::compass_dataConstPtr& data);
 void depthCallback(const bbauv_msgs::depthConstPtr& data);
-// function to relative movement
-void sendMovement(double f=0.0, double sm=0.0, double heading=0.0, double depth=0.0);
+// function to send relative movement
+void sendMovement(double f, double sm, double heading, double depth);
+void handleButton(char* button, char* prevButton, int numButtons);
+void handleAxis(int* axes, int* prevAxes, int numAxes);
 
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "joystick_node", ros::init_options::AnonymousName);
@@ -124,8 +126,9 @@ void sendMovement(double f=0.0, double sm=0.0, double heading=0.0, double depth=
 	bbauv_msgs::ControllerGoal goal;
 	goal.forward_setpoint = f;
 	goal.sidemove_setpoint = sm;
-	goal.heading_setpoint += heading;
-	goal.depth_setpoint += depth;
+	goal.heading_setpoint = curHeading + heading;
+	goal.depth_setpoint = curDepth + depth;
+
 	locoClient->sendGoal(goal);
 	locoClient->waitForResult(ros::Duration(0.5));
 }
