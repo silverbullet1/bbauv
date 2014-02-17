@@ -732,8 +732,8 @@ class AUV_gui(QMainWindow):
         self.orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
         self.position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         self.controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
-        self.mani_pub = rospy.Publisher("/manipulator",manipulator)
-        self.mani_sub = rospy.Subscriber("/manipulator",manipulator,self.manipulators_callback)
+        self.mani_pub = rospy.Publisher("/manipulators",manipulator)
+        self.mani_sub = rospy.Subscriber("/manipulators",manipulator,self.manipulators_callback)
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         self.feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
@@ -900,7 +900,7 @@ class AUV_gui(QMainWindow):
         
     def fireBtnHandler(self):
         if(self.isArmed):
-            #_manipulator = manipulator()
+            _manipulator = manipulator()
             servo_state = 0
             
             if(self.check1.checkState()):
@@ -918,7 +918,9 @@ class AUV_gui(QMainWindow):
             if(self.check7.checkState()):
                 servo_state |= 64
             
-            self.mani_pub.publish(servo_state)
+            _manipulator = servo_state
+            
+            self.mani_pub.publish(_manipulator)
         
     def armBtnHandler(self):
         if(self.isArmed):
@@ -1080,7 +1082,7 @@ class AUV_gui(QMainWindow):
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
         height, width, _ = origimg.shape
-        colour = (255, 255, 255)
+        colour = (30, 100, 30)
         pitch_start, pitch_end = 40, height-40
         yaw_start, yaw_end = 40, width-40
 

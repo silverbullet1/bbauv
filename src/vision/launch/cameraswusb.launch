@@ -7,5 +7,8 @@
   <node pkg="image_proc" type="image_proc" name="bot_camera_image_proc" ns="bot_camera/camera">
   </node>
   
+  <!--<node pkg="image_transport" type="republish" name="vision_filter_republish" output="screen" args="raw in:=/Vision/image_filter compressed out:=/Vision/image_filter">
+  </node>-->
+  
 </launch>
 

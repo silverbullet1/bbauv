@@ -62,4 +62,9 @@ class QHistogram(QLabel):
         qpm = QPixmap.fromImage(qimg)
         self.setPixmap(qpm)
         
-        
+    # Convert a ROS Image to the Numpy matrix used by cv2 functions
+    def rosimg2cv(self, ros_image):
+        # Convert from ROS Image to old OpenCV image
+        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        # Convert from old OpenCV image trackbarnameto Numpy matrix
+        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
