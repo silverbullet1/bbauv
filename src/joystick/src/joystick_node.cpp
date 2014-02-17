@@ -14,6 +14,7 @@
 #include <bbauv_msgs/ControllerGoal.h>
 #include <bbauv_msgs/compass_data.h>
 #include <bbauv_msgs/depth.h>
+#include <bbauv_msgs/set_controller.h>
 
 #define JOY_DEV "/dev/input/js0"
 
@@ -29,7 +30,10 @@ void compassCallback(const bbauv_msgs::compass_dataConstPtr& data);
 void depthCallback(const bbauv_msgs::depthConstPtr& data);
 // function to send relative movement
 void sendMovement(double f, double sm, double heading, double depth);
+
 void handleButton(char* button, char* prevButton, int numButtons);
+void enable();
+void disable();
 void handleAxis(int* axes, int* prevAxes, int numAxes);
 
 int main(int argc, char** argv) {
@@ -38,8 +42,11 @@ int main(int argc, char** argv) {
 
 	initializeCom();
 
-	int joy_fd, *axis = NULL, num_of_axis = 0, num_of_buttons = 0, x;
-	char *button = NULL, name_of_joystick[80];
+	int joy_fd;
+    int num_of_axis = 0, num_of_buttons = 0;
+	int *axis = NULL, *prevAxes;
+	char *button = NULL, *prevButtons;
+	char name_of_joystick[80];
 	struct js_event js;
 
 	if ((joy_fd = open( JOY_DEV, O_RDONLY)) == -1) {
@@ -52,7 +59,9 @@ int main(int argc, char** argv) {
 	ioctl(joy_fd, JSIOCGNAME(80), &name_of_joystick);
 
 	axis = (int *) calloc(num_of_axis, sizeof(int));
+	prevAxes = (int *) calloc(num_of_axis, sizeof(int));
 	button = (char *) calloc(num_of_buttons, sizeof(char));
+	prevButtons = (char *) calloc(num_of_buttons, sizeof(char));
 
 	printf("Joystick detected: %s\n\t%d axis\n\t%d buttons\n\n",
 			name_of_joystick, num_of_axis, num_of_buttons);
@@ -131,4 +140,30 @@ void sendMovement(double f=0.0, double sm=0.0, double heading=0.0, double depth=
 
 	locoClient->sendGoal(goal);
 	locoClient->waitForResult(ros::Duration(0.5));
+}
+
+void enable() {
+	ros::NodeHandle nh;
+	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	bbauv_msgs::set_controller srv;
+	srv.request.depth = false;
+	srv.request.forward = false;
+	srv.request.heading = false;
+	srv.request.pitch = false;
+	srv.request.roll= false;
+	srv.request.sidemove = false;
+	controlClient.call(srv);
+}
+
+void disable() {
+	ros::NodeHandle nh;
+	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	bbauv_msgs::set_controller srv;
+	srv.request.depth = true;
+	srv.request.forward = true;
+	srv.request.heading = true;
+	srv.request.pitch = true;
+	srv.request.roll= true;
+	srv.request.sidemove = true;
+	controlClient.call(srv);
 }
