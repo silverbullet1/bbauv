@@ -84,7 +84,7 @@ class FollowingLine(smach.State):
             rospy.loginfo("Too far of center! Argressive sidemove")
             heading = normHeading(self.linefollower.curHeading - angle)
             sidemove = math.copysign(1.0, deltaX)
-            self.linefollower.sendMovement(h=heading, sm=sidemove)
+            self.linefollower.sendMovement(f=0.1, h=heading, sm=sidemove)
             return 'following_line'
 
         if len(self.prevAngle) > 1:
@@ -113,8 +113,8 @@ class FollowingLine(smach.State):
                     angle = math.copysign(30, angle)
             
             heading = normHeading(self.linefollower.curHeading - angle)
-            self.linefollower.sendMovement(h=heading, sm=sidemove)
-            rospy.loginfo("Moving: {} side, {} heading".format(heading, sidemove))
+            self.linefollower.sendMovement(f=0.1, h=heading, sm=sidemove)
+            rospy.loginfo("Moving: {} heading, {} side".format(heading, sidemove))
 
         return 'following_line'
 

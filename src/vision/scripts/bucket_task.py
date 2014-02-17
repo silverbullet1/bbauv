@@ -95,8 +95,9 @@ class Centering(smach.State):
         if abs(deltaX) < 0.05 and abs(deltaY) < 0.05:
             return 'centering_complete'
 
-        fwd_setpoint = -deltaY * 50.0
-        sm_setpoint = deltaX * 50.0
+        fwd_setpoint = math.copy_sign(0.1, -deltaY)
+        sm_setpoint = math.copy_sign(0.1, deltaX)
+        rospy.loginfo("sm: %lf, fwd: %lf", sm_setpoint, fwd_setpoint)
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
 
@@ -109,9 +110,9 @@ class Firing(smach.State):
     def execute(self, userdata):
         self.bucketDetector.stopRobot()
 
-        firePub = rospy.Publisher("/manipulator", manipulator)
+        firePub = rospy.Publisher("/manipulators", manipulator)
         for i in range(10):
-            firePub.publish(self.bucketDetector.maniData & 64)
+            firePub.publish(self.bucketDetector.maniData | 1)
             rospy.sleep(rospy.Duration(0.2))
 
         self.bucketDetector.taskComplete()
