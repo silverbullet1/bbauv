@@ -57,11 +57,14 @@ void disable();
 const int axisBound = 20000;
 void handleEvent(int* axes, char* button);
 
+double norm(double angle);
+
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "joystick_node", ros::init_options::AnonymousName);
 	ros::NodeHandle nh;
 
 	initializeCom();
+	enable();
 
 	int joy_fd;
     int num_of_axis = 0, num_of_buttons = 0;
@@ -130,6 +133,12 @@ int main(int argc, char** argv) {
 	return 0;
 }
 
+double norm(double angle) {
+	if (angle > 360.0) { return angle - 360.0; }
+	else if (angle < 0.0) { return angle + 360.0; }
+	else { return angle; }
+}
+
 void initializeCom() {
 	ros::NodeHandle nh;
 	compassSub = nh.subscribe("/euler", 1, compassCallback);
@@ -153,20 +162,21 @@ void depthCallback(const bbauv_msgs::depthConstPtr& data) {
 	curDepth = data->depth;
 }
 
-void sendMovement(double f=0.0, double sm=0.0, double heading=0.0, double depth=0.0) {
+void sendMovement(double f=0.0, double sm=0.0, double h=0.0, double d=0.0) {
 	bbauv_msgs::ControllerGoal goal;
 	goal.forward_setpoint = f;
 	goal.sidemove_setpoint = sm;
-	goal.heading_setpoint = curHeading + heading;
-	goal.depth_setpoint = curDepth + depth;
+	goal.heading_setpoint = norm(curHeading + h);
+	goal.depth_setpoint = std::max(0.0, curDepth + d);
 
 	locoClient->sendGoal(goal);
+	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
 	locoClient->waitForResult(ros::Duration(0.5));
 }
 
 void enable() {
 	ros::NodeHandle nh;
-	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("/set_controller_srv");
 	bbauv_msgs::set_controller srv;
 	srv.request.depth = false;
 	srv.request.forward = false;
@@ -179,7 +189,7 @@ void enable() {
 
 void disable() {
 	ros::NodeHandle nh;
-	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("/set_controller_srv");
 	bbauv_msgs::set_controller srv;
 	srv.request.depth = true;
 	srv.request.forward = true;
@@ -194,29 +204,43 @@ void handleEvent(int* axes, char* button) {
 	bool toHover = true;
 	double f=0.0, sm=0.0, d=0.0, h=0.0;
 
-	if (button[LEFT_BUTTON]) {
+	if (button[LEFT_BUTTON] == 1) {
 		disable();
 		isHovering = true;
 		return;
-	}
-
-	if (button[RIGHT_BUTTON]) {
+	} else if (button[RIGHT_BUTTON] == 1) {
 		enable();
 	}
 
 	if (axes[DPAD_Y] > axisBound) {
-		f = 0.1;
+		f = 0.5;
 		toHover = false;
 	} else if (axes[DPAD_Y] < -axisBound) {
-		f = -0.1;
+		f = -0.5;
 		toHover = false;
 	}
 
 	if (axes[DPAD_X] > axisBound) {
-		sm = 0.1;
+		sm = 0.5;
 		toHover = false;
 	} else if (axes[DPAD_X] < -axisBound) {
-		sm = -0.1;
+		sm = -0.5;
+		toHover = false;
+	}
+
+	if (button[BUTTON_Y] == 1) {
+		d = 0.1;
+		toHover = false;
+	} else if (button[BUTTON_A] == 1) {
+		d = -0.1;
+		toHover = false;
+	}
+
+	if (button[BUTTON_B] == 1) {
+		h = 10.0;
+		toHover = false;
+	} else if (button[BUTTON_X] == 1) {
+		h = -10.0;
 		toHover = false;
 	}
 
@@ -228,6 +252,6 @@ void handleEvent(int* axes, char* button) {
 		sendMovement(f, sm, h, d);
 	}
 
-	printf("isHovering: %d\n", isHovering);
-	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
+//	printf("isHovering: %d\n", isHovering);
+//	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
 }
