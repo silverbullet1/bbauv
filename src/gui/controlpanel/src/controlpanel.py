@@ -218,6 +218,22 @@ class AUV_gui(QMainWindow):
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
         vbox3.addWidget(self.unsubscribeButton)
+        
+        Navigation = QLabel("<b>Navigation</b>")
+        xpos_l , self.xpos_box, layout6 = self.make_data_box("x coord:")
+        ypos_l, self.ypos_box,layout7 = self.make_data_box("y coord:")
+        self.goToPos = QPushButton("&Go!")
+        self.goToPos.clicked.connect(self.goToPosHandler)
+        layout8 = QHBoxLayout()
+        layout8.addWidget(self.goToPos)
+        layout8.addStretch()
+        
+        vbox4 = QVBoxLayout()
+        vbox4.addWidget(Navigation)
+        vbox4.addLayout(layout6)
+        vbox4.addLayout(layout7)
+        vbox4.addLayout(layout8)
+        
         goal_gui_layout = QHBoxLayout()
         goal_gui_layout.addLayout(goal_layout)
         
@@ -228,29 +244,14 @@ class AUV_gui(QMainWindow):
         goalBtn_layout.addLayout(vbox)
         goalBtn_layout.addLayout(vbox2)
         goalBtn_layout.addLayout(vbox3)
-        #goalBox_layout.addStretch(1)
+        #goalBox_layout.addStretch(50)
+        goalBtn_layout.addLayout(vbox4)
         goalBox_layout.addLayout(goalBtn_layout)
         
         #vbox.addStretch(1)
         #vbox2.addStretch(1)
         vbox3.addStretch(1)
         goalBox.setLayout(goalBox_layout)
-        
-        MoveTo = QGroupBox("Go to Pos")
-        xpos_l , self.xpos_box, layout6 = self.make_data_box("x pos:")
-        ypos_l, self.ypos_box,layout7 = self.make_data_box("y pos:")
-        self.goToPos = QPushButton("&Go!")
-        self.goToPos.clicked.connect(self.goToPosHandler)
-        layout8 = QHBoxLayout()
-        layout8.addWidget(self.goToPos)
-        layout8.addStretch()
-        
-        pos_layout = QVBoxLayout()
-        pos_layout.addLayout(layout6)
-        pos_layout.addLayout(layout7)
-        pos_layout.addLayout(layout8)
-        pos_layout.addStretch()
-        goal_gui_layout.addLayout(pos_layout)
         
         self.compass = Qwt.QwtCompass()
         self.compass.setGeometry(0,0,200,200)
@@ -322,8 +323,8 @@ class AUV_gui(QMainWindow):
         attitude_layout.addWidget(self.attitudePanel4)
         attitude_layout.addWidget(self.attitudePanel5)
         attitudeBox.setLayout(attitude_layout)
-        #Setpoint information
         
+        #Setpoint information
         setpointBox = QGroupBox("Setpoint Information")
         self.setpointPanel1 = QTextBrowser()
         self.setpointPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
@@ -732,8 +733,8 @@ class AUV_gui(QMainWindow):
         self.orientation_sub = rospy.Subscriber("/euler", compass_data ,self.orientation_callback)
         self.position_sub = rospy.Subscriber("/WH_DVL_data", Odometry ,self.rel_pos_callback)
         self.controller_sub = rospy.Subscriber("/controller_points",controller,self.controller_callback)
-        self.mani_pub = rospy.Publisher("/manipulator",manipulator)
-        self.mani_sub = rospy.Subscriber("/manipulator",manipulator,self.manipulators_callback)
+        self.mani_pub = rospy.Publisher("/manipulators",manipulator)
+        self.mani_sub = rospy.Subscriber("/manipulators",manipulator,self.manipulators_callback)
         self.earth_sub = rospy.Subscriber("/earth_odom",Odometry,self.earth_pos_callback)
         self.feedback_sub = rospy.Subscriber("/LocomotionServer/feedback",ControllerActionFeedback,self.controller_feedback_callback)
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
@@ -900,7 +901,7 @@ class AUV_gui(QMainWindow):
         
     def fireBtnHandler(self):
         if(self.isArmed):
-            #_manipulator = manipulator()
+            _manipulator = manipulator()
             servo_state = 0
             
             if(self.check1.checkState()):
@@ -918,7 +919,9 @@ class AUV_gui(QMainWindow):
             if(self.check7.checkState()):
                 servo_state |= 64
             
-            self.mani_pub.publish(servo_state)
+            _manipulator = servo_state
+            
+            self.mani_pub.publish(_manipulator)
         
     def armBtnHandler(self):
         if(self.isArmed):
@@ -1080,7 +1083,7 @@ class AUV_gui(QMainWindow):
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
         height, width, _ = origimg.shape
-        colour = (255, 255, 255)
+        colour = (30, 100, 30)
         pitch_start, pitch_end = 40, height-40
         yaw_start, yaw_end = 40, width-40
 

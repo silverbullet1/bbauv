@@ -3,6 +3,7 @@ devel/
 install/
 *.pyc
 .pydevproject
+.project
 *.bag
 *.bag.org.active
 *.bag.active

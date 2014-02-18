@@ -32,7 +32,6 @@ alias vision=runVisionUI
 alias PID=runPIDUI
 alias cor='coriander'
 alias dri='roslaunch launch drivers.launch'
-alias batt='rostopic list /battery_voltage'
 
 #MINI Functions 
 check_process() {
@@ -60,6 +59,17 @@ runPIDUI(){
 	[ $? -eq 0 ] && echo "roscore not running" && (roscore &) 
 	[ $? -eq 1 ] && echo "roscore running..."
 	rosrun gui Control_node
+}
+
+goToFolder(){
+	roscd
+	cd ..
+	cd Scripts
+}
+
+runCleanIt(){
+	goToFolder;
+	./cleanit.sh -n "$1";
 }
 
 #MINI SCRIPTS/CONFIG

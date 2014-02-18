@@ -1,8 +1,8 @@
 <!-- Launch file for vision nodes & mission planner for SAUVC 2014 -->
 <launch>
 
-	<node name="mission_planner" pkg="core" type="mission_planner.py">
-	</node>
+	<!-- <node name="mission_planner" pkg="core" type="mission_planner.py">
+	</node> -->
 	
 	<node name="line_follower" pkg="vision" type="linefollower_task.py">
 	</node>
@@ -12,5 +12,8 @@
 	
 	<node name="flare" pkg="vision" type="flare_task.py">
 	</node>
+	
+	<!-- <node name="acoustics" pkg="acoustics" type="acoustic_task.py">
+	</node> -->
 
 </launch>

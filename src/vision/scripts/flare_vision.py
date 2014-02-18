@@ -22,22 +22,25 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    highThresh = np.array([143, 255, 240])
-    lowThresh = np.array([56, 0, 80])
+    highThresh = np.array([143, 255, 255])
+    lowThresh = np.array([52, 0, 35])
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
     areaThresh = 800
     
     bridge = None
-    image_topic = None
     
     curHeading = 0.0
     depth_setpoint = 0.2
     yaw = 0.0
-    
-    isAborted = False
+        
     screen = {'width': 640, 'height': 480}
+    
+    deltaXMultiplier = 3.0
+    sidemoveMovementOffset = 0.1    #For sidemove plus straight
+    forwardOffset = 0.3     #For just shooting straight
+    headOnArea = 5000       #Area for shooting straight
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -56,7 +59,6 @@ class Flare:
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
         
-        self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         self.bridge = CvBridge()
         self.register()
         rospy.loginfo("Flare ready")
@@ -73,8 +75,12 @@ class Flare:
             
         #Initialising controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
-                         topside=False, navigation=False)
+        if self.testing:
+            controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=False, roll=False,
+                             topside=False, navigation=False)
+        else:
+            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
+                 topside=False, navigation=False)
         
         #Make sure locomotion server up
         try:
@@ -92,19 +98,23 @@ class Flare:
     def reconfigure(self, config, level):
         rospy.loginfo("Got reconfigure request")
         self.areaThresh = config['area_thresh']
-        
+         
         self.lowThresh[0] = config['lowH']
         self.lowThresh[1] = config['lowS']
         self.lowThresh[2] = config['lowV']
         self.highThresh[0] = config['hiH']
         self.highThresh[1] = config['hiS']
         self.highThresh[2] = config['hiV']
+        self.deltaXMultiplier = config['deltaX_multiplier']
+        self.sidemoveMovementOffset = config['sidemove_movement_offset']
+        self.forwardOffset = config['forward_offset']
+        self.headOnArea = config['head_on_area']       
         
         return config
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         
@@ -129,7 +139,9 @@ class Flare:
 
     def taskComplete(self):
         if not self.testing:
+            #pass
             self.toMission(task_complete_request=True)
+        self.sendMovement(forward=-0.3)     #Retract
         self.sendMovement(heading=85.0)
         self.stopRobot()
         self.isAborted = True
@@ -153,7 +165,7 @@ class Flare:
             rospy.logerr(str(e))
               
     def yaw_callback(self, msg):
-        self.yaw = msg.yaw
+        self.curHeading = msg.yaw
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
@@ -162,7 +174,7 @@ class Flare:
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(1))
         
         
     def abortMission(self):
@@ -200,9 +212,9 @@ class Flare:
         #Noise removal
         #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (12,12))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (11,11))
         contourImg = cv2.dilate(contourImg, dilateEl)
-        contourImg = cv2.erode(contourImg, erodeEl, iterations=2)
+        contourImg = cv2.erode(contourImg, erodeEl, iterations=1)
       
         #Find centroids
         pImg = contourImg.copy()
