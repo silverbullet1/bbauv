@@ -4,7 +4,7 @@ import roslib; roslib.load_manifest('core')
 import rospy, actionlib
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
-
+import numpy as np
 import smach
 
 """
@@ -45,7 +45,7 @@ class Interaction(object):
             rospy.loginfo("Got Controller Service, asking for forward, heading, \
                         depth control and pitch")
             self.ControllerSettings(forward=True, sidemove=False, heading=True,
-                                    depth=True, roll=False, topside=False,
+                                    depth=False, roll=False, topside=False,
                                     navigation=False)
             self.flareService = rospy.Service('/flare/vision_to_mission',
                                               vision_to_mission, self.flareCallback)
@@ -64,7 +64,7 @@ class Interaction(object):
                         (str(e)))
 
     def compassCallback(self, data):
-        self.heading = data
+        self.heading = data.yaw
 
     def flareCallback(self, data):
         if data.task_complete_request:
@@ -86,17 +86,19 @@ class InitialState(smach.State):
         self.DoneMoving = False
         smach.State.__init__(self, outcomes=['initialized', 'failed'])
 
-    def dive(self, depth=1):
+    def dive(self, depth=-5.85):
+        rospy.sleep(rospy.Duration(1))
+        rospy.loginfo("HEADING HEADING HEADING %s" % self.world.heading)
         self.world.depth = depth
         rospy.loginfo("Subscribing to the LocomotionServer to dive.")
         self.actionClient = actionlib.SimpleActionClient('LocomotionServer',
                                                          ControllerAction)
-        self.goal = ControllerGoal(depth_setpoint=depth,
+        goal = ControllerGoal(depth_setpoint=depth,
                                    heading_setpoint=self.world.heading)
         rospy.loginfo("Waiting for Actionlib")
         self.actionClient.wait_for_server()
         rospy.loginfo("Got Actionlib server, sending goal")
-        self.actionClient.send_goal(self.goal, self.diveCallback)
+        self.actionClient.send_goal(goal, self.diveCallback)
         self.actionClient.wait_for_result()
 
     def diveCallback(self, status, result):
@@ -114,17 +116,19 @@ class InitialState(smach.State):
         else:
             rospy.loginfo("Unknown status caught: %s" % (str(status)))
 
-    def goForward(self, distance=1.0):
+    def goForward(self, distance=2):
         """
         we assume that this is only called when the dive is complete
         """
+        #rospy.sleep(rospy.Duration(1))
+        rospy.loginfo("HEADING HEADING HEADING %s" % self.world.heading)
         self.goal = ControllerGoal(depth_setpoint=self.world.depth,
                                    heading_setpoint=self.world.heading,
-                                   forward_setpoint=distance)
+                                   forward_setpoint=1)
         rospy.loginfo("Waiting for Actionlib before moving forward")
         self.actionClient.wait_for_server()
         rospy.loginfo("Got actionlib server, sending goal to move forward")
-        #self.actionClient.send_goal(self.goal, self.forwardCallback)
+        self.actionClient.send_goal(self.goal, self.forwardCallback)
         self.DoneMoving = True
         self.actionClient.wait_for_result()
 
@@ -216,9 +220,10 @@ class Gate(smach.State):
             self.activateVisionNode()
 
     def bucketCallback(self, req):
-        if req.start_request:
+        if req.search_request:
             self.world.startBucket = True
             self.visionDone = True
+            self.shutdownVision()
 
     def shutdownVision(self):
         rospy.loginfo("Shutting down vision node if active.")
@@ -234,7 +239,8 @@ class Gate(smach.State):
             if self.visionDone:
                 return 'gate_passed'
             if self.visionFailed:
-                return 'gate_failed'
+                rospy.loginfo("ASLHDALSHDALSHDAL;SHDAL;HSDA;LDHAKB")
+                return 'gate_passed'
 
 class Bucket(smach.State):
     """
