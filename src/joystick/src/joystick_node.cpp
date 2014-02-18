@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/joystick.h>
-#include <signal.h>
 
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
@@ -18,23 +17,45 @@
 
 #define JOY_DEV "/dev/input/js0"
 
+/* Macros to map buttons/axes names to numbers */
+// Axes
+#define DPAD_X 6
+#define DPAD_Y 7
+#define LEFT_STICK_X 0
+#define LEFT_STICK_Y 1
+#define RIGHT_STICK_X 3
+#define RIGHT_STICK_Y 4
+#define LEFT_TRIGGER 2
+#define RIGHT_TRIGGER 5
+// Buttons
+#define BUTTON_X 2
+#define BUTTON_Y 3
+#define BUTTON_A 0
+#define BUTTON_B 1
+#define LEFT_BUTTON 4
+#define RIGHT_BUTTON 5
+#define BACK_BUTTON 6
+#define START_BUTTON 7
+/* ------------------------------------------ */
+
 ros::Subscriber compassSub;
 ros::Subscriber depthSub;
 actionlib::SimpleActionClient<bbauv_msgs::ControllerAction>* locoClient;
 
 double curHeading = 0.0;
 double curDepth = 0.0;
+bool isHovering = true;
 
 void initializeCom();
 void compassCallback(const bbauv_msgs::compass_dataConstPtr& data);
 void depthCallback(const bbauv_msgs::depthConstPtr& data);
-// function to send relative movement
+// Function to send relative movement
 void sendMovement(double f, double sm, double heading, double depth);
 
-void handleButton(char* button, char* prevButton, int numButtons);
 void enable();
 void disable();
-void handleAxis(int* axes, int* prevAxes, int numAxes);
+const int axisBound = 20000;
+void handleEvent(int* axes, char* button);
 
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "joystick_node", ros::init_options::AnonymousName);
@@ -44,8 +65,8 @@ int main(int argc, char** argv) {
 
 	int joy_fd;
     int num_of_axis = 0, num_of_buttons = 0;
-	int *axis = NULL, *prevAxes;
-	char *button = NULL, *prevButtons;
+	int *axis = NULL;
+	char *button = NULL;
 	char name_of_joystick[80];
 	struct js_event js;
 
@@ -59,9 +80,7 @@ int main(int argc, char** argv) {
 	ioctl(joy_fd, JSIOCGNAME(80), &name_of_joystick);
 
 	axis = (int *) calloc(num_of_axis, sizeof(int));
-	prevAxes = (int *) calloc(num_of_axis, sizeof(int));
 	button = (char *) calloc(num_of_buttons, sizeof(char));
-	prevButtons = (char *) calloc(num_of_buttons, sizeof(char));
 
 	printf("Joystick detected: %s\n\t%d axis\n\t%d buttons\n\n",
 			name_of_joystick, num_of_axis, num_of_buttons);
@@ -83,17 +102,20 @@ int main(int argc, char** argv) {
 		}
 
 		/* print the results */
-		printf("Axis: \n");
-		for (int a = 0; a < num_of_axis; a++) {
-			printf("A%d: %d, ", a, axis[a]);
-		}
+//		printf("Axis: \n");
+//		for (int a = 0; a < num_of_axis; a++) {
+//			printf("A%d: %d, ", a, axis[a]);
+//		}
+//
+//		printf("Button: \n");
+//		for (int b = 0; b < num_of_buttons; b++) {
+//			printf("B%d: %d  ", b, button[b]);
+//		}
+//
+//		printf("\n");
 
-		printf("Button: \n");
-		for (int b = 0; b < num_of_buttons; b++) {
-			printf("B%d: %d  ", b, button[b]);
-		}
+		handleEvent(axis, button);
 
-		printf("\n");
 		fflush(stdout);
 
 		ros::spinOnce();
@@ -166,4 +188,46 @@ void disable() {
 	srv.request.roll= true;
 	srv.request.sidemove = true;
 	controlClient.call(srv);
+}
+
+void handleEvent(int* axes, char* button) {
+	bool toHover = true;
+	double f=0.0, sm=0.0, d=0.0, h=0.0;
+
+	if (button[LEFT_BUTTON]) {
+		disable();
+		isHovering = true;
+		return;
+	}
+
+	if (button[RIGHT_BUTTON]) {
+		enable();
+	}
+
+	if (axes[DPAD_Y] > axisBound) {
+		f = 0.1;
+		toHover = false;
+	} else if (axes[DPAD_Y] < -axisBound) {
+		f = -0.1;
+		toHover = false;
+	}
+
+	if (axes[DPAD_X] > axisBound) {
+		sm = 0.1;
+		toHover = false;
+	} else if (axes[DPAD_X] < -axisBound) {
+		sm = -0.1;
+		toHover = false;
+	}
+
+	if (toHover && !isHovering) {
+		isHovering = true;
+		sendMovement(f, sm, h, d);
+	} else if (!toHover) {
+		isHovering = false;
+		sendMovement(f, sm, h, d);
+	}
+
+	printf("isHovering: %d\n", isHovering);
+	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
 }
