@@ -162,14 +162,15 @@ void depthCallback(const bbauv_msgs::depthConstPtr& data) {
 	curDepth = data->depth;
 }
 
-void sendMovement(double f=0.0, double sm=0.0, double heading=0.0, double depth=0.0) {
+void sendMovement(double f=0.0, double sm=0.0, double h=0.0, double d=0.0) {
 	bbauv_msgs::ControllerGoal goal;
 	goal.forward_setpoint = f;
 	goal.sidemove_setpoint = sm;
-	goal.heading_setpoint = norm(curHeading + heading);
-	goal.depth_setpoint = std::max(0.0, curDepth + depth);
+	goal.heading_setpoint = norm(curHeading + h);
+	goal.depth_setpoint = std::max(0.0, curDepth + d);
 
 	locoClient->sendGoal(goal);
+	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
 	locoClient->waitForResult(ros::Duration(0.5));
 }
 
@@ -251,6 +252,6 @@ void handleEvent(int* axes, char* button) {
 		sendMovement(f, sm, h, d);
 	}
 
-	//printf("isHovering: %d\n", isHovering);
-	//printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
+//	printf("isHovering: %d\n", isHovering);
+//	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
 }
