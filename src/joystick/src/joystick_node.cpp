@@ -176,6 +176,19 @@ void sendMovement(double f=0.0, double sm=0.0, double h=0.0, double d=0.0) {
 
 void enable() {
 	ros::NodeHandle nh;
+	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
+	bbauv_msgs::set_controller srv;
+	srv.request.depth = true;
+	srv.request.forward = true;
+	srv.request.heading = true;
+	srv.request.pitch = true;
+	srv.request.roll= true;
+	srv.request.sidemove = true;
+	controlClient.call(srv);
+}
+
+void disable() {
+	ros::NodeHandle nh;
 	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("/set_controller_srv");
 	bbauv_msgs::set_controller srv;
 	srv.request.depth = false;
@@ -184,19 +197,6 @@ void enable() {
 	srv.request.pitch = false;
 	srv.request.roll= false;
 	srv.request.sidemove = false;
-	controlClient.call(srv);
-}
-
-void disable() {
-	ros::NodeHandle nh;
-	ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("/set_controller_srv");
-	bbauv_msgs::set_controller srv;
-	srv.request.depth = true;
-	srv.request.forward = true;
-	srv.request.heading = true;
-	srv.request.pitch = true;
-	srv.request.roll= true;
-	srv.request.sidemove = true;
 	controlClient.call(srv);
 }
 
