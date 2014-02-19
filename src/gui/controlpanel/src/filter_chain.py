@@ -159,7 +159,7 @@ class Vision_filter(QWidget):
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
         qpm = QPixmap.fromImage(qimg)
-        #self.hist.updateHist(image) #TODO: put this back
+        self.hist.updateHist(image) #TODO: put this back
         self.video_top.setPixmap(qpm.scaledToHeight(250))
     ### Update Vision Filter filter video
     def update_image_filter(self,image):
