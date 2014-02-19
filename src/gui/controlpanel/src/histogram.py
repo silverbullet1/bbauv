@@ -45,8 +45,9 @@ class QHistogram(QLabel):
         cv2.line(histImg,(self.params['valLow'],window_height*(3)),(self.params['valLow'],window_height*(3) -window_height),self.thresColor)
         cv2.line(histImg,(self.params['valHigh'],window_height*(3)),(self.params['valHigh'],window_height*(3) -window_height),self.thresColor)
         for channelImg in imgArray:
-            #hist = cv2.calcHist(channelImg, channel, None, [256], ranges)
-            hist, _ = np.histogram(channelImg, hist_bins, (0, 255))
+            channel = 0
+            hist = cv2.calcHist([channelImg], [channel], None, [256], [0, 256])
+            #hist, _ = np.histogram(channelImg, hist_bins, (0, 255))
             cv2.normalize(hist,hist,0,200,cv2.NORM_MINMAX)
             for h in range(hist_bins):
                 binVal = int(hist[h])

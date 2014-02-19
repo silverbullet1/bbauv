@@ -30,6 +30,8 @@ class Navigate2D(object):
                         'y' : 0}
         self.currHeading = {'yaw' : 0}
         self.depth = 0
+        #earth odom is the absolute
+        #wh_dvl_Data is relative
         self.WH_DVL = rospy.Subscriber('/WH_DVL_data', Odometry,
                                        self.DVLCallback)
         self.AHRS8 = rospy.Subscriber('/AHRS8_data_e', imu_data,
@@ -76,6 +78,9 @@ class Navigate2D(object):
         return navigate2dResponse(done=res)
 
     def navigateToPoint(self, x, y):
+        """
+        angle between vector from point to true north and the dir vector
+        """
         initial = list(self.currPos['x'], self.currPos['y'])
         target = list(x, y)
         magnitude = np.sqrt(sum(map(lambda k: k * k, list(i - j for i, j in zip(target,

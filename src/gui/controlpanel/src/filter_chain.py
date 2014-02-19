@@ -186,8 +186,7 @@ class Vision_filter(QWidget):
         # Convert from ROS Image to old OpenCV image
         frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
         # Convert from old OpenCV image trackbarnameto Numpy matrix
-        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
-        
+        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype 
     def createColor(self):
         self.view = QLabel()
         #self.view.setGeometry(10, 10, , 100)
