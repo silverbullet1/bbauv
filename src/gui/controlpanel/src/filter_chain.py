@@ -159,7 +159,7 @@ class Vision_filter(QWidget):
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
         qpm = QPixmap.fromImage(qimg)
-        #self.hist.updateHist(image) #TODO: put this back
+        self.hist.updateHist(image) #TODO: put this back
         self.video_top.setPixmap(qpm.scaledToHeight(250))
     ### Update Vision Filter filter video
     def update_image_filter(self,image):
@@ -186,8 +186,7 @@ class Vision_filter(QWidget):
         # Convert from ROS Image to old OpenCV image
         frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
         # Convert from old OpenCV image trackbarnameto Numpy matrix
-        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
-        
+        return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype 
     def createColor(self):
         self.view = QLabel()
         #self.view.setGeometry(10, 10, , 100)

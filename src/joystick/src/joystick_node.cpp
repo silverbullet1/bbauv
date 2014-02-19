@@ -212,10 +212,10 @@ void handleEvent(int* axes, char* button) {
 		enable();
 	}
 
-	if (axes[DPAD_Y] > axisBound) {
+	if (axes[DPAD_Y] < -axisBound) {
 		f = 0.5;
 		toHover = false;
-	} else if (axes[DPAD_Y] < -axisBound) {
+	} else if (axes[DPAD_Y] > axisBound) {
 		f = -0.5;
 		toHover = false;
 	}
