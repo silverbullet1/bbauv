@@ -68,6 +68,7 @@ add_message_files(
   thruster.msg
   wheel_task_pose.msg
   ##Old msg files end
+  cpu_temperature.msg
 )
 
 ## Generate services in the 'srv' folder

@@ -122,6 +122,9 @@ add_dependencies(DVL_node bbauv_msgs_generate_messages_cpp)
 add_executable(IMU_node src/IMU.cpp)
 add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
 
+add_executable(cpu_temp cpu_temp/main.cpp)
+add_dependencies(cpu_temp bbauv_msgs_generate_messages_cpp)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(sensors_node sensors_generate_messages_cpp)
@@ -143,6 +146,11 @@ target_link_libraries(DVL_node
 
 target_link_libraries(IMU_node
 	${catkin_LIBRARIES}
+)
+
+target_link_libraries(cpu_temp
+	${catkin_LIBRARIES}
+	sensors
 )
 
 #############
