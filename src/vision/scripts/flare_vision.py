@@ -60,7 +60,10 @@ class Flare:
         signal.signal(signal.SIGINT, self.userQuit)
         
         self.bridge = CvBridge()
-        self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_raw')
+        if not self.testing:
+            self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_raw')
+        else:
+            self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         self.register()
         rospy.loginfo("Flare ready")
         
