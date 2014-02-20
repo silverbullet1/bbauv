@@ -207,9 +207,11 @@ void handleEvent(int* axes, char* button) {
 	if (button[LEFT_BUTTON] == 1) {
 		disable();
 		isHovering = true;
+		printf("Disabled");
 		return;
 	} else if (button[RIGHT_BUTTON] == 1) {
 		enable();
+		printf("Enabled");
 	}
 
 	if (axes[DPAD_Y] < -axisBound) {
