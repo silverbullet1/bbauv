@@ -60,6 +60,10 @@ class Flare:
         signal.signal(signal.SIGINT, self.userQuit)
         
         self.bridge = CvBridge()
+        if not self.testing:
+            self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_raw')
+        else:
+            self.image_topic = rospy.get_param('~image', '/front_camera/camera/image_rect_color_opt')
         self.register()
         rospy.loginfo("Flare ready")
         
@@ -114,7 +118,7 @@ class Flare:
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber(self.image_topic, Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         

@@ -41,6 +41,7 @@ class AUV_gui(QMainWindow):
     depth_thermo = None
     client = None
     movebase_client = None
+    acoustic = 0
     yaw = 0
     depth = 0
     pos_x = 0
@@ -68,10 +69,11 @@ class AUV_gui(QMainWindow):
     q_openups = Queue.Queue()
     q_temp = Queue.Queue()
     q_altitude = Queue.Queue()
+    q_acoustic = Queue.Queue()
     q_image_bot = None
     q_image_front = None
     q_image_rfront = None
-    data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
+    data = {'acoustic':0, 'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(), 
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
@@ -102,6 +104,7 @@ class AUV_gui(QMainWindow):
     frontfilter_sub = None
     botfilter_sub = None
     battery_sub = None
+    acoustic_sub = None
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
@@ -254,7 +257,7 @@ class AUV_gui(QMainWindow):
         goalBox.setLayout(goalBox_layout)
         
         self.compass = Qwt.QwtCompass()
-        self.compass.setGeometry(0,0,200,200)
+        self.compass.setGeometry(0,0,190,190)
         self.compass.setLineWidth(4)
         self.compass.setMode(Qwt.QwtCompass.RotateNeedle)
         rose = Qwt.QwtSimpleCompassRose(16, 2)
@@ -273,21 +276,40 @@ class AUV_gui(QMainWindow):
         self.heading_provider.setRose(rose)
         self.heading_provider.setNeedle(Qwt.QwtCompassMagnetNeedle(
                 Qwt.QwtCompassMagnetNeedle.ThinStyle))
+        
         compass_l = QLabel("Current")
         heading_l = QLabel("User Goal")
         compass_l.setAlignment(Qt.AlignHCenter)
         heading_l.setAlignment(Qt.AlignHCenter)
+        
+        self.acoustic_provider = Qwt.QwtCompass()
+        self.acoustic_provider.setLineWidth(4)
+        self.acoustic_provider.setMode(Qwt.QwtCompass.RotateNeedle)
+        rose = Qwt.QwtSimpleCompassRose(16,2)
+        rose.setWidth(0.15)
+        self.acoustic_provider.setRose(rose)
+        self.acoustic_provider.setNeedle(Qwt.QwtCompassMagnetNeedle(
+                Qwt.QwtCompassMagnetNeedle.ThinStyle))
+        
+        acoustic_l = QLabel("Acoustic")
+        acoustic_l.setAlignment(Qt.AlignHCenter)
+        acoustic_layout = QVBoxLayout()
+        acoustic_layout.addWidget(self.acoustic_provider)
+        acoustic_layout.addWidget(acoustic_l)
+        #acoustic_layout.addStretch(1)
+        
         compass_layout = QHBoxLayout()
         current_layout = QVBoxLayout()
         current_layout.addWidget(self.compass)
         current_layout.addWidget(compass_l)
-        current_layout.addStretch(1)
+        #current_layout.addStretch(1)
         user_layout = QVBoxLayout()
         user_layout.addWidget(self.heading_provider)
         user_layout.addWidget(heading_l)
-        user_layout.addStretch(1)
+        #user_layout.addStretch(1)
         compass_layout.addLayout(current_layout)
         compass_layout.addLayout(user_layout)
+        compass_layout.addLayout(acoustic_layout)
         
         compass_box = QGroupBox("AUV Heading")
         compass_box.setLayout(compass_layout)
@@ -422,6 +444,7 @@ class AUV_gui(QMainWindow):
             print "Failed to send notification"
     
     def on_timer(self):
+        acoustic = None
         yaw = None
         depth = None
         orientation = None
@@ -511,6 +534,11 @@ class AUV_gui(QMainWindow):
             image_bot = self.q_image_bot
         except Exception,e:
             pass
+        try:
+            acoustic = self.q_acoustic.get(False,0)
+        except Exception,e:
+            pass
+        
         '''If data in queue is available store it into data'''
         if temp!= None:
             self.data['temp'] = temp.data
@@ -522,6 +550,9 @@ class AUV_gui(QMainWindow):
             self.data['pitch'] = orientation.pitch
             self.data['yaw'] = orientation.yaw
             self.data['roll'] = orientation.roll
+        if acoustic != None:
+            #self.data['acoustic'] = acoustic.yaw
+            self.data['acoustic'] = 0.0
         if hull_statuses != None:
             self.data['hull_status'] = hull_statuses
         if rel_pos != None:
@@ -561,6 +592,7 @@ class AUV_gui(QMainWindow):
         
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
+        self.acoustic_provider.setValue(int(self.data['acoustic']))
         
         if self.data['mode']== 0:
             self.l_mode.setText("Default")
@@ -657,7 +689,6 @@ class AUV_gui(QMainWindow):
                               "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
                               "&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
-                              
                               "</b>")
         
         self.oPanel2.setText("<b>BATT2: " +
@@ -742,6 +773,7 @@ class AUV_gui(QMainWindow):
         self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
+        self.acoustic_sub = rospy.Subscriber("/euler", compass_data, self.acoustic_callback)
 
     def get_status(self,val):
         if val == -1:
@@ -1045,6 +1077,9 @@ class AUV_gui(QMainWindow):
     def orientation_callback(self,msg):
         self.q_orientation.put(msg)
     
+    def acoustic_callback(self, msg):
+        self.q_acoustic.put(msg)
+    
     def altitude_callback(self,altitude):
         self.q_altitude.put(altitude)
         
@@ -1083,7 +1118,7 @@ class AUV_gui(QMainWindow):
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
         height, width, _ = origimg.shape
-        colour = (30, 100, 30)
+        colour = (73, 242, 58)
         pitch_start, pitch_end = 40, height-40
         yaw_start, yaw_end = 40, width-40
 
