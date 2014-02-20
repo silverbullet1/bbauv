@@ -16,4 +16,7 @@
     <!-- Launch Sparton IMU -->
     <include file="$(find launch)/SpartonCompass.launch"/>
 
+    <!-- Launch CPU temperature sensors -->
+    <node pkg="sensors" name="sensors" type="cpu_temp" respawn="false"> </node>
+
 </launch> 
