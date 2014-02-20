@@ -13,7 +13,6 @@ void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data)
     double val;
     //double data[NUMBER_OF_SENSORS];
 
-    sensors_init(NULL);
     while((cn = sensors_get_detected_chips(0, &c)) != 0)
     {
         const sensors_feature *features;
@@ -36,7 +35,6 @@ void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data)
     double core_ave = (data[2] + data[2] + data[3]) / 3.0;
     ct->cores_ave = core_ave;
     ct->socket_ave = acpi_ave;
-    sensors_cleanup();
 }
 
 int main(int argc, char **argv)
@@ -51,11 +49,14 @@ int main(int argc, char **argv)
     ros::Rate loop_rate(0.2);
 
     //get_temperature(&cpu_temperature, data);
+    sensors_init();
 
     while(ros::ok()){
         get_temperature(&cpu_temperature, data);
         publisher.publish(cpu_temperature);
         loop_rate.sleep();
         ros::spinOnce();
+    } else{
+        sensors_cleanup();
     }
 }
