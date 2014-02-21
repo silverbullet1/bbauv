@@ -35,7 +35,8 @@ void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data, FILE *logf)
     double core_ave = (data[2] + data[2] + data[3]) / 3.0;
     ct->cores_ave = core_ave;
     ct->socket_ave = acpi_ave;
-    fprintf(logf, "socket_average: %lf\ncore_ave: %lf\n-----", acpi_ave, core_ave);
+    fprintf(logf, "socket_average: %lf\ncore_ave: %lf\n-----\n", acpi_ave, core_ave);
+    fflush(logf);
 }
 
 int main(int argc, char **argv)
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
     ros::Rate loop_rate(0.2);
 
     //get_temperature(&cpu_temperature, data);
-    sensors_init();
+    sensors_init(NULL);
 
     while(ros::ok()){
         get_temperature(&cpu_temperature, data, logf);
