@@ -59,8 +59,10 @@ int main(int argc, char **argv)
         publisher.publish(cpu_temperature);
         loop_rate.sleep();
         ros::spinOnce();
-    } else{
-        fclose(logf);
-        sensors_cleanup();
     }
+
+    fclose(logf);
+    sensors_cleanup();
+
+    return 0;
 }
