@@ -6,7 +6,7 @@
 
 #define NUMBER_OF_SENSORS 7 //socket and core +1
 
-void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data, FILE *f)
+void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data, FILE *logf)
 {
     const sensors_chip_name *cn;
     int c = 0, s = 0, f = 0, counter = 0;
@@ -35,7 +35,7 @@ void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data, FILE *f)
     double core_ave = (data[2] + data[2] + data[3]) / 3.0;
     ct->cores_ave = core_ave;
     ct->socket_ave = acpi_ave;
-    fprintf(f, "socket_average: %lf\ncore_ave: %lf\n-----", acpi_ave, core_ave);
+    fprintf(logf, "socket_average: %lf\ncore_ave: %lf\n-----", acpi_ave, core_ave);
 }
 
 int main(int argc, char **argv)
