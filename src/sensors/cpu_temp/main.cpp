@@ -6,7 +6,7 @@
 
 #define NUMBER_OF_SENSORS 7 //socket and core +1
 
-void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data)
+void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data, FILE *f)
 {
     const sensors_chip_name *cn;
     int c = 0, s = 0, f = 0, counter = 0;
@@ -35,14 +35,17 @@ void get_temperature(bbauv_msgs::cpu_temperature *ct, double *data)
     double core_ave = (data[2] + data[2] + data[3]) / 3.0;
     ct->cores_ave = core_ave;
     ct->socket_ave = acpi_ave;
+    fprintf(f, "socket_average: %lf\ncore_ave: %lf\n-----", acpi_ave, core_ave);
 }
 
 int main(int argc, char **argv)
 {
     const std::string cpu_temp_topic = "CPU_TEMP";
     double data[NUMBER_OF_SENSORS];
-    bbauv_msgs::cpu_temperature cpu_temperature; 
+    bbauv_msgs::cpu_temperature cpu_temperature;
     ros::init(argc, argv, "cpu_temperature");
+
+    FILE *logf  = fopen("/home/bbauvsbc1/cpu_temperature_log.txt", "w");
 
     ros::NodeHandle nodehandler;
     ros::Publisher publisher = nodehandler.advertise<bbauv_msgs::cpu_temperature>(cpu_temp_topic, 1000);
@@ -52,11 +55,12 @@ int main(int argc, char **argv)
     sensors_init();
 
     while(ros::ok()){
-        get_temperature(&cpu_temperature, data);
+        get_temperature(&cpu_temperature, data, logf);
         publisher.publish(cpu_temperature);
         loop_rate.sleep();
         ros::spinOnce();
     } else{
+        fclose(logf);
         sensors_cleanup();
     }
 }
