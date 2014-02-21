@@ -805,6 +805,8 @@ class AUV_gui(QMainWindow):
             self.unsubscribe()
         else:
             self.unsubscribeButton.setText("Unsubscribe")
+            self.initSub()
+            self.initImage()
         self.isSubscribed = not self.isSubscribed
         
 
@@ -846,7 +848,6 @@ class AUV_gui(QMainWindow):
     
     def goToPosHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        handle.wait_for_server()
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         res = handle(x=xpos, y=ypos)
@@ -854,7 +855,6 @@ class AUV_gui(QMainWindow):
 
     def homeBtnHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        handle.wait_for_server()
         res = handle(x=0, y=0)
         return res
         
