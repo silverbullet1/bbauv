@@ -19,8 +19,9 @@ class Interaction(object):
                                                    lambda d: setattr(self,
                                                                      'yaw',
                                                                      d.yaw))
-            self.depthService = rospy.Subscriber("/depth", depth, lambda d:
-                                                 setattr(self, 'depth', d))
+           # self.depthService = rospy.Subscriber("/depth", depth, lambda d:
+           #                                      setattr(self, 'depth',
+           #                                              d.depth.depth))
         except rospy.ServiceException, e:
             rospy.logerr("Error subscribing to service: %s" % (str(e)))
 
@@ -41,8 +42,9 @@ class MissionPlanner(object):
         self.modules = {}
         self.loadedStates = {}
         self.interact = Interaction()
+        self.helper = []
         self.missions = smach.StateMachine(outcomes=['pass', 'fail'])
-    
+
     def load_state(self, name):
         name = "States.%s" % (name)
         try:
@@ -54,12 +56,17 @@ class MissionPlanner(object):
         cls = module.State
         self.loadedStates[name] = cls
         self.modules[name] = module
+        self.helper.append(name)
 
     def add_missions(self):
         with self.missions:
-            for k in self.loadedStates.keys():
-                trans = getattr(self.loadedStates[k], 'transitions')
-                smach.StateMachine.add(str(k),
+            for k in self.helper:
+                #trans = getattr(self.loadedStates[k], 'transitions')
+                if((len(self.loadedStates.keys())) == 1):
+                    trans = {'pass' : 'pass', 'fail' : 'fail'}
+                else:
+                    trans = getattr(self.loadedStates[k], 'transitions')
+                smach.StateMachine.add(str(k).split('.')[1],
                                        self.loadedStates[k](self.interact),
                                        transitions=trans)
 
@@ -70,4 +77,7 @@ class MissionPlanner(object):
 if __name__ == "__main__":
     m = MissionPlanner()
     m.load_state('Qualifier')
+    #m.load_state('SAUVCInitial')
+    #m.load_state('SAUVCLinefollower')
+    #m.load_state('SAUVCInitial')
     m.run()

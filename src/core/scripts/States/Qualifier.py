@@ -15,8 +15,10 @@ class State(smach.State):
                                                     ControllerAction)
         smach.State.__init__(self, outcomes=self.outcomes)
 
-    def forward(self, fwd=10):
+    def forward(self, fwd=10.0):
         goal = ControllerGoal(depth_setpoint=self.world.depth,
+                              sidemove_setpoint=0.0,
+                              heading_setpoint=self.world.static_yaw,
                               forward_setpoint=fwd)
         self.actionClient.wait_for_server()
         outcome = self.actionClient.send_goal_and_wait(goal,
@@ -27,23 +29,26 @@ class State(smach.State):
         else:
             return False
 
-    def dive(self, depth=0):
+    def dive(self, depth=0.2):
+        self.world.depth = depth
         rospy.sleep(rospy.Duration(1))
+        self.world.static_yaw = self.world.yaw
         goal = ControllerGoal(depth_setpoint=depth,
-                                   heading_setpoint=self.world.yaw)
+                                   heading_setpoint=self.world.static_yaw)
         rospy.loginfo("Waiting for actionlib before diving")
         outcome = self.actionClient.send_goal_and_wait(goal,
-                                             execute_timeout=rospy.Duration(10),
+                                             execute_timeout=rospy.Duration(30),
                                              preempt_timeout=rospy.Duration(10))
         if outcome == actionlib.GoalStatus.SUCCEEDED:
             return self.forward()
-        else:
-            return 'fail'
+        return False
 
 
     def execute(self, userdata):
         self.world.enable_PID()
         if self.dive():
+            #self.world.disable_PID()
             return 'pass'
         else:
+            self.world.disable_PID()
             return 'fail'
