@@ -14,6 +14,7 @@ import cv2
 import math
 import numpy as np
 import signal
+from collections import deque
 
 class LineFollower():
     testing = False
@@ -26,7 +27,12 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
+<<<<<<< Updated upstream
     depth_setpoint = 0.4
+=======
+    depth_setpoint = 0.3
+    actionsHist = deque()
+>>>>>>> Stashed changes
 
     def __init__(self):
         self.testing = rospy.get_param("~testing", False)
@@ -121,14 +127,28 @@ class LineFollower():
         self.curHeading = data.yaw
 
     #Utility function to send movements through locomotion server
-    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
+    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None, recordAction=True):
         d = d if d else self.depth_setpoint
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
                                               
+        # Record actions to revert if necessary
+        if recordAction:
+            if len(self.actionHist) > 10:
+                self.actionsHist.popleft()
+            self.actionsHist.append((f, h, sm, d))
+
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+    
+    def revertMovement(self):
+        if len(self.actionsHist) == 0:
+            return False
+        
+        movements = self.actionsHist.popleft()
+        self.sendMovement(*movements, False)
+        return True
 
     def abortMission(self):
         #Notify mission planner service

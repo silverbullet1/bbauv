@@ -14,6 +14,7 @@ import vision.cfg.bucketConfig as Config
 from sensor_msgs.msg import Image
 
 import signal
+from collections import deque
 
 import numpy as np
 
@@ -28,6 +29,7 @@ class BucketDetector:
     curHeading = 0
     depth_setpoint = 0.3
     maniData = 0
+    actionsHist = deque()
     
     screen = { 'width' : 640, 'height' : 480 }
     
@@ -104,8 +106,22 @@ class BucketDetector:
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
  
+        # Record actions to revert if necessary
+        if recordAction:
+            if len(self.actionHist) > 10:
+                self.actionsHist.popleft()
+            self.actionsHist.append((f, h, sm, d))
+ 
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(1.0))
+
+    def revertMovement(self):
+        if len(self.actionsHist) == 0:
+            return False
+        
+        movements = self.actionsHist.popleft()
+        self.sendMovement(*movements, False)
+        return True
 
     def stopRobot(self):
         self.sendMovement(f=0.0, sm=0.0)

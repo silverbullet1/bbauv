@@ -64,6 +64,18 @@ class Searching2(smach.State):
         while not self.bucketDetector.rectData['detected']:
             if timecount > self.timeout:
                 self.bucketDetector.abortMission()
+                break
+            timecount += 1
+            rospy.sleep(rospy.Duration(0.1))
+            
+        while self.bucketDetector.revertMovement():
+            if self.bucketDetector.rectData['detected']:
+                return 'search_complete'
+
+        timecount = 0
+        while not self.bucketDetector.rectData['detected']:
+            if timecount > self.timeout:
+                self.bucketDetector.abortMission()
                 return 'aborted'
             timecount += 1
             rospy.sleep(rospy.Duration(0.1))

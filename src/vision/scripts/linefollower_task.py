@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'start_complete'
 
 class Searching(smach.State):
-    timeout = 70 #5 seconds time out before aborting
+    timeout = 30 #5 seconds time out before aborting
     
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['line_found', 'aborted'])
@@ -49,10 +49,23 @@ class Searching(smach.State):
         while not self.linefollower.rectData['detected']:
             if timecount > self.timeout:
                 self.linefollower.abortMission()
-                return 'aborted'
+                break
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
         
+        while self.linefollower.revertMoment():
+            if self.linefollower.rectData['detected']:
+                return 'line_found'            
+        
+        #Check if blackline is found or timeout
+        timecount = 0
+        while not self.linefollower.rectData['detected']:
+            if timecount > self.timeout:
+                self.linefollower.abortMission()
+                return 'aborted'
+            rospy.sleep(rospy.Duration(0.1))
+            timecount += 1
+
         return 'line_found'
     
 class FollowingLine(smach.State):

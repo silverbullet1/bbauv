@@ -626,6 +626,8 @@ void sendButton(){
 		}
 
 		srv_req.config = conf;
+		controlUI->ui.statusbar->showMessage("Status: Waiting for dynamic reconfigure service", 3000);
+		ros::service::waitForService("/Controller/set_parameters", ros::Duration(3));
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->ui.statusbar->showMessage("Advanced goals sent!", 3000);
 	}
@@ -654,6 +656,8 @@ void tuneButton(){
 		}
 
 		srv_req.config = conf;
+		controlUI->ui.statusbar->showMessage("Status: Waiting for dynamic reconfigure service", 3000);
+		ros::service::waitForService("/Controller/set_parameters", ros::Duration(3));
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
 		controlUI->loadDynamicParams();
