@@ -34,7 +34,7 @@ class Navigate2D(object):
         #wh_dvl_Data is relative
         self.WH_DVL = rospy.Subscriber('/earth_odom', Odometry,
                                        self.DVLCallback)
-        self.AHRS8 = rospy.Subscriber('/euler', imu_data,
+        self.AHRS8 = rospy.Subscriber('/euler', compass_data,
                                       self.CompassCallback)
         try:
             self.ControllerSettings = rospy.ServiceProxy("/set_controller_srv",
