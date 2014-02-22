@@ -707,8 +707,9 @@ class AUV_gui(QMainWindow):
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
         
-        goal_string = self.data['goal_id'].partition('-')
-        self.setpointPanel2.setText("<b>ID: " + goal_string[0] +
+        s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
+        goal_string = s
+        self.setpointPanel2.setText("<b>ID: " + goal_string +
                                     "<br>ST: " + self.get_status(self.data['status']) + 
                                     "<br>HDG ERR: " + str(round(self.data['heading_error'],2)) + 
                                     "<br> FWD ERR: " + str(round(self.data['forward_error'],2)) + 
