@@ -63,7 +63,6 @@ class Searching2(smach.State):
         timecount = 0
         while not self.bucketDetector.rectData['detected']:
             if timecount > self.timeout:
-                self.bucketDetector.abortMission()
                 break
             timecount += 1
             rospy.sleep(rospy.Duration(0.1))
@@ -110,7 +109,6 @@ class Centering(smach.State):
 
         fwd_setpoint = math.copysign(0.1, -deltaY)
         sm_setpoint = math.copysign(2.0, deltaX)
-        rospy.loginfo("sm: %lf, fwd: %lf", sm_setpoint, fwd_setpoint)
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
 

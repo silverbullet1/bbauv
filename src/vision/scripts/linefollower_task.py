@@ -48,12 +48,11 @@ class Searching(smach.State):
         timecount = 0
         while not self.linefollower.rectData['detected']:
             if timecount > self.timeout:
-                self.linefollower.abortMission()
                 break
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
         
-        while self.linefollower.revertMoment():
+        while self.linefollower.revertMovement():
             if self.linefollower.rectData['detected']:
                 return 'line_found'            
         
@@ -98,7 +97,6 @@ class FollowingLine(smach.State):
             heading = normHeading(self.linefollower.curHeading - angle)
             sidemove = math.copysign(3.0, deltaX)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
-            rospy.loginfo("Moving: {} heading, {} side".format(heading, sidemove))
             return 'following_line'
 
         if len(self.prevAngle) > 1:
@@ -118,7 +116,6 @@ class FollowingLine(smach.State):
 
         if abs(angle) < 10:
             self.linefollower.sendMovement(f=0.5, sm=sidemove)
-            rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
         else:
             if sidemove == 0:
                 sidemove = angle / 60 * 2.0
@@ -128,7 +125,6 @@ class FollowingLine(smach.State):
             
             heading = normHeading(self.linefollower.curHeading - angle)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
-            rospy.loginfo("Moving: {} heading, {} side".format(heading, sidemove))
 
         return 'following_line'
 

@@ -131,10 +131,11 @@ class LineFollower():
                                               
         # Record actions to revert if necessary
         if recordAction:
-            if len(self.actionHist) > 10:
+            if len(self.actionsHist) > 10:
                 self.actionsHist.popleft()
-            self.actionsHist.append((f, h, sm, d))
+            self.actionsHist.append([f, h, sm, d])
 
+        rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
     
@@ -142,8 +143,12 @@ class LineFollower():
         if len(self.actionsHist) == 0:
             return False
         
+        rospy.loginfo("Reverting...")
         movements = self.actionsHist.popleft()
-        self.sendMovement(*movements, False)
+        # Reverse the direction of forward and sidemove
+        movements[0] = -movements[0]
+        movements[2] = -movements[2]
+        self.sendMovement(*movements, recordAction=False)
         return True
 
     def abortMission(self):
