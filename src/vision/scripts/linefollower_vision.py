@@ -27,12 +27,8 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-<<<<<<< Updated upstream
-    depth_setpoint = 0.4
-=======
     depth_setpoint = 0.3
     actionsHist = deque()
->>>>>>> Stashed changes
 
     def __init__(self):
         self.testing = rospy.get_param("~testing", False)
