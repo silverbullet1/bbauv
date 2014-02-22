@@ -26,7 +26,7 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.4
 
     def __init__(self):
         self.testing = rospy.get_param("~testing", False)
@@ -164,7 +164,7 @@ class LineFollower():
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         
-        grayImg = cv2.erode(grayImg, erodeEl)
+        #grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 

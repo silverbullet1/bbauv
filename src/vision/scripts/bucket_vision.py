@@ -105,7 +105,7 @@ class BucketDetector:
                                              sidemove_setpoint=sm, depth_setpoint=d)
  
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+        self.locomotionClient.wait_for_result(rospy.Duration(1.0))
 
     def stopRobot(self):
         self.sendMovement(f=0.0, sm=0.0)
