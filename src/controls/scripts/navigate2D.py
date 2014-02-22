@@ -43,9 +43,9 @@ class Navigate2D(object):
             self.ControllerSettings.wait_for_service()
             rospy.loginfo("Got Controller Service, asking for forward, heading, \
                         depth control and pitch")
-            self.ControllerSettings(forward=True, sidemove=False, heading=True,
-                                    depth=False, roll=False, topside=False,
-                                    navigation=False)
+            #self.ControllerSettings(forward=True, sidemove=False, heading=True,
+            #                        depth=False, roll=False, topside=False,
+            #                        navigation=False)
         except rospy.ServiceException:
             rospy.logerr("Error subscribing to controller")
 

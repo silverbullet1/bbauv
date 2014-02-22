@@ -18,5 +18,6 @@
 
     <!-- Launch CPU temperature sensors -->
     <node pkg="sensors" name="sensors" type="cpu_temp" respawn="false"> </node>
-
+    <!-- Launch xy navigation node -->
+    <node pkg="controls" name="controls" type="navigate2D.py" respawn="false"></node>
 </launch> 

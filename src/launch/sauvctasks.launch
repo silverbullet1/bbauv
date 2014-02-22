@@ -5,12 +5,15 @@
 	</node> -->
 	
 	<node name="line_follower" pkg="vision" type="linefollower_task.py">
+            <param name="testing" value="false" /> 
 	</node>
 	
 	<node name="bucket" pkg="vision" type="bucket_task.py">
+            <param name="testing" value="false" />
 	</node>
 	
 	<node name="flare" pkg="vision" type="flare_task.py">
+            <param name="testing" value="false" />
 	</node>
 	
 	<!-- <node name="acoustics" pkg="acoustics" type="acoustic_task.py">
