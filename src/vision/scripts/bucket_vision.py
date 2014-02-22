@@ -20,13 +20,13 @@ import numpy as np
 class BucketDetector:
     #HSV thresholds for red color
     lowThresh1 = np.array([ 92, 0, 10 ])
-    hiThresh1 = np.array([ 132, 255, 245 ]) 
-    areaThresh = 30000
+    hiThresh1 = np.array([ 132, 255, 255 ]) 
+    areaThresh = 10000
     
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
     maniData = 0
     
     screen = { 'width' : 640, 'height' : 480 }
@@ -53,7 +53,7 @@ class BucketDetector:
 
         #Initialize Subscribers and Publishers
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_raw')
-        self.image_pub = rospy.Publisher("/Vision/image_filter_bucket", Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter", Image)
         self.register()
         
         # Setup dynamic reconfigure server
@@ -67,7 +67,7 @@ class BucketDetector:
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up

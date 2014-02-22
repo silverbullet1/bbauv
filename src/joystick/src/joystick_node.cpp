@@ -171,7 +171,7 @@ void sendMovement(double f=0.0, double sm=0.0, double h=0.0, double d=0.0) {
 
 	locoClient->sendGoal(goal);
 	printf("Moving f: %lf, sm: %lf, d: %lf, h: %lf\n", f, sm, d, h);
-	locoClient->waitForResult(ros::Duration(0.5));
+	locoClient->waitForResult(ros::Duration(1.0));
 }
 
 void enable() {
@@ -223,10 +223,10 @@ void handleEvent(int* axes, char* button) {
 	}
 
 	if (axes[DPAD_X] > axisBound) {
-		sm = 0.5;
+		sm = 2.0;
 		toHover = false;
 	} else if (axes[DPAD_X] < -axisBound) {
-		sm = -0.5;
+		sm = -2.0;
 		toHover = false;
 	}
 

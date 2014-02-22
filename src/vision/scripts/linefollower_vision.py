@@ -58,7 +58,7 @@ class LineFollower():
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
@@ -82,6 +82,7 @@ class LineFollower():
 
     def registerSubscribers(self):
         #Subscribe to camera
+        rospy.loginfo(self.image_topic)
         self.imgSub = rospy.Subscriber(self.image_topic,
                                        Image,
                                        self.cameraCallback)
@@ -159,8 +160,8 @@ class LineFollower():
         #Thresholding and noise removal
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
 
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         
         grayImg = cv2.erode(grayImg, erodeEl)
@@ -187,7 +188,6 @@ class LineFollower():
                 self.rectData['rect'] = cv2.minAreaRect(contour)
 
         if maxArea > 0:
-            rospy.loginfo("Area: " + str(maxArea))
             self.rectData['detected'] = True
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
 
