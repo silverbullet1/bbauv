@@ -6,7 +6,7 @@ import os
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
-#import pynotify
+import pynotify
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
@@ -70,6 +70,7 @@ class AUV_gui(QMainWindow):
     q_temp = Queue.Queue()
     q_altitude = Queue.Queue()
     q_acoustic = Queue.Queue()
+    q_cputemp = Queue.Queue()
     q_image_bot = None
     q_image_front = None
     q_image_rfront = None
@@ -77,7 +78,8 @@ class AUV_gui(QMainWindow):
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups':openups(), 
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
-            'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),'manipulators':manipulator()}
+            'hull_status':hull_status(),'status':-1,'earth_pos':Odometry(),'rel_pos':Odometry(),
+            'manipulators':manipulator(), 'cputemp':cpu_temperature()}
     counter = 0
     
     #Initialise subscribers/publishers
@@ -105,6 +107,7 @@ class AUV_gui(QMainWindow):
     botfilter_sub = None
     battery_sub = None
     acoustic_sub = None
+    cputemp_sub = None
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
@@ -688,13 +691,13 @@ class AUV_gui(QMainWindow):
         
         self.oPanel1.setText("<b>BATT1: " +
                               "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
-                              "&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
+                              #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")
         
         self.oPanel2.setText("<b>BATT2: " +
                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
-                             "&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
+                             #"&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
                              # str(self.data['openups'].current2 +
                              "</b>")
         
@@ -703,15 +706,21 @@ class AUV_gui(QMainWindow):
                               "<br> HUM: " + str(round(self.data['hull_status'].Humidity,2)) +
                               "<br> W1: " + str(self.data['hull_status'].WaterDetA) +  
                               "&nbsp;&nbsp;&nbsp;&nbsp; W2: " + str(self.data['hull_status'].WaterDetB) +
+                              "&nbsp;&nbsp;&nbsp; W3: " + str(self.data['hull_status'].WaterDetC) +
                               "</b>")
-        
-        self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
-                                    "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + "</b>")
         
         s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
         goal_string = s
-        self.setpointPanel2.setText("<b>ID: " + goal_string +
-                                    "<br>ST: " + self.get_status(self.data['status']) + 
+        
+        self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + 
+                                    "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
+                                    "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + 
+                                    "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + 
+                                    "<br><br>ID: " + goal_string + 
+                                    "</b>")
+        
+
+        self.setpointPanel2.setText("<b>ST: " + self.get_status(self.data['status']) + 
                                     "<br>HDG ERR: " + str(round(self.data['heading_error'],2)) + 
                                     "<br> FWD ERR: " + str(round(self.data['forward_error'],2)) + 
                                     "<br>SIDE ERR: "+ str(round(self.data['sidemove_error'],2)) + 
