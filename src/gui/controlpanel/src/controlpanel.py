@@ -171,7 +171,8 @@ class AUV_gui(QMainWindow):
         surfaceButton = QPushButton("S&urface")
         homeButton = QPushButton("Home &Base")
         self.modeButton = QPushButton("De&fault")
-        self.unsubscribeButton = QPushButton("&Unsubscribe")
+        self.unsubscribeButton = QPushButton("U&nsubscribe")
+        self.calDepthButton = QPushButton("&Calibrate Depth")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
@@ -680,7 +681,8 @@ class AUV_gui(QMainWindow):
                               "<br>ROT: " + mani_name[6] +
                               "</b>")
         
-        if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB ) and not self.isLeak:
+        if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB 
+            or self.data['hull_status'].WaterDetC) and not self.isLeak:
            # n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
            # if not n.show():
            #     print "Failed to send notification"
@@ -690,23 +692,22 @@ class AUV_gui(QMainWindow):
         
         
         self.oPanel1.setText("<b>BATT1: " +
-                              "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
+                              "&nbsp;&nbsp;&nbsp; VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
+                              "<br>BATT2: " + 
+                              "&nbsp;&nbsp;&nbsp; VOLT2: " + str(self.data['openups'].battery2*0.2) +
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")
         
-        self.oPanel2.setText("<b>BATT2: " +
-                             "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
-                             #"&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
-                             # str(self.data['openups'].current2 +
+        self.oPanel2.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
+                            "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
+                            "<br> W3: " + str(self.data['hull_status'].WaterDetC) +
                              "</b>")
         
         self.oPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> TMP1: " + str(round(self.data['hull_status'].Temp0,2)) + 
                               "<br> HUM: " + str(round(self.data['hull_status'].Humidity,2)) +
-                              "<br> W1: " + str(self.data['hull_status'].WaterDetA) +  
-                              "&nbsp;&nbsp;&nbsp;&nbsp; W2: " + str(self.data['hull_status'].WaterDetB) +
-                              "&nbsp;&nbsp;&nbsp; W3: " + str(self.data['hull_status'].WaterDetC) +
+                              "<br> CPU: " +
                               "</b>")
         
         s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
@@ -768,6 +769,7 @@ class AUV_gui(QMainWindow):
         self.frontcam_sub.unregister()
         self.botcam_sub.unregister()
         self.filter_sub.unregister()
+        self.cputemp_sub.unregister()
         
     def initSub(self):
         rospy.loginfo("Subscribe to PID")
