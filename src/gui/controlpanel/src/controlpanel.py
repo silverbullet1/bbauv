@@ -112,12 +112,14 @@ class AUV_gui(QMainWindow):
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
+        self.testing = rospy.get_param("~testing", False)
         
         self.main_tab = QTabWidget()
         self.main_frame = QWidget()
         self.vision_filter_frame = Vision_filter()
         self.main_tab.addTab(self.main_frame, "Telemetry")
         self.main_tab.addTab(self.vision_filter_frame, "Vision Filter")
+        
         
         goalBox =  QGroupBox("Goal Setter")
         depth_l , self.depth_box, layout4 = self.make_data_box("Depth:       ")
@@ -133,23 +135,31 @@ class AUV_gui(QMainWindow):
         self.sidemove_rev = QPushButton("Reverse")
         self.forward_rev = QPushButton("Reverse")
         
-        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:")
-        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:")
+        roll_chk, self.roll_chkbox, layout_roll = self.make_data_chkbox("Roll:   ")
+        pitch_chk, self.pitch_chkbox, layout_pitch = self.make_data_chkbox("Pitch: ")
+        
+        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:    ")
+        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:    ")
         
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
         goal_heading_layout.addLayout(layout5)
+        goal_heading_layout.addStretch()
+        
         goal_depth_layout = QHBoxLayout()
         goal_depth_layout.addLayout(layout4)
         goal_depth_layout.addLayout(layout6)
+        goal_depth_layout.addStretch()
         
         goal_forward_layout = QHBoxLayout()
         goal_forward_layout.addLayout(layout1)
+        goal_forward_layout.addLayout(layout_roll)
         #goal_forward_layout.addWidget(self.forward_rev)
         goal_forward_layout.addStretch()
         
         goal_sidemove_layout = QHBoxLayout()
         goal_sidemove_layout.addLayout(layout2)
+        goal_sidemove_layout.addLayout(layout_pitch)
         #goal_sidemove_layout.addWidget(self.sidemove_rev)
         goal_sidemove_layout.addStretch()
                 
@@ -710,9 +720,9 @@ class AUV_gui(QMainWindow):
         
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB 
             or self.data['hull_status'].WaterDetC) and not self.isLeak:
-           # n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
-           # if not n.show():
-           #     print "Failed to send notification"
+            n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
+            if not n.show():
+                print "Failed to send notification"
             self.isLeak = True
         else:
             self.isLeak = False
@@ -843,16 +853,17 @@ class AUV_gui(QMainWindow):
 
     def unsubscribeHandler(self):
         if self.isSubscribed:
-            self.unsubscribeButton.setText("Subscribe")
+            self.unsubscribeButton.setText("Subscribe&n")
             self.unsubscribe()
         else:
-            self.unsubscribeButton.setText("Unsubscribe")
+            self.unsubscribeButton.setText("U&nsubscribe")
             self.initSub()
             self.initImage()
         self.isSubscribed = not self.isSubscribed
         
     def calDepthHandler(self):
         self.data['depth_error'] = self.data['depth']
+        rospy.loginfo("Depth calibrated")
 
     def sidemove_revHandler(self):
         rev_sidemove = -1.0 * float(self.sidemove_box.text())
@@ -908,7 +919,14 @@ class AUV_gui(QMainWindow):
         rospy.loginfo("DVL Resetted zero_distance")
         
     def hoverBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, True, False,False,False)
+        roll = False
+        pitch = False
+        if self.roll_chkbox.checkState():
+            roll = True
+        if self.pitch_chkbox.checkState():
+            pitch = True
+        resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
+        
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -917,7 +935,13 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, True, False,False, False)
+        roll = False
+        pitch = False
+        if self.roll_chkbox.checkState():
+            roll = True
+        if self.pitch_chkbox.checkState():
+            pitch = True
+        resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -945,7 +969,13 @@ class AUV_gui(QMainWindow):
 
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
-        resp = self.set_controller_request(True, True, True, True, True, False,False,False)
+        roll = False
+        pitch = False
+        if self.roll_chkbox.checkState():
+            roll = True
+        if self.pitch_chkbox.checkState():
+            pitch = True
+        resp = self.set_controller_request(True, True, True, True, pitch, roll, False,False)
         goal = ControllerGoal
         
         #Forward
@@ -960,7 +990,7 @@ class AUV_gui(QMainWindow):
          
          #Heading 
         if self.heading_box.text() == "":
-            self.heading_box.setText(str(self.data['yaw']))
+            self.heading_box.setText(str(0))
             self.rel_heading_chkbox.setChecked(True)
             goal.heading_setpoint = self.data['yaw']
         elif self.rel_heading_chkbox.checkState():
@@ -970,7 +1000,7 @@ class AUV_gui(QMainWindow):
                    
          #Depth 
         if self.depth_box.text() == "":
-            self.depth_box.setText(str(self.data['depth']))
+            self.depth_box.setText(str(0))
             self.rel_depth_chkbox.setChecked(True)
             goal.depth_setpoint = self.data['depth']
         elif self.rel_depth_chkbox.checkState():
@@ -1014,15 +1044,16 @@ class AUV_gui(QMainWindow):
             
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
-        resp = self.set_controller_request(False, False, False, False, False, True)
+        resp = self.set_controller_request(False, False, False, False, False, True, False, False)
     
     def movebase_done_cb(self,status,result):
         self.status_text.setText("Move Base Client completed goal!")
+        
     def endBtnHandler(self):
         self.client.cancel_all_goals()
         self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        resp = self.set_controller_request(False, False, False, False, False, True, False)
+        resp = self.set_controller_request(False, False, False, False, False, True, False, False)
         
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
@@ -1034,13 +1065,14 @@ class AUV_gui(QMainWindow):
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
-        self.dynamic_client = dynamic_reconfigure.client.Client('dvl')
-        rospy.loginfo("DVL dynamic reconfigure initialised")
+        if self.testing:
+            self.dynamic_client = dynamic_reconfigure.client.Client('dvl')
+            rospy.loginfo("DVL dynamic reconfigure initialised")
         
-        self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
-        params = {'jpeg_quality': 40}
-        config = self.vision_client.update_configuration(params)
-        rospy.loginfo("Set vision compression to 40%")
+            self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+            params = {'jpeg_quality': 40}
+            config = self.vision_client.update_configuration(params)
+            rospy.loginfo("Set vision compression to 40%")
         
     def valueChanged(self,value):
         self.heading_box.setText(str(value))

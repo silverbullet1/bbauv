@@ -169,13 +169,13 @@ class Flare:
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
-        pass
-#         depth = depth if depth else self.depth_setpoint
-#         heading = heading if heading else self.curHeading
-#         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
-#                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
-#         self.locomotionClient.send_goal(goal)
-#         self.locomotionClient.wait_for_result(rospy.Duration(1))
+#         pass
+        depth = depth if depth else self.depth_setpoint
+        heading = heading if heading else self.curHeading
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
+                                             sidemove_setpoint=sidemove, depth_setpoint=depth)
+        self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result(rospy.Duration(1))
         
         
     def abortMission(self):
