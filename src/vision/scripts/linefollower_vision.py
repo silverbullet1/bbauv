@@ -14,6 +14,7 @@ import cv2
 import math
 import numpy as np
 import signal
+from collections import deque
 
 class LineFollower():
     testing = False
@@ -27,6 +28,7 @@ class LineFollower():
 
     curHeading = 0.0
     depth_setpoint = 0.3
+    actionsHist = deque()
 
     def __init__(self):
         self.testing = rospy.get_param("~testing", False)
@@ -58,7 +60,7 @@ class LineFollower():
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
@@ -82,6 +84,7 @@ class LineFollower():
 
     def registerSubscribers(self):
         #Subscribe to camera
+        rospy.loginfo(self.image_topic)
         self.imgSub = rospy.Subscriber(self.image_topic,
                                        Image,
                                        self.cameraCallback)
@@ -120,14 +123,33 @@ class LineFollower():
         self.curHeading = data.yaw
 
     #Utility function to send movements through locomotion server
-    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
+    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None, recordAction=True):
         d = d if d else self.depth_setpoint
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
                                               
+        # Record actions to revert if necessary
+        if recordAction:
+            if len(self.actionsHist) > 10:
+                self.actionsHist.popleft()
+            self.actionsHist.append([f, h, sm, d])
+
+        rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+    
+    def revertMovement(self):
+        if len(self.actionsHist) == 0:
+            return False
+        
+        rospy.loginfo("Reverting...")
+        movements = self.actionsHist.popleft()
+        # Reverse the direction of forward and sidemove
+        movements[0] = -movements[0]
+        movements[2] = -movements[2]
+        self.sendMovement(*movements, recordAction=False)
+        return True
 
     def abortMission(self):
         #Notify mission planner service
@@ -159,11 +181,11 @@ class LineFollower():
         #Thresholding and noise removal
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
 
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         
-        grayImg = cv2.erode(grayImg, erodeEl)
+        #grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 
@@ -187,7 +209,6 @@ class LineFollower():
                 self.rectData['rect'] = cv2.minAreaRect(contour)
 
         if maxArea > 0:
-            rospy.loginfo("Area: " + str(maxArea))
             self.rectData['detected'] = True
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
 

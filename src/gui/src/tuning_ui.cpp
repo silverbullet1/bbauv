@@ -1,10 +1,3 @@
-/* 
-	controlui.cpp
-	A GUI for tuning the control systems
-	Date created: 8 Jan 2014
-	Author: Jason & Lynnette & Thien
- */
-
 #include "tuning_ui.h"
 
 #include <ros/ros.h>
@@ -497,15 +490,6 @@ void enableButton(){
 		controlUI->ui.roll_check->setChecked(true);
 		controlUI->ui.pitch_check->setChecked(true);
 
-//		ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
-//		bbauv_msgs::set_controller srv;
-//		srv.request.depth = true;
-//		srv.request.forward = true;
-//		srv.request.heading = true;
-//		srv.request.pitch = true;
-//		srv.request.roll= true;
-//		srv.request.sidemove = true;
-//		controlClient.call(srv);
 		controlUI->updatePIDChecks(true, true, true, true, true, true);
 	}
 }
@@ -532,7 +516,6 @@ void fire() {
 		dynamic_reconfigure::ReconfigureResponse srv_resp;
 		dynamic_reconfigure::Config conf;
 
-		//ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
 		bool forward, sidemove, heading, depth, pitch, roll;
 		ros::param::get("/Controller/forward_PID", forward);
 		ros::param::get("/Controller/sidemove_PID", sidemove);
@@ -546,14 +529,6 @@ void fire() {
 		sidemove = sidemove || controlUI->ui.sm_check->isChecked();
 		pitch = pitch || controlUI->ui.pitch_check->isChecked();
 		roll = roll || controlUI->ui.roll_check->isChecked();
-
-//		bbauv_msgs::set_controller srv;
-//		srv.request.depth = depth;
-//		srv.request.forward = forward;
-//		srv.request.heading = heading;
-//		srv.request.pitch = pitch;
-//		srv.request.roll= roll;
-//		srv.request.sidemove = sidemove;
 
 		double value = controlUI->ui.goal_val->text().toDouble();
 		if (controlUI->graphType == "Depth") {
@@ -629,18 +604,6 @@ void sendButton(){
 		pitch = pitch || controlUI->ui.pitch_check->isChecked();
 		roll = roll || controlUI->ui.roll_check->isChecked();
 
-		//ros::ServiceClient controlClient = nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
-
-//		bbauv_msgs::set_controller srv;
-//		srv.request.depth = depth;
-//		srv.request.forward = forward;
-//		srv.request.heading = heading;
-//		srv.request.pitch = pitch;
-//		srv.request.roll= roll;
-//		srv.request.sidemove = sidemove;
-
-		//controlClient.call(srv);
-
 		controlUI->updatePIDChecks(depth, heading, forward, sidemove, roll, pitch);
 
 		if (depth) {
@@ -663,44 +626,10 @@ void sendButton(){
 		}
 
 		srv_req.config = conf;
+		controlUI->ui.statusbar->showMessage("Status: Waiting for dynamic reconfigure service", 3000);
+		ros::service::waitForService("/Controller/set_parameters", ros::Duration(3));
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->ui.statusbar->showMessage("Advanced goals sent!", 3000);
-
-		//		actionlib::SimpleActionClient <bbauv_msgs::ControllerAction> ac ("LocomotionServer", true);
-		//		ROS_INFO("Waiting for action server to start.");
-		//		controlUI->ui.statusbar->showMessage("Waiting for action server to start.", 3);
-		//		ac.waitForServer();
-		//		ROS_INFO("Action server started, sending goal.");
-		//		controlUI->ui.statusbar->showMessage("Action server started, sending goal.", 3);
-		//
-		//		//Send goal and publish to topics to controller.msgs
-		//		bbauv_msgs::ControllerGoal goal;
-		//
-		//		if (heading) {
-		//			goal.heading_setpoint = controlUI->ui.yaw_val->text().toDouble();
-		//		} else {
-		//			goal.heading_setpoint = 0.0;
-		//		}
-		//
-		//		if (forward) {
-		//			goal.forward_setpoint = controlUI->ui.fwd_val->text().toDouble();
-		//		} else {
-		//			goal.forward_setpoint = 0.0;
-		//		}
-		//
-		//		if (depth) {
-		//			goal.depth_setpoint = controlUI->ui.depth_val->text().toDouble();
-		//		} else {
-		//			goal.depth_setpoint = 0.0;
-		//		}
-		//
-		//		if (sidemove){
-		//			goal.sidemove_setpoint = controlUI->ui.sm_val->text().toDouble();
-		//		} else {
-		//			goal.sidemove_setpoint = 0.0;
-		//		}
-		//
-		//		ac.sendGoal(goal, &doneCb, &activeCb, &feedbackCb);
 	}
 }
 
@@ -727,8 +656,12 @@ void tuneButton(){
 		}
 
 		srv_req.config = conf;
+		controlUI->ui.statusbar->showMessage("Status: Waiting for dynamic reconfigure service", 3000);
+		ros::service::waitForService("/Controller/set_parameters", ros::Duration(3));
 		ros::service::call("/Controller/set_parameters", srv_req, srv_resp);
 		controlUI->autoSave();
+		controlUI->loadDynamicParams();
+		controlUI->loadControlParams();
 		controlUI->ui.statusbar->showMessage("Status: Finished Tuning", 3000);
 	}
 }
@@ -796,15 +729,6 @@ void graphTypeChanged(const QString& type) {
 }
 
 void disableButton() {
-//	ros::ServiceClient controlClient = controlUI->nh.serviceClient<bbauv_msgs::set_controller>("set_controller_srv");
-//	bbauv_msgs::set_controller srv;
-//	srv.request.depth = false;
-//	srv.request.forward = false;
-//	srv.request.heading = false;
-//	srv.request.pitch = false;
-//	srv.request.roll= false;
-//	srv.request.sidemove = false;
-//	controlClient.call(srv);
 	controlUI->ui.fwd_check->setChecked(false);
 	controlUI->ui.depth_check->setChecked(false);
 	controlUI->ui.yaw_check->setChecked(false);
@@ -890,7 +814,7 @@ int main(int argc, char **argv) {
 
 	QTimer *paramsTimer = new QTimer();
 	QObject::connect(paramsTimer, &QTimer::timeout, updateIncomingParams);
-	paramsTimer->start(300);
+	paramsTimer->start(1000);
 
 	ros::AsyncSpinner spinner(4);
 	spinner.start();

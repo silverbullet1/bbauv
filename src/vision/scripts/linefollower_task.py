@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'start_complete'
 
 class Searching(smach.State):
-    timeout = 50 #5 seconds time out before aborting
+    timeout = 30 #5 seconds time out before aborting
     
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['line_found', 'aborted'])
@@ -48,11 +48,23 @@ class Searching(smach.State):
         timecount = 0
         while not self.linefollower.rectData['detected']:
             if timecount > self.timeout:
+                break
+            rospy.sleep(rospy.Duration(0.1))
+            timecount += 1
+        
+        while self.linefollower.revertMovement():
+            if self.linefollower.rectData['detected']:
+                return 'line_found'            
+        
+        #Check if blackline is found or timeout
+        timecount = 0
+        while not self.linefollower.rectData['detected']:
+            if timecount > self.timeout:
                 self.linefollower.abortMission()
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
-        
+
         return 'line_found'
     
 class FollowingLine(smach.State):
@@ -83,8 +95,8 @@ class FollowingLine(smach.State):
         if abs(deltaX) > 0.3:
             rospy.loginfo("Too far of center! Argressive sidemove")
             heading = normHeading(self.linefollower.curHeading - angle)
-            sidemove = math.copysign(1.0, deltaX)
-            self.linefollower.sendMovement(f=0.1, h=heading, sm=sidemove)
+            sidemove = math.copysign(3.0, deltaX)
+            self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
             return 'following_line'
 
         if len(self.prevAngle) > 1:
@@ -96,25 +108,23 @@ class FollowingLine(smach.State):
             self.prevAngle.append(angle)
 
         if deltaX < -self.deltaThresh:
-            sidemove = -0.5
+            sidemove = -2.0
         elif deltaX > self.deltaThresh:
-            sidemove = 0.5
+            sidemove = 2.0
         else:
             sidemove = 0.0
 
         if abs(angle) < 10:
-            self.linefollower.sendMovement(f=0.9, sm=sidemove)
-            rospy.loginfo("Forward! Sidemove: {}".format(sidemove))
+            self.linefollower.sendMovement(f=0.5, sm=sidemove)
         else:
             if sidemove == 0:
-                sidemove = angle / 60 * 0.2
+                sidemove = angle / 60 * 2.0
             else:
                 if abs(angle) > 30:
                     angle = math.copysign(30, angle)
             
             heading = normHeading(self.linefollower.curHeading - angle)
-            self.linefollower.sendMovement(f=0.1, h=heading, sm=sidemove)
-            rospy.loginfo("Moving: {} heading, {} side".format(heading, sidemove))
+            self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
 
         return 'following_line'
 

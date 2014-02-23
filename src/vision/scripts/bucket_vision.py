@@ -14,20 +14,22 @@ import vision.cfg.bucketConfig as Config
 from sensor_msgs.msg import Image
 
 import signal
+from collections import deque
 
 import numpy as np
 
 class BucketDetector:
     #HSV thresholds for red color
     lowThresh1 = np.array([ 92, 0, 10 ])
-    hiThresh1 = np.array([ 132, 255, 245 ]) 
-    areaThresh = 30000
+    hiThresh1 = np.array([ 132, 255, 255 ]) 
+    areaThresh = 10000
     
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
     maniData = 0
+    actionsHist = deque()
     
     screen = { 'width' : 640, 'height' : 480 }
     
@@ -53,7 +55,7 @@ class BucketDetector:
 
         #Initialize Subscribers and Publishers
         self.image_topic = rospy.get_param('~image', '/bot_camera/camera/image_raw')
-        self.image_pub = rospy.Publisher("/Vision/image_filter_bucket", Image)
+        self.image_pub = rospy.Publisher("/Vision/image_filter", Image)
         self.register()
         
         # Setup dynamic reconfigure server
@@ -67,7 +69,7 @@ class BucketDetector:
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up
@@ -98,14 +100,33 @@ class BucketDetector:
         
         return config
 
-    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None):
+    def sendMovement(self, f=0.0, h=None, sm=0.0, d=None, recordAction=True):
         d = d if d else self.depth_setpoint
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
  
+        # Record actions to revert if necessary
+        if recordAction:
+            if len(self.actionsHist) > 10:
+                self.actionsHist.popleft()
+            self.actionsHist.append([f, h, sm, d])
+ 
+        rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+        self.locomotionClient.wait_for_result(rospy.Duration(1.0))
+
+    def revertMovement(self):
+        if len(self.actionsHist) == 0:
+            return False
+        
+        rospy.loginfo("Reverting...")
+        movements = self.actionsHist.popleft()
+        # Reverse the direction of forward and sidemove
+        movements[0] = -movements[0]
+        movements[2] = -movements[2]
+        self.sendMovement(*movements, recordAction=False)
+        return True
 
     def stopRobot(self):
         self.sendMovement(f=0.0, sm=0.0)
@@ -133,7 +154,7 @@ class BucketDetector:
         self.curHeading = data.yaw
 
     def maniCallback(self, data):
-        self.maniData = data
+        self.maniData = data.mani_data
 
     def searchComplete(self):
         if not self.testing:

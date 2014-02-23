@@ -3,6 +3,7 @@ import roslib; roslib.load_manifest('vision')
 import rospy
 
 import smach
+import math
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
@@ -49,7 +50,7 @@ class Searching1(smach.State):
         return 'search_complete'
 
 class Searching2(smach.State):
-    timeout = 50
+    timeout = 70
 
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
@@ -58,6 +59,17 @@ class Searching2(smach.State):
     def execute(self, userdata):
         if self.bucketDetector.isAborted:
             return 'aborted'
+
+        timecount = 0
+        while not self.bucketDetector.rectData['detected']:
+            if timecount > self.timeout:
+                break
+            timecount += 1
+            rospy.sleep(rospy.Duration(0.1))
+            
+        while self.bucketDetector.revertMovement():
+            if self.bucketDetector.rectData['detected']:
+                return 'search_complete'
 
         timecount = 0
         while not self.bucketDetector.rectData['detected']:
@@ -95,9 +107,8 @@ class Centering(smach.State):
         if abs(deltaX) < 0.05 and abs(deltaY) < 0.05:
             return 'centering_complete'
 
-        fwd_setpoint = math.copy_sign(0.1, -deltaY)
-        sm_setpoint = math.copy_sign(0.1, deltaX)
-        rospy.loginfo("sm: %lf, fwd: %lf", sm_setpoint, fwd_setpoint)
+        fwd_setpoint = math.copysign(0.1, -deltaY)
+        sm_setpoint = math.copysign(2.0, deltaX)
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
 
