@@ -4,6 +4,7 @@ import roslib; roslib.load_manifest('vision')
 
 import rospy
 import cv2 
+import cv2.cv
 from cv_bridge import CvBridge, CvBridgeError
 import actionlib
 from dynamic_reconfigure.server import Server as DynServer
@@ -32,6 +33,8 @@ class BucketDetector:
     actionsHist = deque()
     
     screen = { 'width' : 640, 'height' : 480 }
+    minRadius = 80
+    maxRadius = 320
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
@@ -183,6 +186,9 @@ class BucketDetector:
         #Perform red thresholding
         contourImg = cv2.inRange(hsv_image, self.lowThresh1, self.hiThresh1)
         
+        # Find circles
+        screenWidth = self.screen['width']
+        
         #Noise removal
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
@@ -191,7 +197,11 @@ class BucketDetector:
         contourImg = cv2.erode(contourImg, erodeEl)
         contourImg = cv2.dilate(contourImg, dilateEl)
         contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_OPEN, openEl)
-
+        
+        circles = cv2.HoughCircles(contourImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
+                                   screenWidth, param1=50, param2=10,
+                                   minRadius=self.minRadius, maxRadius=self.maxRadius)
+        
         out = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2BGR)
       
         #Find centroid
@@ -224,7 +234,15 @@ class BucketDetector:
             centery = int(self.rectData['centroid'][1])
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
             cv2.circle(out, (centerx, centery), 5, (0, 255, 0))
-            cv2.drawContours(out, np.array([maxContour]), 0, (0, 0, 255), 3) 
+            #cv2.drawContours(out, np.array([maxContour]), 0, (0, 0, 255), 3) 
+            
+            # Draw HoughCircles
+            if circles != None and len(circles) == 1:
+                circles = np.uint16(np.around(circles)) 
+                circle = circles[0]
+                cv2.circle(out, (circle[0][0], circle[0][1]), circle[0][2], (0, 0, 255), 2)
+                cv2.circle(out, (circle[0][0], circle[0][1]), 2, (0, 0, 255), 3)
+                
         else:
             self.rectData['detected'] = False 
               
