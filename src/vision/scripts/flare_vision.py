@@ -96,6 +96,7 @@ class Flare:
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+        rospy.signal_shutdown("Bye!")
             
     def reconfigure(self, config, level):
         rospy.loginfo("Got reconfigure request")
@@ -160,9 +161,12 @@ class Flare:
 
         try:
             if (out_image != None):
-                out_image = cv2.cv.fromarray(out_image)
+                try:
+                    out_image = cv2.cv.fromarray(out_image)
+                except Exception,e:
+                    out_image = np.zeros((self.screen['height'], self.screen['width'], 3), np.uint8)
                 if (self.image_pub != None):
-                    self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="rgb8"))
+                    self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="bgr8"))
                     #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
             rospy.logerr(str(e))

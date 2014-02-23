@@ -747,14 +747,15 @@ class AUV_gui(QMainWindow):
                               "<br> CPU: " + str(round(self.data['cputemp'].cores_ave)) +
                               "</b>")
         
-        s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
-        goal_string = s
+#         s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
+#         goal_string = s
+        goal_string = self.data['goal_id'].partition('-')
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + 
                                     "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + 
                                     "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + 
-                                    "<br><br>ID: " + goal_string + 
+                                    "<br><br>ID: " + goal_string[0] + 
                                     "</b>")
         
 
