@@ -36,7 +36,7 @@
 #endif
 
 #define IMAGE_TYPE	BVTHEAD_IMAGE_XY		// option(s): XY, RTHETA
-#define RES_TYPE	BVTHEAD_RES_AUTO 		// option(s): OFF, LOW, MED, HIGH, AUTO
+#define RES_TYPE	BVTHEAD_RES_AUTO		// option(s): OFF, LOW, MED, HIGH, AUTO
 
 const std::string SONAR_LOG_PATH = "/home/freax/bbsonar/sonarLog.son" ;
 const std::string COLOR_MAPPER_PATH = "/home/freax/bvtsdk/colormaps/bone.cmap" ;
@@ -51,9 +51,16 @@ const int MAX_RANGE = 20;
 const int GRAYSCALE_THRESH = 150;
 const int HOTSPOT_THRESH = 150;
 
+// for global thresholding (adding a constant)
 const int THRESH_CONSTANT = 100;
 const int ROWS_CROPPED = 50;
 
+// for gamma correction, optimal values
+const float PL_CONST = 0.1;
+const float PL_GAMMA = 1.52;
+
+// for contour filtering
+const double CONTOUR_AREA_THRESHOLD = 0.0;
 
 #endif /* CONFIG_H_ */
 
