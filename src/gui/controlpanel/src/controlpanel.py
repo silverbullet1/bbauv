@@ -10,6 +10,7 @@ import pynotify
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
+import dynamic_reconfigure.client
 
 from bbauv_msgs.msg import openups_stats
 from bbauv_msgs.msg import openups
@@ -234,9 +235,12 @@ class AUV_gui(QMainWindow):
         ypos_l, self.ypos_box,layout7 = self.make_data_box("y coord:")
         self.goToPos = QPushButton("&Go!")
         self.goToPos.clicked.connect(self.goToPosHandler)
+        self.resetDVL = QPushButton("Reset D&VL")
+        self.resetDVL.clicked.connect(self.resetDVLHandler)
         layout8 = QHBoxLayout()
         layout8.addWidget(self.goToPos)
-        layout8.addStretch()
+        #layout8.addStretch()
+        layout8.addWidget(self.resetDVL)
         
         vbox4 = QVBoxLayout()
         vbox4.addWidget(Navigation)
@@ -704,7 +708,7 @@ class AUV_gui(QMainWindow):
         self.oPanel1.setText("<b>BATT1: " +
                               "&nbsp;&nbsp;&nbsp; VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
                               "<br>BATT2: " + 
-                              "&nbsp;&nbsp;&nbsp; VOLT2: " + str(self.data['openups'].battery2*0.2) +
+                              "&nbsp;&nbsp;&nbsp; VOLT2: " + str(self.data['openups'].battery2*0.1) +
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")
@@ -884,6 +888,11 @@ class AUV_gui(QMainWindow):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         handle(x=0, y=0)
         rospy.loginfo("Moving to home base (0,0)")
+    
+    def resetDVLHandler(self):
+        params = {'zero_distance': True}
+        config = self.dynamic_client.update_configuration(params)
+        rospy.loginfo("DVL Resetted zero_distance")
         
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
@@ -992,7 +1001,7 @@ class AUV_gui(QMainWindow):
             
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
-        #resp = self.set_controller_request(False, False, False, False, False, True)
+        resp = self.set_controller_request(False, False, False, False, False, True)
     
     def movebase_done_cb(self,status,result):
         self.status_text.setText("Move Base Client completed goal!")
@@ -1000,7 +1009,8 @@ class AUV_gui(QMainWindow):
         self.client.cancel_all_goals()
         self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        #resp = self.set_controller_request(False, False, False, False, False, True, False)
+        resp = self.set_controller_request(False, False, False, False, False, True, False)
+        
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
@@ -1011,6 +1021,8 @@ class AUV_gui(QMainWindow):
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
+        self.dynamic_client = dynamic_reconfigure.client.Client('dvl')
+        
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
     def make_data_box(self, name):
