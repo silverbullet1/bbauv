@@ -388,7 +388,7 @@ class AUV_gui(QMainWindow):
         saBox.setLayout(sa_layout)
         
         #OpenUPS Information
-        oBox = QGroupBox("Battery Information")
+        oBox = QGroupBox("Battery and Temp Information")
         self.oPanel1 = QTextBrowser()
         self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.oPanel2 = QTextBrowser()
@@ -398,14 +398,28 @@ class AUV_gui(QMainWindow):
 
         o_layout = QHBoxLayout()
         o_layout.addWidget(self.oPanel1)
-        o_layout.addWidget(self.oPanel2)
+        #o_layout.addWidget(self.oPanel2)
         o_layout.addWidget(self.oPanel3)
         oBox.setLayout(o_layout)
+        
+        #Leak sensors Information
+        lBox = QGroupBox("Leak Sensors")
+        self.lPanel1 = QTextBrowser()
+        self.lPanel1.setStyleSheet("QTextBrowser { background-color : black; color : white}")
+        leak_layout = QVBoxLayout()
+        leak_layout.addWidget(self.lPanel1)
+        lBox.setLayout(leak_layout)
+        
+        #Bottom layout
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addWidget(oBox)
+        bottom_layout.addWidget(lBox)
         
         display_layout = QVBoxLayout()
         display_layout.addWidget(attitudeBox)
         display_layout.addWidget(saBox)
-        display_layout.addWidget(oBox)
+        display_layout.addLayout(bottom_layout)
+        #display_layout.addWidget(oBox)
         overall_display_layout = QHBoxLayout()
         overall_display_layout.addLayout(display_layout)
         overall_display_layout.addWidget(setpointBox) 
@@ -437,7 +451,6 @@ class AUV_gui(QMainWindow):
         self.setGeometry(300, 300, 1090, 760)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/icons/field.png'))
-	print os.getcwd() 
         self.setCentralWidget(self.main_tab)
         self.heading_provider.valueChanged.connect(self.valueChanged)
         self.initImage()
@@ -448,12 +461,12 @@ class AUV_gui(QMainWindow):
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
     
-       # if not pynotify.init("Basics"):
-       #     sys.exit(1)
- 
-       # n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
-       # if not n.show():
-       #     print "Failed to send notification"
+        if not pynotify.init("Basics"):
+             sys.exit(1)
+  
+        n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
+        if not n.show():
+             print "Failed to send notification"
     
     def on_timer(self):
         acoustic = None
@@ -713,7 +726,7 @@ class AUV_gui(QMainWindow):
                               # str(self.data['openups'].current1 +
                               "</b>")
         
-        self.oPanel2.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
+        self.lPanel1.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
                             "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                             "<br> W3: " + str(self.data['hull_status'].WaterDetC) +
                              "</b>")
@@ -1022,9 +1035,16 @@ class AUV_gui(QMainWindow):
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         self.dynamic_client = dynamic_reconfigure.client.Client('dvl')
+        rospy.loginfo("DVL dynamic reconfigure initialised")
+        
+        self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+        params = {'jpeg_quality': 40}
+        config = self.vision_client.update_configuration(params)
+        rospy.loginfo("Set vision compression to 40%")
         
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
+        
     def make_data_box(self, name):
         label = QLabel(name)
         qle = QLineEdit()
