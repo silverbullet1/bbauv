@@ -22,8 +22,10 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    highThresh = np.array([143, 255, 255])
-    lowThresh = np.array([52, 0, 35])
+    #highThresh = np.array([143, 255, 255])
+    #lowThresh = np.array([52, 0, 35])
+    highThresh = np.array([100,161,234])
+    lowThresh = np.array([77,0,210])
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -99,22 +101,22 @@ class Flare:
         rospy.loginfo("Got reconfigure request")
         self.areaThresh = config['area_thresh']
          
-        self.lowThresh[0] = config['lowH']
-        self.lowThresh[1] = config['lowS']
-        self.lowThresh[2] = config['lowV']
-        self.highThresh[0] = config['hiH']
-        self.highThresh[1] = config['hiS']
-        self.highThresh[2] = config['hiV']
-        self.deltaXMultiplier = config['deltaX_multiplier']
-        self.sidemoveMovementOffset = config['sidemove_movement_offset']
-        self.forwardOffset = config['forward_offset']
-        self.headOnArea = config['head_on_area']       
+#         self.lowThresh[0] = config['lowH']
+#         self.lowThresh[1] = config['lowS']
+#         self.lowThresh[2] = config['lowV']
+#         self.highThresh[0] = config['hiH']
+#         self.highThresh[1] = config['hiS']
+#         self.highThresh[2] = config['hiV']
+#         self.deltaXMultiplier = config['deltaX_multiplier']
+#         self.sidemoveMovementOffset = config['sidemove_movement_offset']
+#         self.forwardOffset = config['forward_offset']
+#         self.headOnArea = config['head_on_area']       
         
         return config
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber("/front_camera/camera/image_color", Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         
@@ -152,6 +154,7 @@ class Flare:
     
     #Utility functions to process callback
     def camera_callback(self, image):
+        rospy.loginfo("Camera callback")
         out_image = self.findTheFlare(image)
         #self.image_pub.publish(image)
 
@@ -194,6 +197,7 @@ class Flare:
         
     
     def findTheFlare(self, image):
+        rospy.loginfo("Finding flare")
         #Convert ROS to CV image 
         try:
             cv_image = self.rosimg2cv(image)
