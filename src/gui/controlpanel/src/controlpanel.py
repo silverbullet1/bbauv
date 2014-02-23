@@ -472,6 +472,7 @@ class AUV_gui(QMainWindow):
         f_image_bot = None
         f_image_front = None
         mode = None
+        cputemp = None
         '''Catch if queue is Empty exceptions'''
         try:
             orientation = self.q_orientation.get(False,0)
@@ -546,6 +547,10 @@ class AUV_gui(QMainWindow):
             acoustic = self.q_acoustic.get(False,0)
         except Exception,e:
             pass
+        try:
+            cputemp = self.q_cputemp.get(False,0)
+        except Exception,e:
+            pass
         
         '''If data in queue is available store it into data'''
         if temp!= None:
@@ -561,6 +566,8 @@ class AUV_gui(QMainWindow):
         if acoustic != None:
             #self.data['acoustic'] = acoustic.yaw
             self.data['acoustic'] = 0.0
+        if cputemp != None:
+            self.data['cputemp'] = cputemp
         if hull_statuses != None:
             self.data['hull_status'] = hull_statuses
         if rel_pos != None:
@@ -710,7 +717,7 @@ class AUV_gui(QMainWindow):
         self.oPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
                               "<br> TMP1: " + str(round(self.data['hull_status'].Temp0,2)) + 
                               "<br> HUM: " + str(round(self.data['hull_status'].Humidity,2)) +
-                              "<br> CPU: " +
+                              "<br> CPU: " + str(round(self.data['cputemp'].cores_ave)) +
                               "</b>")
         
         s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
@@ -791,6 +798,7 @@ class AUV_gui(QMainWindow):
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
         self.acoustic_sub = rospy.Subscriber("/euler", compass_data, self.acoustic_callback)
+        self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
 
     def get_status(self,val):
         if val == -1:
@@ -1098,6 +1106,9 @@ class AUV_gui(QMainWindow):
     
     def acoustic_callback(self, msg):
         self.q_acoustic.put(msg)
+    
+    def cpu_callback(self, msg):
+        self.q_cputemp.put(msg)
     
     def altitude_callback(self,altitude):
         self.q_altitude.put(altitude)
