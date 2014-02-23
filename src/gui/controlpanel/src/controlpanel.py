@@ -176,6 +176,7 @@ class AUV_gui(QMainWindow):
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
+        
         self.armButton = QCommandLinkButton("NOT ARMED")
         fireButton = QPushButton("&Fire")
         self.check1 = QCheckBox("Left Dropper")
@@ -209,6 +210,7 @@ class AUV_gui(QMainWindow):
         self.modeButton.clicked.connect(self.modeBtnHandler)
         self.disablePIDButton.clicked.connect(self.disablePIDHandler)
         self.unsubscribeButton.clicked.connect(self.unsubscribeHandler)
+        self.calDepthButton.clicked.connect(self.calDepthHandler)
         vbox = QVBoxLayout()
         #hbox.addStretch(1)
         vbox.addWidget(okButton)
@@ -225,6 +227,7 @@ class AUV_gui(QMainWindow):
         vbox3.addLayout(mode_layout)
         vbox3.addWidget(self.modeButton)
         vbox3.addWidget(self.unsubscribeButton)
+        vbox3.addWidget(self.calDepthButton)
         
         Navigation = QLabel("<b>Navigation</b>")
         xpos_l , self.xpos_box, layout6 = self.make_data_box("x coord:")
@@ -823,6 +826,8 @@ class AUV_gui(QMainWindow):
             self.initImage()
         self.isSubscribed = not self.isSubscribed
         
+    def calDepthHandler(self):
+        self.data['depth_error'] = self.data['depth']
 
     def sidemove_revHandler(self):
         rev_sidemove = -1.0 * float(self.sidemove_box.text())
@@ -864,13 +869,13 @@ class AUV_gui(QMainWindow):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
-        res = handle(x=xpos, y=ypos)
-        return res
+        handle(x=xpos, y=ypos)
+        rospy.loginfo("Moving to position x={}, y={}".format(xpos, ypos))
 
     def homeBtnHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        res = handle(x=0, y=0)
-        return res
+        handle(x=0, y=0)
+        rospy.loginfo("Moving to home base (0,0)")
         
     def hoverBtnHandler(self):
         resp = self.set_controller_request(True, True, True, True, True, False,False,False)
@@ -882,7 +887,7 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, False, False,False, False)
+        resp = self.set_controller_request(True, True, True, True, True, False,False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
