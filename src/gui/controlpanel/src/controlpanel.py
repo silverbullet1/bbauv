@@ -33,6 +33,7 @@ from bbauv_msgs.msg._thruster import thruster
 from std_msgs.msg._Float32 import Float32
 from std_msgs.msg._Int8 import Int8
 from filter_chain import Vision_filter
+from navigation_map import Navigation_Map
 
 class AUV_gui(QMainWindow):
     isLeak = False
@@ -117,9 +118,10 @@ class AUV_gui(QMainWindow):
         self.main_tab = QTabWidget()
         self.main_frame = QWidget()
         self.vision_filter_frame = Vision_filter()
+        self.navigation_frame = Navigation_Map()
         self.main_tab.addTab(self.main_frame, "Telemetry")
         self.main_tab.addTab(self.vision_filter_frame, "Vision Filter")
-        
+        self.main_tab.addTab(self.navigation_frame, "Navigation")
         
         goalBox =  QGroupBox("Goal Setter")
         depth_l , self.depth_box, layout4 = self.make_data_box("Depth:       ")
@@ -245,12 +247,12 @@ class AUV_gui(QMainWindow):
         ypos_l, self.ypos_box,layout7 = self.make_data_box("y coord:")
         self.goToPos = QPushButton("&Go!")
         self.goToPos.clicked.connect(self.goToPosHandler)
-        self.resetDVL = QPushButton("Reset D&VL")
-        self.resetDVL.clicked.connect(self.resetDVLHandler)
+        self.resetEarth = QPushButton("Reset E&arth")
+        self.resetEarth.clicked.connect(self.resetEarthHandler)
         layout8 = QHBoxLayout()
         layout8.addWidget(self.goToPos)
         #layout8.addStretch()
-        layout8.addWidget(self.resetDVL)
+        layout8.addWidget(self.resetEarth)
         
         vbox4 = QVBoxLayout()
         vbox4.addWidget(Navigation)
@@ -914,10 +916,10 @@ class AUV_gui(QMainWindow):
         handle(x=0, y=0)
         rospy.loginfo("Moving to home base (0,0)")
     
-    def resetDVLHandler(self):
+    def resetEarthHandler(self):
         params = {'zero_distance': True}
         config = self.dynamic_client.update_configuration(params)
-        rospy.loginfo("DVL Resetted zero_distance")
+        rospy.loginfo("Earth odom Resetted zero_distance")
         
     def hoverBtnHandler(self):
         roll = False
@@ -926,8 +928,9 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
+#         resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
         
+        resp = self.set_controller_request(True, True, True, False, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -938,11 +941,12 @@ class AUV_gui(QMainWindow):
     def surfaceBtnHandler(self):
         roll = False
         pitch = False
-        if self.roll_chkbox.checkState():
-            roll = True
+#         if self.roll_chkbox.checkState():
+#             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
+#         resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
+        resp = self.set_controller_request(True, True, True, False, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -976,7 +980,7 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, pitch, roll, False,False)
+        resp = self.set_controller_request(True, True, True, False, pitch, roll, False,False)
         goal = ControllerGoal
         
         #Forward
@@ -1045,7 +1049,7 @@ class AUV_gui(QMainWindow):
             
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
-        resp = self.set_controller_request(False, False, False, False, False, True, False, False)
+        #resp = self.set_controller_request(False, False, False, False, False, True, False, False)
     
     def movebase_done_cb(self,status,result):
         self.status_text.setText("Move Base Client completed goal!")
@@ -1054,7 +1058,7 @@ class AUV_gui(QMainWindow):
         self.client.cancel_all_goals()
         self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        resp = self.set_controller_request(False, False, False, False, False, True, False, False)
+        #resp = self.set_controller_request(False, False, False, False, False, False, False, False)
         
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
@@ -1066,9 +1070,9 @@ class AUV_gui(QMainWindow):
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
-        if self.testing:
-            self.dynamic_client = dynamic_reconfigure.client.Client('dvl')
-            rospy.loginfo("DVL dynamic reconfigure initialised")
+        if not self.testing:
+            self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
+            rospy.loginfo("Earth Odom dynamic reconfigure initialised")
         
             self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
             params = {'jpeg_quality': 40}
