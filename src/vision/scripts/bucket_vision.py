@@ -72,7 +72,7 @@ class BucketDetector:
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up
@@ -117,7 +117,7 @@ class BucketDetector:
  
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(1.0))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
 
     def revertMovement(self):
         if len(self.actionsHist) == 0:
