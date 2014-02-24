@@ -594,8 +594,7 @@ class AUV_gui(QMainWindow):
             self.data['yaw'] = orientation.yaw
             self.data['roll'] = orientation.roll
         if acoustic != None:
-            #self.data['acoustic'] = acoustic.yaw
-            self.data['acoustic'] = 0.0
+            self.data['acoustic'] = acoustic.angle
         if cputemp != None:
             self.data['cputemp'] = cputemp
         if hull_statuses != None:
@@ -828,7 +827,7 @@ class AUV_gui(QMainWindow):
         self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
-        self.acoustic_sub = rospy.Subscriber("/euler", compass_data, self.acoustic_callback)
+        self.acoustic_sub = rospy.Subscriber("/acoustic/angFromPing", acoustic, self.acoustic_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
         
     def get_status(self,val):
