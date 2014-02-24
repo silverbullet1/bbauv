@@ -829,7 +829,7 @@ class AUV_gui(QMainWindow):
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
         self.acoustic_sub = rospy.Subscriber("/euler", compass_data, self.acoustic_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
-
+        
     def get_status(self,val):
         if val == -1:
             return "NONE"
@@ -858,10 +858,12 @@ class AUV_gui(QMainWindow):
         if self.isSubscribed:
             self.unsubscribeButton.setText("Subscribe&n")
             self.unsubscribe()
+            self.navigation_frame.unregisterSub()
         else:
             self.unsubscribeButton.setText("U&nsubscribe")
             self.initSub()
             self.initImage()
+            self.navigation_frame.initSub
         self.isSubscribed = not self.isSubscribed
         
     def calDepthHandler(self):
@@ -919,6 +921,7 @@ class AUV_gui(QMainWindow):
     def resetEarthHandler(self):
         params = {'zero_distance': True}
         config = self.dynamic_client.update_configuration(params)
+        self.navigation_frame.clearGraph()
         rospy.loginfo("Earth odom Resetted zero_distance")
         
     def hoverBtnHandler(self):

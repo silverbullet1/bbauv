@@ -1,5 +1,7 @@
 '''Draw navigation map'''
 
+#!/usr/bin/env python
+
 import numpy as np
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -11,6 +13,9 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as Naviga
 import matplotlib.pyplot as plt
 
 import rospy
+import roslib
+from nav_msgs.msg import Odometry
+from bbauv_msgs.msg import *
 
 import sys
 import os
@@ -22,18 +27,23 @@ class Navigation_Map(QWidget):
         super(Navigation_Map, self).__init__()
         self.data = []
         self.rate = 20
+        self.earth_odom_sub = None
+        self.initSub()
         self.initUI()
     
     def initUI(self):
         map_label = QLabel("<b>Map of the World</b>")
         refresh_button = QPushButton("&Refresh")
+        clear_button = QPushButton("&Clear")
         
         map_layout = QHBoxLayout()
         map_layout.addWidget(map_label)
         map_layout.addWidget(refresh_button)
+        map_layout.addWidget(clear_button)
         map_layout.addStretch()
         
         refresh_button.clicked.connect(self.refreshBtnHandler)
+        clear_button.clicked.connect(self.clearGraph)
         
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
@@ -48,29 +58,36 @@ class Navigation_Map(QWidget):
         self.initTimer(self.rate)
         self.setLayout(main_layout)
         self.show()
+        rospy.loginfo("Navigation map up")
+    
+    def initSub(self):
+        self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earth_odom_callback)
+    
+    def unregisterSub(self):
+        self.earth_odom_sub.unregister()
+    
+    def earth_odom_callback(self, data):
+        pass
+#         self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
     
     def initTimer(self, time):
         self.timer = QTimer()
-        self.connect(self.timer, SIGNAL('timeout()'), self.updateParams)
-        self.timer.start(1000.0 / time)
+#         self.connect(self.timer, SIGNAL('timeout()'), self.refreshBtnHandler)
+        self.timer.start(100000.0 / time)
     
-    def updateParams(self):
-        pass
-        
+    def clearGraph(self):
+        self.data = []
+    
     def refreshBtnHandler(self):
-        # random data
-        #data = [random.random() for i in range(100)]
-        for i in range(100):
-            self.data.append(random.random())
-
-        # create an axis
-        ax = self.figure.add_subplot(111)
+        for i in range(10):
+             self.data.append((random.random(), random.random()))
+#         print self.data
+# 
+        axis = self.figure.add_subplot(111)
 
         # discards the old graph
-        ax.hold(False)
+        axis.hold(False)
 
-        # plot data
-        ax.plot(self.data, '*-')
-        # refresh canvas
+#         axis.plot(self.points, '*-')
+        axis.plot([i for i, j in self.data], [j for i, j in self.data], '*-')
         self.canvas.draw()
-        rospy.loginfo("Refreshed Data")
