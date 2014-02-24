@@ -304,22 +304,23 @@ class AUV_gui(QMainWindow):
         heading_l = QLabel("User Goal")
         compass_l.setAlignment(Qt.AlignHCenter)
         heading_l.setAlignment(Qt.AlignHCenter)
-        
-        self.acoustic_provider = Qwt.QwtCompass()
-        self.acoustic_provider.setLineWidth(4)
-        self.acoustic_provider.setMode(Qwt.QwtCompass.RotateNeedle)
-        rose = Qwt.QwtSimpleCompassRose(16,2)
-        rose.setWidth(0.15)
-        self.acoustic_provider.setRose(rose)
-        self.acoustic_provider.setNeedle(Qwt.QwtCompassMagnetNeedle(
-                Qwt.QwtCompassMagnetNeedle.ThinStyle))
-        
-        acoustic_l = QLabel("Acoustic")
-        acoustic_l.setAlignment(Qt.AlignHCenter)
+             
+        acoustic_l = QLabel("<b>Acoustics</b>")
+        a_heading_l , self.acoustic_h_box, acoustic_h_provider = self.make_data_box("Heading:")
+        a_forward_l , self.acoustic_f_box, acoustic_f_provider = self.make_data_box("Forward:")
+        acousticBtn = QPushButton("&Turn")
+        acousticBtn.clicked.connect(self.acousticBtnHandler)
+        acousticGoBtn = QPushButton("F&wd")
+        acousticGoBtn.clicked.connect(self.acousticGoBtnHandler)
         acoustic_layout = QVBoxLayout()
-        acoustic_layout.addWidget(self.acoustic_provider)
         acoustic_layout.addWidget(acoustic_l)
-        #acoustic_layout.addStretch(1)
+        acoustic_layout.addLayout(acoustic_h_provider)
+        acoustic_layout.addLayout(acoustic_f_provider)
+        acoustic_layout_h = QHBoxLayout()
+        acoustic_layout_h.addWidget(acousticBtn)
+        acoustic_layout_h.addWidget(acousticGoBtn)
+        acoustic_layout.addLayout(acoustic_layout_h)
+        acoustic_layout.addStretch()
         
         compass_layout = QHBoxLayout()
         current_layout = QVBoxLayout()
@@ -332,11 +333,11 @@ class AUV_gui(QMainWindow):
         #user_layout.addStretch(1)
         compass_layout.addLayout(current_layout)
         compass_layout.addLayout(user_layout)
-        compass_layout.addLayout(acoustic_layout)
         
         compass_box = QGroupBox("AUV Heading")
         compass_box.setLayout(compass_layout)
         goal_gui_layout.addWidget(compass_box)
+        goal_gui_layout.addLayout(acoustic_layout)
         
         #Depth Scale
         self.depth_thermo = Qwt.QwtThermo()
@@ -636,7 +637,7 @@ class AUV_gui(QMainWindow):
         
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
-        self.acoustic_provider.setValue(int(self.data['acoustic']))
+        self.acoustic_h_box.setText(str(int(self.data['acoustic'])))
         
         if self.data['mode']== 0:
             self.l_mode.setText("Default")
@@ -866,6 +867,41 @@ class AUV_gui(QMainWindow):
             self.navigation_frame.initSub
         self.isSubscribed = not self.isSubscribed
         
+    def acousticBtnHandler(self):
+        self.status_text.setText("Finding pinger...")
+        resp = self.set_controller_request(True, True, True, False, True, False, False,False)
+        goal = ControllerGoal
+        
+        heading = float(self.acoustic_h_box.text())
+            
+        goal.forward_setpoint = 0
+        goal.sidemove_setpoint = 0
+        goal.depth_setpoint = 0.3
+        goal.heading_setpoint = heading
+        
+        self.client.send_goal(goal, self.done_cb)
+            
+        #Reset boxes
+        self.acoustic_f_box.setText("")
+        self.acoustic_h_box.setText("")
+    
+    def acousticGoBtnHandler(self):
+        resp = self.set_controller_request(True, True, True, False, True, False, False,False)
+        goal = ControllerGoal
+        
+        forward = float(self.acoustic_f_box.text())
+            
+        goal.forward_setpoint = forward
+        goal.sidemove_setpoint = 0
+        goal.depth_setpoint = 0.3
+        goal.heading_setpoint = self.data['yaw']
+        
+        self.client.send_goal(goal, self.done_cb)
+        
+        #Reset boxes
+        self.acoustic_f_box.setText("")
+        self.acoustic_h_box.setText("")
+    
     def calDepthHandler(self):
         self.data['depth_error'] = self.data['depth']
         rospy.loginfo("Depth calibrated")
@@ -888,23 +924,6 @@ class AUV_gui(QMainWindow):
 
     def disablePIDHandler(self):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
-
-#    def homeBtnHandler(self):
-#        
-#        movebaseGoal = MoveBaseGoal()
-#        x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
-#        resp = self.set_controller_request(True, True, True, True, False, False,True)
-#        #Execute Nav
-#        movebaseGoal.target_pose.header.frame_id = 'map'
-#        movebaseGoal.target_pose.header.stamp = rospy.Time.now()
-#        movebaseGoal.target_pose.pose.position.x = 0
-#        movebaseGoal.target_pose.pose.position.y = 0 
-#        movebaseGoal.target_pose.pose.orientation.x = 0
-#        movebaseGoal.target_pose.pose.orientation.y = 0
-#        movebaseGoal.target_pose.pose.orientation.z = z
-#        movebaseGoal.target_pose.pose.orientation.w = w
-#        self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
-#
     
     def goToPosHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
