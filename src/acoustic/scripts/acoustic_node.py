@@ -1,9 +1,10 @@
+#!/usr/bin/env python
+
 #Beware of radian and degree error 
 #Make sure normalise bearing 
 #Ensure sub stays stationary while taking angle
 #Single Value Decomposition for passive reading
 
-#!/usr/bin/env python
 import rospy
 import roslib; roslib.load_manifest('acoustic')
 from nav_msgs.msg import Odometry
@@ -137,7 +138,7 @@ class AcousticNode(object):
             self.locomotionClient = actionlib.SimpleActionClient('LocomotionServer',ControllerAction) 
 
         except rospy.ServiceException:
-            rospy.logerr("Error running Locmotion Client")
+            rospy.logerr("Error running Locomotion Client")
     #Initialise Controller Service:
         try:
             self.controllerSettings = rospy.ServiceProxy("/set_controller_srv", set_controller)
