@@ -41,8 +41,6 @@ class Vision_filter(QWidget):
         self.thresholder = Thresholding()
         self.bridge = CvBridge()
         self.initUI()
-
-
         
     def initUI(self):
         label_arr = [QLabel(),QLabel(),QLabel(),QLabel(),QLabel(),QLabel(),QLabel()]
@@ -169,7 +167,7 @@ class Vision_filter(QWidget):
         thres_qpm = QPixmap.fromImage(thres_qimg)
         self.video_thres.setPixmap(thres_qpm.scaledToHeight(250))
         
-    def onQleChanged_C(self,text):
+    def onQleChanged_C(qseself,text):
         self.thresholder.params["C"] = int(text)
     def onQleChanged_block(self,text):
         self.thresholder.params["block"] = int(text)

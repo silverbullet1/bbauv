@@ -22,8 +22,10 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    highThresh = np.array([143, 255, 255])
-    lowThresh = np.array([52, 0, 35])
+    #highThresh = np.array([143, 255, 255])
+    #lowThresh = np.array([52, 0, 35])
+    highThresh = np.array([100,161,234])
+    lowThresh = np.array([77,0,210])
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -94,27 +96,28 @@ class Flare:
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+        rospy.signal_shutdown("Bye!")
             
     def reconfigure(self, config, level):
         rospy.loginfo("Got reconfigure request")
         self.areaThresh = config['area_thresh']
          
-        self.lowThresh[0] = config['lowH']
-        self.lowThresh[1] = config['lowS']
-        self.lowThresh[2] = config['lowV']
-        self.highThresh[0] = config['hiH']
-        self.highThresh[1] = config['hiS']
-        self.highThresh[2] = config['hiV']
-        self.deltaXMultiplier = config['deltaX_multiplier']
-        self.sidemoveMovementOffset = config['sidemove_movement_offset']
-        self.forwardOffset = config['forward_offset']
-        self.headOnArea = config['head_on_area']       
+#         self.lowThresh[0] = config['lowH']
+#         self.lowThresh[1] = config['lowS']
+#         self.lowThresh[2] = config['lowV']
+#         self.highThresh[0] = config['hiH']
+#         self.highThresh[1] = config['hiS']
+#         self.highThresh[2] = config['hiV']
+#         self.deltaXMultiplier = config['deltaX_multiplier']
+#         self.sidemoveMovementOffset = config['sidemove_movement_offset']
+#         self.forwardOffset = config['forward_offset']
+#         self.headOnArea = config['head_on_area']       
         
         return config
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber("/front_camera/camera/image_color", Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         
@@ -152,14 +155,18 @@ class Flare:
     
     #Utility functions to process callback
     def camera_callback(self, image):
+        rospy.loginfo("Camera callback")
         out_image = self.findTheFlare(image)
         #self.image_pub.publish(image)
 
         try:
             if (out_image != None):
-                out_image = cv2.cv.fromarray(out_image)
+                try:
+                    out_image = cv2.cv.fromarray(out_image)
+                except Exception,e:
+                    out_image = np.zeros((self.screen['height'], self.screen['width'], 3), np.uint8)
                 if (self.image_pub != None):
-                    self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="rgb8"))
+                    self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="bgr8"))
                     #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
             rospy.logerr(str(e))
@@ -169,13 +176,13 @@ class Flare:
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
-        pass
-#         depth = depth if depth else self.depth_setpoint
-#         heading = heading if heading else self.curHeading
-#         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
-#                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
-#         self.locomotionClient.send_goal(goal)
-#         self.locomotionClient.wait_for_result(rospy.Duration(1))
+#         pass
+        depth = depth if depth else self.depth_setpoint
+        heading = heading if heading else self.curHeading
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
+                                             sidemove_setpoint=sidemove, depth_setpoint=depth)
+        self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result(rospy.Duration(1))
         
         
     def abortMission(self):
@@ -194,6 +201,7 @@ class Flare:
         
     
     def findTheFlare(self, image):
+        rospy.loginfo("Finding flare")
         #Convert ROS to CV image 
         try:
             cv_image = self.rosimg2cv(image)
