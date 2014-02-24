@@ -67,8 +67,7 @@ class Navigation_Map(QWidget):
         self.earth_odom_sub.unregister()
     
     def earth_odom_callback(self, data):
-        pass
-#         self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
+        self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
     
     def initTimer(self, time):
         self.timer = QTimer()
@@ -79,8 +78,8 @@ class Navigation_Map(QWidget):
         self.data = []
     
     def refreshBtnHandler(self):
-        for i in range(10):
-             self.data.append((random.random(), random.random()))
+#         for i in range(10):
+#              self.data.append((random.random(), random.random()))
 #         print self.data
 # 
         axis = self.figure.add_subplot(111)
@@ -88,6 +87,5 @@ class Navigation_Map(QWidget):
         # discards the old graph
         axis.hold(False)
 
-#         axis.plot(self.points, '*-')
         axis.plot([i for i, j in self.data], [j for i, j in self.data], '*-')
         self.canvas.draw()
