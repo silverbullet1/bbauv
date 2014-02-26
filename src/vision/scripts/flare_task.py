@@ -55,7 +55,7 @@ class Disengage(smach.State):
     
 #Searches for the flare
 class Search(smach.State):
-    timeout = 50    #5s timeout before aborting task
+    timeout =10    #5s timeout before aborting task
     def __init__(self, flare_task):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'mission_abort'])
         self.flare = flare_task

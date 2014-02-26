@@ -50,7 +50,7 @@ class Searching1(smach.State):
         return 'search_complete'
 
 class Searching2(smach.State):
-    timeout = 70
+    timeout = 30
 
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
@@ -126,6 +126,12 @@ class Firing(smach.State):
         for i in range(10):
             firePub.publish(self.bucketDetector.maniData | 1)
             rospy.sleep(rospy.Duration(0.2))
+
+        self.bucketDetector.stopRobot()
+        rospy.sleep(rospy.Duration(1))
+        for i in range(10):
+            firePub.publish(self.bucketDetector.maniData | 0)
+            rospy.sleep(rospy.Duration(0.1))
 
         self.bucketDetector.taskComplete()
         return 'firing_complete'
