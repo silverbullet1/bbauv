@@ -100,5 +100,10 @@ class Navigation_Map(QWidget):
         # discards the old graph
         axis.hold(False)
 
-        axis.plot([i for i, j in self.data], [j for i, j in self.data], '*-')
+
+        try:
+            axis.plot([x[0] for x in self.data], [x[1] for x in self.data], '*-')
+        except:
+            pass
+        
         self.canvas.draw()

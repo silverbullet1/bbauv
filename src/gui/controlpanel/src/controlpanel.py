@@ -874,9 +874,9 @@ class AUV_gui(QMainWindow):
         heading = float(self.acoustic_h_box.text())
             
         goal.forward_setpoint = 0
-        goal.sidemove_setpoint = 0
+        goal.sidemove_setpostartBtnint = 0
         goal.depth_setpoint = 0.3
-        goal.heading_setpoint = heading
+        goal.heading_setpoint = heading + self.data['yaw']
         
         self.client.send_goal(goal, self.done_cb)
             
@@ -888,6 +888,8 @@ class AUV_gui(QMainWindow):
         resp = self.set_controller_request(True, True, True, False, True, False, False,False)
         goal = ControllerGoal
         
+        if self.acoustic_f_box.text() == "":
+            self.acoustic_f_box.setText("0")
         forward = float(self.acoustic_f_box.text())
             
         goal.forward_setpoint = forward
@@ -943,15 +945,12 @@ class AUV_gui(QMainWindow):
         rospy.loginfo("Earth odom Resetted zero_distance")
         
     def hoverBtnHandler(self):
-        roll = False
         pitch = False
-        if self.roll_chkbox.checkState():
-            roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-#         resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
+        resp = self.set_controller_request(True, True, True, True, pitch, False,False,False)
         
-        resp = self.set_controller_request(True, True, True, True, True, False, False, False)
+#         resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -960,14 +959,11 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
-        roll = False
         pitch = False
-#         if self.roll_chkbox.checkState():
-#             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-#         resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
-        resp = self.set_controller_request(True, True, True, True, True, False, False, False)
+        resp = self.set_controller_request(True, True, True, True, pitch, False, False, False)
+#         resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
