@@ -28,7 +28,7 @@ class BucketDetector:
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.2
     maniData = 0
     actionsHist = deque()
     
@@ -67,12 +67,13 @@ class BucketDetector:
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
         if not self.testing: 
+            self.isAborted = True
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout = 10)
+            self.toMission.wait_for_service(timeout=10)
         
         #Initializing controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                          topside=False, navigation=False)
 
         #Make sure locomotion server is up

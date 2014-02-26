@@ -27,7 +27,7 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.1
     actionsHist = deque()
 
     def __init__(self):
@@ -54,13 +54,14 @@ class LineFollower():
 
         if not self.testing:
             rospy.loginfo("Waiting for vision_to_mission server...")
+            self.isAborted = True
             self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
                                                 vision_to_mission)
             self.toMission.wait_for_service(timeout = 10)
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=False, pitch=True, roll=False,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start

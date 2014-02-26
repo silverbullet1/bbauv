@@ -26,6 +26,7 @@ class Flare:
     lowThresh = np.array([47, 43, 35])
 #     highThresh = np.array([100,161,234])
 #     lowThresh = np.array([77,0,210])
+
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -38,8 +39,8 @@ class Flare:
     yaw = 0.0
         
     screen = {'width': 640, 'height': 480}
-    
-    deltaXMultiplier = 10.0
+
+    deltaXMultiplier = 15.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
     forwardOffset = 0.3     #For just shooting straight
     headOnArea = 10000       #Area for shooting straight
@@ -182,6 +183,7 @@ class Flare:
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
         rospy.loginfo("forward: {} heading: {} sidemove: {}".format(forward, heading, sidemove))
+
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(1))
         
