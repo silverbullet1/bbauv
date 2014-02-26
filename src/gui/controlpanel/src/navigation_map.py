@@ -20,6 +20,7 @@ from bbauv_msgs.msg import *
 import sys
 import os
 import random
+import math
 
 class Navigation_Map(QWidget):
     
@@ -68,16 +69,23 @@ class Navigation_Map(QWidget):
         self.earth_odom_sub.unregister()
     
     def earth_odom_callback(self, data):
-        self.points.append((data.pose.pose.position.x, data.pose.pose.position.y))
-        if len(self.points) == 20:
-            self.data.append(self.points[0])
-            self.points = []
+        (x,y) = (data.pose.pose.position.x, data.pose.pose.position.y)
+        if len(self.data) == 0:
+            self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
+        else:
+            lastPoint = self.data[len(self.data)-1]
+            distance = abs(math.sqrt( (x-lastPoint[0])**2 + (y-lastPoint[0])**2))
+            if ( distance > 1.30 ):
+                self.data.append((x,y))
+#         if len(self.points) == 30:
+#             self.data.append(self.points[0])
+#             self.points = []
 #         self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
     
     def initTimer(self, time):
         self.timer = QTimer()
         self.connect(self.timer, SIGNAL('timeout()'), self.refreshBtnHandler)
-        self.timer.start(500.0 / time)
+        self.timer.start(800.0 / time)
     
     def clearGraph(self):
         self.data = []

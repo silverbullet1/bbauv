@@ -951,7 +951,7 @@ class AUV_gui(QMainWindow):
             pitch = True
 #         resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
         
-        resp = self.set_controller_request(True, True, True, False, True, False, False, False)
+        resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -967,7 +967,7 @@ class AUV_gui(QMainWindow):
         if self.pitch_chkbox.checkState():
             pitch = True
 #         resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
-        resp = self.set_controller_request(True, True, True, False, True, False, False, False)
+        resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -1001,7 +1001,7 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, False, pitch, roll, False,False)
+        resp = self.set_controller_request(True, True, True, True, pitch, roll, False,False)
         goal = ControllerGoal
         
         #Forward
