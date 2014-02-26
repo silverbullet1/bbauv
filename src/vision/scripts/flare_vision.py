@@ -22,7 +22,7 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    highThresh = np.array([143, 255, 228])
+    highThresh = np.array([143, 255, 255])
     lowThresh = np.array([47, 43, 35])
 #     highThresh = np.array([100,161,234])
 #     lowThresh = np.array([77,0,210])
@@ -43,7 +43,7 @@ class Flare:
     deltaXMultiplier = 15.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
     forwardOffset = 0.3     #For just shooting straight
-    headOnArea = 10000       #Area for shooting straight
+    headOnArea = 8000       #Area for shooting straight
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -118,7 +118,8 @@ class Flare:
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber("/front_camera/camera/image_color", Image, self.camera_callback)
+#         self.image_sub = rospy.Subscriber("/front_camera/camera/image_color", Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         
@@ -146,7 +147,6 @@ class Flare:
             #pass
             self.toMission(task_complete_request=True)
         self.sendMovement(forward=-0.5)     #Retract
-        self.sendMovement(heading=self.yaw+ 85.0)
         self.stopRobot()
         self.isAborted = True
         self.isKilled = True
@@ -168,7 +168,7 @@ class Flare:
                     out_image = np.zeros((self.screen['height'], self.screen['width'], 3), np.uint8)
                 if (self.image_pub != None):
                     self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="bgr8"))
-                    #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
+#                     self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
             rospy.logerr(str(e))
               
@@ -176,7 +176,7 @@ class Flare:
         self.curHeading = msg.yaw
     
     #Utility functions to send movements through locomotion server
-    def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
+    def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=0.4):
 #         pass
         depth = depth if depth else self.depth_setpoint
         heading = heading if heading else self.curHeading
@@ -213,25 +213,49 @@ class Flare:
         out = cv_image.copy()                                   #Copy of image for display later
         #cv_image = cv2.merge(np.array([cv2.equalizeHist(cv_image[:,:,0]),cv2.equalizeHist(cv_image[:,:,1]),
         #                               cv2.equalizeHist(cv_image[:,:,2])]))
-        cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))
+        cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))        
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
-        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
-        hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
-
-        #Perform yellow thresholding
-        contourImg = cv2.inRange(hsv_image, self.lowThresh, self.highThresh)
         
-        #Noise removal
-        #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (11,11))
-        contourImg = cv2.dilate(contourImg, dilateEl)
-        contourImg = cv2.erode(contourImg, erodeEl, iterations=1)
-      
+        #         cv_image = cv_image*2
+
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        contourImg = gray
+        ret,thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        fg = cv2.erode(thresh, None, iterations=2)
+        bgt = cv2.dilate(thresh, None, iterations=3)
+        ret, bg = cv2.threshold(bgt,1,143,1)
+        marker = cv2.add(fg,bg)
+        marker32 = np.int32(marker)
+        cv2.watershed(cv_image, marker32)
+        m = cv2.convertScaleAbs(marker32)
+        ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)        
+        contourImg = cv2.bitwise_and(cv_image,cv_image,mask = thresh)
+        
+        contourImg = cv2.cvtColor(contourImg, cv2.COLOR_BGR2GRAY)
+        
+#         r = np.zeros((self.screen['width'], self.screen['height']), np.uint8)        
+#         g = np.zeros((self.screen['width'], self.screen['height']), np.uint8)        
+#         cv_image = cv2.merge((contourImg, r, g))
+
+
+#         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
+#         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
+#   
+#         #Perform yellow thresholding
+#         contourImg = cv2.inRange(hsv_image, self.lowThresh, self.highThresh)
+#          
+#         #Noise removal       
+#         #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
+#  
+#         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+#         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
+#         contourImg = cv2.dilate(contourImg, dilateEl)
+#         contourImg = cv2.erode(contourImg, erodeEl, iterations=1)
+#       
         #Find centroids
         pImg = contourImg.copy()
         contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
+ 
         rectList = []
         for contour in contours:
             rectData = {}
@@ -242,13 +266,14 @@ class Flare:
                 mu_area = mu['m00']
                 centroidx = mu['m10']/mu_area
                 centroidy = mu['m01']/mu_area
-                
+                 
                 rectData['area'] = area
+                rospy.loginfo(rectData['area'])
                 rectData['centroids'] = (centroidx, centroidy)
                 rectData['rect'] = cv2.minAreaRect(contour)
-    
+     
                 points = np.array(cv2.cv.BoxPoints(rectData['rect']))
-              
+               
                 #Find angle
                 edge1 = points[1] - points[0]
                 edge2 = points[2] - points[1]
@@ -258,7 +283,7 @@ class Flare:
                 else:
                     edge2[1] = edge2[1] if edge2[1] is not 0 else 0.01
                     rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
-            
+             
                 epislon = 10.0
                 if -epislon < rectData['angle'] < epislon:
                     rectData['length'] = max(self.calculateLength(points[0], points[1]),
@@ -266,22 +291,22 @@ class Flare:
                     rectData['width'] = min(self.calculateLength(points[0], points[1]),
                                                   self.calculateLength(points[1], points[2]))
                     rectData['aspect'] = rectData['length']/rectData['width']
-                    
-                    #Find the median of the last four
-#                     if self.previous_centroids:
-#                         x_median, y_median = np.median(self.previous_centroids, axis=0)
-#                         if abs(rectData['centroids'][0]-x_median)< 0.3 and abs(rectData['centroids'][1]-y_median)<0.3:
-                    rectList.append(rectData)                            
-                    self.previous_centroids.append(rectData['centroids'])
-
-        
+                     
+#                     #Find the median of the last four
+# #                     if self.previous_centroids:
+# #                         x_median, y_median = np.median(self.previous_centroids, axis=0)
+# #                         if abs(rectData['centroids'][0]-x_median)< 0.3 and abs(rectData['centroids'][1]-y_median)<0.3:
+#                     rectList.append(rectData)                            
+#                     self.previous_centroids.append(rectData['centroids'])
+# 
+         
         #Find the largest rect length
         rectList.sort(cmp=None, key=lambda x: x['aspect'], reverse=True)
         if rectList:
             self.rectData = rectList[0]
             self.rectData['detected'] = True
-            rospy.loginfo(self.rectData['angle'])            
-            
+            rospy.loginfo("Area: {}".format(self.rectData['angle']))            
+             
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
             centery = int(self.rectData['centroids'][1])
@@ -294,14 +319,14 @@ class Flare:
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                              
+                               
                 cv2.line(contourImg, pt1, pt2, (255,0,0))
                 cv2.line(out, pt1, pt2, (0,0,255))
             cv2.putText(out, str(self.rectData['angle']), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
             cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
-            
+             
         else:
             self.rectData['detected'] = False 
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)            

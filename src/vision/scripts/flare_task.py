@@ -71,7 +71,7 @@ class Search(smach.State):
             if timecount > self.timeout or rospy.is_shutdown() or self.flare.isKilled:
                 self.flare.abortMission()
                 return 'aborted'
-            self.flare.sendMovement(forward=1.0)
+            self.flare.sendMovement(forward=1.0, depth=0.4)
             rospy.sleep(rospy.Duration(0.3))
             timecount += 1
             self.flare.failedTask();
