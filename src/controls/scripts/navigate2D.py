@@ -60,8 +60,8 @@ class Navigate2D(object):
 
 
     def DVLCallback(self, data):
-        self.currPos['x'] = data.pose.pose.position.x
-        self.currPos['y'] = data.pose.pose.position.y
+        self.currPos['x'] = data.pose.pose.position.y
+        self.currPos['y'] = data.pose.pose.position.x
 
     def CompassCallback(self, data):
         self.currHeading['yaw'] = data.yaw
@@ -79,7 +79,7 @@ class Navigate2D(object):
                         depth=True, roll=False, topside=False,
                         navigation=False)
         res = self.navigateToPoint(r.x, r.y)
-        return navigate2dResponse(done=res)
+        return navigate2dResponse(res)
 
     def navigateToPoint(self, y, x):
         """
@@ -89,8 +89,8 @@ class Navigate2D(object):
         target = [x, y]
         magnitude = np.sqrt(sum(map(lambda k: k * k, list(i - j for i, j in zip(target,
                                                                     initial)))))
-        #n_vec = list((i - j) for i, j in zip([initial[0], initial[1] + 1], initial))
-        n_vec = [0, 1]
+        n_vec = list((i - j) for i, j in zip([initial[0], initial[1] + 1], initial))
+        #n_vec = [0, 1]
         dv = list((i - j) for i, j in zip(target, initial))
         mag_dv = np.sqrt(sum(map(lambda x: x * x, dv)))
         dotp = sum(list((i * j) for i, j in zip(n_vec, dv)))
@@ -103,7 +103,7 @@ class Navigate2D(object):
         self.actionClient.wait_for_server()
         rospy.loginfo("sending turn setpoint")
         goal = ControllerGoal(heading_setpoint=heading,
-                              depth_setpoint=0.2)
+                              depth_setpoint=0.4)
         self.actionClient.send_goal(goal, lambda st, res:
                                     rospy.loginfo("done diving: %s %s" %
                                                   (str(res),
@@ -114,7 +114,7 @@ class Navigate2D(object):
         goal = ControllerGoal(forward_setpoint=magnitude,
                               sidemove_setpoint=0,
                               heading_setpoint=heading,
-                              depth_setpoint=0.2)
+                              depth_setpoint=0.4)
         self.actionClient.wait_for_server()
         self.actionClient.send_goal(goal, lambda st, res:
                                     rospy.loginfo("dont moving forward?: %s %s" %
