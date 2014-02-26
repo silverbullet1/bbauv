@@ -1095,10 +1095,10 @@ class AUV_gui(QMainWindow):
             self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
         
-            self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
-            params = {'jpeg_quality': 40}
-            config = self.vision_client.update_configuration(params)
-            rospy.loginfo("Set vision compression to 40%")
+#             self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+#             params = {'jpeg_quality': 40}
+#             config = self.vision_client.update_configuration(params)
+#             rospy.loginfo("Set vision compression to 40%")
         
     def valueChanged(self,value):
         self.heading_box.setText(str(value))

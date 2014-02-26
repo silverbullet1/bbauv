@@ -22,10 +22,10 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    #highThresh = np.array([143, 255, 255])
-    #lowThresh = np.array([52, 0, 35])
-    highThresh = np.array([100,161,234])
-    lowThresh = np.array([77,0,210])
+    highThresh = np.array([143, 255, 255])
+    lowThresh = np.array([52, 0, 35])
+#     highThresh = np.array([100,161,234])
+#     lowThresh = np.array([77,0,210])
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -144,7 +144,7 @@ class Flare:
         if not self.testing:
             #pass
             self.toMission(task_complete_request=True)
-        self.sendMovement(forward=-0.3)     #Retract
+        self.sendMovement(forward=-0.5)     #Retract
         self.sendMovement(heading=85.0)
         self.stopRobot()
         self.isAborted = True

@@ -26,6 +26,7 @@ class Navigation_Map(QWidget):
     def __init__(self):
         super(Navigation_Map, self).__init__()
         self.data = []
+        self.points = []
         self.rate = 20
         self.earth_odom_sub = None
         self.initSub()
@@ -67,16 +68,20 @@ class Navigation_Map(QWidget):
         self.earth_odom_sub.unregister()
     
     def earth_odom_callback(self, data):
-        self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
+        self.points.append((data.pose.pose.position.x, data.pose.pose.position.y))
+        if len(self.points) == 20:
+            self.data.append(self.points[0])
+            self.points = []
+#         self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
     
     def initTimer(self, time):
         self.timer = QTimer()
-#         self.connect(self.timer, SIGNAL('timeout()'), self.refreshBtnHandler)
-        self.timer.start(100000.0 / time)
+        self.connect(self.timer, SIGNAL('timeout()'), self.refreshBtnHandler)
+        self.timer.start(500.0 / time)
     
     def clearGraph(self):
         self.data = []
-    
+            
     def refreshBtnHandler(self):
 #         for i in range(10):
 #              self.data.append((random.random(), random.random()))

@@ -108,9 +108,9 @@ class Manuoevre(smach.State):
         #Forward if center
         #Shoot straight and aim
         if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.05:
-            self.flare.sendMovement(forward=1.0)
+            self.flare.sendMovement(forward=1.5)
             rospy.loginfo("Hitting flare")
-            rospy.loginfo("Forward 1.0")
+            rospy.loginfo("Forward 1.5")
             self.flare.taskComplete()
             return 'manuoevre_complete'
         
