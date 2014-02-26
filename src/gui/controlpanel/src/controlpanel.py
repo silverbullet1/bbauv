@@ -10,6 +10,7 @@ from nav_msgs.msg import Odometry
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
+import dynamic_reconfigure.client
 
 from bbauv_msgs.msg import openups_stats
 from bbauv_msgs.msg import openups
@@ -32,6 +33,7 @@ from bbauv_msgs.msg._thruster import thruster
 from std_msgs.msg._Float32 import Float32
 from std_msgs.msg._Int8 import Int8
 from filter_chain import Vision_filter
+from navigation_map import Navigation_Map
 
 class AUV_gui(QMainWindow):
     isLeak = False
@@ -111,12 +113,15 @@ class AUV_gui(QMainWindow):
     
     def __init__(self, parent=None):
         super(AUV_gui, self).__init__(parent)
+        self.testing = rospy.get_param("~testing", False)
         
         self.main_tab = QTabWidget()
         self.main_frame = QWidget()
         self.vision_filter_frame = Vision_filter()
+        self.navigation_frame = Navigation_Map()
         self.main_tab.addTab(self.main_frame, "Telemetry")
         self.main_tab.addTab(self.vision_filter_frame, "Vision Filter")
+        self.main_tab.addTab(self.navigation_frame, "Navigation")
         
         goalBox =  QGroupBox("Goal Setter")
         depth_l , self.depth_box, layout4 = self.make_data_box("Depth:       ")
@@ -132,23 +137,31 @@ class AUV_gui(QMainWindow):
         self.sidemove_rev = QPushButton("Reverse")
         self.forward_rev = QPushButton("Reverse")
         
-        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:")
-        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:")
+        roll_chk, self.roll_chkbox, layout_roll = self.make_data_chkbox("Roll:   ")
+        pitch_chk, self.pitch_chkbox, layout_pitch = self.make_data_chkbox("Pitch: ")
+        
+        rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:    ")
+        rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:    ")
         
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
         goal_heading_layout.addLayout(layout5)
+        goal_heading_layout.addStretch()
+        
         goal_depth_layout = QHBoxLayout()
         goal_depth_layout.addLayout(layout4)
         goal_depth_layout.addLayout(layout6)
+        goal_depth_layout.addStretch()
         
         goal_forward_layout = QHBoxLayout()
         goal_forward_layout.addLayout(layout1)
+        goal_forward_layout.addLayout(layout_roll)
         #goal_forward_layout.addWidget(self.forward_rev)
         goal_forward_layout.addStretch()
         
         goal_sidemove_layout = QHBoxLayout()
         goal_sidemove_layout.addLayout(layout2)
+        goal_sidemove_layout.addLayout(layout_pitch)
         #goal_sidemove_layout.addWidget(self.sidemove_rev)
         goal_sidemove_layout.addStretch()
                 
@@ -230,9 +243,12 @@ class AUV_gui(QMainWindow):
         ypos_l, self.ypos_box,layout7 = self.make_data_box("y coord:")
         self.goToPos = QPushButton("&Go!")
         self.goToPos.clicked.connect(self.goToPosHandler)
+        self.resetEarth = QPushButton("Reset E&arth")
+        self.resetEarth.clicked.connect(self.resetEarthHandler)
         layout8 = QHBoxLayout()
         layout8.addWidget(self.goToPos)
-        layout8.addStretch()
+        #layout8.addStretch()
+        layout8.addWidget(self.resetEarth)
         
         vbox4 = QVBoxLayout()
         vbox4.addWidget(Navigation)
@@ -284,22 +300,23 @@ class AUV_gui(QMainWindow):
         heading_l = QLabel("User Goal")
         compass_l.setAlignment(Qt.AlignHCenter)
         heading_l.setAlignment(Qt.AlignHCenter)
-        
-        self.acoustic_provider = Qwt.QwtCompass()
-        self.acoustic_provider.setLineWidth(4)
-        self.acoustic_provider.setMode(Qwt.QwtCompass.RotateNeedle)
-        rose = Qwt.QwtSimpleCompassRose(16,2)
-        rose.setWidth(0.15)
-        self.acoustic_provider.setRose(rose)
-        self.acoustic_provider.setNeedle(Qwt.QwtCompassMagnetNeedle(
-                Qwt.QwtCompassMagnetNeedle.ThinStyle))
-        
-        acoustic_l = QLabel("Acoustic")
-        acoustic_l.setAlignment(Qt.AlignHCenter)
+             
+        acoustic_l = QLabel("<b>Acoustics</b>")
+        a_heading_l , self.acoustic_h_box, acoustic_h_provider = self.make_data_box("Heading:")
+        a_forward_l , self.acoustic_f_box, acoustic_f_provider = self.make_data_box("Forward:")
+        acousticBtn = QPushButton("&Turn")
+        acousticBtn.clicked.connect(self.acousticBtnHandler)
+        acousticGoBtn = QPushButton("F&wd")
+        acousticGoBtn.clicked.connect(self.acousticGoBtnHandler)
         acoustic_layout = QVBoxLayout()
-        acoustic_layout.addWidget(self.acoustic_provider)
         acoustic_layout.addWidget(acoustic_l)
-        #acoustic_layout.addStretch(1)
+        acoustic_layout.addLayout(acoustic_h_provider)
+        acoustic_layout.addLayout(acoustic_f_provider)
+        acoustic_layout_h = QHBoxLayout()
+        acoustic_layout_h.addWidget(acousticBtn)
+        acoustic_layout_h.addWidget(acousticGoBtn)
+        acoustic_layout.addLayout(acoustic_layout_h)
+        acoustic_layout.addStretch()
         
         compass_layout = QHBoxLayout()
         current_layout = QVBoxLayout()
@@ -312,11 +329,11 @@ class AUV_gui(QMainWindow):
         #user_layout.addStretch(1)
         compass_layout.addLayout(current_layout)
         compass_layout.addLayout(user_layout)
-        compass_layout.addLayout(acoustic_layout)
         
         compass_box = QGroupBox("AUV Heading")
         compass_box.setLayout(compass_layout)
         goal_gui_layout.addWidget(compass_box)
+        goal_gui_layout.addLayout(acoustic_layout)
         
         #Depth Scale
         self.depth_thermo = Qwt.QwtThermo()
@@ -380,7 +397,7 @@ class AUV_gui(QMainWindow):
         saBox.setLayout(sa_layout)
         
         #OpenUPS Information
-        oBox = QGroupBox("Battery Information")
+        oBox = QGroupBox("Battery and Temp Information")
         self.oPanel1 = QTextBrowser()
         self.oPanel1.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.oPanel2 = QTextBrowser()
@@ -390,14 +407,28 @@ class AUV_gui(QMainWindow):
 
         o_layout = QHBoxLayout()
         o_layout.addWidget(self.oPanel1)
-        o_layout.addWidget(self.oPanel2)
+        #o_layout.addWidget(self.oPanel2)
         o_layout.addWidget(self.oPanel3)
         oBox.setLayout(o_layout)
+        
+        #Leak sensors Information
+        lBox = QGroupBox("Leak Sensors")
+        self.lPanel1 = QTextBrowser()
+        self.lPanel1.setStyleSheet("QTextBrowser { background-color : black; color : white}")
+        leak_layout = QVBoxLayout()
+        leak_layout.addWidget(self.lPanel1)
+        lBox.setLayout(leak_layout)
+        
+        #Bottom layout
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addWidget(oBox)
+        bottom_layout.addWidget(lBox)
         
         display_layout = QVBoxLayout()
         display_layout.addWidget(attitudeBox)
         display_layout.addWidget(saBox)
-        display_layout.addWidget(oBox)
+        display_layout.addLayout(bottom_layout)
+        #display_layout.addWidget(oBox)
         overall_display_layout = QHBoxLayout()
         overall_display_layout.addLayout(display_layout)
         overall_display_layout.addWidget(setpointBox) 
@@ -429,7 +460,6 @@ class AUV_gui(QMainWindow):
         self.setGeometry(300, 300, 1090, 760)
         self.setWindowTitle('Bumblebee AUV Control Panel')
         self.setWindowIcon(QIcon(os.getcwd() + '/icons/field.png'))
-	print os.getcwd() 
         self.setCentralWidget(self.main_tab)
         self.heading_provider.valueChanged.connect(self.valueChanged)
         self.initImage()
@@ -440,12 +470,12 @@ class AUV_gui(QMainWindow):
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
     
-       # if not pynotify.init("Basics"):
-       #     sys.exit(1)
- 
-       # n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
-       # if not n.show():
-       #     print "Failed to send notification"
+        if not pynotify.init("Basics"):
+             sys.exit(1)
+  
+        n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
+        if not n.show():
+             print "Failed to send notification"
     
     def on_timer(self):
         acoustic = None
@@ -555,8 +585,9 @@ class AUV_gui(QMainWindow):
             self.data['yaw'] = orientation.yaw
             self.data['roll'] = orientation.roll
         if acoustic != None:
-            #self.data['acoustic'] = acoustic.yaw
-            self.data['acoustic'] = 0.0
+            self.data['acoustic'] = acoustic.angle
+        if cputemp != None:
+            self.data['cputemp'] = cputemp
         if hull_statuses != None:
             self.data['hull_status'] = hull_statuses
         if rel_pos != None:
@@ -596,7 +627,7 @@ class AUV_gui(QMainWindow):
         
         self.depth_thermo.setValue(round(self.data['depth'],2))    
         self.compass.setValue(int(self.data['yaw']))
-        self.acoustic_provider.setValue(int(self.data['acoustic']))
+        self.acoustic_h_box.setText(str(int(self.data['acoustic'])))
         
         if self.data['mode']== 0:
             self.l_mode.setText("Default")
@@ -680,25 +711,45 @@ class AUV_gui(QMainWindow):
                               "<br>ROT: " + mani_name[6] +
                               "</b>")
         
+<<<<<<< HEAD
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB ) and not self.isLeak:
            # n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
            # if not n.show():
            #     print "Failed to send notification"
+=======
+        if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB 
+            or self.data['hull_status'].WaterDetC) and not self.isLeak:
+            n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
+            if not n.show():
+                print "Failed to send notification"
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
             self.isLeak = True
         else:
             self.isLeak = False
         
         
         self.oPanel1.setText("<b>BATT1: " +
+<<<<<<< HEAD
                               "<br> VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
+=======
+                              "&nbsp;&nbsp;&nbsp; VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
+                              "<br>BATT2: " + 
+                              "&nbsp;&nbsp;&nbsp; VOLT2: " + str(self.data['openups'].battery2*0.1) +
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")
         
+<<<<<<< HEAD
         self.oPanel2.setText("<b>BATT2: " +
                              "<br> VOLT2: " + str(self.data['openups'].battery2*0.1)+ 
                              #"&nbsp;&nbsp;&nbsp;&nbsp; CURR2: " +
                              # str(self.data['openups'].current2 +
+=======
+        self.lPanel1.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
+                            "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
+                            "<br> W3: " + str(self.data['hull_status'].WaterDetC) +
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
                              "</b>")
         
         self.oPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) + 
@@ -709,14 +760,15 @@ class AUV_gui(QMainWindow):
                               "&nbsp;&nbsp;&nbsp; W3: " + str(self.data['hull_status'].WaterDetC) +
                               "</b>")
         
-        s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
-        goal_string = s
+#         s = "".join([i for i in self.data['goal_id'] if not i.isdigit()])
+#         goal_string = s
+        goal_string = self.data['goal_id'].partition('-')
         
         self.setpointPanel1.setText("<b>HDG: " + str(round(self.data['heading_setpoint'],2)) + 
                                     "<br> FWD: " + str(round(self.data['forward_setpoint'],2)) + 
                                     "<br>SIDE: "+ str(round(self.data['sidemove_setpoint'],2)) + 
                                     "<br>DEP: "+ str(round(self.data ['depth_setpoint'],2)) + 
-                                    "<br><br>ID: " + goal_string + 
+                                    "<br><br>ID: " + goal_string[0] + 
                                     "</b>")
         
 
@@ -785,8 +837,14 @@ class AUV_gui(QMainWindow):
         self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
+<<<<<<< HEAD
         self.acoustic_sub = rospy.Subscriber("/euler", compass_data, self.acoustic_callback)
 
+=======
+        self.acoustic_sub = rospy.Subscriber("/acoustic/angFromPing", acoustic, self.acoustic_callback)
+        self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
+        
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
     def get_status(self,val):
         if val == -1:
             return "NONE"
@@ -813,14 +871,59 @@ class AUV_gui(QMainWindow):
 
     def unsubscribeHandler(self):
         if self.isSubscribed:
-            self.unsubscribeButton.setText("Subscribe")
+            self.unsubscribeButton.setText("Subscribe&n")
             self.unsubscribe()
+            self.navigation_frame.unregisterSub()
         else:
-            self.unsubscribeButton.setText("Unsubscribe")
+            self.unsubscribeButton.setText("U&nsubscribe")
             self.initSub()
             self.initImage()
+            self.navigation_frame.initSub
         self.isSubscribed = not self.isSubscribed
         
+<<<<<<< HEAD
+=======
+    def acousticBtnHandler(self):
+        self.status_text.setText("Finding pinger...")
+        resp = self.set_controller_request(True, True, True, False, True, False, False,False)
+        goal = ControllerGoal
+        
+        heading = float(self.acoustic_h_box.text())
+            
+        goal.forward_setpoint = 0
+        goal.sidemove_setpostartBtnint = 0
+        goal.depth_setpoint = 0.3
+        goal.heading_setpoint = heading + self.data['yaw']
+        
+        self.client.send_goal(goal, self.done_cb)
+            
+        #Reset boxes
+        self.acoustic_f_box.setText("")
+        self.acoustic_h_box.setText("")
+    
+    def acousticGoBtnHandler(self):
+        resp = self.set_controller_request(True, True, True, False, True, False, False,False)
+        goal = ControllerGoal
+        
+        if self.acoustic_f_box.text() == "":
+            self.acoustic_f_box.setText("0")
+        forward = float(self.acoustic_f_box.text())
+            
+        goal.forward_setpoint = forward
+        goal.sidemove_setpoint = 0
+        goal.depth_setpoint = 0.3
+        goal.heading_setpoint = self.data['yaw']
+        
+        self.client.send_goal(goal, self.done_cb)
+        
+        #Reset boxes
+        self.acoustic_f_box.setText("")
+        self.acoustic_h_box.setText("")
+    
+    def calDepthHandler(self):
+        self.data['depth_error'] = self.data['depth']
+        rospy.loginfo("Depth calibrated")
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
 
     def sidemove_revHandler(self):
         rev_sidemove = -1.0 * float(self.sidemove_box.text())
@@ -840,23 +943,6 @@ class AUV_gui(QMainWindow):
 
     def disablePIDHandler(self):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
-
-#    def homeBtnHandler(self):
-#        
-#        movebaseGoal = MoveBaseGoal()
-#        x,y,z,w = quaternion_from_euler(0,0,(360 -(self.data['yaw'] + 180) * (pi/180))) #input must be radians
-#        resp = self.set_controller_request(True, True, True, True, False, False,True)
-#        #Execute Nav
-#        movebaseGoal.target_pose.header.frame_id = 'map'
-#        movebaseGoal.target_pose.header.stamp = rospy.Time.now()
-#        movebaseGoal.target_pose.pose.position.x = 0
-#        movebaseGoal.target_pose.pose.position.y = 0 
-#        movebaseGoal.target_pose.pose.orientation.x = 0
-#        movebaseGoal.target_pose.pose.orientation.y = 0
-#        movebaseGoal.target_pose.pose.orientation.z = z
-#        movebaseGoal.target_pose.pose.orientation.w = w
-#        self.movebase_client.send_goal(movebaseGoal, self.movebase_done_cb)
-#
     
     def goToPosHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
@@ -867,11 +953,27 @@ class AUV_gui(QMainWindow):
 
     def homeBtnHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+<<<<<<< HEAD
         res = handle(x=0, y=0)
         return res
+=======
+        handle(x=0, y=0)
+        rospy.loginfo("Moving to home base (0,0)")
+    
+    def resetEarthHandler(self):
+        params = {'zero_distance': True}
+        config = self.dynamic_client.update_configuration(params)
+        self.navigation_frame.clearGraph()
+        rospy.loginfo("Earth odom Resetted zero_distance")
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
         
     def hoverBtnHandler(self):
-        resp = self.set_controller_request(True, True, True, True, True, False,False,False)
+        pitch = False
+        if self.pitch_chkbox.checkState():
+            pitch = True
+        resp = self.set_controller_request(True, True, True, True, pitch, False,False,False)
+        
+#         resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -880,7 +982,15 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
+<<<<<<< HEAD
         resp = self.set_controller_request(True, True, True, True, False, False,False, False)
+=======
+        pitch = False
+        if self.pitch_chkbox.checkState():
+            pitch = True
+        resp = self.set_controller_request(True, True, True, True, pitch, False, False, False)
+#         resp = self.set_controller_request(True, True, True, True, True, False, False, False)
+>>>>>>> b2978bc2810e3c26281a9eb6a8d3bf48f6870481
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -908,7 +1018,13 @@ class AUV_gui(QMainWindow):
 
     def startBtnHandler(self):
         self.status_text.setText("Action Client executing goal...")
-        resp = self.set_controller_request(True, True, True, True, True, False,False,False)
+        roll = False
+        pitch = False
+        if self.roll_chkbox.checkState():
+            roll = True
+        if self.pitch_chkbox.checkState():
+            pitch = True
+        resp = self.set_controller_request(True, True, True, True, pitch, roll, False,False)
         goal = ControllerGoal
         
         #Forward
@@ -923,7 +1039,7 @@ class AUV_gui(QMainWindow):
          
          #Heading 
         if self.heading_box.text() == "":
-            self.heading_box.setText(str(self.data['yaw']))
+            self.heading_box.setText(str(0))
             self.rel_heading_chkbox.setChecked(True)
             goal.heading_setpoint = self.data['yaw']
         elif self.rel_heading_chkbox.checkState():
@@ -933,7 +1049,7 @@ class AUV_gui(QMainWindow):
                    
          #Depth 
         if self.depth_box.text() == "":
-            self.depth_box.setText(str(self.data['depth']))
+            self.depth_box.setText(str(0))
             self.rel_depth_chkbox.setChecked(True)
             goal.depth_setpoint = self.data['depth']
         elif self.rel_depth_chkbox.checkState():
@@ -977,15 +1093,17 @@ class AUV_gui(QMainWindow):
             
     def done_cb(self,status,result):
         self.status_text.setText("Action Client completed goal!")
-        #resp = self.set_controller_request(False, False, False, False, False, True)
+        #resp = self.set_controller_request(False, False, False, False, False, True, False, False)
     
     def movebase_done_cb(self,status,result):
         self.status_text.setText("Move Base Client completed goal!")
+        
     def endBtnHandler(self):
         self.client.cancel_all_goals()
         self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
-        #resp = self.set_controller_request(False, False, False, False, False, True, False)
+        #resp = self.set_controller_request(False, False, False, False, False, False, False, False)
+        
     def initAction(self):
         self.client = actionlib.SimpleActionClient('LocomotionServer', ControllerAction)
         rospy.loginfo("Waiting for Action Server to connect.")
@@ -996,8 +1114,18 @@ class AUV_gui(QMainWindow):
         self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
+        if not self.testing:
+            self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
+            rospy.loginfo("Earth Odom dynamic reconfigure initialised")
+        
+#             self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+#             params = {'jpeg_quality': 40}
+#             config = self.vision_client.update_configuration(params)
+#             rospy.loginfo("Set vision compression to 40%")
+        
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
+        
     def make_data_box(self, name):
         label = QLabel(name)
         qle = QLineEdit()

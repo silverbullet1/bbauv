@@ -239,10 +239,10 @@ void handleEvent(int* axes, char* button) {
 	}
 
 	if (button[BUTTON_B] == 1) {
-		h = 10.0;
+		h = 20.0;
 		toHover = false;
 	} else if (button[BUTTON_X] == 1) {
-		h = -10.0;
+		h = -20.0;
 		toHover = false;
 	}
 

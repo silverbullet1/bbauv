@@ -27,7 +27,7 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.1
     actionsHist = deque()
 
     def __init__(self):
@@ -54,13 +54,14 @@ class LineFollower():
 
         if not self.testing:
             rospy.loginfo("Waiting for vision_to_mission server...")
+            self.isAborted = True
             self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
                                                 vision_to_mission)
             self.toMission.wait_for_service(timeout = 10)
 
         #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                   topside=False, navigation=False)
 
         #Wait for locomotion server to start
@@ -137,7 +138,7 @@ class LineFollower():
 
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
     
     def revertMovement(self):
         if len(self.actionsHist) == 0:
@@ -181,11 +182,11 @@ class LineFollower():
         #Thresholding and noise removal
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
 
-        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         
-        #grayImg = cv2.erode(grayImg, erodeEl)
+        grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 

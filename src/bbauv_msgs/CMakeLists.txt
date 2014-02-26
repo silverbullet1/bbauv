@@ -69,6 +69,7 @@ add_message_files(
   wheel_task_pose.msg
   ##Old msg files end
   cpu_temperature.msg
+  acoustic.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -90,6 +91,7 @@ add_service_files(
 
   #navigate2d
   navigate2d.srv
+
 )
 
 ## Generate actions in the 'action' folder
