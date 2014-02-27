@@ -759,7 +759,7 @@
       <string>&amp;Tune!</string>
      </property>
      <property name="shortcut">
-      <string>Ctrl+E</string>
+      <string>Alt+T</string>
      </property>
     </widget>
     <widget class="QLineEdit" name="conTdVal">
@@ -948,7 +948,7 @@
       <string>S&amp;end!</string>
      </property>
      <property name="shortcut">
-      <string>Ctrl+E</string>
+      <string>Alt+S</string>
      </property>
     </widget>
     <widget class="QPushButton" name="enabledButton">
@@ -972,7 +972,7 @@
       <string>&amp;Enable</string>
      </property>
      <property name="shortcut">
-      <string>Ctrl+E</string>
+      <string>Alt+E</string>
      </property>
     </widget>
     <widget class="QLabel" name="sm_label_2">
@@ -1120,7 +1120,7 @@
       <string>Fi&amp;re</string>
      </property>
      <property name="shortcut">
-      <string>Ctrl+R</string>
+      <string>Alt+R</string>
      </property>
      <property name="checkable">
       <bool>false</bool>
@@ -1253,7 +1253,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>Refresh</string>
+     <string>&amp;Refresh</string>
+    </property>
+    <property name="shortcut">
+     <string>Alt+R</string>
     </property>
    </widget>
    <zorder>frame</zorder>
@@ -1271,7 +1274,7 @@
      <x>0</x>
      <y>0</y>
      <width>945</width>
-     <height>25</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

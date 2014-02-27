@@ -76,8 +76,8 @@ class MissionPlanner(object):
 
 if __name__ == "__main__":
     m = MissionPlanner()
-    m.load_state('Qualifier')
-    #m.load_state('SAUVCInitial')
-    #m.load_state('SAUVCLinefollower')
+    #m.load_state('Qualifier')
+    m.load_state('SAUVCInitial')
+    m.load_state('SAUVCLinefollower')
     #m.load_state('SAUVCInitial')
     m.run()

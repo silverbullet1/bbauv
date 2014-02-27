@@ -22,10 +22,11 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    highThresh = np.array([143, 175, 228]) 
-    lowThresh = np.array([52, 43, 35])
-    #highThresh = np.array([100,161,234])
-    #lowThresh = np.array([77,0,210])
+    highThresh = np.array([143, 255, 228])
+    lowThresh = np.array([47, 43, 35])
+#     highThresh = np.array([100,161,234])
+#     lowThresh = np.array([77,0,210])
+
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
@@ -38,7 +39,7 @@ class Flare:
     yaw = 0.0
         
     screen = {'width': 640, 'height': 480}
-    
+
     deltaXMultiplier = 15.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
     forwardOffset = 0.3     #For just shooting straight
@@ -144,8 +145,8 @@ class Flare:
         if not self.testing:
             #pass
             self.toMission(task_complete_request=True)
-        self.sendMovement(forward=-0.3)     #Retract
-        self.sendMovement(heading=85.0)
+        self.sendMovement(forward=-0.5)     #Retract
+        self.sendMovement(heading=self.yaw+ 85.0)
         self.stopRobot()
         self.isAborted = True
         self.isKilled = True
@@ -181,7 +182,8 @@ class Flare:
         heading = heading if heading else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
-        rospy.loginfo("heading: {} sidemove: {} forward: {}".format(heading, sidemove, forward))
+        rospy.loginfo("forward: {} heading: {} sidemove: {}".format(forward, heading, sidemove))
+
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(1))
         
