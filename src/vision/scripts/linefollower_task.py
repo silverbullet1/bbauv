@@ -116,7 +116,7 @@ class FollowingLine(smach.State):
             sidemove = 0.0
 
         if abs(angle) < 10:
-            self.linefollower.sendMovement(f=0.7, sm=sidemove)
+            self.linefollower.sendMovement(f=0.9, sm=sidemove)
         else:
             if sidemove == 0:
                 sidemove = math.copysign(angle / 60 * 1.0, deltaX)
