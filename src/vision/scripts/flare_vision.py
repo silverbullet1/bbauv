@@ -13,6 +13,7 @@ import roslib; roslib.load_manifest('vision')
 import rospy
 import actionlib
 import cv2 as cv2
+import cv as cv
 from cv_bridge import CvBridge, CvBridgeError
 
 import collections
@@ -22,28 +23,30 @@ import signal
 
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
-    highThresh = np.array([143, 255, 228])
-    lowThresh = np.array([47, 43, 35])
+    #35-68 for slightly cloudy
+    #5-38 for very sunny
+    highThresh = np.array([68, 255, 255])
+    lowThresh = np.array([35, 0, 35])
 #     highThresh = np.array([100,161,234])
 #     lowThresh = np.array([77,0,210])
 
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
-    areaThresh = 800
+    areaThresh = 600
     
     bridge = None
     
     curHeading = 0.0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
     yaw = 0.0
         
     screen = {'width': 640, 'height': 480}
 
-    deltaXMultiplier = 15.0
+    deltaXMultiplier = 5.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
-    forwardOffset = 0.3     #For just shooting straight
-    headOnArea = 10000       #Area for shooting straight
+    forwardOffset = 0.5     #For just shooting straight
+    headOnArea = 3000       #Area for shooting straight
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -56,8 +59,10 @@ class Flare:
     '''
     def __init__(self):
         self.isAborted = False
+        
         self.isKilled = False
         self.testing = rospy.get_param("~testing", False)
+        self.image = rospy.get_param("~image", "/front_camera/camera/image_raw")
         
         #Handle signal
         signal.signal(signal.SIGINT, self.userQuit)
@@ -78,12 +83,8 @@ class Flare:
             
         #Initialising controller service
         controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
-        if self.testing:
-            controllerServer(forward=True, sidemove=True, heading=True, depth=False, pitch=False, roll=False,
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
                              topside=False, navigation=False)
-        else:
-            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=False, roll=False,
-                 topside=False, navigation=False)
         
         #Make sure locomotion server up
         try:
@@ -118,14 +119,15 @@ class Flare:
     
     def register(self):
         self.image_pub = rospy.Publisher("/Vision/image_filter" , Image)
-        self.image_sub = rospy.Subscriber("/front_camera/camera/image_color", Image, self.camera_callback)
+        self.image_sub = rospy.Subscriber(self.image, Image, self.camera_callback)
+#         self.image_sub = rospy.Subscriber("/front_camera/camera/image_rect_color_opt", Image, self.camera_callback)
         self.yaw_sub = rospy.Subscriber('/euler', compass_data, self.yaw_callback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
-        self.image_pub.unregister()
-        self.image_sub.unregister()
-        self.yaw_sub.unregister()
+#         self.image_pub.unregister()
+#         self.image_sub.unregister()
+#         self.yaw_sub.unregister()
         rospy.loginfo("Topics unregistered")
         
     # Handle srv
@@ -146,7 +148,6 @@ class Flare:
             #pass
             self.toMission(task_complete_request=True)
         self.sendMovement(forward=-0.5)     #Retract
-        self.sendMovement(heading=self.yaw+ 85.0)
         self.stopRobot()
         self.isAborted = True
         self.isKilled = True
@@ -156,7 +157,6 @@ class Flare:
     
     #Utility functions to process callback
     def camera_callback(self, image):
-        rospy.loginfo("Camera callback")
         out_image = self.findTheFlare(image)
         #self.image_pub.publish(image)
 
@@ -168,7 +168,7 @@ class Flare:
                     out_image = np.zeros((self.screen['height'], self.screen['width'], 3), np.uint8)
                 if (self.image_pub != None):
                     self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="bgr8"))
-                    #self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
+#                     self.image_pub.publish(self.bridge.cv_to_imgmsg(out_image, encoding="8UC1"))
         except CvBridgeError, e:
             rospy.logerr(str(e))
               
@@ -183,7 +183,7 @@ class Flare:
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
         rospy.loginfo("forward: {} heading: {} sidemove: {}".format(forward, heading, sidemove))
-
+  
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(1))
         
@@ -213,25 +213,70 @@ class Flare:
         out = cv_image.copy()                                   #Copy of image for display later
         #cv_image = cv2.merge(np.array([cv2.equalizeHist(cv_image[:,:,0]),cv2.equalizeHist(cv_image[:,:,1]),
         #                               cv2.equalizeHist(cv_image[:,:,2])]))
-        cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))
+        cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))        
         cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
+        
+        cv_image = cv_image*2
+
+#         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+#         contourImg = gray
+#         ret,thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+#         fg = cv2.erode(thresh, None, iterations=3)
+#         bgt = cv2.dilate(thresh, None, iterations=3)
+#         bg = cv2.bitwise_not(thresh, thresh, mask=thresh)
+#         ret, bg = cv2.threshold(bgt,1,128,1)
+#         marker = cv2.add(fg,bg)
+#         marker32 = np.int32(marker)
+#         cv2.watershed(cv_image, marker32)
+#         m = cv2.convertScaleAbs(marker32)
+#         ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)        
+#         contourImg = cv2.bitwise_and(cv_image,cv_image,mask = thresh)
+                
+#         contourImg = cv2.cvtColor(contourImg, cv2.COLOR_BGR2GRAY)
+          
+#         r = np.zeros((self.screen['width'], self.screen['height']), np.uint8)        
+#         g = np.zeros((self.screen['width'], self.screen['height']), np.uint8)        
+#         cv_image = cv2.merge((contourImg, r, g))
+
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
-
+        hsv_image = hsv_image[self.screen['height']/3:(self.screen['height'])*2/3,0:self.screen['width'],:]
+   
+        #Canny edge
+#         contourImg = contourImg[self.screen['height']/3:(self.screen['height'])*(3/4),0:self.screen['width']]
+#         contourImg = cv2.Canny(contourImg, 50, 150)
+   
         #Perform yellow thresholding
         contourImg = cv2.inRange(hsv_image, self.lowThresh, self.highThresh)
-        
-        #Noise removal
-        #contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
+          
+        #Noise removal       
+#         contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
+  
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (11,11))
-        contourImg = cv2.dilate(contourImg, dilateEl)
-        contourImg = cv2.erode(contourImg, erodeEl, iterations=1)
-      
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        contourImg = cv2.dilate(contourImg, dilateEl, iterations=2)
+        contourImg = cv2.erode(contourImg, erodeEl, iterations=2)
+ 
         #Find centroids
         pImg = contourImg.copy()
         contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
+          
+#         cv2.drawContours(pImg, np.array(contours), -1, 255, 3)
+#         marker = pImg
+#         marker32 = np.int32(marker)
+#         cv2.watershed(cv_image, marker32)
+#         m = cv2.convertScaleAbs(marker32)
+#         ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)        
+#         contourImg = cv2.bitwise_and(cv_image,cv_image,mask = thresh)
+#          
+#         contourImg = cv2.cvtColor(contourImg, cv2.COLOR_HSV2BGR)
+#         contourImg = cv2.cvtColor(contourImg, cv2.COLOR_BGR2GRAY)
+  
+#         ret, contourImg = cv2.threshold(contourImg, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+#         contours, hierachy = cv2.findContours(contourImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+#         dilateEl2 = cv2.getStructuringElement(cv2.MORPH_RECT, (21,21))
+#         contourImg = cv2.dilate(contourImg, dilateEl)
+  
         rectList = []
         for contour in contours:
             rectData = {}
@@ -242,13 +287,14 @@ class Flare:
                 mu_area = mu['m00']
                 centroidx = mu['m10']/mu_area
                 centroidy = mu['m01']/mu_area
-                
+                     
                 rectData['area'] = area
+                rospy.loginfo("Area: {}".format(rectData['area']))
                 rectData['centroids'] = (centroidx, centroidy)
                 rectData['rect'] = cv2.minAreaRect(contour)
-    
+         
                 points = np.array(cv2.cv.BoxPoints(rectData['rect']))
-              
+                   
                 #Find angle
                 edge1 = points[1] - points[0]
                 edge2 = points[2] - points[1]
@@ -258,7 +304,7 @@ class Flare:
                 else:
                     edge2[1] = edge2[1] if edge2[1] is not 0 else 0.01
                     rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
-            
+                 
                 epislon = 10.0
                 if -epislon < rectData['angle'] < epislon:
                     rectData['length'] = max(self.calculateLength(points[0], points[1]),
@@ -266,22 +312,21 @@ class Flare:
                     rectData['width'] = min(self.calculateLength(points[0], points[1]),
                                                   self.calculateLength(points[1], points[2]))
                     rectData['aspect'] = rectData['length']/rectData['width']
-                    
-                    #Find the median of the last four
-#                     if self.previous_centroids:
-#                         x_median, y_median = np.median(self.previous_centroids, axis=0)
-#                         if abs(rectData['centroids'][0]-x_median)< 0.3 and abs(rectData['centroids'][1]-y_median)<0.3:
+                            
+#                     #Find the median of the last four
+#                      if self.previous_centroids:
+#                          x_median, y_median = np.median(self.previous_centroids, axis=0)
+#                          if abs(rectData['centroids'][0]-x_median)< 0.3 and abs(rectData['centroids'][1]-y_median)<0.3:
                     rectList.append(rectData)                            
                     self.previous_centroids.append(rectData['centroids'])
-
-        
+            
         #Find the largest rect length
         rectList.sort(cmp=None, key=lambda x: x['aspect'], reverse=True)
         if rectList:
             self.rectData = rectList[0]
             self.rectData['detected'] = True
-            rospy.loginfo(self.rectData['angle'])            
-            
+            rospy.loginfo("Angle: {}".format(self.rectData['angle']))            
+                 
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
             centery = int(self.rectData['centroids'][1])
@@ -294,19 +339,15 @@ class Flare:
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
-                              
+                                   
                 cv2.line(contourImg, pt1, pt2, (255,0,0))
-                cv2.line(out, pt1, pt2, (0,0,255))
-            cv2.putText(out, str(self.rectData['angle']), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
             cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
-            
+                 
         else:
             self.rectData['detected'] = False 
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)            
-              
-        #return out
+               
         return contourImg
     
     def calculateLength(self, pt1, pt2):
