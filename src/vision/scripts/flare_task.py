@@ -110,23 +110,21 @@ class Manuoevre(smach.State):
         #Shoot straight and aim
         if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.30:
             self.flare.sendMovement(forward=1.8)
-            rospy.sleep(rospy.Duration(1))
             rospy.loginfo("Hitting flare")
             rospy.loginfo("Forward 1.5")
             self.flare.taskComplete()
             return 'manuoevre_complete'
         #Forward if center
-        elif abs(deltaX) < 0.15:
+        elif abs(deltaX) < 0.30:
             self.flare.sendMovement(forward=self.flare.forwardOffset)
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(1))
             rospy.loginfo("Forward {}".format(self.flare.forwardOffset))
         else:
             #Sidemove if too far off center
-#             sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
-            sidemove = math.copysign(0.5, deltaX)
-            self.flare.sendMovement(forward=0, sidemove=sidemove)
-            rospy.sleep(rospy.Duration(0.3))
-            rospy.loginfo("Forward {} sidemove{}".format(0.2,sidemove))
+            sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
+#             sidemove = math.copysign(0.5, deltaX)
+            self.flare.sendMovement(forward=0.1, sidemove=sidemove)
+            rospy.loginfo("Forward {} sidemove{}".format(0.1,sidemove))
         return 'manuoevring'
                        
 '''

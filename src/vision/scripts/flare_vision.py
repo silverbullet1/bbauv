@@ -26,7 +26,7 @@ class Flare:
     #35-68 for slightly cloudy
     #5-38 for very sunny
     highThresh = np.array([68, 255, 255])
-    lowThresh = np.array([35, 30, 35])
+    lowThresh = np.array([35, 0, 35])
 #     highThresh = np.array([100,161,234])
 #     lowThresh = np.array([77,0,210])
 
@@ -43,7 +43,7 @@ class Flare:
         
     screen = {'width': 640, 'height': 480}
 
-    deltaXMultiplier = 15.0
+    deltaXMultiplier = 5.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
     forwardOffset = 0.5     #For just shooting straight
     headOnArea = 3000       #Area for shooting straight
@@ -185,7 +185,7 @@ class Flare:
         rospy.loginfo("forward: {} heading: {} sidemove: {}".format(forward, heading, sidemove))
   
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(1))
         
         
     def abortMission(self):
@@ -252,10 +252,10 @@ class Flare:
         #Noise removal       
 #         contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
   
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
-        contourImg = cv2.dilate(contourImg, dilateEl)
-        contourImg = cv2.erode(contourImg, erodeEl, iterations=1)
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        contourImg = cv2.dilate(contourImg, dilateEl, iterations=2)
+        contourImg = cv2.erode(contourImg, erodeEl, iterations=2)
  
         #Find centroids
         pImg = contourImg.copy()
