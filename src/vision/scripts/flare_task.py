@@ -71,7 +71,7 @@ class Search(smach.State):
             if timecount > self.timeout or rospy.is_shutdown() or self.flare.isKilled:
                 self.flare.abortMission()
                 return 'aborted'
-            self.flare.sendMovement(forward=1.0, depth=0.4)
+            self.flare.sendMovement(forward=1.0)
             rospy.sleep(rospy.Duration(0.3))
             timecount += 1
             self.flare.failedTask();
@@ -105,11 +105,12 @@ class Manuoevre(smach.State):
         screenCenterX = screenWidth / 2
         deltaX = (self.flare.rectData['centroids'][0] - screenCenterX) / screenWidth
         rospy.loginfo(deltaX)
-        
+         
         #Forward if center
         #Shoot straight and aim
-        if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.15:
-            self.flare.sendMovement(forward=1.5)
+        if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.30:
+            self.flare.sendMovement(forward=1.8)
+            rospy.sleep(rospy.Duration(1))
             rospy.loginfo("Hitting flare")
             rospy.loginfo("Forward 1.5")
             self.flare.taskComplete()
@@ -117,12 +118,15 @@ class Manuoevre(smach.State):
         #Forward if center
         elif abs(deltaX) < 0.15:
             self.flare.sendMovement(forward=self.flare.forwardOffset)
+            rospy.sleep(rospy.Duration(0.3))
             rospy.loginfo("Forward {}".format(self.flare.forwardOffset))
         else:
             #Sidemove if too far off center
-            sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
-            self.flare.sendMovement(forward=self.flare.sidemoveMovementOffset, sidemove=sidemove)
-            rospy.loginfo("Forward {} sidemove{}".format(self.flare.sidemoveMovementOffset,sidemove))
+#             sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
+            sidemove = math.copysign(0.5, deltaX)
+            self.flare.sendMovement(forward=0, sidemove=sidemove)
+            rospy.sleep(rospy.Duration(0.3))
+            rospy.loginfo("Forward {} sidemove{}".format(0.2,sidemove))
         return 'manuoevring'
                        
 '''

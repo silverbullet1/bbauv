@@ -130,8 +130,8 @@ class Firing(smach.State):
         self.bucketDetector.stopRobot()
         rospy.sleep(rospy.Duration(1))
         for i in range(10):
-            firePub.publish(self.bucketDetector.maniData | 0)
-            rospy.sleep(rospy.Duration(0.1))
+            firePub.publish(self.bucketDetector.maniData & 0)
+            rospy.sleep(rospy.Duration(0.2))
 
         self.bucketDetector.taskComplete()
         return 'firing_complete'

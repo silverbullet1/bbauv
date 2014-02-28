@@ -28,7 +28,7 @@ class BucketDetector:
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.4
     maniData = 0
     actionsHist = deque()
     
@@ -71,17 +71,19 @@ class BucketDetector:
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
             self.toMission.wait_for_service(timeout=10)
         
-        #Initializing controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                         topside=False, navigation=False)
-
         #Make sure locomotion server is up
         try:
             self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except:
             rospy.logerr("Locomotion server timeout!")
             self.isKilled = True
+
+        #Initializing controller service
+        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                         topside=False, navigation=False)
+        self.stopRobot()
+
 
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")

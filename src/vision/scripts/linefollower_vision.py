@@ -21,13 +21,14 @@ class LineFollower():
     thval = 30
     upperThresh = 70
     areaThresh = 7000
+    upperAreaThresh = 70000
     screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.1
+    depth_setpoint = 0.3
     actionsHist = deque()
 
     def __init__(self):
@@ -59,11 +60,6 @@ class LineFollower():
                                                 vision_to_mission)
             self.toMission.wait_for_service(timeout = 10)
 
-        #Setting controller server
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                  topside=False, navigation=False)
-
         #Wait for locomotion server to start
         try:
             rospy.loginfo("Waiting for Locomotion Server...")
@@ -71,6 +67,13 @@ class LineFollower():
         except:
             rospy.loginfo("Locomotion Server timeout!")
             self.isKilled = True  
+
+        #Setting controller server
+        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                  topside=False, navigation=False)
+        self.stopRobot()
+
 
     def userQuit(self, signal, frame):
         self.isAborted = True
@@ -182,11 +185,11 @@ class LineFollower():
         #Thresholding and noise removal
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
 
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         
-        grayImg = cv2.erode(grayImg, erodeEl)
+        #grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 
@@ -199,7 +202,7 @@ class LineFollower():
         maxArea = 0
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > self.areaThresh and area > maxArea:
+            if area > self.areaThresh and area < self.upperAreaThresh and area > maxArea:
                 #Find the center using moments
                 mu = cv2.moments(contour, False) 
                 centroidx = mu['m10'] / mu['m00']
@@ -210,6 +213,7 @@ class LineFollower():
                 self.rectData['rect'] = cv2.minAreaRect(contour)
 
         if maxArea > 0:
+            rospy.loginfo("Area: {}".format(maxArea))
             self.rectData['detected'] = True
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
 
