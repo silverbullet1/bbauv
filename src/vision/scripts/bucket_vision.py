@@ -28,7 +28,7 @@ class BucketDetector:
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.4
     maniData = 0
     actionsHist = deque()
     
@@ -67,20 +67,24 @@ class BucketDetector:
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
         if not self.testing: 
+            self.isAborted = True
+            rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout = 10)
+            self.toMission.wait_for_service(timeout=60)
         
-        #Initializing controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
-                         topside=False, navigation=False)
-
         #Make sure locomotion server is up
         try:
             self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except:
             rospy.logerr("Locomotion server timeout!")
             self.isKilled = True
+
+        #Initializing controller service
+        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                         topside=False, navigation=False)
+        self.stopRobot()
+
 
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")
@@ -117,7 +121,7 @@ class BucketDetector:
  
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(1.0))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.2))
 
     def revertMovement(self):
         if len(self.actionsHist) == 0:
