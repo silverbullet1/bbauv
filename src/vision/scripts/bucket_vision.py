@@ -68,8 +68,9 @@ class BucketDetector:
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
         if not self.testing: 
             self.isAborted = True
+            rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout=10)
+            self.toMission.wait_for_service(timeout=60)
         
         #Make sure locomotion server is up
         try:
@@ -120,7 +121,7 @@ class BucketDetector:
  
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.2))
 
     def revertMovement(self):
         if len(self.actionsHist) == 0:

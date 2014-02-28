@@ -99,7 +99,7 @@ class Centering(smach.State):
         screenWidth = self.bucketDetector.screen['width']
         screenCenterX = screenWidth / 2
         screenHeight = self.bucketDetector.screen['height']
-        screenCenterY = screenHeight / 2 - 5 
+        screenCenterY = screenHeight / 2 - 5
         deltaX = (rectData['centroid'][0] - screenCenterX) / screenWidth
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
@@ -109,7 +109,7 @@ class Centering(smach.State):
             return 'centering_complete'
 
         fwd_setpoint = math.copysign(0.1, -deltaY) if abs(deltaY) > 0.05 else 0.0
-        sm_setpoint = math.copysign(0.5, deltaX) if abs(deltaX) > 0.05 else 0.0
+        sm_setpoint = math.copysign(1.0, deltaX) if abs(deltaX) > 0.05 else 0.0
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
 

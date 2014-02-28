@@ -28,7 +28,7 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.2
     actionsHist = deque()
 
     def __init__(self):
@@ -58,7 +58,7 @@ class LineFollower():
             self.isAborted = True
             self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout = 10)
+            self.toMission.wait_for_service(timeout = 60)
 
         #Wait for locomotion server to start
         try:
@@ -213,7 +213,6 @@ class LineFollower():
                 self.rectData['rect'] = cv2.minAreaRect(contour)
 
         if maxArea > 0:
-            rospy.loginfo("Area: {}".format(maxArea))
             self.rectData['detected'] = True
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
 
