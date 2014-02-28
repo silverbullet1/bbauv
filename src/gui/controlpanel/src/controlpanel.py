@@ -904,7 +904,8 @@ class AUV_gui(QMainWindow):
         self.acoustic_h_box.setText("")
     
     def calDepthHandler(self):
-        self.data['depth_error'] = self.data['depth']
+        params = {'depth_offset': self.data['depth']}
+        config = self.dynamic_client.update_configuration(params)
         rospy.loginfo("Depth calibrated")
 
     def sidemove_revHandler(self):
@@ -1090,6 +1091,9 @@ class AUV_gui(QMainWindow):
         if not self.testing:
             self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
+            
+            self.controller_client = dynamic_reconfigure.client.Client('/Controller')
+            rospy.loginfo("Controller client connected")
         
 #             self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
 #             params = {'jpeg_quality': 40}
