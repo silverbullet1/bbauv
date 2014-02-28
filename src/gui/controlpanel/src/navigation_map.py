@@ -49,12 +49,12 @@ class Navigation_Map(QWidget):
         
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
+#         self.toolbar = NavigationToolbar(self.canvas, self)
         self.refreshBtnHandler()
                 
         main_layout = QVBoxLayout()
         main_layout.addLayout(map_layout)
-        main_layout.addWidget(self.toolbar)
+#         main_layout.addWidget(self.toolbar)
         main_layout.addWidget(self.canvas)
         
         self.initTimer(self.rate)

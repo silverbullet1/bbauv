@@ -874,9 +874,9 @@ class AUV_gui(QMainWindow):
         heading = float(self.acoustic_h_box.text())
             
         goal.forward_setpoint = 0
-        goal.sidemove_setpostartBtnint = 0
+        goal.sidemove_setpoint = 0
         goal.depth_setpoint = 0.3
-        goal.heading_setpoint = heading + self.data['yaw']
+        goal.heading_setpoint = (heading + self.data['yaw'] ) % 360
         
         self.client.send_goal(goal, self.done_cb)
             
@@ -1004,7 +1004,10 @@ class AUV_gui(QMainWindow):
         #Forward
         if self.forward_box.text() == "":
              self.forward_box.setText("0")
-        goal.forward_setpoint = float(self.forward_box.text())
+        try:
+            goal.forward_setpoint = float(self.forward_box.text())
+        except:
+            forward_string = "" + [i for i in forward_box.text if i.isdigit()]
          
          #Sidemove
         if self.sidemove_box.text() == "":
