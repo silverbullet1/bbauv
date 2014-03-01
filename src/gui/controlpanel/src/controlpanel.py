@@ -903,7 +903,7 @@ class AUV_gui(QMainWindow):
     
     def calDepthHandler(self):
         params = {'depth_offset': self.data['depth']}
-        config = self.dynamic_client.update_configuration(params)
+        config = self.controller_client.update_configuration(params)
         rospy.loginfo("Depth calibrated")
 
     def sidemove_revHandler(self):
@@ -1102,10 +1102,10 @@ class AUV_gui(QMainWindow):
             self.controller_client = dynamic_reconfigure.client.Client('/Controller')
             rospy.loginfo("Controller client connected")
         
-#             self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
-#             params = {'jpeg_quality': 40}
-#             config = self.vision_client.update_configuration(params)
-#             rospy.loginfo("Set vision compression to 40%")
+            self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+            params = {'jpeg_quality': 40}
+            config = self.vision_client.update_configuration(params)
+            rospy.loginfo("Set vision compression to 40%")
         
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
