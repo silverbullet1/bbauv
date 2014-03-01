@@ -21,14 +21,14 @@ import numpy as np
 
 class BucketDetector:
     #HSV thresholds for red color
-    lowThresh1 = np.array([ 92, 0, 10 ])
+    lowThresh1 = np.array([ 92, 0, 0 ])
     hiThresh1 = np.array([ 132, 255, 255 ]) 
     areaThresh = 10000
     
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.4
+    depth_setpoint = 0.3
     maniData = 0
     actionsHist = deque()
     
@@ -94,16 +94,16 @@ class BucketDetector:
         self.isKilled = True
         
     def reconfigure(self, config, level):
-        rospy.loginfo("Got reconfigure request!")
-        self.lowThresh1[0] = config['loH']
-        self.lowThresh1[1] = config['loS']
-        self.lowThresh1[2] = config['loV']
-        
-        self.hiThresh1[0] = config['hiH']
-        self.hiThresh1[1] = config['hiS']
-        self.hiThresh1[2] = config['hiV']
-        
-        self.areaThresh = config['area_thresh']
+#         rospy.loginfo("Got reconfigure request!")
+#         self.lowThresh1[0] = config['loH']
+#         self.lowThresh1[1] = config['loS']
+#         self.lowThresh1[2] = config['loV']
+#         
+#         self.hiThresh1[0] = config['hiH']
+#         self.hiThresh1[1] = config['hiS']
+#         self.hiThresh1[2] = config['hiV']
+#         
+#         self.areaThresh = config['area_thresh']
         
         return config
 
@@ -121,7 +121,7 @@ class BucketDetector:
  
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.2))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.4))
 
     def revertMovement(self):
         if len(self.actionsHist) == 0:
@@ -140,13 +140,13 @@ class BucketDetector:
 
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
-        self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
+#         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
         self.maniSub = rospy.Subscriber('/manipulators', manipulator, self.maniCallback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
         self.image_sub.unregister()
-        self.headingSub.unregister()
+#         self.headingSub.unregister()
         rospy.loginfo("Topics unregistered")
     
     def handleSrv(self, req):
@@ -165,7 +165,8 @@ class BucketDetector:
 
     def searchComplete(self):
         if not self.testing:
-            self.toMission(search_request=True)
+            resp = self.toMission(search_request=True)
+            self.curHeading = resp.data.heading_setpoint
 
     def abortMission(self):
         if not self.testing:

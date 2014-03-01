@@ -47,6 +47,11 @@ class Searching1(smach.State):
             rospy.sleep(rospy.Duration(0.1))
 
         self.bucketDetector.searchComplete()
+
+        self.bucketDetector.depth_setpoint = 0.2
+        self.bucketDetector.stopRobot()
+        rospy.sleep(rospy.Duration(2.0))
+
         return 'search_complete'
 
 class Searching2(smach.State):
@@ -67,9 +72,9 @@ class Searching2(smach.State):
             timecount += 1
             rospy.sleep(rospy.Duration(0.1))
             
-        while self.bucketDetector.revertMovement():
-            if self.bucketDetector.rectData['detected']:
-                return 'search_complete'
+#         while self.bucketDetector.revertMovement():
+#             if self.bucketDetector.rectData['detected']:
+#                 return 'search_complete'
 
         timecount = 0
         while not self.bucketDetector.rectData['detected']:
@@ -104,12 +109,12 @@ class Centering(smach.State):
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
         
-        if abs(deltaX) < 0.05 and abs(deltaY) < 0.05:
+        if abs(deltaX) < 0.01 and abs(deltaY) < 0.01:
             self.bucketDetector.stopRobot()
             return 'centering_complete'
 
-        fwd_setpoint = math.copysign(0.1, -deltaY) if abs(deltaY) > 0.05 else 0.0
-        sm_setpoint = math.copysign(1.0, deltaX) if abs(deltaX) > 0.05 else 0.0
+        fwd_setpoint = math.copysign(2.0 * abs(deltaY), -deltaY)
+        sm_setpoint = math.copysign(5.0 * abs(deltaX), deltaX)
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
 
@@ -120,7 +125,10 @@ class Firing(smach.State):
         self.bucketDetector = bucketDetector
     
     def execute(self, userdata):
+        self.bucketDetector.depth_setpoint = 0.5
         self.bucketDetector.stopRobot()
+        self.bucketDetector.sendMovement(f=-0.2)
+        rospy.sleep(rospy.Duration(4))
 
         firePub = rospy.Publisher("/manipulators", manipulator)
         for i in range(10):

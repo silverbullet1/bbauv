@@ -28,7 +28,7 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
     actionsHist = deque()
 
     def __init__(self):
@@ -80,10 +80,10 @@ class LineFollower():
         self.isKilled = True
 
     def reconfigure(self, config, level):
-        rospy.loginfo("Got dynamic reconfigure params")
-        self.areaThresh = config['area_thresh']
-        self.upperThresh = config['upper_thresh']
-        
+#         rospy.loginfo("Got dynamic reconfigure params")
+#         self.areaThresh = config['area_thresh']
+#         self.upperThresh = config['upper_thresh']
+#         
         return config
 
     def registerSubscribers(self):
