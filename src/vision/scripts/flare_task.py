@@ -55,7 +55,7 @@ class Disengage(smach.State):
     
 #Searches for the flare
 class Search(smach.State):
-    timeout = 50    #5s timeout before aborting task
+    timeout = 100    #5s timeout before aborting task
     def __init__(self, flare_task):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'mission_abort'])
         self.flare = flare_task
@@ -71,6 +71,7 @@ class Search(smach.State):
             if timecount > self.timeout or rospy.is_shutdown() or self.flare.isKilled:
                 self.flare.abortMission()
                 return 'aborted'
+            self.flare.sendMovement(forward=1.0)
             rospy.sleep(rospy.Duration(0.3))
             timecount += 1
             self.flare.failedTask();
@@ -93,36 +94,37 @@ class Manuoevre(smach.State):
             return 'aborted'
         
         #Cannot detect already
-        if not self.flare.rectData['detected']:
-            self.count += 1
-        if self.count > 4:
-            self.flare.taskComplete()
-            return 'manuoevre_complete'
+#         if not self.flare.rectData['detected']:
+#             self.count += 1
+#         if self.count > 4:
+#             self.flare.taskComplete()
+#             return 'manuoevre_complete'
         
         #Get to the flare
         screenWidth = self.flare.screen['width']
         screenCenterX = screenWidth / 2
         deltaX = (self.flare.rectData['centroids'][0] - screenCenterX) / screenWidth
         rospy.loginfo(deltaX)
-        
+         
         #Forward if center
         #Shoot straight and aim
-        if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.05:
-            self.flare.sendMovement(forward=1.5)
+        if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.30:
+            self.flare.sendMovement(forward=1.8)
             rospy.loginfo("Hitting flare")
             rospy.loginfo("Forward 1.5")
             self.flare.taskComplete()
             return 'manuoevre_complete'
-        
         #Forward if center
-        elif abs(deltaX) < 0.05:
+        elif abs(deltaX) < 0.30:
             self.flare.sendMovement(forward=self.flare.forwardOffset)
+            rospy.sleep(rospy.Duration(1))
             rospy.loginfo("Forward {}".format(self.flare.forwardOffset))
         else:
             #Sidemove if too far off center
-            sidemove = deltaX * self.flare.deltaXMultiplier     #Random number
-            self.flare.sendMovement(forward=self.flare.sidemoveMovementOffset, sidemove=sidemove)
-            rospy.loginfo("Forward {} sidemove{}".format(self.flare.sidemoveMovementOffset,sidemove))
+            sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
+#             sidemove = math.copysign(0.5, deltaX)
+            self.flare.sendMovement(forward=0.1, sidemove=sidemove)
+            rospy.loginfo("Forward {} sidemove{}".format(0.1,sidemove))
         return 'manuoevring'
                        
 '''

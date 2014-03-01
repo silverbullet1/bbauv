@@ -392,9 +392,8 @@ void collectPressure(const std_msgs::Int16& msg)
 
 	// Case for Adafruit ADC raw current loop sensing
 	double pressure = 15*(double) msg.data/10684 - 7.498596031;
-
-	pressure*= 6895; //Convert to Pascals
-	double depth = pressure/(1000*9.81) - depth_offset;
+    pressure*= 6895; //Convert to Pascals
+    double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;
 	depthReading.pressure = pressure + ATM;

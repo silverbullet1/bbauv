@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 
 import roslib; roslib.load_manifest('core')
-import rospy, smach
+import rospy, smach, actionlib
 import sys
-
+from dynamic_reconfigure.server import Server as DynamicReconfigureServer
+from dynamic_reconfigure.client import Client as DynamicReconfigureClient
+import core.cfg.mission_plannerConfig as Config
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 
 class Interaction(object):
     def __init__(self):
-        self.depth = 0
-        self.yaw = 0
+        self.depth = None
+        self.yaw = None
+        self.static_yaw = None
 
         try:
             self.ControllerSettings = rospy.ServiceProxy("/set_controller_srv",
@@ -19,6 +22,12 @@ class Interaction(object):
                                                    lambda d: setattr(self,
                                                                      'yaw',
                                                                      d.yaw))
+            self.actionServer = actionlib.SimpleActionClient("LocomotionServer",
+                                                             ControllerAction)
+            rospy.loginfo("Waiting for compass to get populated")
+            while self.yaw is None:
+                rospy.sleep(rospy.Duration(1))
+            rospy.loginfo("done waiting for compass")
            # self.depthService = rospy.Subscriber("/depth", depth, lambda d:
            #                                      setattr(self, 'depth',
            #                                              d.depth.depth))
@@ -27,12 +36,14 @@ class Interaction(object):
 
     def enable_PID(self):
         self.ControllerSettings(forward=True, sidemove=True, heading=True,
-                                depth=True, roll=False, topside=False,
+                                depth=True, roll=True, topside=False,
+                                pitch=True,
                                 navigation=False)
 
     def disable_PID(self):
         self.ControllerSettings(forward=False, sidemove=False, heading=False,
                                 depth=False, roll=False, topside=False,
+                                pitch=False,
                                 navigation=False)
 
 
@@ -44,6 +55,13 @@ class MissionPlanner(object):
         self.interact = Interaction()
         self.helper = []
         self.missions = smach.StateMachine(outcomes=['pass', 'fail'])
+        self.reconfigure_server = DynamicReconfigureServer(Config,
+                                                           self.cCallback)
+        self.reconfigure_client = DynamicReconfigureClient("/earth_odom")
+    def cCallback(self, config, level):
+        rospy.loginfo("Reconfigured")
+        self.interact.config = config
+        return config
 
     def load_state(self, name):
         name = "States.%s" % (name)
@@ -72,12 +90,13 @@ class MissionPlanner(object):
 
     def run(self):
         self.add_missions()
+        self.reconfigure_client.update_configuration({'zero_distance' : True})
         self.missions.execute()
 
 if __name__ == "__main__":
     m = MissionPlanner()
-    m.load_state('Qualifier')
-    #m.load_state('SAUVCInitial')
-    #m.load_state('SAUVCLinefollower')
+    #m.load_state('SAUVCQualifier')
+    m.load_state('SAUVCInitial')
+    m.load_state('SAUVCLinefollower')
     #m.load_state('SAUVCInitial')
     m.run()
