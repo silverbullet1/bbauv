@@ -603,6 +603,7 @@ class AUV_gui(QMainWindow):
             self.data['rel_pos'] = rel_pos
         if earth_pos != None:
             self.data['earth_pos'] = earth_pos
+            self.navigation_frame.receiveData(self.data['earth_pos'].pose.pose.position.x, self.data['earth_pos'].pose.pose.position.y )
         if depth != None:
             self.data['depth'] = depth.depth
             self.data['pressure'] = depth.pressure
@@ -738,6 +739,12 @@ class AUV_gui(QMainWindow):
                               # str(self.data['openups'].current1 +
                               "</b>")
         
+        if (self.data['openups'].battery1*0.1 < 22.4 or self.data['openups'].battery2*0.1 < 22.4):
+            n = pynotify.Notification("Battery low! Change batteries NOW!!")
+            if not n.show():
+                print "Failed to send notification"
+        
+        
         self.lPanel1.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
                             "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
                             "<br> W3: " + str(self.data['hull_status'].WaterDetC) +
@@ -863,7 +870,7 @@ class AUV_gui(QMainWindow):
             self.unsubscribeButton.setText("U&nsubscribe")
             self.initSub()
             self.initImage()
-            self.navigation_frame.initSub
+#             self.navigation_frame.initSub
         self.isSubscribed = not self.isSubscribed
         
     def acousticBtnHandler(self):
@@ -931,17 +938,20 @@ class AUV_gui(QMainWindow):
         ypos = float(self.ypos_box.text())
         handle(x=xpos, y=ypos)
         rospy.loginfo("Moving to position x={}, y={}".format(xpos, ypos))
+        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
 
     def homeBtnHandler(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         handle(x=0, y=0)
         rospy.loginfo("Moving to home base (0,0)")
+        self.status_text.setText("Moving to home base (0,0")
     
     def resetEarthHandler(self):
         params = {'zero_distance': True}
         config = self.dynamic_client.update_configuration(params)
         self.navigation_frame.clearGraph()
         rospy.loginfo("Earth odom Resetted zero_distance")
+        self.status_text.setText("Earth odom resetted zero_distance")
         
     def hoverBtnHandler(self):
         roll = False
@@ -959,6 +969,7 @@ class AUV_gui(QMainWindow):
         goal.heading_setpoint = self.data['yaw']
         goal.forward_setpoint = 0
         self.client.send_goal(goal, self.done_cb)
+        self.status_text.setText("Hovering...")
         
     def surfaceBtnHandler(self):
         roll = False
@@ -975,6 +986,7 @@ class AUV_gui(QMainWindow):
         goal.heading_setpoint = self.data['yaw']
         goal.forward_setpoint = 0
         self.client.send_goal(goal, self.done_cb)
+        self.status_text.setText("Surfacing...")
         
     def modeBtnHandler(self):
         if(self.counter == 0):
