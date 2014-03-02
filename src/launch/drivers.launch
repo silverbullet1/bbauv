@@ -20,4 +20,7 @@
     <node pkg="sensors" name="sensors" type="cpu_temp" respawn="false"> </node>
     <!-- Launch xy navigation node -->
     <node pkg="controls" name="controls" type="navigate2D.py" respawn="false"></node>
+
+    <!--Launch earth odom -->
+    <node pkg="earth_odom" name="earth_odom" type="earth_odom" respawn="false"></node>
 </launch> 
