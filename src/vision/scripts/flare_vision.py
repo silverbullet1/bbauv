@@ -219,20 +219,20 @@ class Flare:
         
         cv_image = cv_image*2
 
-#         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-#         contourImg = gray
-#         ret,thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-#         fg = cv2.erode(thresh, None, iterations=3)
-#         bgt = cv2.dilate(thresh, None, iterations=3)
-#         bg = cv2.bitwise_not(thresh, thresh, mask=thresh)
-#         ret, bg = cv2.threshold(bgt,1,128,1)
-#         marker = cv2.add(fg,bg)
-#         marker32 = np.int32(marker)
-#         cv2.watershed(cv_image, marker32)
-#         m = cv2.convertScaleAbs(marker32)
-#         ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)        
-#         contourImg = cv2.bitwise_and(cv_image,cv_image,mask = thresh)
-                
+#          gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+#          contourImg = gray
+#          ret,thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+#          fg = cv2.erode(thresh, None, iterations=3)
+#          bgt = cv2.dilate(thresh, None, iterations=3)
+#          bg = cv2.bitwise_not(thresh, thresh, mask=thresh)
+#          ret, bg = cv2.threshold(bgt,1,128,1)
+#          marker = cv2.add(fg,bg)
+#          marker32 = np.int32(marker)
+#          cv2.watershed(cv_image, marker32)
+#          m = cv2.convertScaleAbs(marker32)
+#          ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)        
+#          contourImg = cv2.bitwise_and(cv_image,cv_image,mask = thresh)
+                  
 #         contourImg = cv2.cvtColor(contourImg, cv2.COLOR_BGR2GRAY)
           
 #         r = np.zeros((self.screen['width'], self.screen['height']), np.uint8)        

@@ -741,7 +741,7 @@ class AUV_gui(QMainWindow):
                               "&nbsp;&nbsp;&nbsp; VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
                               "<br>BATT2: " + 
                               "&nbsp;&nbsp;&nbsp; VOLT2: " + str(self.data['openups'].battery2*0.1) +
-                              "<br> battery_notification " + 
+                              "<br> " + battery_notification +  
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")       
