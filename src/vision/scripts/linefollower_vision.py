@@ -109,7 +109,16 @@ class LineFollower():
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+        
+        lastHeading = self.curHeading
+        length = len(self.actionsHist)
+        if length > 1:
+            lastHeading = self.actionsHist[-2]
+        elif length > 0:
+            lastHeading = self.actionsHist[-1]
+
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller(heading_setpoint=lastHeading))
     
     def stopRobot(self):
         self.sendMovement(f=0, sm=0)
@@ -141,7 +150,7 @@ class LineFollower():
 
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
     
     def revertMovement(self):
         if len(self.actionsHist) == 0:

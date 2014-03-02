@@ -127,8 +127,8 @@ class Firing(smach.State):
     def execute(self, userdata):
         self.bucketDetector.depth_setpoint = 0.5
         self.bucketDetector.stopRobot()
-        self.bucketDetector.sendMovement(f=-0.2)
-        rospy.sleep(rospy.Duration(4))
+        self.bucketDetector.sendMovement(f=-0.1)
+        rospy.sleep(rospy.Duration(3.5))
 
         firePub = rospy.Publisher("/manipulators", manipulator)
         for i in range(10):

@@ -167,6 +167,7 @@ class BucketDetector:
         if not self.testing:
             resp = self.toMission(search_request=True)
             self.curHeading = resp.data.heading_setpoint
+            rospy.loginfo("Handed over! Got heading: {}".format(self.curHeading))
 
     def abortMission(self):
         if not self.testing:
