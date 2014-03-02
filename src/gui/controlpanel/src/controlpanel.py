@@ -37,6 +37,7 @@ from navigation_map import Navigation_Map
 
 class AUV_gui(QMainWindow):
     isLeak = False
+    battery_notification = 0
     main_frame = None
     compass = None 
     heading_provider = None
@@ -739,10 +740,15 @@ class AUV_gui(QMainWindow):
                               # str(self.data['openups'].current1 +
                               "</b>")
         
-        if (self.data['openups'].battery1*0.1 < 22.4 or self.data['openups'].battery2*0.1 < 22.4):
-            n = pynotify.Notification("Battery low! Change batteries NOW!!")
-            if not n.show():
-                print "Failed to send notification"
+        if (self.data['openups'].battery1*0.1 < 22.1 or self.data['openups'].battery2*0.1 < 22.1):
+            if (self.battery_notification % 3 == 0):
+                n = pynotify.Notification("Battery low! Change batteries NOW!!")
+                if not n.show():
+                    print "Failed to send notification"
+            self.battery_notification = self.battery_notification + 1
+        
+        if (self.data['openups'].battery1*0.1 > 24.0 and self.data['openups'].battery2*0.1 > 24.0):
+            self.battery_notification = 0
         
         
         self.lPanel1.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
