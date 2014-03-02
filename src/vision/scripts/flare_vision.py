@@ -25,6 +25,7 @@ class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
     #35-68 for slightly cloudy
     #5-38 for very sunny
+    #77-100 for brighter flare 
     highThresh = np.array([68, 255, 255])
     lowThresh = np.array([35, 0, 35])
 #     highThresh = np.array([100,161,234])

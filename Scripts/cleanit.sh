@@ -26,4 +26,4 @@ done
 # Bag everything from the compressed cameras
 cd ~/bags
 
-rosbag record --split --duration=600 -b 0 -o $NAME /bot_camera/camera/camera_info /bot_camera/camera/image_raw/compressed /front_camera/camera/camera_info /front_camera/camera/image_raw/compressed /depth /altitude /euler /AHRS8_data_e /AHRS8_data_q /LocomotionServer/feedback /controller_points /thruster_speed /odom /task_visualization /WH_DVL_data /map /pressure_data /hull_status /manipulators /rosout
+rosbag record --split --duration=600 -b 0 -o $NAME /bot_camera/camera/camera_info /bot_camera/camera/image_raw/compressed /front_camera/camera/camera_info /front_camera/camera/image_raw/compressed /depth /altitude /euler /AHRS8_data_e /AHRS8_data_q /LocomotionServer/feedback /controller_points /thruster_speed /odom /task_visualization /WH_DVL_data /map /pressure_data /hull_status /manipulators /rosout /Vision/image_filter/compressed

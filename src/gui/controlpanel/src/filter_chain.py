@@ -16,6 +16,9 @@ import cv2
 from qrangeslider import QRangeSlider
 from histogram import QHistogram
 from thresholding import Thresholding
+import dynamic_reconfigure.client
+
+
 #from com.ui import QRangeSlider
 
 class Vision_filter(QWidget):
@@ -88,14 +91,26 @@ class Vision_filter(QWidget):
         self.slider_arr[1].setEnd(255)
         self.slider_arr[2].setEnd(255)
         self.createColor()
+        self.video_layout = QHBoxLayout()
         self.video_filter_l = QLabel("<b>Vision Filter Chain</b>")
         self.video_filter = QLabel()
+        compression_l, self.compression_box, compression_provider = self.make_data_box("Compression Ratio: ")
+        self.compression_box.setText("40")
+        self.compression_Btn = QPushButton("Set")
+        self.compression_Btn.clicked.connect(self.compression_btn_handler)
+        
+        self.video_layout.addWidget(self.video_filter_l)
+        self.video_layout.addStretch()
+        self.video_layout.addLayout(compression_provider)
+        self.video_layout.addWidget(self.compression_Btn)
+        
         channel_front_layout.addWidget(self.view)
         channel_front_layout.addLayout(layout_arr[0])
         channel_front_layout.addLayout(layout_arr[1])
         channel_front_layout.addLayout(layout_arr[2])
         channel_front_layout.addWidget(filters_box)
-        channel_front_layout.addWidget(self.video_filter_l)
+#         channel_front_layout.addWidget(self.video_filter_l)
+        channel_front_layout.addLayout(self.video_layout)
         channel_front_layout.addWidget(self.video_filter)
         channel_front_layout.addStretch(1)
         channel_front_box.setLayout(channel_front_layout)
@@ -250,6 +265,13 @@ class Vision_filter(QWidget):
         #layout.addStretch(1)
         
         return (label, qle,layout)
+    
+    def compression_btn_handler(self):
+        self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+                 
+        params = {'jpeg_quality': 40}
+        config = self.vision_client.update_configuration(params)
+        rospy.loginfo("Set vision compression to 40%")
     
     
     
