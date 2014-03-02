@@ -37,6 +37,7 @@ from navigation_map import Navigation_Map
 
 class AUV_gui(QMainWindow):
     isLeak = False
+    battery_notification = 0
     main_frame = None
     compass = None 
     heading_provider = None
@@ -739,10 +740,15 @@ class AUV_gui(QMainWindow):
                               # str(self.data['openups'].current1 +
                               "</b>")
         
-        if (self.data['openups'].battery1*0.1 < 22.4 or self.data['openups'].battery2*0.1 < 22.4):
-            n = pynotify.Notification("Battery low! Change batteries NOW!!")
-            if not n.show():
-                print "Failed to send notification"
+        if (self.data['openups'].battery1*0.1 < 22.1 or self.data['openups'].battery2*0.1 < 22.1):
+            if (self.battery_notification % 3 == 0):
+                n = pynotify.Notification("Battery low! Change batteries NOW!!")
+                if not n.show():
+                    print "Failed to send notification"
+            self.battery_notification = self.battery_notification + 1
+        
+        if (self.data['openups'].battery1*0.1 > 24.0 and self.data['openups'].battery2*0.1 > 24.0):
+            self.battery_notification = 0
         
         
         self.lPanel1.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
@@ -892,6 +898,7 @@ class AUV_gui(QMainWindow):
         self.acoustic_h_box.setText("")
     
     def acousticGoBtnHandler(self):
+        self.status_text.setText("Going towards pinger...")
         resp = self.set_controller_request(True, True, True, False, True, False, False,False)
         goal = ControllerGoal
         
@@ -909,9 +916,14 @@ class AUV_gui(QMainWindow):
         self.acoustic_h_box.setText("")
     
     def calDepthHandler(self):
+        self.status_text.setText("Calibrating depth...")
+        params = {'depth_offset': 0}
+        config = self.controller_client.update_configuration(params)
+        rospy.sleep(1.0)
+        
         params = {'depth_offset': self.data['depth']}
         config = self.controller_client.update_configuration(params)
-        rospy.loginfo("Depth calibrated")
+        self.status_text.setText("Depth calibrated!! :) ")
 
     def sidemove_revHandler(self):
         rev_sidemove = -1.0 * float(self.sidemove_box.text())
@@ -933,27 +945,26 @@ class AUV_gui(QMainWindow):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
     
     def goToPosHandler(self):
+        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         handle(x=xpos, y=ypos)
-        rospy.loginfo("Moving to position x={}, y={}".format(xpos, ypos))
-        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
 
     def homeBtnHandler(self):
+        self.status_text.setText("Going home.... (0,0")
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         handle(x=0, y=0)
         rospy.loginfo("Moving to home base (0,0)")
-        self.status_text.setText("Moving to home base (0,0")
     
     def resetEarthHandler(self):
+        self.status_text.setText("Earth odom resetted zero_distance")
         params = {'zero_distance': True}
         config = self.dynamic_client.update_configuration(params)
         self.navigation_frame.clearGraph()
-        rospy.loginfo("Earth odom Resetted zero_distance")
-        self.status_text.setText("Earth odom resetted zero_distance")
         
     def hoverBtnHandler(self):
+        self.status_text.setText("Hovering...")
         roll = False
         pitch = False
         if self.roll_chkbox.checkState():
@@ -969,9 +980,9 @@ class AUV_gui(QMainWindow):
         goal.heading_setpoint = self.data['yaw']
         goal.forward_setpoint = 0
         self.client.send_goal(goal, self.done_cb)
-        self.status_text.setText("Hovering...")
         
     def surfaceBtnHandler(self):
+        self.status_text.setText("Surfacing... *gasp*")
         roll = False
         pitch = False
 #         if self.roll_chkbox.checkState():
@@ -986,7 +997,6 @@ class AUV_gui(QMainWindow):
         goal.heading_setpoint = self.data['yaw']
         goal.forward_setpoint = 0
         self.client.send_goal(goal, self.done_cb)
-        self.status_text.setText("Surfacing...")
         
     def modeBtnHandler(self):
         if(self.counter == 0):
