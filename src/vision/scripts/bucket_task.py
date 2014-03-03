@@ -104,7 +104,7 @@ class Centering(smach.State):
         screenWidth = self.bucketDetector.screen['width']
         screenCenterX = screenWidth / 2
         screenHeight = self.bucketDetector.screen['height']
-        screenCenterY = screenHeight / 2 - 5
+        screenCenterY = screenHeight / 2
         deltaX = (rectData['centroid'][0] - screenCenterX) / screenWidth
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
