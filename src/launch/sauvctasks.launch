@@ -16,7 +16,7 @@
             <param name="testing" value="false" />
 	</node>
 	
-	<!-- <node name="acoustics" pkg="acoustics" type="acoustic_task.py">
-	</node> -->
+	<node name="acoustic" pkg="acoustic" type="acoustic_task.py">
+	</node>
 
 </launch>

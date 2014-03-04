@@ -28,7 +28,7 @@ class LineFollower():
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
     actionsHist = deque()
 
     def __init__(self):
@@ -80,10 +80,10 @@ class LineFollower():
         self.isKilled = True
 
     def reconfigure(self, config, level):
-        rospy.loginfo("Got dynamic reconfigure params")
-        self.areaThresh = config['area_thresh']
-        self.upperThresh = config['upper_thresh']
-        
+#         rospy.loginfo("Got dynamic reconfigure params")
+#         self.areaThresh = config['area_thresh']
+#         self.upperThresh = config['upper_thresh']
+#         
         return config
 
     def registerSubscribers(self):
@@ -109,7 +109,16 @@ class LineFollower():
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+        
+        lastHeading = self.curHeading
+        length = len(self.actionsHist)
+        if length > 1:
+            lastHeading = self.actionsHist[-2]
+        elif length > 0:
+            lastHeading = self.actionsHist[-1]
+
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller(heading_setpoint=lastHeading))
     
     def stopRobot(self):
         self.sendMovement(f=0, sm=0)
@@ -141,7 +150,7 @@ class LineFollower():
 
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
     
     def revertMovement(self):
         if len(self.actionsHist) == 0:

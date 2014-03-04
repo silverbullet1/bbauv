@@ -36,7 +36,7 @@ const static int PSI30 = 206842;
 const static int PSI100 = 689475;
 const static int ATM = 99974; //Pascals or 14.5PSI
 
-double thruster3_ratio =1,thruster4_ratio = 1,thruster5_ratio,thruster6_ratio;
+double thruster1_ratio = 1, thruster2_ratio = 1,thruster3_ratio =1,thruster4_ratio = 1,thruster5_ratio,thruster6_ratio;
 
 bbauv_msgs::controller ctrl;
 bbauv_msgs::thruster thrusterSpeed;
@@ -336,8 +336,8 @@ double getHeadingPIDUpdate()
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
     {
-      thrusterSpeed.speed1=forwardPID_output;
-      thrusterSpeed.speed2=forwardPID_output;
+      thrusterSpeed.speed1=thruster1_ratio*forwardPID_output;
+      thrusterSpeed.speed2=thruster2_ratio*forwardPID_output;
       thrusterSpeed.speed7= -(double)headingPID_output-(double)sidemovePID_output;
       thrusterSpeed.speed8= (double)headingPID_output-(double)sidemovePID_output;
       //ROS_INFO("ts8: %d, ts7: %d", thrusterSpeed.speed8,thrusterSpeed.speed7);
@@ -392,8 +392,9 @@ void collectPressure(const std_msgs::Int16& msg)
 
 	// Case for Adafruit ADC raw current loop sensing
 	double pressure = 15*(double) msg.data/10684 - 7.498596031;
-    pressure*= 6895; //Convert to Pascals
-    double depth = pressure/(1000*9.81) - depth_offset;
+
+	pressure*= 6895; //Convert to Pascals
+	double depth = pressure/(1000*9.81) - depth_offset;
 	ctrl.depth_input = depth;
 	depthReading.depth = depth;
 	depthReading.pressure = pressure + ATM;
@@ -460,7 +461,8 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
   thruster6_ratio = config.thruster6_ratio;
   thruster3_ratio = config.thruster3_ratio;
   thruster4_ratio = config.thruster4_ratio;
-
+  thruster1_ratio = config.thruster1_ratio;
+  thruster2_ratio = config.thruster2_ratio;
 
   ctrl.heading_setpoint = config.heading_setpoint;
   ctrl.depth_setpoint = config.depth_setpoint;

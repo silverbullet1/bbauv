@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import time
 import roslib; roslib.load_manifest('core')
 import rospy, smach, actionlib
 import sys
@@ -8,16 +8,19 @@ from dynamic_reconfigure.client import Client as DynamicReconfigureClient
 import core.cfg.mission_plannerConfig as Config
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
+from std_msgs.msg import Int8
 
 class Interaction(object):
     def __init__(self):
         self.depth = None
         self.yaw = None
         self.static_yaw = None
+        self.currPos = {'x' : 0, 'y' : 0}
 
         try:
             self.ControllerSettings = rospy.ServiceProxy("/set_controller_srv",
                                                          set_controller)
+            self.ControllerSettings.wait_for_service()
             self.compassService = rospy.Subscriber("/euler", compass_data,
                                                    lambda d: setattr(self,
                                                                      'yaw',
@@ -30,7 +33,9 @@ class Interaction(object):
             rospy.loginfo("done waiting for compass")
            # self.depthService = rospy.Subscriber("/depth", depth, lambda d:
            #                                      setattr(self, 'depth',
+           #
            #                                              d.depth.depth))
+            self.lights = rospy.Publisher("/led_strips", Int8) 
         except rospy.ServiceException, e:
             rospy.logerr("Error subscribing to service: %s" % (str(e)))
 
@@ -45,6 +50,10 @@ class Interaction(object):
                                 depth=False, roll=False, topside=False,
                                 pitch=False,
                                 navigation=False)
+
+    def DVLCallback(self, data):
+        self.currPos['x'] = data.pose.pose.position.x
+        self.currPos['y'] = data.pose.pose.position.y
 
 
 class MissionPlanner(object):
@@ -91,12 +100,21 @@ class MissionPlanner(object):
     def run(self):
         self.add_missions()
         self.reconfigure_client.update_configuration({'zero_distance' : True})
-        self.missions.execute()
+        outcome = self.missions.execute()
+        return outcome
 
 if __name__ == "__main__":
     m = MissionPlanner()
-    #m.load_state('SAUVCQualifier')
+    #if(len(sys.argv) <= 1):
+    #    exit()
+    #map(m.load_state, sys.argv[1:])
+   # m.load_state('SAUVCQualifier')
     m.load_state('SAUVCInitial')
     m.load_state('SAUVCLinefollower')
     #m.load_state('SAUVCInitial')
-    m.run()
+    time_start = time.time()
+    outcome = m.run()
+    time_end = time.time()
+
+    print outcome
+    print "Time taken: %s" % (str(time_end - time_start))
