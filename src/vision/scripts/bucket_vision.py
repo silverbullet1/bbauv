@@ -131,7 +131,7 @@ class BucketDetector:
 
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(7)
+        self.locomotionClient.wait_for_result(rospy.Duration(7))
 
     def revertMovement(self):
         if len(self.actionsHist) == 0:
@@ -165,7 +165,8 @@ class BucketDetector:
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, False, data=controller())
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller())
     
     def compassCallback(self, data):
         self.curHeading = data.yaw

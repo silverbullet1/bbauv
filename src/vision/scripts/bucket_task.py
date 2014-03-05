@@ -109,7 +109,7 @@ class Centering(smach.State):
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
         
-        if abs(deltaX) < 0.03 and abs(deltaY) < 0.03:
+        if abs(deltaX) < 0.01 and abs(deltaY) < 0.01:
             self.bucketDetector.stopRobot()
             return 'centering_complete'
 
