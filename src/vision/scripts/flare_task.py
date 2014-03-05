@@ -29,6 +29,7 @@ isTestMode = False                  #If test mode then don't wait for mission ca
 rosRate = None 
 flare = None
 VisionLoopCount = 0                 #Counter for number of times the image is being processed
+flareSeen = False
 
 mani_pub = None
 movement_client = None
@@ -55,10 +56,12 @@ class Disengage(smach.State):
     
 #Searches for the flare
 class Search(smach.State):
-    timeout = 100    #5s timeout before aborting task
+    timeout = 200    #5s timeout before aborting task
     def __init__(self, flare_task):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'mission_abort'])
         self.flare = flare_task
+        self.flare.unregisterHeading()
+        rospy.loginfo(self.flare.curHeading)
     
     def execute(self, userdata):
         #Check for abort signal
@@ -87,6 +90,7 @@ class Manuoevre(smach.State):
         self.deltaThresh = 0.15
         self.prevAngle = []
         self.count = 0
+        self.flareSeen = True
         
     def execute(self,userdata):
         #Check for aborted signal
@@ -100,31 +104,39 @@ class Manuoevre(smach.State):
 #             self.flare.taskComplete()
 #             return 'manuoevre_complete'
         
+        if not self.flare.rectData['detected'] and self.flareSeen:
+            self.flare.sendMovement(forward=3.0)
+            rospy.sleep(rospy.Duration(3))
+            self.flare.taskComplete()
+            return 'manuoevre_complete'
+        
         #Get to the flare
         screenWidth = self.flare.screen['width']
         screenCenterX = screenWidth / 2
         deltaX = (self.flare.rectData['centroids'][0] - screenCenterX) / screenWidth
-        rospy.loginfo(deltaX)
+        rospy.loginfo("Delta X {}".format(deltaX))
          
         #Forward if center
         #Shoot straight and aim
-        if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.30:
-            self.flare.sendMovement(forward=1.8)
-            rospy.loginfo("Hitting flare")
-            rospy.loginfo("Forward 1.5")
-            self.flare.taskComplete()
-            return 'manuoevre_complete'
+#         if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.20:
+#             self.flare.sendMovement(forward=2.0)
+#             rospy.loginfo("Hitting flare")
+#             rospy.loginfo("Forward 1.5")
+#             self.flare.locomotionClient.wait_for_result()
+#             self.flare.taskComplete()
+#             return 'manuoevre_complete'
         #Forward if center
-        elif abs(deltaX) < 0.30:
+        if abs(deltaX) < 0.15:
             self.flare.sendMovement(forward=self.flare.forwardOffset)
-            rospy.sleep(rospy.Duration(1))
+            rospy.sleep(rospy.Duration(1.5))
             rospy.loginfo("Forward {}".format(self.flare.forwardOffset))
         else:
             #Sidemove if too far off center
             sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
 #             sidemove = math.copysign(0.5, deltaX)
             self.flare.sendMovement(forward=0.1, sidemove=sidemove)
-            rospy.loginfo("Forward {} sidemove{}".format(0.1,sidemove))
+            rospy.sleep(rospy.Duration(1.0))
+            rospy.loginfo("Forward {} sidemove {}".format(0.1,sidemove))
         return 'manuoevring'
                        
 '''
