@@ -54,16 +54,16 @@ class Plot:
         self.pingDetected = False
         signal.signal(signal.SIGINT, self.userQuit)
         
-        self.locomotionClient = actionlib.SimpleActionClient('LocomotionServer',ControllerAction) 
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, 
-                    roll=False, topside=False, navigation=False)
-        rospy.loginfo("Set server already")
-               
-        try:
-             locomotionClient.wait_for_server(timeout=rospy.Duration(5))
-        except Exception as e: 
-             rospy.loginfo("Error connecting to locomotion server")
+#         self.locomotionClient = actionlib.SimpleActionClient('LocomotionServer',ControllerAction) 
+#         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+#         setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, 
+#                     roll=False, topside=False, navigation=False)
+#         rospy.loginfo("Set server already")
+#                
+#         try:
+#              locomotionClient.wait_for_server(timeout=rospy.Duration(5))
+#         except Exception as e: 
+#              rospy.loginfo("Error connecting to locomotion server")
 
         
         compass_sub = rospy.Subscriber('/euler', bbauv_msgs.msg.compass_data, self.compass_callback)
@@ -210,10 +210,10 @@ class Plot:
     
     def sendMovement(self, forward=0.0, turn=None, depth=0.6):
         pass
-        turn = (turn+self.heading)%360 if turn else self.heading
-        goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, 
-                              sidemove_setpoint=0.0, depth_setpoint=depth)
-        rospy.loginfo("Forward: {} heading: {}".format(forward, turn))
+#         turn = (turn+self.heading)%360 if turn else self.heading
+#         goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, 
+#                               sidemove_setpoint=0.0, depth_setpoint=depth)
+#         rospy.loginfo("Forward: {} heading: {}".format(forward, turn))
 #         self.locomotionClient.send_goal(goal)
 # #         self.locomotionClient.wait_for_result()
 #         self.locomotionClient.wait_for_result(rospy.Duration(0.5))

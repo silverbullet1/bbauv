@@ -58,15 +58,15 @@ class Stop(smach.State):
                     DOA = data[1][0]
                     Elevation = data[1][1]
                     data = []
-                    
+                                        
                     rospy.loginfo("DOA")
                     print DOA
                     print Elevation
                 
-                if Elevation < 10:
-                    return 'below_ping'
-                else: 
-                    return 'received_ping'
+                    if Elevation < 10:
+                        return 'below_ping'
+                    else: 
+                        return 'received_ping'
         
         return 'waiting_ping'
 
