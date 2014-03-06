@@ -140,7 +140,7 @@ def music_3d(complexList):
 
 def getRawData(conn):
     complexList = []
-    sleepAwhile(10)		#Wait for certain interval before receive new data
+    #sleepAwhile(10)		#Wait for certain interval before receive new data
     conn.close()
     (conn, addr) = s.accept()
     while True:
@@ -148,7 +148,6 @@ def getRawData(conn):
             break
         else:
             data = conn.recv(BUFFER_SIZE)
-            #print data
             if data:
                 complexList.append(splitTCPMsg(data))
                 conn.close()
@@ -169,5 +168,3 @@ if __name__ == "__main__":
     [DOA_classic, elevationAngle_classic] = classical_3d(dat)
     conn.close()
     rospy.spin()
-    #print triangulate(angFromPing[0], angFromPing[1])
-
