@@ -47,18 +47,27 @@ class Searching(smach.State):
         #Check if blackline is found or timeout
         timecount = 0
         while not self.linefollower.rectData['detected']:
+            #Check for aborted signal
+            if self.linefollower.isAborted:
+                return 'aborted'
             if timecount > self.timeout:
                 break
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
         
         while self.linefollower.revertMovement():
+            #Check for aborted signal
+            if self.linefollower.isAborted:
+                return 'aborted'
             if self.linefollower.rectData['detected']:
                 return 'line_found'            
         
         #Check if blackline is found or timeout
         timecount = 0
         while not self.linefollower.rectData['detected']:
+            #Check for aborted signal
+            if self.linefollower.isAborted:
+                return 'aborted'
             if timecount > self.timeout:
                 self.linefollower.abortMission()
                 return 'aborted'
@@ -120,7 +129,7 @@ class FollowingLine(smach.State):
             self.linefollower.sendMovement(f=0.9, h=heading, sm=sidemove)
         else:
             if sidemove == 0:
-                sidemove = deltaX * 1.5
+                sidemove = deltaX * 1.0
             else:
                 if abs(angle) > 30:
                     angle = math.copysign(angle, angle)

@@ -62,7 +62,7 @@ class BucketDetector:
         self.register()
         
         # Setup dynamic reconfigure server
-        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+#         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
 
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
@@ -80,11 +80,10 @@ class BucketDetector:
             self.isKilled = True
 
         #Initializing controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        if self.testing:
+            controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                          topside=False, navigation=False)
-        self.stopRobot()
-
 
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")
@@ -189,7 +188,7 @@ class BucketDetector:
 
     def taskComplete(self):
         if not self.testing:
-            self.toMission(task_complete_request=True)
+            self.toMission(fail_request=False, task_complete_request=True)
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
@@ -246,6 +245,14 @@ class BucketDetector:
         if maxArea > 0: 
             self.rectData['detected'] = True
             
+            midX = self.screen['width'] / 2.0
+            midY = self.screen['height'] / 2.0
+            maxDeltaX = self.screen['width'] * 0.03
+            maxDeltaY = self.screen['height'] * 0.03
+            cv2.rectangle(out,
+                          (int(midX - maxDeltaX), int(midY - maxDeltaY)),
+                          (int(midX + maxDeltaX), int(midY + maxDeltaY)),
+                          (255, 0, 0), -1)
             #Testing
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
