@@ -21,14 +21,14 @@ import numpy as np
 
 class BucketDetector:
     #HSV thresholds for red color
-    lowThresh1 = np.array([ 92, 0, 10 ])
+    lowThresh1 = np.array([ 92, 0, 0 ])
     hiThresh1 = np.array([ 132, 255, 255 ]) 
     areaThresh = 10000
     
     bridge = None
     
     curHeading = 0
-    depth_setpoint = 0.2
+    depth_setpoint = 0.3
     maniData = 0
     actionsHist = deque()
     
@@ -68,20 +68,23 @@ class BucketDetector:
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
         if not self.testing: 
             self.isAborted = True
+            rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/bucket/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout=10)
+            self.toMission.wait_for_service(timeout=60)
         
-        #Initializing controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                         topside=False, navigation=False)
-
         #Make sure locomotion server is up
         try:
             self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except:
             rospy.logerr("Locomotion server timeout!")
             self.isKilled = True
+
+        #Initializing controller service
+        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                         topside=False, navigation=False)
+        self.stopRobot()
+
 
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")
@@ -91,16 +94,16 @@ class BucketDetector:
         self.isKilled = True
         
     def reconfigure(self, config, level):
-        rospy.loginfo("Got reconfigure request!")
-        self.lowThresh1[0] = config['loH']
-        self.lowThresh1[1] = config['loS']
-        self.lowThresh1[2] = config['loV']
-        
-        self.hiThresh1[0] = config['hiH']
-        self.hiThresh1[1] = config['hiS']
-        self.hiThresh1[2] = config['hiV']
-        
-        self.areaThresh = config['area_thresh']
+#         rospy.loginfo("Got reconfigure request!")
+#         self.lowThresh1[0] = config['loH']
+#         self.lowThresh1[1] = config['loS']
+#         self.lowThresh1[2] = config['loV']
+#         
+#         self.hiThresh1[0] = config['hiH']
+#         self.hiThresh1[1] = config['hiS']
+#         self.hiThresh1[2] = config['hiV']
+#         
+#         self.areaThresh = config['area_thresh']
         
         return config
 
@@ -118,7 +121,17 @@ class BucketDetector:
  
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.4))
+
+    def sendMovementBlocking(self, f=0.0, h=None, sm=0.0, d=None):
+        d = d if d else self.depth_setpoint
+        h = h if h else self.curHeading
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
+                                             sidemove_setpoint=sm, depth_setpoint=d)
+
+        rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
+        self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result(rospy.Duration(7))
 
     def revertMovement(self):
         if len(self.actionsHist) == 0:
@@ -137,13 +150,13 @@ class BucketDetector:
 
     def register(self):
         self.image_sub = rospy.Subscriber(self.image_topic, Image, self.cameraCallback)
-        self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
+#         self.headingSub = rospy.Subscriber('/euler', compass_data, self.compassCallback)
         self.maniSub = rospy.Subscriber('/manipulators', manipulator, self.maniCallback)
         rospy.loginfo("Topics registered")
         
     def unregister(self):
         self.image_sub.unregister()
-        self.headingSub.unregister()
+#         self.headingSub.unregister()
         rospy.loginfo("Topics unregistered")
     
     def handleSrv(self, req):
@@ -152,7 +165,8 @@ class BucketDetector:
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller())
     
     def compassCallback(self, data):
         self.curHeading = data.yaw
@@ -162,7 +176,9 @@ class BucketDetector:
 
     def searchComplete(self):
         if not self.testing:
-            self.toMission(search_request=True)
+            resp = self.toMission(search_request=True)
+            self.curHeading = resp.data.heading_setpoint
+            rospy.loginfo("Handed over! Got heading: {}".format(self.curHeading))
 
     def abortMission(self):
         if not self.testing:

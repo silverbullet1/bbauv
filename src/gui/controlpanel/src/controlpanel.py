@@ -603,6 +603,7 @@ class AUV_gui(QMainWindow):
             self.data['rel_pos'] = rel_pos
         if earth_pos != None:
             self.data['earth_pos'] = earth_pos
+            self.navigation_frame.receiveData(self.data['earth_pos'].pose.pose.position.x, self.data['earth_pos'].pose.pose.position.y )
         if depth != None:
             self.data['depth'] = depth.depth
             self.data['pressure'] = depth.pressure
@@ -729,14 +730,21 @@ class AUV_gui(QMainWindow):
         else:
             self.isLeak = False
         
+        battery_notification = ""
+        if (self.data['openups'].battery1*0.1 < 18.0 or self.data['openups'].battery2*0.1 < 18.0):
+            battery_notification = "BATTERY DYING BATTERY DYING BATTERY DYING!!!"
+        elif(self.data['openups'].battery1*0.1 < 22.1 or self.data['openups'].battery2*0.1 < 22.1):
+            battery_notification = "Battery voltage low... Can we change batteries nowwwwww???"
         
+                
         self.oPanel1.setText("<b>BATT1: " +
                               "&nbsp;&nbsp;&nbsp; VOLT1: " + str(self.data['openups'].battery1*0.1)+ 
                               "<br>BATT2: " + 
                               "&nbsp;&nbsp;&nbsp; VOLT2: " + str(self.data['openups'].battery2*0.1) +
+                              "<br> " + battery_notification +  
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
-                              "</b>")
+                              "</b>")       
         
         self.lPanel1.setText("<b> W1: " + str(self.data['hull_status'].WaterDetA) + 
                             "<br> W2: " + str(self.data['hull_status'].WaterDetB) +
@@ -863,7 +871,7 @@ class AUV_gui(QMainWindow):
             self.unsubscribeButton.setText("U&nsubscribe")
             self.initSub()
             self.initImage()
-            self.navigation_frame.initSub
+#             self.navigation_frame.initSub
         self.isSubscribed = not self.isSubscribed
         
     def acousticBtnHandler(self):
@@ -876,7 +884,7 @@ class AUV_gui(QMainWindow):
         goal.forward_setpoint = 0
         goal.sidemove_setpoint = 0
         goal.depth_setpoint = 0.3
-        goal.heading_setpoint = heading
+        goal.heading_setpoint = (heading + self.data['yaw'] ) % 360
         
         self.client.send_goal(goal, self.done_cb)
             
@@ -885,6 +893,7 @@ class AUV_gui(QMainWindow):
         self.acoustic_h_box.setText("")
     
     def acousticGoBtnHandler(self):
+        self.status_text.setText("Going towards pinger...")
         resp = self.set_controller_request(True, True, True, False, True, False, False,False)
         goal = ControllerGoal
         
@@ -902,8 +911,14 @@ class AUV_gui(QMainWindow):
         self.acoustic_h_box.setText("")
     
     def calDepthHandler(self):
-        self.data['depth_error'] = self.data['depth']
-        rospy.loginfo("Depth calibrated")
+        self.status_text.setText("Calibrating depth...")
+        params = {'depth_offset': 0}
+        config = self.controller_client.update_configuration(params)
+        rospy.sleep(1.0)
+        
+        params = {'depth_offset': self.data['depth']}
+        config = self.controller_client.update_configuration(params)
+        self.status_text.setText("Depth calibrated!! :) ")
 
     def sidemove_revHandler(self):
         rev_sidemove = -1.0 * float(self.sidemove_box.text())
@@ -925,24 +940,26 @@ class AUV_gui(QMainWindow):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
     
     def goToPosHandler(self):
+        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         handle(x=xpos, y=ypos)
-        rospy.loginfo("Moving to position x={}, y={}".format(xpos, ypos))
 
     def homeBtnHandler(self):
+        self.status_text.setText("Going home.... (0,0")
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         handle(x=0, y=0)
         rospy.loginfo("Moving to home base (0,0)")
     
     def resetEarthHandler(self):
+        self.status_text.setText("Earth odom resetted zero_distance")
         params = {'zero_distance': True}
         config = self.dynamic_client.update_configuration(params)
         self.navigation_frame.clearGraph()
-        rospy.loginfo("Earth odom Resetted zero_distance")
         
     def hoverBtnHandler(self):
+        self.status_text.setText("Hovering...")
         roll = False
         pitch = False
         if self.roll_chkbox.checkState():
@@ -960,6 +977,7 @@ class AUV_gui(QMainWindow):
         self.client.send_goal(goal, self.done_cb)
         
     def surfaceBtnHandler(self):
+        self.status_text.setText("Surfacing... *gasp*")
         roll = False
         pitch = False
 #         if self.roll_chkbox.checkState():
@@ -1007,7 +1025,10 @@ class AUV_gui(QMainWindow):
         #Forward
         if self.forward_box.text() == "":
              self.forward_box.setText("0")
-        goal.forward_setpoint = float(self.forward_box.text())
+        try:
+            goal.forward_setpoint = float(self.forward_box.text())
+        except:
+            forward_string = "" + [i for i in forward_box.text if i.isdigit()]
          
          #Sidemove
         if self.sidemove_box.text() == "":
@@ -1094,11 +1115,14 @@ class AUV_gui(QMainWindow):
         if not self.testing:
             self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
+            
+            self.controller_client = dynamic_reconfigure.client.Client('/Controller')
+            rospy.loginfo("Controller client connected")
         
-#             self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
-#             params = {'jpeg_quality': 40}
-#             config = self.vision_client.update_configuration(params)
-#             rospy.loginfo("Set vision compression to 40%")
+            self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+            params = {'jpeg_quality': 40}
+            config = self.vision_client.update_configuration(params)
+            rospy.loginfo("Set vision compression to 40%")
         
     def valueChanged(self,value):
         self.heading_box.setText(str(value))

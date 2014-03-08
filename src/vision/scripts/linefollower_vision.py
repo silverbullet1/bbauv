@@ -21,13 +21,14 @@ class LineFollower():
     thval = 30
     upperThresh = 70
     areaThresh = 7000
+    upperAreaThresh = 70000
     screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.1
+    depth_setpoint = 0.3
     actionsHist = deque()
 
     def __init__(self):
@@ -57,12 +58,7 @@ class LineFollower():
             self.isAborted = True
             self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout = 10)
-
-        #Setting controller server
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                  topside=False, navigation=False)
+            self.toMission.wait_for_service(timeout = 60)
 
         #Wait for locomotion server to start
         try:
@@ -72,15 +68,22 @@ class LineFollower():
             rospy.loginfo("Locomotion Server timeout!")
             self.isKilled = True  
 
+        #Setting controller server
+        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                  topside=False, navigation=False)
+        self.stopRobot()
+
+
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
 
     def reconfigure(self, config, level):
-        rospy.loginfo("Got dynamic reconfigure params")
-        self.areaThresh = config['area_thresh']
-        self.upperThresh = config['upper_thresh']
-        
+#         rospy.loginfo("Got dynamic reconfigure params")
+#         self.areaThresh = config['area_thresh']
+#         self.upperThresh = config['upper_thresh']
+#         
         return config
 
     def registerSubscribers(self):
@@ -106,7 +109,16 @@ class LineFollower():
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+        
+        lastHeading = self.curHeading
+        length = len(self.actionsHist)
+        if length > 1:
+            lastHeading = self.actionsHist[-2]
+        elif length > 0:
+            lastHeading = self.actionsHist[-1]
+
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller(heading_setpoint=lastHeading))
     
     def stopRobot(self):
         self.sendMovement(f=0, sm=0)
@@ -138,7 +150,7 @@ class LineFollower():
 
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
-        self.locomotionClient.wait_for_result(rospy.Duration(0.3))
+        self.locomotionClient.wait_for_result(rospy.Duration(0.5))
     
     def revertMovement(self):
         if len(self.actionsHist) == 0:
@@ -182,11 +194,11 @@ class LineFollower():
         #Thresholding and noise removal
         grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
 
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         
-        grayImg = cv2.erode(grayImg, erodeEl)
+        #grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 
@@ -199,7 +211,7 @@ class LineFollower():
         maxArea = 0
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > self.areaThresh and area > maxArea:
+            if area > self.areaThresh and area < self.upperAreaThresh and area > maxArea:
                 #Find the center using moments
                 mu = cv2.moments(contour, False) 
                 centroidx = mu['m10'] / mu['m00']

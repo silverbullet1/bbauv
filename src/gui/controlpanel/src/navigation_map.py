@@ -30,7 +30,8 @@ class Navigation_Map(QWidget):
         self.points = []
         self.rate = 20
         self.earth_odom_sub = None
-        self.initSub()
+#         self.receiveData()
+#         self.initSub()
         self.initUI()
     
     def initUI(self):
@@ -49,12 +50,12 @@ class Navigation_Map(QWidget):
         
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
+#         self.toolbar = NavigationToolbar(self.canvas, self)
         self.refreshBtnHandler()
                 
         main_layout = QVBoxLayout()
         main_layout.addLayout(map_layout)
-        main_layout.addWidget(self.toolbar)
+#         main_layout.addWidget(self.toolbar)
         main_layout.addWidget(self.canvas)
         
         self.initTimer(self.rate)
@@ -67,6 +68,19 @@ class Navigation_Map(QWidget):
     
     def unregisterSub(self):
         self.earth_odom_sub.unregister()
+        
+    def receiveData(self, x, y):
+        if len(self.data) == 0:
+            self.data.append((x, y))
+        else:
+            lastPoint = self.data[len(self.data)-1]
+            distance = abs(math.sqrt( (x-lastPoint[0])**2 + (y-lastPoint[0])**2))
+            if ( distance > 1.30 ):
+                self.data.append((x,y))
+#         if len(self.points) == 30:
+#             self.data.append(self.points[0])
+#             self.points = []
+#         self.data.append((data.pose.pose.position.x, data.pose.pose.position.y))
     
     def earth_odom_callback(self, data):
         (x,y) = (data.pose.pose.position.x, data.pose.pose.position.y)
