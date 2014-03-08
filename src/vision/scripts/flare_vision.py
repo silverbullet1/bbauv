@@ -34,21 +34,21 @@ class Flare:
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
                 'width':0, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
-    areaThresh = 600
+    areaThresh = 1000
     
     bridge = None
     
     curHeading = 0.0
-    depth_setpoint = 0.5
+    depth_setpoint = 0.2
     yaw = 0.0
     gotHeading = False
         
     screen = {'width': 800, 'height': 600}
 
-    deltaXMultiplier = 15.0
+    deltaXMultiplier = 10.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
-    forwardOffset = 0.5     #For just shooting straight
-    headOnArea = 10000       #Area for shooting straight
+    forwardOffset = 0.4     #For just shooting straight
+    headOnArea = 11500       #Area for shooting straight
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -82,11 +82,12 @@ class Flare:
             self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
             self.toMission = rospy.ServiceProxy("/flare/vision_to_mission", vision_to_mission)
             self.toMission.wait_for_service(timeout=5)
-            
+        
+        if self.testing:
         #Initialising controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                             topside=False, navigation=False)
+            controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
+            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
+                                 topside=False, navigation=False)
         
         #Make sure locomotion server up
         try:
@@ -137,9 +138,11 @@ class Flare:
         
     # Handle srv
     def handleSrv(self, req):
-        if req.start_request:
+        if req.search_request:
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
+            self.curHeading = req.start_ctrl.heading_setpoint
+            self.gotHeading = True
         elif req.abort_request:
             self.isAborted = True
         return mission_to_visionResponse(True, False)
@@ -152,7 +155,6 @@ class Flare:
         if not self.testing:
             #pass
             self.toMission(task_complete_request=True)
-        self.sendMovement(forward=-0.5)     #Retract
         self.stopRobot()
         self.isAborted = True
         self.isKilled = True
@@ -247,7 +249,7 @@ class Flare:
 
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
-        hsv_image = hsv_image[self.screen['height']/5:(self.screen['height'])*4/5,0:self.screen['width'],:]
+        hsv_image = hsv_image[self.screen['height']/4:(self.screen['height'])*3/4,0:self.screen['width'],:]
    
         #Canny edge
 #         contourImg = contourImg[self.screen['height']/3:(self.screen['height'])*(3/4),0:self.screen['width']]
@@ -312,7 +314,7 @@ class Flare:
                     edge2[1] = edge2[1] if edge2[1] is not 0 else 0.01
                     rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
                  
-                epislon = 10.0
+                epislon = 15.0
                 if -epislon < rectData['angle'] < epislon:
                     rectData['length'] = max(self.calculateLength(points[0], points[1]),
                                                   self.calculateLength(points[1], points[2]))
@@ -342,14 +344,14 @@ class Flare:
             #centery = int(y_median) 
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
             cv2.circle(contourImg, (centerx, centery), 5, (255,0,0))
-            cv2.circle(out, (centerx, centery), 5, (255,255,255))
+            cv2.circle(out, (centerx, centery), 5, (0,0,255))
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                                    
-                cv2.line(contourImg, pt1, pt2, (255,0,0))
+                cv2.line(contourImg, pt1, pt2, (255,255,255))
             cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
                  
         else:
             self.rectData['detected'] = False 

@@ -41,7 +41,6 @@ class Stop(smach.State):
         timeUp = 1000   #Give some time before a ping reaches
         DOA = 0
         Elevation = 100
-        self.ac.pingDetected = False
         
         data = []
                 
@@ -52,6 +51,7 @@ class Stop(smach.State):
 #             self.ac.Elevation = self.ac.Elevation_classical
             
             if self.ac.pingDetected:
+                rospy.loginfo("Ping detected")
                 data.append((self.ac.DOA, self.ac.Elevation))
             
                 if len(data) == 2:
@@ -77,9 +77,10 @@ class Move(smach.State):
         smach.State.__init__(self, outcomes=['complete', 'aborted'])
         
     def execute(self, userdata):
-        rospy.loginfo("Moving forward")
+        self.ac.pingDetected = False
+        rospy.loginfo("Moving forward, DOA:{}".format(self.ac.DOA))
         self.ac.sendMovement(turn = self.ac.DOA)
-        self.ac.sendMovement(forward = 4.0)
+        self.ac.sendMovement(forward = 2.0)
         return 'complete'
     
 class Stop_And_Surface(smach.State):
@@ -93,7 +94,7 @@ class Stop_And_Surface(smach.State):
         return 'complete'
         
 if __name__ == '__main__':
-    rospy.init_node("Acoutics", anonymous=False)
+    rospy.init_node("Acoustics", anonymous=False)
     rosRate = rospy.Rate(20)
     acoustic_task = Plot()
     
@@ -112,7 +113,7 @@ if __name__ == '__main__':
                                transitions={'complete': "STOP",
                                             'aborted': 'aborted'})
         smach.StateMachine.add("STOP_AND_SURFACE", Stop_And_Surface(acoustic_task),
-                               transitions = {'complete': "DISENGAGE",
+                               transitions = {'complete': 'complete',
                                               'aborted': 'aborted'})
     
     outcomes = sm.execute()

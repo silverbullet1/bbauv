@@ -2,7 +2,7 @@
 import rospy	#This is for logging and printing out error messages to command line
 import roslib	#This is to load the correct directory for acoustic to communicate with ROS
 import time		#Used for Process sleep
-import signal
+
 #For plotting the music output
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -29,7 +29,7 @@ import cmath
 import socket 
 TCP_IP = '192.168.1.141'
 PORT = 5100
-BUFFER_SIZE = 55 
+BUFFER_SIZE = 70
 
 #Getting keyboard input
 import sys 
@@ -44,6 +44,7 @@ isTest = sys.argv[2]
 #Updated global variables through subscriptions
 heading = 0
 depth = 0.0	
+elevationAngle3 = 0.0
 
 #Initialize TCP socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -64,7 +65,7 @@ except Exception as e: rospy.loginfo("Error connecting to locomotion server")
 
 #Setting controller server	
 setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False, topside=False, navigation=False)
+setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True, topside=False, navigation=False)
 '''
 	=================== END of Initialize services ===================
 '''
@@ -82,7 +83,7 @@ def depth_callback(data):
 	====================== END of Saving information from various Subscription ======================
 '''
 '''
-	=================== Initialize Subscriptions Subscriptions===================
+	=================== Initialize Subscriptions ===================
 	Subscriptions to:
 		1. earth_odom	-	Get AUV's current absolute (x,y) coordinate	("earth_odom")
 		2. DVL			- 	Get AUV's current relative (x,y) coordinate	("/WH_DVL_data")
@@ -98,7 +99,7 @@ compass_sub = rospy.Subscriber('/euler', bbauv_msgs.msg.compass_data, compass_ca
 	This telcomplexList locomotionClient to move the robot in 
 		'f'-Forward distance   (m)		'turn'-bearing of heading (deg)
 '''
-def sendMovement(forward=0.0, turn=None, depth=0.6):
+def sendMovement(forward=0.0, turn=None, depth=1.0):
     global heading
     global locomotionClient
     turn = (turn+heading)%360 if turn else heading
@@ -153,10 +154,8 @@ def getMax(arrayList):
 	return [phiCap,thetaCap]
 
 def classical_3d(complexList):
-    max_val = 0
     phiCap = 0
     thetaCap = 0
-    S = computeCovarianceMatrix(complexList)
     gamma = [-45, 45, 135, 225]
     v = 1500
     f = 30000.0
@@ -165,17 +164,19 @@ def classical_3d(complexList):
     r = math.sqrt(2 * math.pow(d / 2, 2))
     A = zeros((4, 1), dtype=complex)
     classical = zeros((360, 90))
+    R = np.matrix([[(complexList[3])[0]], [(complexList[3])[1]], [(complexList[3])[2]], [(complexList[3])[3]]])
     for theta in range(90):		#Theta is altitude
-		for phi in range(360):	#Phi is azimuth
-			for i in range(4):	#Hydrophone positions
-				pd = 2*math.pi/lamda*r*math.sin(np.deg2rad(theta))*math.cos(np.deg2rad(phi - gamma[i]))
-				A[i] = cmath.exp((1j)*pd)
-		
-			Ahat = np.matrix(A)
-		aTSa=(Ahat.T.conj())*S*Ahat
-		classical[phi,theta] = aTSa.real
-		#plot(classical[:,theta],theta)
-		#writeToFile('classical.txt',classical[:,theta],theta)
+        for phi in range(360):	#Phi is azimuth
+            for i in range(4):	#Hydrophone positions
+                pd = 2*math.pi/lamda*r*math.sin(np.deg2rad(theta))*math.cos(np.deg2rad(phi - gamma[i]))
+                A[i] = cmath.exp((1j)*pd)
+        
+            Ahat = np.matrix(A)
+        S = Ahat*Ahat.T.conj()
+        aTSa=(R.T.conj())*S*R
+        classical[phi,theta] = aTSa.real
+        #plot(classical[:,theta],theta)
+        #writeToFile('classical.txt',classical[:,theta],theta)
     [phiCap, thetaCap] = getMax(classical)
     print ("Classical DOA calculated: " + str(phiCap))
     print ("Classical elevation calculated: " + str(thetaCap))	
@@ -234,7 +235,7 @@ def getRawData(conn):
             break
         else:
             data = conn.recv(BUFFER_SIZE)
-            print data
+            #print data
             if data:
                 complexList.append(splitTCPMsg(data))
                 conn.close()
@@ -248,8 +249,8 @@ def sleepAwhile(durationSec=5):
 	
 def distanceToPinger(algo_type):
     global depth
+    global 	elevationAngle3
     DOA = 0
-    elevationAngle = 0
     pingerDistance = 0
     rawData = getRawData(TCP_connect)
     sleepAwhile()
@@ -270,40 +271,39 @@ def distanceToPinger(algo_type):
         [DOA2,elevationAngle2] = classical_3d(rawData2) if len(rawData2) is not 0 else [0,0]
         
         if(abs(DOA - DOA2) > 10):     
+            print "Using final data\n"
             final_rawData = getRawData(TCP_connect)
             [DOA3,elevationAngle3] = classical_3d(final_rawData) if len(final_rawData) is not 0 else [0,0]
         else:
+            print "Using Second DOA\n"
             DOA3 = DOA2
             elevationAngle3 = elevationAngle2
     else: 
         print "ERROR: Algorithm was not specified"
 
     print ("Turning to face pinger at relative " + str(DOA3) + " degrees" )
-    sendMovement( turn=DOA3)
+    sendMovement(turn=DOA3)
     sleepAwhile(5)
-    pingerDistance = depth*(math.tan(np.deg2rad(elevationAngle3))) if elevationAngle3 < 50 else 4
+    pingerDistance = depth*(math.tan(np.deg2rad(elevationAngle3))) if elevationAngle3 < 50 else 2
     print ("AUV is " + str(pingerDistance) + " m away")
     return pingerDistance
-
-def userQuit(self, signal, frame):
-    rospy.signal_shutdown("Bye!")
-
+	
 if __name__ == "__main__":
     #Initialization of Node & Publisher
     rospy.init_node("acoustic_independent") 
-    signal.signal(signal.SIGINT,userQuit)
-
+    
 	#Printing out of AUV location
+    sendMovement(depth=1.0)
     print ("The AUV's bearing is: " + str(heading) + " degrees\n")
     print("Depth: " + str(depth) + " m\n")
 	
     while True:
-        distanceToMove = distanceToPinger("CLASSICAL")
-        if distanceToMove > 0.5:
+        distanceToMove = distanceToPinger("MUSIC")
+        if elevationAngle3 > 45:
             sendMovement(forward=distanceToMove)	#Move toward the pinger
         else:
             print ("Ready to surface")
-            sendMovement(depth=0)
+            sendMovement(depth=0.0)
             break
     rospy.spin()
     conn.close()

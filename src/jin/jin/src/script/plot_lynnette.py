@@ -35,7 +35,8 @@ s.bind((TCP_IP, PORT))
 s.listen(1)
 (conn, addr) = s.accept()
 
-sampleAmount = sys.argv[1]
+#sampleAmount = sys.argv[1]
+sampleAmount = 1
 
 class Plot:
     
@@ -52,18 +53,19 @@ class Plot:
         
         self.heading = 0
         self.pingDetected = False
+        self.calculatingData = False
         signal.signal(signal.SIGINT, self.userQuit)
         
-#         self.locomotionClient = actionlib.SimpleActionClient('LocomotionServer',ControllerAction) 
-#         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-#         setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, 
-#                     roll=False, topside=False, navigation=False)
-#         rospy.loginfo("Set server already")
-#                
-#         try:
-#              locomotionClient.wait_for_server(timeout=rospy.Duration(5))
-#         except Exception as e: 
-#              rospy.loginfo("Error connecting to locomotion server")
+        self.locomotionClient = actionlib.SimpleActionClient('LocomotionServer',ControllerAction) 
+        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, 
+                    roll=False, topside=False, navigation=False)
+        rospy.loginfo("Set server already")
+                 
+        try:
+             self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
+        except Exception as e: 
+             rospy.loginfo("Error connecting to locomotion server")
 
         
         compass_sub = rospy.Subscriber('/euler', bbauv_msgs.msg.compass_data, self.compass_callback)
@@ -74,11 +76,18 @@ class Plot:
     def compass_callback(self, data):
         self.heading = data.yaw
         
+        (conn, addr) = s.accept()
         dat = self.getRawData(conn)
+        rospy.loginfo("Calculating data")
+        
+        #dat = [0.9389-3.6210j, -2.606701.7737j,0.4586+2.1283j,-1.9776+2.6057j]
+        
         complexList = self.computeCovarianceMatrix(dat)
 
-        [self.DOA_classical, self.Elevation_classical] = self.classical_3d(complexList)
+        #[self.DOA_classical, self.Elevation_classical] = self.classical_3d(complexList)
         [self.DOA_music, self.Elevation_music] = self.music_3d(complexList)
+        #(conn, addr) = s.accept()
+        self.calculatingData = False
 
     def splitTCPMsg(self, data):
         (real0, imag0,
@@ -118,12 +127,12 @@ class Plot:
 
 
     def classical_3d(self, covarianceMatrix):
-#         rospy.loginfo("Classical")
+        rospy.loginfo("Classical")
         max_val = 0
         phiCap = 0
         thetaCap = 0
-#         S = self.computeCovarianceMatrix(complexList)
         S = covarianceMatrix
+        
         gamma = [-45, 45, 135, 225]
         v = 1500
         f = 30000.0
@@ -144,17 +153,18 @@ class Plot:
             #plot(classical[:,theta],theta)
             #writeToFile('classical.txt',classical[:,theta],theta)
         [phiCap, thetaCap] = self.getMax(classical)
-#         print ("Classical DOA calculated: " + str(phiCap))
-#         print ("Classical elevation calculated: " + str(thetaCap)) 
+        print ("Classical DOA calculated: " + str(phiCap))
+        print ("Classical elevation calculated: " + str(thetaCap)) 
         
         self.DOA_classical = phiCap
         self.Elevation_classical = thetaCap
-#         self.pingDetected = True
+        self.pingDetected = True
            
         return [phiCap,thetaCap]
 
     def music_3d(self, covarianceMatrix):
-#         rospy.loginfo("Music")
+        rospy.loginfo("Music")
+        #print covarianceMatrix
         gamma = [-45, 45, 135, 225]
         v = 1500
         f = 30000.0
@@ -165,9 +175,11 @@ class Plot:
         pmusic = zeros((360, 90))
         
         (eigval, eigvec) = LA.eigh(covarianceMatrix)
+        print "EigVal"
 #         (eigval, eigvec) = LA.eigh(self.computeCovarianceMatrix(complexList))
         Vn = eigvec[:, 0:3]
         
+        print "going loop"
         for theta in range(90):        #Theta is altitude
             for phi in range(360):    #Phi is azimuth
                 for i in range(4):    #Hydrophone positions
@@ -178,10 +190,11 @@ class Plot:
                 num = Ahat.T.conj() * Ahat
                 denom = (Ahat.T.conj() * Vn) * (Vn.T.conj() * Ahat)
                 pmusic[phi, theta] = num.real / denom.real
+        print "theta"
         
         [Music_phiCap,Music_thetaCap] = self.getMax(pmusic)
-#         print ("Music DOA calculated: " + str(Music_phiCap))    
-#         print ("Music elevation calculated: " + str(Music_thetaCap))  
+        print ("Music DOA calculated: " + str(Music_phiCap))    
+        print ("Music elevation calculated: " + str(Music_thetaCap))  
 
         self.DOA_music = Music_phiCap
         self.Elevation_music = Music_thetaCap
@@ -198,7 +211,7 @@ class Plot:
             if len(complexList) == int(sampleAmount):
                 break
             else:
-                data = conn.recv(BUFFER_SIZE)
+                data = conn.recv(70)
                 if data:
                     complexList.append(self.splitTCPMsg(data))
                     conn.close()
@@ -209,23 +222,26 @@ class Plot:
         return complexList
     
     def sendMovement(self, forward=0.0, turn=None, depth=0.6):
-        pass
-#         turn = (turn+self.heading)%360 if turn else self.heading
-#         goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, 
-#                               sidemove_setpoint=0.0, depth_setpoint=depth)
-#         rospy.loginfo("Forward: {} heading: {}".format(forward, turn))
-#         self.locomotionClient.send_goal(goal)
-# #         self.locomotionClient.wait_for_result()
-#         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
-#         rospy.loginfo("Completed")
+        rospy.loginfo("Heading: {} Turn:{}".format(self.heading, turn))
+        turn = ((turn+self.heading)%360)-7 if turn else self.heading
+        goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, 
+                              sidemove_setpoint=0.0, depth_setpoint=depth)
+        rospy.loginfo("Forward: {} heading: {}".format(forward, turn))
+        self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result()
+        #self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+        rospy.loginfo("Completed")
     
 if __name__ == "__main__":
     rospy.init_node("ac_lynnette")
     pub = rospy.Publisher("/acoustic/angFromPing", acoustic)
     plot = Plot()
-    dat = plot.getRawData(conn)
-    [plot.DOA_classical, plot.Elevation_classical] = plot.classical_3d(dat)
-    [plot.DOA_music, plot.Elevation_music] = plot.music_3d(dat)
+#     dat = plot.getRawData(conn)
+#     complexList = plot.computeCovarianceMatrix(dat)
+
+#     [plot.DOA_classical, plot.Elevation_classical] = plot.classical_3d(complexList)
+#     [plot.DOA_classical, plot.Elevation_classical] = plot.classical_3d(complexList)
+#     [plot.DOA_music, plot.Elevation_music] = plot.music_3d(dat)
     rospy.spin()
     
     
