@@ -6,9 +6,11 @@ class Wait(smach.State):
     def __init__(self, world):
         smach.State.__init__(self, outcomes=['pass', 'fail'])
         self.world = world
+        print self.world.config['qualifier_wait']
 
     def execute(self, userdata):
         rospy.sleep(self.world.config['qualifier_wait'])
+        self.world.static_yaw = self.world.yaw
         if self.world.static_yaw is not None:
             return 'pass'
         else:
@@ -18,11 +20,9 @@ class Dive(smach.State):
     def __init__(self, world):
         smach.State.__init__(self, outcomes=['pass', 'fail'])
         self.world = world
-        self.world.static_yaw = self.world.yaw
-
     def execute(self, userdata):
         self.world.enable_PID()
-        goal = ControllerGoal(depth_setpoint=self.world.config['qualifier_depth'],
+        goal = ControllerGoal(depth_setpoint=self.world.config['sauvc_depth'],
                 sidemove_setpoint=0,
                 heading_setpoint=self.world.static_yaw,
                 forward_setpoint=0)
@@ -40,13 +40,12 @@ class Forward(smach.State):
     def __init__(self, world):
         smach.State.__init__(self, outcomes=['pass', 'fail'])
         self.world = world
-
     def execute(self, userdata):
         goal =\
-        ControllerGoal(depth_setpoint=self.world.config['qualifier_depth'],
+        ControllerGoal(depth_setpoint=self.world.config['sauvc_depth'],
                        sidemove_setpoint=0,
                        heading_setpoint=self.world.static_yaw,
-                       forward_setpoint=self.world.config['qualifier_forward'])
+                       forward_setpoint=self.world.config['sauvc_forward'])
         self.world.actionServer.wait_for_server()
         r = self.world.actionServer.send_goal_and_wait(goal,
                                                    execute_timeout=rospy.Duration(300))
@@ -56,10 +55,11 @@ class Forward(smach.State):
             return 'fail'
 
 class State(smach.State):
-    transitions = {'pass' : 'pass', 'fail' : 'fail'}
+    transitions = {'pass' : 'SAUVCLinefollower', 'fail' : 'fail'}
     outcomes = ['pass', 'fail']
 
     def __init__(self, world):
+        print "thien is gay"
         smach.State.__init__(self, outcomes=self.outcomes)
         self.world = world
         self.sm = smach.StateMachine(outcomes=self.outcomes)
@@ -78,3 +78,4 @@ class State(smach.State):
         outcome = self.sm.execute()
         self.world.actionServer.cancel_all_goals()
         return outcome
+
