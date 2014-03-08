@@ -10,6 +10,7 @@ from bbauv_msgs.srv import set_controller
 from bbauv_msgs.srv import vision_to_mission, mission_to_vision
 from bbauv_msgs.srv import vision_to_missionResponse
 from bbauv_msgs.msg import compass_data, depth, ControllerAction, controller
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8
 
 class Interaction(object):
@@ -18,6 +19,8 @@ class Interaction(object):
         self.current_yaw   = None
         self.static_yaw = None
         self.current_pos = {'x' : None, 'y' : None}
+
+        self.world.grace = 0
 
         self.linefollowerActive = False
         self.linefollowerDone   = False
@@ -29,20 +32,20 @@ class Interaction(object):
         self.acousticsActive    = False
         self.acousticsDone      = False
 
-        self.LinefollowerFailed = False #fuck thien
-        self.bucketFailed       = False #fuck thien
-        self.flareFailed        = False #god damnit
-        self.acousticsFailed    = False #fuck jin
+        self.LinefollowerFailed = False
+        self.bucketFailed       = False
+        self.flareFailed        = False
+        self.acousticsFailed    = False
 
         """
         need to subscribe to ahrs8, controller, depth
         """
         try:
-            rospy.Subscriber("/euler", compass_data, lambda d: setattr(self, 'current_yaw',
-                                                     d.yaw))
+            rospy.Subscriber("/euler", compass_data, lambda d: 
+                             setattr(self, 'current_yaw', d.yaw))
             rospy.loginfo("Subscribed to AHRS8")
-            rospy.Subscriber("/depth", depth, lambda d: setattr(self, 'current_depth',
-                                                    d.depth))
+            rospy.Subscriber("/depth", depth, lambda d: 
+                             setattr(self, 'current_depth', d.depth))
             rospy.loginfo("Subscribed to depth")
             
             self.setController = rospy.ServiceProxy("/set_controller_srv",
@@ -55,7 +58,8 @@ class Interaction(object):
             actionlib.SimpleActionClient("/LocomotionServer", ControllerAction)
             rospy.loginfo("Waiting for locomotion server")
             self.locomotionServer.wait_for_server()
-            rospy.loginfo("Got locomotion server, initializing")
+            rospy.loginfo("Got locomotion server")
+            rospy.Subscriber("/earth_odom", Odometry, self.DVLCallback)
         except rospy.ServiceException, e:
             rospy.logerr("Error subscribing to critical services, exiting")
             exit(1)
@@ -64,6 +68,11 @@ class Interaction(object):
         while self.current_yaw is None:
             rospy.sleep(rospy.Duration(0.5))
         rospy.loginfo("Compass data populated")
+
+        rospy.loginfo("Waiting for DVL data to be populated")
+        while self.current_pos['x'] or self.current_pos['y'] is None:
+            rospy.sleep(rospy.Duration(0.5))
+        rospy.loginfo("DVL populated")
 
         rospy.loginfo("Starting mission specific services")
 
@@ -86,6 +95,10 @@ class Interaction(object):
             rospy.ServiceProxy("/flare/mission_to_vision", mission_to_vision)
         except rospy.ServiceException, e:
             rospy.logerr("Error creating task specific services: %s" % (str(e)))
+
+    def DVLCallback(self, data):
+        self.current_pos['x'] = data.pose.pose.position.x
+        self.current_pos['y'] = data.pose.pose.position.y
 
     def linefollowerServerCallback(self, req):
         if req.fail_request:
@@ -111,8 +124,8 @@ class Interaction(object):
             rospy.loginfo("Giving bucket the linefollower heading of %f" %
                           (self.linefollower_last_heading))
             return vision_to_missionResponse(search_response=True,
-                                                task_complete_response=False,
-                                                data=controller(heading_setpoint=self.linefollower_last_heading))
+                    task_complete_response=False,
+                    data=controller(heading_setpoint=self.linefollower_last_heading))
         if req.task_complete_request:
             self.bucketDone = True
             return vision_to_missionResponse(search_response=False,
@@ -122,11 +135,15 @@ class Interaction(object):
     def flareServerCallback(self, data):
         if data.task_complete_request:
             self.flareDone = True
-            return vision_to_missionResponse(search_response=False, task_complete_response=True, data=controller())
+            return vision_to_missionResponse(
+                search_response=False, task_complete_response=True,
+                data=controller())
         if data.fail_request:
             self.flareFailed = True
             rospy.loginfo("FLARE REPORTED FAILURE")
-            return vision_to_missionResponse(search_response=False, task_complete_response=False, data=controller())
+            return vision_to_missionResponse(
+                search_response=False, task_complete_response=False,
+                data=controller())
 
 
 
@@ -145,9 +162,9 @@ class Interaction(object):
             self.starting_yaw = self.current_yaw
         rospy.loginfo("Activating linefollower node")
         r = self.linefollowerService(start_request=True,
-                                 start_ctrl=controller(depth_setpoint=self.config['sauvc_depth'],
-                                                       heading_setpoint=self.static_yaw),
-                                 abort_request=False)
+                start_ctrl=controller(depth_setpoint=self.config['sauvc_depth'],
+                            heading_setpoint=self.static_yaw),
+                            abort_request=False)
         rospy.loginfo("Reply from linefollower: %s" % (str(r)))
         self.linefollowerActive = True
 

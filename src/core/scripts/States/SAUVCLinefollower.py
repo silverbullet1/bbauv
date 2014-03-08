@@ -1,4 +1,5 @@
 import rospy, smach
+from bbauv_msgs.msg import controller
 
 class State(smach.State):
     transitions = {'pass' : 'SAUVCBucket', 'fail' : 'fail'}
@@ -7,8 +8,22 @@ class State(smach.State):
     def __init__(self, world):
         smach.State.__init__(self, outcomes=self.outcomes)
         self.world = world
+        self.timeout = self.world.config["max_linefollower_time"]
+        self.timer = rospy.Timer(rospy.Duration(self.timeout + self.world.grace),
+                                 self.timerCallback, oneshot=True)
+
+    def timerCallback(self, e):
+        rospy.logerr("Linefollower exceeded maximum time allowed. Aborting")
+        self.world.linefollowerService(abort_request=True, start_request=False,
+                                       start_ctrl=controller())
+        rospy.loginfo("Got a reply from linefollower in timerCallback")
+        self.world.LinefollowerFailed = True
+
 
     def execute(self, userdata):
+        tn = rospy.get_time()
+        rospy.loginfo("Ros time now is %f, starting linefollower, %fs max" %
+                      (tn, self.timeout + self.world.grace))
         rospy.loginfo("Waiting for linefollower service")
         self.world.linefollowerService.wait_for_service()
         rospy.loginfo("Got linefollower service")
@@ -20,10 +35,14 @@ class State(smach.State):
         self.world.activateBucket()
         while not rospy.is_shutdown():
             if self.world.linefollowerDone:
+                self.timer.shutdown()
+                self.world.grace = self.timeout - (rospy.get_time() - tn)
                 return 'pass'
             if self.world.LinefollowerFailed:
                 self.world.linefollowerDone = True
+                self.world.grace = self.timeout - (rospy.get_time() - tn)
                 return 'fail'
             if not self.world.linefollowerDone and not self.world.linefollowerActive:
+                rospy.logerr("This should never happen")
                 return 'fail'
         return 'fail'
