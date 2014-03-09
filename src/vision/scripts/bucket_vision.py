@@ -182,6 +182,19 @@ class BucketDetector:
     def abortMission(self):
         if not self.testing:
             self.toMission(fail_request=True, task_complete_request=False)
+
+        # Shoot the ball anyway
+        firePub = rospy.Publisher("/manipulators", manipulator)
+        for i in range(10):
+            firePub.publish(self.maniData | 1)
+            rospy.sleep(rospy.Duration(0.1))
+
+        self.stopRobot()
+        rospy.sleep(rospy.Duration(1))
+        for i in range(10):
+            firePub.publish(self.maniData & 0)
+            rospy.sleep(rospy.Duration(0.1))
+        
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()

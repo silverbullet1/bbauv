@@ -108,14 +108,14 @@ class FollowingLine(smach.State):
             sidemove = math.copysign(3.0, deltaX)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
             return 'following_line'
-
-        if len(self.prevAngle) > 1:
-            oppAngle = angle - 180 if angle > 0 else angle + 180
-            if abs(angle - self.prevAngle[0]) > abs(oppAngle - self.prevAngle[0]):
-                angle = oppAngle
-                self.prevAngle[0] = angle
-        else:
-            self.prevAngle.append(angle)
+# 
+#         if len(self.prevAngle) > 1:
+#             oppAngle = angle - 180 if angle > 0 else angle + 180
+#             if abs(angle - self.prevAngle[0]) > abs(oppAngle - self.prevAngle[0]):
+#                 angle = oppAngle
+#                 self.prevAngle[0] = angle
+#         else:
+#             self.prevAngle.append(angle)
 
         if deltaX < -self.deltaThresh:
             sidemove = -2.0

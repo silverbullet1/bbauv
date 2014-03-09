@@ -99,7 +99,7 @@ class LineFollower():
 
     def unregisterSubscribers(self):
         self.imgSub.unregister()
-        self.comSub.unregister()
+#         self.comSub.unregister()
         self.rectData['detected'] = False
 
     #Handle communication service with mission planner    
