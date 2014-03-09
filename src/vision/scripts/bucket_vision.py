@@ -51,6 +51,7 @@ class BucketDetector:
         self.testing = rospy.get_param("~testing", False)
         self.isAborted = False
         self.isKilled = False
+        self.canPublish = False
         signal.signal(signal.SIGINT, self.userQuit)
 
         self.rectData = { 'detected' : False }
@@ -81,6 +82,7 @@ class BucketDetector:
 
         #Initializing controller service
         if self.testing:
+            self.canPublish = True
             controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
             controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                          topside=False, navigation=False)
@@ -89,6 +91,7 @@ class BucketDetector:
         rospy.loginfo("Bucket ready")
             
     def userQuit(self, signal, frame):
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         
@@ -174,6 +177,7 @@ class BucketDetector:
         self.maniData = data.mani_data
 
     def searchComplete(self):
+        self.canPublish = True
         if not self.testing:
             resp = self.toMission(search_request=True)
             self.curHeading = resp.data.heading_setpoint
@@ -195,6 +199,7 @@ class BucketDetector:
             firePub.publish(self.maniData & 0)
             rospy.sleep(rospy.Duration(0.1))
         
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
@@ -202,6 +207,7 @@ class BucketDetector:
     def taskComplete(self):
         if not self.testing:
             self.toMission(fail_request=False, task_complete_request=True)
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
@@ -291,7 +297,8 @@ class BucketDetector:
         centroid_image = self.findTheBucket(cv_image)
         
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
+            if self.canPublish:
+                self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
         except CvBridgeError as e:
             rospy.logerr(e) 
 
