@@ -1,0 +1,11 @@
+DOA1: 28		DOA2: 20		Forward: 2
+Distance is: -6.7465847861DOA1: 12		DOA2: 34		Forward: 2
+Distance is: 1.1100268627DOA1: 16		DOA2: 23		Forward: 2
+Distance is: 4.52348963432DOA1: 31		DOA2: 26		Forward: 2
+Distance is: -11.8187983642DOA1: 359		DOA2: 20		Forward: 2
+Distance is: -0.0973993710064DOA1: 9		DOA2: 10		Forward: 2
+Distance is: 17.9269793656DOA1: 174		DOA2: 1		Forward: 2
+Distance is: -1.71541850226DOA1: 32		DOA2: 23		Forward: 2
+Distance is: -6.77496821556DOA1: 29		DOA2: 26		Forward: 5
+Distance is: -46.3170690907DOA1: 24		DOA2: 34		Forward: 5
+Distance is: 11.7115148728
