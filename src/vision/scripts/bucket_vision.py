@@ -51,6 +51,7 @@ class BucketDetector:
         self.testing = rospy.get_param("~testing", False)
         self.isAborted = False
         self.isKilled = False
+        self.canPublish = False
         signal.signal(signal.SIGINT, self.userQuit)
 
         self.rectData = { 'detected' : False }
@@ -62,7 +63,7 @@ class BucketDetector:
         self.register()
         
         # Setup dynamic reconfigure server
-        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+#         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
 
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
@@ -80,16 +81,17 @@ class BucketDetector:
             self.isKilled = True
 
         #Initializing controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        if self.testing:
+            self.canPublish = True
+            controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                          topside=False, navigation=False)
-        self.stopRobot()
-
 
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")
             
     def userQuit(self, signal, frame):
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         
@@ -123,6 +125,16 @@ class BucketDetector:
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.4))
 
+    def sendMovementBlocking(self, f=0.0, h=None, sm=0.0, d=None):
+        d = d if d else self.depth_setpoint
+        h = h if h else self.curHeading
+        goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
+                                             sidemove_setpoint=sm, depth_setpoint=d)
+
+        rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
+        self.locomotionClient.send_goal(goal)
+        self.locomotionClient.wait_for_result(rospy.Duration(7))
+
     def revertMovement(self):
         if len(self.actionsHist) == 0:
             return False
@@ -155,7 +167,8 @@ class BucketDetector:
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller())
     
     def compassCallback(self, data):
         self.curHeading = data.yaw
@@ -164,6 +177,7 @@ class BucketDetector:
         self.maniData = data.mani_data
 
     def searchComplete(self):
+        self.canPublish = True
         if not self.testing:
             resp = self.toMission(search_request=True)
             self.curHeading = resp.data.heading_setpoint
@@ -172,13 +186,28 @@ class BucketDetector:
     def abortMission(self):
         if not self.testing:
             self.toMission(fail_request=True, task_complete_request=False)
+
+        # Shoot the ball anyway
+        firePub = rospy.Publisher("/manipulators", manipulator)
+        for i in range(10):
+            firePub.publish(self.maniData | 1)
+            rospy.sleep(rospy.Duration(0.1))
+
+        self.stopRobot()
+        rospy.sleep(rospy.Duration(1))
+        for i in range(10):
+            firePub.publish(self.maniData & 0)
+            rospy.sleep(rospy.Duration(0.1))
+        
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
 
     def taskComplete(self):
         if not self.testing:
-            self.toMission(task_complete_request=True)
+            self.toMission(fail_request=False, task_complete_request=True)
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
@@ -235,6 +264,14 @@ class BucketDetector:
         if maxArea > 0: 
             self.rectData['detected'] = True
             
+            midX = self.screen['width'] / 2.0
+            midY = self.screen['height'] / 2.0
+            maxDeltaX = self.screen['width'] * 0.03
+            maxDeltaY = self.screen['height'] * 0.03
+            cv2.rectangle(out,
+                          (int(midX - maxDeltaX), int(midY - maxDeltaY)),
+                          (int(midX + maxDeltaX), int(midY + maxDeltaY)),
+                          (255, 0, 0), -1)
             #Testing
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
@@ -260,7 +297,8 @@ class BucketDetector:
         centroid_image = self.findTheBucket(cv_image)
         
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
+            if self.canPublish:
+                self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
         except CvBridgeError as e:
             rospy.logerr(e) 
 

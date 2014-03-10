@@ -6,13 +6,10 @@ class Wait(smach.State):
     def __init__(self, world):
         smach.State.__init__(self, outcomes=['pass', 'fail'])
         self.world = world
-        print self.world.config['qualifier_wait']
 
     def execute(self, userdata):
-        self.world.lights.publish(1)
         rospy.sleep(self.world.config['qualifier_wait'])
-        self.world.lights.publish(4)
-        self.world.static_yaw = self.world.yaw
+        self.world.static_yaw = self.world.current_yaw
         if self.world.static_yaw is not None:
             return 'pass'
         else:
@@ -23,18 +20,16 @@ class Dive(smach.State):
         smach.State.__init__(self, outcomes=['pass', 'fail'])
         self.world = world
     def execute(self, userdata):
-        self.world.lights.publish(6)
         rospy.sleep(rospy.Duration(0.5))
-        self.world.lights.publish(9)
         self.world.enable_PID()
         goal = ControllerGoal(depth_setpoint=self.world.config['sauvc_depth'],
                 sidemove_setpoint=0,
                 heading_setpoint=self.world.static_yaw,
                 forward_setpoint=0)
         rospy.loginfo("Waiting for actionServer before diving")
-        self.world.actionServer.wait_for_server()
+        self.world.locomotionServer.wait_for_server()
         rospy.loginfo("We are diving")
-        r = self.world.actionServer.send_goal_and_wait(goal,
+        r = self.world.locomotionServer.send_goal_and_wait(goal,
                                                    execute_timeout=rospy.Duration(60))
         if r == actionlib.GoalStatus.SUCCEEDED:
             return 'pass'
@@ -51,8 +46,8 @@ class Forward(smach.State):
                        sidemove_setpoint=0,
                        heading_setpoint=self.world.static_yaw,
                        forward_setpoint=self.world.config['sauvc_forward'])
-        self.world.actionServer.wait_for_server()
-        r = self.world.actionServer.send_goal_and_wait(goal,
+        self.world.locomotionServer.wait_for_server()
+        r = self.world.locomotionServer.send_goal_and_wait(goal,
                                                    execute_timeout=rospy.Duration(300))
         if r == actionlib.GoalStatus.SUCCEEDED:
             return 'pass'
@@ -81,6 +76,6 @@ class State(smach.State):
     def execute(self, userdata):
         #self.world.enable_PID()
         outcome = self.sm.execute()
-        self.world.actionServer.cancel_all_goals()
+        self.world.locomotionServer.cancel_all_goals()
         return outcome
 
