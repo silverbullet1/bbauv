@@ -1262,7 +1262,7 @@ class AUV_gui(QMainWindow):
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
         height, width, _ = origimg.shape
-        colour = (73, 242, 58)
+        colour = (0, 0, 0)
         pitch_start, pitch_end = 40, height-40
         yaw_start, yaw_end = 40, width-40
 
