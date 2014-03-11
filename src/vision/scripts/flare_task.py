@@ -29,6 +29,7 @@ isTestMode = False                  #If test mode then don't wait for mission ca
 rosRate = None 
 flare = None
 VisionLoopCount = 0                 #Counter for number of times the image is being processed
+flareSeen = False
 
 mani_pub = None
 movement_client = None
@@ -44,21 +45,31 @@ class Disengage(smach.State):
         self.flare = flare_task
     
     def execute(self, userdata):
-        self.flare.unregister()
+#         self.flare.unregister()
+
+        if self.flare.isKilled:
+            rospy.signal_shutdown("Bye")
+            return 'aborted'
 
         while self.flare.isAborted:
             rospy.sleep(rospy.Duration(0.2))
-        
-        self.flare.register()
-        rospy.loginfo("Starting Flare")
+         
+        if self.flare.testing:
+            self.flare.register()
+            rospy.loginfo("Starting Flare")
+            
         return 'start_complete'
     
 #Searches for the flare
 class Search(smach.State):
-    timeout = 100    #5s timeout before aborting task
+    timeout = 10000    #5s timeout before aborting task
     def __init__(self, flare_task):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'mission_abort'])
         self.flare = flare_task
+        
+        if self.flare.testing:
+            self.flare.unregisterHeading()
+        #rospy.loginfo(self.flare.curHeading)
     
     def execute(self, userdata):
         #Check for abort signal
@@ -70,11 +81,11 @@ class Search(smach.State):
         while not self.flare.rectData['detected']:
             if timecount > self.timeout or rospy.is_shutdown() or self.flare.isKilled:
                 self.flare.abortMission()
+                self.flare.failedTask();
                 return 'aborted'
             self.flare.sendMovement(forward=1.0)
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(0.5))
             timecount += 1
-            self.flare.failedTask();
         
         return 'search_complete'
 
@@ -87,6 +98,7 @@ class Manuoevre(smach.State):
         self.deltaThresh = 0.15
         self.prevAngle = []
         self.count = 0
+        self.flareSeen = True
         
     def execute(self,userdata):
         #Check for aborted signal
@@ -94,39 +106,80 @@ class Manuoevre(smach.State):
             return 'aborted'
         
         #Cannot detect already
-#         if not self.flare.rectData['detected']:
-#             self.count += 1
-#         if self.count > 4:
-#             self.flare.taskComplete()
-#             return 'manuoevre_complete'
-        
+        if not self.flare.rectData['detected']:
+            self.count += 1
+        if self.count > 4:
+            self.flare.taskComplete()
+            return 'manuoevre_complete'
+         
+        if not self.flare.rectData['detected'] and self.flareSeen:
+            self.flare.sendMovement(forward=2.0)
+            rospy.sleep(rospy.Duration(3))
+            self.flare.taskComplete()
+            return 'manuoevre_complete'
+         
         #Get to the flare
         screenWidth = self.flare.screen['width']
         screenCenterX = screenWidth / 2
         deltaX = (self.flare.rectData['centroids'][0] - screenCenterX) / screenWidth
-        rospy.loginfo(deltaX)
-         
+        #rospy.loginfo("Delta X {}".format(deltaX))
+        rospy.loginfo("Area {}".format(self.flare.rectData['area']))
+          
         #Forward if center
-        #Shoot straight and aim
-        if self.flare.rectData['area'] > self.flare.headOnArea and abs(deltaX) < 0.30:
-            self.flare.sendMovement(forward=1.8)
-            rospy.loginfo("Hitting flare")
-            rospy.loginfo("Forward 1.5")
-            self.flare.taskComplete()
-            return 'manuoevre_complete'
-        #Forward if center
-        elif abs(deltaX) < 0.30:
+        rospy.loginfo("Delta X: {}".format(deltaX))
+        if abs(deltaX) < 0.15:
             self.flare.sendMovement(forward=self.flare.forwardOffset)
-            rospy.sleep(rospy.Duration(1))
-            rospy.loginfo("Forward {}".format(self.flare.forwardOffset))
+            rospy.sleep(rospy.Duration(0.5))
         else:
             #Sidemove if too far off center
             sidemove = math.copysign(deltaX*self.flare.deltaXMultiplier, deltaX)     #Random number
 #             sidemove = math.copysign(0.5, deltaX)
-            self.flare.sendMovement(forward=0.1, sidemove=sidemove)
-            rospy.loginfo("Forward {} sidemove{}".format(0.1,sidemove))
+            self.flare.sendMovement(forward=0.10, sidemove=sidemove)
+            rospy.sleep(rospy.Duration(0.5))
+             
+        #Shoot straight and aim
+        if self.flare.rectData['area'] > self.flare.headOnArea:
+            return 'manuoevre_complete'
+         
         return 'manuoevring'
-                       
+
+        #return 'manuoevre_complete'
+    
+class Completing(smach.State):
+    def __init__(self, flare_task):
+        smach.State.__init__(self, outcomes=['complete_complete', 'completing',
+                                             'aborted', 'mission_abort'])
+        self.flare = flare_task
+                
+    def execute(self,userdata):
+        #Check for aborted signal
+        if self.flare.isAborted:
+            return 'aborted'
+        
+        screenWidth = self.flare.screen['width']
+        screenCenterX = screenWidth / 2
+        deltaX = (self.flare.rectData['centroids'][0] - screenCenterX) / screenWidth
+         
+        deltaXMult =2.0
+        rospy.loginfo("Delta X:{}".format(deltaX))
+         
+        if abs(deltaX) < 0.05:
+            self.flare.sendMovement(forward=1.3)
+            rospy.loginfo("Hitting the flare")
+            self.flare.locomotionClient.wait_for_result()
+            self.flare.sendMovement(forward=-0.5)     #Retract
+            self.flare.locomotionClient.wait_for_result()
+            self.flare.taskComplete()
+            return 'complete_complete'
+         
+        sidemove = math.copysign(deltaX*deltaXMult, deltaX)     #Random number
+        self.flare.sendMovement(forward=0.00, sidemove=sidemove)
+        rospy.sleep(rospy.Duration(0.5))
+        return 'completing'
+
+        #self.flare.taskComplete()
+        #return 'complete_complete'
+
 '''
 Main python thread
 '''
@@ -191,9 +244,15 @@ if __name__ == '__main__':
     
         smach.StateMachine.add("MANUOEVRE", Manuoevre(flare_task),
                                transitions = {'manuoevring': "MANUOEVRE",
-                                              'manuoevre_complete': "DISENGAGE",
+                                              'manuoevre_complete': "COMPLETING",
                                               'aborted': 'aborted',
                                               'mission_abort': "DISENGAGE"})
+        
+        smach.StateMachine.add("COMPLETING", Completing(flare_task),
+                       transitions = {'complete_complete': "DISENGAGE",
+                                      'completing': "COMPLETING",
+                                      'aborted': 'aborted',
+                                      'mission_abort': "DISENGAGE"})
     
     outcomes = sm.execute()
     
