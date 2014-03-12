@@ -63,7 +63,7 @@ class BucketDetector:
         self.register()
         
         # Setup dynamic reconfigure server
-#         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
 
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/bucket/mission_to_vision", mission_to_vision, self.handleSrv)
@@ -96,17 +96,17 @@ class BucketDetector:
         self.isKilled = True
         
     def reconfigure(self, config, level):
-#         rospy.loginfo("Got reconfigure request!")
-#         self.lowThresh1[0] = config['loH']
-#         self.lowThresh1[1] = config['loS']
-#         self.lowThresh1[2] = config['loV']
-#         
-#         self.hiThresh1[0] = config['hiH']
-#         self.hiThresh1[1] = config['hiS']
-#         self.hiThresh1[2] = config['hiV']
-#         
-#         self.areaThresh = config['area_thresh']
-        
+        rospy.loginfo("Got reconfigure request!")
+        self.lowThresh1[0] = config['loH']
+        self.lowThresh1[1] = config['loS']
+        self.lowThresh1[2] = config['loV']
+         
+        self.hiThresh1[0] = config['hiH']
+        self.hiThresh1[1] = config['hiS']
+        self.hiThresh1[2] = config['hiV']
+         
+        self.areaThresh = config['area_thresh']
+          
         return config
 
     def sendMovement(self, f=0.0, h=None, sm=0.0, d=None, recordAction=True):
@@ -166,6 +166,8 @@ class BucketDetector:
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
+            rospy.loginfo("Received Abort Request!!!")
+            self.shootBall()
             self.isAborted = True
         return mission_to_visionResponse(start_response=True, abort_response=False,
                                          data=controller())
@@ -182,11 +184,8 @@ class BucketDetector:
             resp = self.toMission(search_request=True)
             self.curHeading = resp.data.heading_setpoint
             rospy.loginfo("Handed over! Got heading: {}".format(self.curHeading))
-
-    def abortMission(self):
-        if not self.testing:
-            self.toMission(fail_request=True, task_complete_request=False)
-
+    
+    def shootBall(self):
         # Shoot the ball anyway
         firePub = rospy.Publisher("/manipulators", manipulator)
         for i in range(10):
@@ -198,7 +197,13 @@ class BucketDetector:
         for i in range(10):
             firePub.publish(self.maniData & 0)
             rospy.sleep(rospy.Duration(0.1))
-        
+
+    def abortMission(self):
+        rospy.loginfo("Sending Abort request to mission planner")
+        if not self.testing:
+            self.toMission(fail_request=True, task_complete_request=False)
+
+        self.shootBall()        
         self.canPublish = False
         self.isAborted = True
         self.isKilled = True
