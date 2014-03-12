@@ -8,27 +8,32 @@ class State(smach.State):
     def __init__(self, world):
         smach.State.__init__(self, outcomes=self.outcomes)
         self.world = world
-        self.timeout = self.world.config["max_flare_time"]
-        self.timer = rospy.Timer(rospy.Duration(
-            self.timeout + self.world.grace), self.timerCallback, oneshot=True)
+        self.timeout = self.world.config["max_flare_timeout"]
 
-        self.startpos = self.world.currPos
+        self.startpos = self.world.current_pos
 
     def timerCallback(self, e):
         rospy.logerr("Flare ran out of time")
-        self.world.flareService(abort_request=True, start_request=False,
+        r = self.world.flareService(abort_request=True, start_request=False,
                                 start_ctrl=controller())
+        rospy.loginfo("Flare replied to abort request: %s" % (str(r)))
         self.world.flareFailed = True
 
     def execute(self, userdata):
+        self.timer = rospy.Timer(rospy.Duration(
+            self.timeout + self.world.grace), self.timerCallback, oneshot=True)
         tn = rospy.get_time()
         rospy.loginfo("Ros time now is %f, flare has %fs" % (tn,
                                     self.timeout + self.world.grace))
         rospy.loginfo("Amount of grace time carried over is %f" %
                       self.world.grace)
         rospy.loginfo("Waiting for flare service")
-        self.world.flareService.wait_for_service()
-        rospy.loginfo("Got flare service")
+        try:
+            self.world.flareService.wait_for_service(timeout=10)
+        except Exception, e:
+            rospy.logerr("waiting for flare service timed out: %s" % (str(e)))
+            return 'fail'
+        rospy.loginfo("Got flare service, starting")
         self.world.flareService(
             start_request=True, abort_request=False,
             start_ctrl=controller(depth_setpoint=self.world.config['sauvc_depth'],

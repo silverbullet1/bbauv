@@ -18,9 +18,9 @@ class Interaction(object):
         self.current_depth = None
         self.current_yaw   = None
         self.static_yaw = None
-        self.current_pos = {'x' : None, 'y' : None}
+        self.current_pos = {'x' : 0, 'y' : 0}
 
-        self.world.grace = 0
+        self.grace = 0
 
         self.linefollowerActive = False
         self.linefollowerDone   = False
@@ -93,8 +93,18 @@ class Interaction(object):
                           self.flareServerCallback)
             self.flareService           =\
             rospy.ServiceProxy("/flare/mission_to_vision", mission_to_vision)
+            self.acousticService        =\
+            rospy.ServiceProxy("/acoustic/mission_to_vision", mission_to_vision)
+            self.acousticServer         =\
+            rospy.Service("/acoustic/vision_to_mission", vision_to_mission,
+                          self.acousticServerCallback)
         except rospy.ServiceException, e:
             rospy.logerr("Error creating task specific services: %s" % (str(e)))
+
+        try:
+            self.lights = rospy.Publisher("/led_strips", Int8)
+        except rospy.ServiceException, e:
+            rospy.logerr("Cannot proc lights.")
 
     def DVLCallback(self, data):
         self.current_pos['x'] = data.pose.pose.position.x
@@ -173,6 +183,13 @@ class Interaction(object):
         r = self.bucketService(start_request=True, start_ctrl=controller())
         rospy.loginfo("Reply from bucketdetector: %s" % (str(r)))
         self.bucketActive = True
+
+    def acousticServerCallback(self, req):
+        if req.task_complete_request:
+            self.acousticsDone = True
+            #redo
+            return vision_to_missionResponse(True, True, controller())
+        return vision_to_missionResponse(True, True, controller())
 
 
 class MissionPlanner(object):

@@ -9,8 +9,6 @@ class State(smach.State):
         smach.State.__init__(self, outcomes=self.outcomes)
         self.world = world
         self.timeout = self.world.config["max_linefollower_time"]
-        self.timer = rospy.Timer(rospy.Duration(self.timeout + self.world.grace),
-                                 self.timerCallback, oneshot=True)
 
     def timerCallback(self, e):
         rospy.logerr("Linefollower exceeded maximum time allowed. Aborting")
@@ -21,6 +19,8 @@ class State(smach.State):
 
 
     def execute(self, userdata):
+        self.timer = rospy.Timer(rospy.Duration(self.timeout),
+                                    self.timerCallback, oneshot=True)
         tn = rospy.get_time()
         rospy.loginfo("Ros time now is %f, starting linefollower, %fs max" %
                       (tn, self.timeout + self.world.grace))

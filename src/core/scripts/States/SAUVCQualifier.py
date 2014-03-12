@@ -53,6 +53,12 @@ class Forward(smach.State):
         r = self.world.locomotionServer.send_goal_and_wait(goal,
                                                    execute_timeout=rospy.Duration(300))
         if r == actionlib.GoalStatus.SUCCEEDED:
+            goal = ControllerGoal(depth_setpoint=0, sidemove_setpoint=0,
+                                  heading_setpoint=self.world.static_yaw,
+                                  forward_setpoint=0)
+            r = self.world.locomotionServer.send_goal_and_wait(goal)
+            if r == actionlib.GoalStatus.SUCCEEDED:
+                return 'pass'
             return 'pass'
         else:
             return 'fail'
@@ -77,5 +83,5 @@ class State(smach.State):
 
     def execute(self, userdata):
         outcome = self.sm.execute()
-        self.world.locomotionServer.cancel_all_goals()
+        self.world.disable_PID()
         return outcome

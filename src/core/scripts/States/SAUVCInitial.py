@@ -59,7 +59,6 @@ class State(smach.State):
     outcomes = ['pass', 'fail']
 
     def __init__(self, world):
-        print "thien is gay"
         smach.State.__init__(self, outcomes=self.outcomes)
         self.world = world
         self.sm = smach.StateMachine(outcomes=self.outcomes)
