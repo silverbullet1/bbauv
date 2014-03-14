@@ -48,9 +48,9 @@ class Searching1(smach.State):
 
         self.bucketDetector.searchComplete()
 
-        self.bucketDetector.depth_setpoint = 0.2
+        self.bucketDetector.depth_setpoint = 0.4
         self.bucketDetector.stopRobot()
-        rospy.sleep(rospy.Duration(2.0))
+        rospy.sleep(rospy.Duration(2.5))
 
         return 'search_complete'
 
@@ -127,9 +127,9 @@ class Firing(smach.State):
     
     def execute(self, userdata):
         rospy.loginfo("--- Moving down and backward! ---")
-        self.bucketDetector.depth_setpoint = 0.4
+        self.bucketDetector.depth_setpoint = 0.6
         self.bucketDetector.sendMovementBlocking(f=-0.08)
-        self.bucketDetector.depth_setpoint = 0.2
+        self.bucketDetector.depth_setpoint = 0.4
 
         rospy.loginfo("--- Shooting!!! ---")
         firePub = rospy.Publisher("/manipulators", manipulator)
