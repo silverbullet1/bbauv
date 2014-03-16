@@ -48,7 +48,7 @@ class Searching1(smach.State):
 
         self.bucketDetector.searchComplete()
 
-        self.bucketDetector.depth_setpoint = 0.4
+        self.bucketDetector.depth_setpoint = 0.55
         self.bucketDetector.stopRobot()
         rospy.sleep(rospy.Duration(2.5))
 
@@ -109,12 +109,12 @@ class Centering(smach.State):
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
         
-        if abs(deltaX) < 0.03 and abs(deltaY) < 0.03:
+        if abs(deltaX) < 0.02 and abs(deltaY) < 0.02:
             self.bucketDetector.stopRobot()
             rospy.loginfo("--- Done centering! ---")
             return 'centering_complete'
 
-        fwd_setpoint = math.copysign(2.0 * abs(deltaY), -deltaY)
+        fwd_setpoint = math.copysign(1.5 * abs(deltaY), -deltaY)
         sm_setpoint = math.copysign(2.0 * abs(deltaX), deltaX)
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
@@ -127,9 +127,9 @@ class Firing(smach.State):
     
     def execute(self, userdata):
         rospy.loginfo("--- Moving down and backward! ---")
-        self.bucketDetector.depth_setpoint = 0.6
+        self.bucketDetector.depth_setpoint = 0.8
         self.bucketDetector.sendMovementBlocking(f=-0.08)
-        self.bucketDetector.depth_setpoint = 0.4
+        self.bucketDetector.depth_setpoint = 0.5
 
         rospy.loginfo("--- Shooting!!! ---")
         firePub = rospy.Publisher("/manipulators", manipulator)

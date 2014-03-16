@@ -21,8 +21,8 @@ import numpy as np
 
 class BucketDetector:
     #HSV thresholds for red color
-    lowThresh1 = np.array([ 92, 0, 0 ])
-    hiThresh1 = np.array([ 132, 255, 255 ]) 
+    lowThresh1 = np.array([ 110, 0, 0 ])
+    hiThresh1 = np.array([ 137, 255, 255 ]) 
     areaThresh = 10000
     
     bridge = None
@@ -35,6 +35,7 @@ class BucketDetector:
     screen = { 'width' : 640, 'height' : 480 }
     minRadius = 80
     maxRadius = 320
+    hasCircle = False
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
@@ -271,8 +272,8 @@ class BucketDetector:
             
             midX = self.screen['width'] / 2.0
             midY = self.screen['height'] / 2.0
-            maxDeltaX = self.screen['width'] * 0.03
-            maxDeltaY = self.screen['height'] * 0.03
+            maxDeltaX = self.screen['width'] * 0.02
+            maxDeltaY = self.screen['height'] * 0.02
             cv2.rectangle(out,
                           (int(midX - maxDeltaX), int(midY - maxDeltaY)),
                           (int(midX + maxDeltaX), int(midY + maxDeltaY)),
