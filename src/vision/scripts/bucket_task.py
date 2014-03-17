@@ -47,10 +47,15 @@ class Searching1(smach.State):
             rospy.sleep(rospy.Duration(0.1))
 
         self.bucketDetector.searchComplete()
+
+        self.bucketDetector.depth_setpoint = 0.2
+        self.bucketDetector.stopRobot()
+        rospy.sleep(rospy.Duration(2.0))
+
         return 'search_complete'
 
 class Searching2(smach.State):
-    timeout = 70
+    timeout = 30
 
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
@@ -67,9 +72,9 @@ class Searching2(smach.State):
             timecount += 1
             rospy.sleep(rospy.Duration(0.1))
             
-        while self.bucketDetector.revertMovement():
-            if self.bucketDetector.rectData['detected']:
-                return 'search_complete'
+#         while self.bucketDetector.revertMovement():
+#             if self.bucketDetector.rectData['detected']:
+#                 return 'search_complete'
 
         timecount = 0
         while not self.bucketDetector.rectData['detected']:
@@ -104,11 +109,13 @@ class Centering(smach.State):
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
         
-        if abs(deltaX) < 0.05 and abs(deltaY) < 0.05:
+        if abs(deltaX) < 0.03 and abs(deltaY) < 0.03:
+            self.bucketDetector.stopRobot()
+            rospy.loginfo("--- Done centering! ---")
             return 'centering_complete'
 
-        fwd_setpoint = math.copysign(0.1, -deltaY)
-        sm_setpoint = math.copysign(2.0, deltaX)
+        fwd_setpoint = math.copysign(2.0 * abs(deltaY), -deltaY)
+        sm_setpoint = math.copysign(2.0 * abs(deltaX), deltaX)
         self.bucketDetector.sendMovement(f=fwd_setpoint, sm=sm_setpoint)
         return 'centering'
 
@@ -119,12 +126,22 @@ class Firing(smach.State):
         self.bucketDetector = bucketDetector
     
     def execute(self, userdata):
-        self.bucketDetector.stopRobot()
+        rospy.loginfo("--- Moving down and backward! ---")
+        self.bucketDetector.depth_setpoint = 0.4
+        self.bucketDetector.sendMovementBlocking(f=-0.08)
+        self.bucketDetector.depth_setpoint = 0.2
 
+        rospy.loginfo("--- Shooting!!! ---")
         firePub = rospy.Publisher("/manipulators", manipulator)
         for i in range(10):
             firePub.publish(self.bucketDetector.maniData | 1)
-            rospy.sleep(rospy.Duration(0.2))
+            rospy.sleep(rospy.Duration(0.1))
+
+        self.bucketDetector.stopRobot()
+        rospy.sleep(rospy.Duration(1))
+        for i in range(10):
+            firePub.publish(self.bucketDetector.maniData & 0)
+            rospy.sleep(rospy.Duration(0.1))
 
         self.bucketDetector.taskComplete()
         return 'firing_complete'

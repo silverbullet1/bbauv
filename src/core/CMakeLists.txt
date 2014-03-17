@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tasks
   bbauv_msgs
+  dynamic_reconfigure
 )
 
 ## System dependencies are found with CMake's conventions
@@ -75,6 +76,10 @@ find_package(Boost REQUIRED COMPONENTS system)
 # bbauv_msgs
 #)
 
+generate_dynamic_reconfigure_options(
+    cfg/mission_planner.cfg
+)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -109,21 +114,11 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(timer src/timer.cpp)
-add_executable(core src/core_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(timer bbauv_msgs_generate_messages_cpp)
-add_dependencies(core bbauv_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(timer
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(core
-  ${catkin_LIBRARIES}
-)
 
 #############
 ## Install ##

@@ -21,6 +21,7 @@ class LineFollower():
     thval = 30
     upperThresh = 70
     areaThresh = 7000
+    upperAreaThresh = 70000
     screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
@@ -47,21 +48,17 @@ class LineFollower():
         self.outPub = rospy.Publisher("/Vision/image_filter", Image)
         
         # Set up dynamic reconfigure for linefollower
-        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+#         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
         
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
 
         if not self.testing:
             rospy.loginfo("Waiting for vision_to_mission server...")
+            self.isAborted = True
             self.toMission = rospy.ServiceProxy("/linefollower/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout = 10)
-
-        #Setting controller server
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
-                  topside=False, navigation=False)
+            self.toMission.wait_for_service(timeout = 60)
 
         #Wait for locomotion server to start
         try:
@@ -71,15 +68,22 @@ class LineFollower():
             rospy.loginfo("Locomotion Server timeout!")
             self.isKilled = True  
 
+        #Setting controller server
+        if self.testing:
+            setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                      topside=False, navigation=False)
+
+
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
 
     def reconfigure(self, config, level):
-        rospy.loginfo("Got dynamic reconfigure params")
-        self.areaThresh = config['area_thresh']
-        self.upperThresh = config['upper_thresh']
-        
+#         rospy.loginfo("Got dynamic reconfigure params")
+#         self.areaThresh = config['area_thresh']
+#         self.upperThresh = config['upper_thresh']
+#         
         return config
 
     def registerSubscribers(self):
@@ -95,7 +99,7 @@ class LineFollower():
 
     def unregisterSubscribers(self):
         self.imgSub.unregister()
-        self.comSub.unregister()
+#         self.comSub.unregister()
         self.rectData['detected'] = False
 
     #Handle communication service with mission planner    
@@ -104,8 +108,18 @@ class LineFollower():
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
+            rospy.loginfo("Got abort request")
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+        
+        lastHeading = [self.curHeading, self.curHeading]
+        length = len(self.actionsHist)
+        if length > 1:
+            lastHeading = self.actionsHist[-2]
+        elif length > 0:
+            lastHeading = self.actionsHist[-1]
+
+        return mission_to_visionResponse(start_response=True, abort_response=False,
+                                         data=controller(heading_setpoint=lastHeading[1]))
     
     def stopRobot(self):
         self.sendMovement(f=0, sm=0)
@@ -198,7 +212,7 @@ class LineFollower():
         maxArea = 0
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > self.areaThresh and area > maxArea:
+            if area > self.areaThresh and area < self.upperAreaThresh and area > maxArea:
                 #Find the center using moments
                 mu = cv2.moments(contour, False) 
                 centroidx = mu['m10'] / mu['m00']

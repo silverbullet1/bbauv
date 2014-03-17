@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'start_complete'
 
 class Searching(smach.State):
-    timeout = 30 #5 seconds time out before aborting
+    timeout = 30 # 3 seconds time out before aborting
     
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['line_found', 'aborted'])
@@ -47,18 +47,27 @@ class Searching(smach.State):
         #Check if blackline is found or timeout
         timecount = 0
         while not self.linefollower.rectData['detected']:
+            #Check for aborted signal
+            if self.linefollower.isAborted:
+                return 'aborted'
             if timecount > self.timeout:
                 break
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
         
         while self.linefollower.revertMovement():
+            #Check for aborted signal
+            if self.linefollower.isAborted:
+                return 'aborted'
             if self.linefollower.rectData['detected']:
                 return 'line_found'            
         
         #Check if blackline is found or timeout
         timecount = 0
         while not self.linefollower.rectData['detected']:
+            #Check for aborted signal
+            if self.linefollower.isAborted:
+                return 'aborted'
             if timecount > self.timeout:
                 self.linefollower.abortMission()
                 return 'aborted'
@@ -91,6 +100,7 @@ class FollowingLine(smach.State):
         deltaX = (rectData['centroid'][0] - screenCenterX) / screenWidth
         angle = rectData['angle']
 
+        rospy.loginfo("delta: {}".format(deltaX))
         #If the rect is too far off center, do agressive sidemove
         if abs(deltaX) > 0.3:
             rospy.loginfo("Too far of center! Argressive sidemove")
@@ -98,30 +108,31 @@ class FollowingLine(smach.State):
             sidemove = math.copysign(3.0, deltaX)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
             return 'following_line'
-
-        if len(self.prevAngle) > 1:
-            oppAngle = angle - 180 if angle > 0 else angle + 180
-            if abs(angle - self.prevAngle[0]) > abs(oppAngle - self.prevAngle[0]):
-                angle = oppAngle
-                self.prevAngle[0] = angle
-        else:
-            self.prevAngle.append(angle)
+# 
+#         if len(self.prevAngle) > 1:
+#             oppAngle = angle - 180 if angle > 0 else angle + 180
+#             if abs(angle - self.prevAngle[0]) > abs(oppAngle - self.prevAngle[0]):
+#                 angle = oppAngle
+#                 self.prevAngle[0] = angle
+#         else:
+#             self.prevAngle.append(angle)
 
         if deltaX < -self.deltaThresh:
             sidemove = -2.0
         elif deltaX > self.deltaThresh:
-            sidemove = 2.0
+            sidemove = 2.0 
         else:
             sidemove = 0.0
 
-        if abs(angle) < 10:
-            self.linefollower.sendMovement(f=0.5, sm=sidemove)
+        if abs(angle) < 8:
+            heading = normHeading(self.linefollower.curHeading - angle)
+            self.linefollower.sendMovement(f=0.9, h=heading, sm=sidemove)
         else:
             if sidemove == 0:
-                sidemove = angle / 60 * 2.0
+                sidemove = deltaX * 1.0
             else:
                 if abs(angle) > 30:
-                    angle = math.copysign(30, angle)
+                    angle = math.copysign(angle, angle)
             
             heading = normHeading(self.linefollower.curHeading - angle)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
