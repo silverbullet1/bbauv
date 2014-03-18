@@ -70,8 +70,8 @@ public:
 	void delay(long delay);
 
 	double getGlobalThreshold(cv::Mat gImg);
-	void myAdaptiveThreshold(cv::Mat gImg, cv::Mat srcDilated, double maxValue, int method,
-			int type, int blockSize, double delta);
+	void myAdaptiveThreshold(cv::Mat gImg, double maxValue, int method, int type, int blockSize, double delta);
+	void getRangeBearing(vector<cv::Point> savedPoints);
 
 private:
 	int imgWidth;
