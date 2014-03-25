@@ -1,3 +1,4 @@
-from cv_bridge import CvBridge
-
-bridge = CvBridge()
+botCamTopic = ''
+frontCamTopic = ''
+botCamLocalTopic = ''
+frontCamLocalTopic = ''
