@@ -20,15 +20,15 @@ class LineFollower():
     testing = False
     thval = 30
     upperThresh = 70
-    areaThresh = 7000
-    upperAreaThresh = 70000
+    areaThresh = 3000
+    upperAreaThresh = 100000
     screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.6
     actionsHist = deque()
 
     def __init__(self):
@@ -189,7 +189,7 @@ class LineFollower():
         # Calculate adaptive threshold value
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
-        self.thval = min((mean + lowest) / 2.0, self.upperThresh)
+        self.thval = min((mean + lowest) / 3.99, self.upperThresh)
         rospy.logdebug(self.thval)
 
         #Thresholding and noise removal

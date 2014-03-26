@@ -27,7 +27,7 @@ import cmath
 
 #For TCP communication with sbRIO
 import socket 
-TCP_IP = '192.168.1.149'
+TCP_IP = '192.168.1.100'
 PORT = 5100
 BUFFER_SIZE = 350
 
@@ -104,11 +104,18 @@ compass_sub = rospy.Subscriber('/euler', bbauv_msgs.msg.compass_data, compass_ca
 	This telcomplexList locomotionClient to move the robot in 
 		'f'-Forward distance   (m)		'turn'-bearing of heading (deg)
 '''
-def sendMovement(forward=0.0, turn=None, depth=1.0):
+def normalize_angle(angle):
+        return (angle % 360 + 360) % 360
+
+def sendMovement(forward=0.0, turn=0.0, depth=1.0):
+    print turn
     global heading
     global locomotionClient
-    turn = (turn+heading)%360 if turn else heading
-    goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, sidemove_setpoint=0.0, depth_setpoint=depth)
+    print("heading: " + str(heading) + "\n")
+    turn = 0 if turn is None else turn
+    turning = normalize_angle(turn+heading) if turn is not None else heading
+    print("Turn received: " + str(turning))
+    goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turning, sidemove_setpoint=0.0, depth_setpoint=depth)
     locomotionClient.send_goal(goal)
     if isTest:
         locomotionClient.wait_for_result(rospy.Duration(0.5))
@@ -243,7 +250,7 @@ def writeToFile(fileName,list,theta):
 #Getting data from TCP
 def getRawData(conn,num):
     complexList = []
-    sleepAwhile(5)		#Wait for certain interval before receive new data
+    #sleepAwhile(5)		#Wait for certain interval before receive new data
     conn.close()
     (conn, addr) = s.accept()
     while True:
@@ -263,7 +270,7 @@ def getRawData(conn,num):
                 (conn, addr) = s.accept()
                 continue
 
-    return [complexList[1],complexList[2], complexList[3]]
+    return [complexList[1]]
 				
 def sleepAwhile(durationSec=5):
 	time.sleep(durationSec)
@@ -280,19 +287,15 @@ def distanceToPinger(algo_type, num):
                 [DOA3,elevationAngle3] = music_3d(final_rawData, fl) if len(final_rawData) is not 0 else [0,0]
                 DOA = DOA3
 
-
-    elif algo_type == "CLASSICAL" :
-            final_rawData = getRawData(TCP_connect)
-            [DOA3,elevationAngle3] = classical_3d(final_rawData) if len(final_rawData) is not 0 else [0,0]
     else: 
         print "ERROR: Algorithm was not specified"
 
-    if not overShotPinger(DOA):
+    if not overShotPinger(DOA3):
         print ("Turning to face pinger at relative " + str(DOA3) + " degrees" )
-        sendMovement(turn=DOA)
+        sendMovement(turn=45)
         pingerDistance = float(distanceConst[counter]) if counter < 3.0 else 1.0
     else:
-        pingerDistance = pingerDistance/2.0
+        pingerDistance = -(pingerDistance/2.0)
     counter+= 1
     print ("AUV is " + str(pingerDistance) + " m away")
     return pingerDistance
@@ -312,7 +315,7 @@ if __name__ == "__main__":
         distanceToMove = distanceToPinger("MUSIC", 1)
         if counter > 1 and overShotPinger(DOA):
             print "Found First, overshot"
-            sendMovement(forward=-0.5) 
+            sendMovement(forward=pingerDistance) 
             print "Reversed"
             distanceToMove = distanceToPinger("MUSIC", 2)
             sendMovement(turn=DOA)

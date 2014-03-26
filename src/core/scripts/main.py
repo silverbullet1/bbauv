@@ -101,6 +101,11 @@ class Interaction(object):
         except rospy.ServiceException, e:
             rospy.logerr("Error creating task specific services: %s" % (str(e)))
 
+        try:
+            self.lights = rospy.Publisher("/led_strips", Int8)
+        except rospy.ServiceException, e:
+            rospy.logerr("Cannot proc lights.")
+
     def DVLCallback(self, data):
         self.current_pos['x'] = data.pose.pose.position.x
         self.current_pos['y'] = data.pose.pose.position.y
@@ -167,7 +172,7 @@ class Interaction(object):
             self.starting_yaw = self.current_yaw
         rospy.loginfo("Activating linefollower node")
         r = self.linefollowerService(start_request=True,
-                start_ctrl=controller(depth_setpoint=self.config['sauvc_depth'],
+                start_ctrl=controller(depth_setpoint=self.config['linefollower_depth'],
                             heading_setpoint=self.static_yaw),
                             abort_request=False)
         rospy.loginfo("Reply from linefollower: %s" % (str(r)))
@@ -175,7 +180,9 @@ class Interaction(object):
 
     def activateBucket(self):
         rospy.loginfo("Activating bucketdetector node")
-        r = self.bucketService(start_request=True, start_ctrl=controller())
+        r = self.bucketService(start_request=True,
+                               start_ctrl=controller(depth_setpoint=self.config[
+                               'bucket_depth']))
         rospy.loginfo("Reply from bucketdetector: %s" % (str(r)))
         self.bucketActive = True
 

@@ -17,6 +17,7 @@ import math
 import cmath
 import sys 
 import socket
+import signal
 
 #Constants
 DEGREE_PI = 180
@@ -24,15 +25,16 @@ DEGREE_TWO_PI = 360
 TCP_IP = '192.168.1.100'
 TCP_PORT = 5100
 BUFFER_SIZE = 360        
-sampleAmount = 4	#Global constant
-distanceConst = [4.0,3.0,2.0]
+sampleAmount = 2	#Global constant
+distanceConst = [3.0,2.0,1.0]
 step_size = 1.0
 
 class AcousticNode(object):
 
-    def __init__(self, param, param2):
+    def __init__(self, param):
+        rospy.loginfo("Intialised brain")
         self.depth = 0
-        self.heading = 0
+        self.heading = None
         self.elevationAngle = 0
         self.DOA = 0
         self.DOA2 = 0
@@ -41,14 +43,14 @@ class AcousticNode(object):
         self.isDormant = True
         self.inTheBox = False
         self.isTest = param
-        self.noTCP = param2
-        self.fh = 30000.0 #Higher frequency pinger
+        self.fh = 37500.0 #Higher frequency pinger
         self.fl = 22500.0 #Lower frequency pinger
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.TCP_connect = None
         self.counter = 0
-        self.timeout = 3000
-    #ROS Callbacks
+        self.bad = 0
+        self.s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        self.s.bind((TCP_IP, TCP_PORT))
+        self.TCP_connect = None
+        rospy.loginfo("Connected to sbRIO")
 
     def handleSrv(self, req):
         if req.start_request:
@@ -58,21 +60,30 @@ class AcousticNode(object):
         return mission_to_visionResponse(start_response=True, abort_response=False, data=controller())
 
     def compass_callback(self,data):
-        self.heading['yaw'] = data.yaw
+        self.heading = data.yaw
 
     def depth_callback(self,data):
         self.depth = data.depth 
 
     #ROS Utility functions
 
-    def sendMovement(self,forward=0.0, turn=None, depth=1.0):
-        turn = (turn+self.heading)%360 if turn else self.heading
-        goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, sidemove_setpoint=0.0, depth_setpoint=depth)
-        self.locomotionClient.send_goal(goal)
-        if self.isTest:
-            self.locomotionClient.wait_for_result(rospy.Duration(0.5))
+    def sendMovement(self,forward=0.0, sidemove=0.0, turn=None, depth=1.0, absolute=False, wait=True):
+        if turn is None:
+            turn = self.heading
+            goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, sidemove_setpoint=sidemove, depth_setpoint=depth)
         else:
+            if absolute:
+                goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, sidemove_setpoint=sidemove, depth_setpoint=depth)
+            else:
+                turn = (turn+self.heading)%360 
+                goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=turn, sidemove_setpoint=sidemove, depth_setpoint=depth)
+        rospy.loginfo("Turn received: " + str(turn))
+        self.locomotionClient.send_goal(goal)
+        if wait:
             self.locomotionClient.wait_for_result()
+        else:
+            self.locomotionClient.wait_for_result(timeout=rospy.Duration(2.0))
+
 
     def initAll(self):
     #Initialise Locomotion Client 
@@ -80,22 +91,25 @@ class AcousticNode(object):
             self.locomotionClient = actionlib.SimpleActionClient('LocomotionServer',ControllerAction) 
             self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except rospy.ServiceException:
+            self.TCP_connect.shutdown()
+            self.TCP_connect.close()
             rospy.logerr("Error running Locmotion Client")
     #Initialise Controller Service:
         try:
             self.controllerSettings = rospy.ServiceProxy("/set_controller_srv", set_controller)
             self.controllerSettings.wait_for_service()
         except rospy.ServiceException:
+            self.TCP_connect.shutdown()
+            self.TCP_connect.close()
             rospy.logerr("Failed to connect to Controller")
 
 
     #Initialise acoustic to mission 
-        if not self.isTest:
-            try:
-                self.toMission = rospy.ServiceProxy("/acoustic/vision_to_mission", vision_to_mission)
-                self.toMission.wait_for_service(timeout=10)
-            except rospy.ServiceException:
-                rospy.logerr("Error connecting to mission planner")
+        try:
+            self.toMission = rospy.ServiceProxy("/acoustic/vision_to_mission", vision_to_mission)
+            self.toMission.wait_for_service(timeout=60)
+        except rospy.ServiceException:
+            rospy.logerr("Error connecting to mission planner")
 
     #Setting controller server
         setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
@@ -106,7 +120,9 @@ class AcousticNode(object):
 
     #Inialise compass_sub 
         self.compass_sub = rospy.Subscriber('/euler', compass_data, self.compass_callback)
-
+        while self.heading is None:
+            rospy.loginfo("Waiting for compass")
+            rospy.sleep(rospy.Duration(1.0))
         
     def unregister(self):
         self.depth_sub.unregister()
@@ -189,8 +205,8 @@ class AcousticNode(object):
                 #writeToFile('pmusic.txt',pmusic[:,theta],theta)
         
         [Music_phiCap,Music_thetaCap] = self.getMax(pmusic)
-        print ("Music DOA calculated: " + str(Music_phiCap))    
-        print ("Music elevation calculated: " + str(Music_thetaCap))	
+        rospy.loginfo("Music DOA calculated: " + str(Music_phiCap))    
+        rospy.loginfo("Music elevation calculated: " + str(Music_thetaCap))	
         return [Music_phiCap,Music_thetaCap]
 
     def plot(self,list,Phi):
@@ -208,53 +224,77 @@ class AcousticNode(object):
     def getRawData(self,conn,num):
         complexList = []
         conn.close()
-        (conn, addr) = s.accept()
+        (conn, addr) = self.s.accept()
         while True:
             if len(complexList) == sampleAmount:
                 break
             else:
                 data = conn.recv(BUFFER_SIZE)
-                if(self.splitTCPMsg(data, num)):
-                        splitted = splitTCPMsg(data, num)
+                rospy.loginfo(data)
+                if(self.splitTCPMsg(data, num) and self.bad == 1):
+                        complexList = []
+                        self.bad = 0
+                        rospy.loginfo("Recovered from one bad ping")
+                        splitted = self.splitTCPMsg(data, num)
                         complexList.append(splitted)
                         conn.close()
-                        (conn, addr) = s.accept()
-                        print("Number of takes: " + str(len(complexList)))
+                        (conn, addr) = self.s.accept()
+                        break
+                elif(self.splitTCPMsg(data, num)):
+                        rospy.loginfo("Good ping")
+                        splitted = self.splitTCPMsg(data, num)
+                        complexList.append(splitted)
+                        conn.close()
+                        (conn, addr) = self.s.accept()
+                        rospy.loginfo("Number of takes: " + str(len(complexList)))
                 else:
                     rospy.loginfo("Bad ping received")
+                    if self.bad > 1:
+                        self.sendMovement(forward=0.0, turn=20, depth=1.0)
+                        self.bad = 0
+                    else:
+                        self.bad += 1
                     conn.close()
-                    (conn, addr) = s.accept()
+                    (conn, addr) = self.s.accept()
                     continue
-        return [complexList[1],complexList[2], complexList[3]]
+        return complexList[1:sampleAmount]
                     
     def sleepAwhile(self,durationSec=5):
         time.sleep(durationSec)
 
     def overShotPinger(self, angle):
-        return 135<= angle <=225
+        return 120<= angle <=240
 
     def calculateDOA(self, conn, num):
         global distanceConst, step_size
         final_rawData = self.getRawData(conn, num)
         if num == 1:
-            [self.DOA,self.elevationAngle] = self.music_3d(final_rawData, fh) if len(final_rawData) is not 0 else [0,0]
+            [self.DOA,self.elevationAngle] = self.music_3d(final_rawData, self.fh) if len(final_rawData) is not 0 else [0,0]
         else:
-            [self.DOA,self.elevationAngle] = self.music_3d(final_rawData, fl) if len(final_rawData) is not 0 else [0,0]
-        if not overShotPinger(self.DOA):
-            self.pingerDistance = distanceConst[counter] if counter < 3 else step_size
+            [self.DOA,self.elevationAngle] = self.music_3d(final_rawData, self.fl) if len(final_rawData) is not 0 else [0,0]
+        if self.overShotPinger(self.DOA) and self.counter > 1:
+            self.pingerDistance = -(self.pingerDistance/2.0)
         else:
-            self.pingerDistance = self.pingerDistance/2.0
+            self.pingerDistance = distanceConst[self.counter] if self.counter < 2 else step_size
         self.counter+= 1
-        print("AUV is " + str(self.pingerDistance) + " m away")
+        rospy.loginfo("AUV is " + str(self.pingerDistance) + " m away")
 
     def quitProgram(self, signal, frame):
+        self.TCP_connect.shutdown()
+        self.TCP_connect.close()
         self.isKilled = True
 
 if __name__ == "__main__":
-    rospy.init_node("acoustic_core")
-    acousticCore =  AcousticNode()
-    signal.signal(signal.SIGINT, quitProgram)
-    rospy.spin()
+    try:
+        rospy.loginfo("init successful")
+        rospy.init_node("acoustic_core")
+        acousticCore = AcousticNode()
+        signal.signal(signal.SIGINT, acousticCore.quitProgram)
+        signal.signal(signal.SIGTERM, acousticCore.quitProgram)
+        rospy.spin()
+    except KeyboardInterrupt:
+        self.TCP_connect.shutdown()
+        self.TCP_connect.close()
 
 
 

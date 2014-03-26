@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'start_complete'
 
 class Searching(smach.State):
-    timeout = 30 # 3 seconds time out before aborting
+    timeout = 50 # 3 seconds time out before aborting
     
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['line_found', 'aborted'])
@@ -129,7 +129,7 @@ class FollowingLine(smach.State):
             self.linefollower.sendMovement(f=0.9, h=heading, sm=sidemove)
         else:
             if sidemove == 0:
-                sidemove = deltaX * 1.0
+                sidemove = deltaX * 1.5
             else:
                 if abs(angle) > 30:
                     angle = math.copysign(angle, angle)
