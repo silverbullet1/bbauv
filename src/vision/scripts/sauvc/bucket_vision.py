@@ -21,8 +21,8 @@ import numpy as np
 
 class BucketDetector:
     #HSV thresholds for red color
-    lowThresh1 = np.array([ 92, 0, 0 ])
-    hiThresh1 = np.array([ 132, 255, 255 ]) 
+    lowThresh1 = np.array([ 110, 0, 0 ])
+    hiThresh1 = np.array([ 137, 255, 255 ]) 
     areaThresh = 10000
     
     bridge = None
@@ -35,6 +35,7 @@ class BucketDetector:
     screen = { 'width' : 640, 'height' : 480 }
     minRadius = 80
     maxRadius = 320
+    hasCircle = False
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer", ControllerAction)
         
@@ -51,6 +52,7 @@ class BucketDetector:
         self.testing = rospy.get_param("~testing", False)
         self.isAborted = False
         self.isKilled = False
+        self.canPublish = False
         signal.signal(signal.SIGINT, self.userQuit)
 
         self.rectData = { 'detected' : False }
@@ -80,31 +82,32 @@ class BucketDetector:
             self.isKilled = True
 
         #Initializing controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+        if self.testing:
+            self.canPublish = True
+            controllerServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
                          topside=False, navigation=False)
-        self.stopRobot()
-
 
         #TODO: Add histogram modes for debug
         rospy.loginfo("Bucket ready")
             
     def userQuit(self, signal, frame):
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         
     def reconfigure(self, config, level):
-#         rospy.loginfo("Got reconfigure request!")
-#         self.lowThresh1[0] = config['loH']
-#         self.lowThresh1[1] = config['loS']
-#         self.lowThresh1[2] = config['loV']
-#         
-#         self.hiThresh1[0] = config['hiH']
-#         self.hiThresh1[1] = config['hiS']
-#         self.hiThresh1[2] = config['hiV']
-#         
-#         self.areaThresh = config['area_thresh']
-        
+        rospy.loginfo("Got reconfigure request!")
+        self.lowThresh1[0] = config['loH']
+        self.lowThresh1[1] = config['loS']
+        self.lowThresh1[2] = config['loV']
+         
+        self.hiThresh1[0] = config['hiH']
+        self.hiThresh1[1] = config['hiS']
+        self.hiThresh1[2] = config['hiV']
+         
+        self.areaThresh = config['area_thresh']
+          
         return config
 
     def sendMovement(self, f=0.0, h=None, sm=0.0, d=None, recordAction=True):
@@ -164,6 +167,8 @@ class BucketDetector:
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
+            rospy.loginfo("Received Abort Request!!!")
+            self.shootBall()
             self.isAborted = True
         return mission_to_visionResponse(start_response=True, abort_response=False,
                                          data=controller())
@@ -175,21 +180,40 @@ class BucketDetector:
         self.maniData = data.mani_data
 
     def searchComplete(self):
+        self.canPublish = True
         if not self.testing:
             resp = self.toMission(search_request=True)
             self.curHeading = resp.data.heading_setpoint
             rospy.loginfo("Handed over! Got heading: {}".format(self.curHeading))
+    
+    def shootBall(self):
+        # Shoot the ball anyway
+        firePub = rospy.Publisher("/manipulators", manipulator)
+        for i in range(10):
+            firePub.publish(self.maniData | 1)
+            rospy.sleep(rospy.Duration(0.1))
+
+        self.stopRobot()
+        rospy.sleep(rospy.Duration(1))
+        for i in range(10):
+            firePub.publish(self.maniData & 0)
+            rospy.sleep(rospy.Duration(0.1))
 
     def abortMission(self):
+        rospy.loginfo("Sending Abort request to mission planner")
         if not self.testing:
             self.toMission(fail_request=True, task_complete_request=False)
+
+        self.shootBall()        
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
 
     def taskComplete(self):
         if not self.testing:
-            self.toMission(task_complete_request=True)
+            self.toMission(fail_request=False, task_complete_request=True)
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         self.stopRobot()
@@ -246,6 +270,14 @@ class BucketDetector:
         if maxArea > 0: 
             self.rectData['detected'] = True
             
+            midX = self.screen['width'] / 2.0
+            midY = self.screen['height'] / 2.0
+            maxDeltaX = self.screen['width'] * 0.02
+            maxDeltaY = self.screen['height'] * 0.02
+            cv2.rectangle(out,
+                          (int(midX - maxDeltaX), int(midY - maxDeltaY)),
+                          (int(midX + maxDeltaX), int(midY + maxDeltaY)),
+                          (255, 0, 0), -1)
             #Testing
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
@@ -271,7 +303,8 @@ class BucketDetector:
         centroid_image = self.findTheBucket(cv_image)
         
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
+            if self.canPublish:
+                self.image_pub.publish(self.bridge.cv2_to_imgmsg(centroid_image, encoding="bgr8"))
         except CvBridgeError as e:
             rospy.logerr(e) 
 

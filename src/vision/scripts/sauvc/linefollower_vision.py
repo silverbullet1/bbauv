@@ -20,15 +20,15 @@ class LineFollower():
     testing = False
     thval = 30
     upperThresh = 70
-    areaThresh = 7000
-    upperAreaThresh = 70000
+    areaThresh = 3000
+    upperAreaThresh = 100000
     screen = { 'width' : 640, 'height' : 480 }
     
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
                                                     bbauv_msgs.msg.ControllerAction) 
 
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.6
     actionsHist = deque()
 
     def __init__(self):
@@ -48,7 +48,7 @@ class LineFollower():
         self.outPub = rospy.Publisher("/Vision/image_filter", Image)
         
         # Set up dynamic reconfigure for linefollower
-        self.dyn_reconf_server = DynServer(Config, self.reconfigure)
+#         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
         
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
@@ -69,10 +69,10 @@ class LineFollower():
             self.isKilled = True  
 
         #Setting controller server
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                  topside=False, navigation=False)
-        self.stopRobot()
+        if self.testing:
+            setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            setServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
+                      topside=False, navigation=False)
 
 
     def userQuit(self, signal, frame):
@@ -99,7 +99,7 @@ class LineFollower():
 
     def unregisterSubscribers(self):
         self.imgSub.unregister()
-        self.comSub.unregister()
+#         self.comSub.unregister()
         self.rectData['detected'] = False
 
     #Handle communication service with mission planner    
@@ -108,9 +108,10 @@ class LineFollower():
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
         elif req.abort_request:
+            rospy.loginfo("Got abort request")
             self.isAborted = True
         
-        lastHeading = self.curHeading
+        lastHeading = [self.curHeading, self.curHeading]
         length = len(self.actionsHist)
         if length > 1:
             lastHeading = self.actionsHist[-2]
@@ -118,7 +119,7 @@ class LineFollower():
             lastHeading = self.actionsHist[-1]
 
         return mission_to_visionResponse(start_response=True, abort_response=False,
-                                         data=controller(heading_setpoint=lastHeading))
+                                         data=controller(heading_setpoint=lastHeading[1]))
     
     def stopRobot(self):
         self.sendMovement(f=0, sm=0)
@@ -188,7 +189,7 @@ class LineFollower():
         # Calculate adaptive threshold value
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
-        self.thval = min((mean + lowest) / 2.0, self.upperThresh)
+        self.thval = min((mean + lowest) / 3.99, self.upperThresh)
         rospy.logdebug(self.thval)
 
         #Thresholding and noise removal

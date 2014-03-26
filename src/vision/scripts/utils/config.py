@@ -1,0 +1,4 @@
+botCamTopic = ''
+frontCamTopic = ''
+botCamLocalTopic = ''
+frontCamLocalTopic = ''

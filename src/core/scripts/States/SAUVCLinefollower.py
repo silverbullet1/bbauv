@@ -2,7 +2,7 @@ import rospy, smach
 from bbauv_msgs.msg import controller
 
 class State(smach.State):
-    transitions = {'pass' : 'SAUVCBucket', 'fail' : 'fail'}
+    transitions = {'pass' : 'SAUVCBucket', 'fail' : 'SAUVCAcoustics'}
     outcomes = ['pass', 'fail']
 
     def __init__(self, world):
@@ -15,10 +15,18 @@ class State(smach.State):
         self.world.linefollowerService(abort_request=True, start_request=False,
                                        start_ctrl=controller())
         rospy.loginfo("Got a reply from linefollower in timerCallback")
-        self.world.LinefollowerFailed = True
+        rospy.logerr("killing bucket")
+        try:
+            self.world.bucketService(abort_request=True, start_request=False,
+                                    start_ctrl=controller())
+        except Exception, e:
+            rospy.logerr("Exception killing bucket: %s" % (str(e)))
+        finally:
+            self.world.LinefollowerFailed = True
 
 
     def execute(self, userdata):
+        self.world.lights.publish(3)
         self.timer = rospy.Timer(rospy.Duration(self.timeout),
                                     self.timerCallback, oneshot=True)
         tn = rospy.get_time()
@@ -39,6 +47,7 @@ class State(smach.State):
                 self.world.grace = self.timeout - (rospy.get_time() - tn)
                 return 'pass'
             if self.world.LinefollowerFailed:
+                self.timer.shutdown()
                 self.world.linefollowerDone = True
                 self.world.grace = self.timeout - (rospy.get_time() - tn)
                 return 'fail'

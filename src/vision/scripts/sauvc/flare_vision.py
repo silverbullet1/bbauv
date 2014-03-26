@@ -24,30 +24,35 @@ import signal
 class Flare:
     #yellow_params = {'lowerH': 56, 'lowerS': 0, 'lowerV': 80, 'higherH': 143, 'higherS':255, 'higherV':240 } 
     #35-68 for slightly cloudy
-    #5-38 for very sunny
+    #5-38 for very sunny & val is 230
     #77-100 for brighter flare 
-    highThresh = np.array([68, 255, 255])
-    lowThresh = np.array([35, 0, 35])
+    #39 - 87 standard
+    #Friday: 26-77 H & val 210
+    highThresh = np.array([87, 255, 255])
+    lowThresh = np.array([39, 0, 0])
 #     highThresh = np.array([100,161,234])
 #     lowThresh = np.array([77,0,210])
 
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
-                'width':0, 'aspect':0.0}
+                'width':0        
+, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
-    areaThresh = 600
+    areaThresh = 800
     
     bridge = None
     
     curHeading = 0.0
-    depth_setpoint = 0.3
+    depth_setpoint = 0.2
     yaw = 0.0
+    gotHeading = False
         
-    screen = {'width': 640, 'height': 480}
+    screen = {'width': 800, 'height': 600}
 
-    deltaXMultiplier = 5.0
+    deltaXMultiplier = 10.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
-    forwardOffset = 0.5     #For just shooting straight
-    headOnArea = 3000       #Area for shooting straight
+    forwardOffset = 0.2     #For just shooting straight
+    #headOnArea = 11500       #Area for shooting straight
+    headOnArea = 4200
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -59,7 +64,7 @@ class Flare:
     Flare Node vision methods
     '''
     def __init__(self):
-        self.isAborted = False
+        self.isAborted = True
         
         self.isKilled = False
         self.testing = rospy.get_param("~testing", False)
@@ -69,8 +74,7 @@ class Flare:
         signal.signal(signal.SIGINT, self.userQuit)
         
         self.bridge = CvBridge()
-        self.register()
-        rospy.loginfo("Flare ready")
+        #self.register()
         
         # Dynamic reconfigure for flare
         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
@@ -80,12 +84,15 @@ class Flare:
             self.isAborted = True
             self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
             self.toMission = rospy.ServiceProxy("/flare/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout=5)
-            
+            self.toMission.wait_for_service(60)
+        
+        if self.testing:
         #Initialising controller service
-        controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
-        controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=False,
-                             topside=False, navigation=False)
+            self.isAborted = False
+            controllerServer = rospy.ServiceProxy("/set_controller_srv",set_controller)
+            controllerServer(forward=True, sidemove=True, heading=True, depth=True, pitch=True, roll=True,
+                                 topside=False, navigation=False)
+            self.register()
         
         #Make sure locomotion server up
         try:
@@ -96,6 +103,9 @@ class Flare:
             
         rospy.loginfo("Flare ready")
         
+    def unregisterHeading(self):
+        self.yaw_sub.unregister()
+    
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
@@ -104,17 +114,17 @@ class Flare:
     def reconfigure(self, config, level):
         rospy.loginfo("Got reconfigure request")
         self.areaThresh = config['area_thresh']
-         
-#         self.lowThresh[0] = config['lowH']
-#         self.lowThresh[1] = config['lowS']
-#         self.lowThresh[2] = config['lowV']
-#         self.highThresh[0] = config['hiH']
-#         self.highThresh[1] = config['hiS']
-#         self.highThresh[2] = config['hiV']
-#         self.deltaXMultiplier = config['deltaX_multiplier']
-#         self.sidemoveMovementOffset = config['sidemove_movement_offset']
-#         self.forwardOffset = config['forward_offset']
-#         self.headOnArea = config['head_on_area']       
+           
+        self.lowThresh[0] = config['lowH']
+        self.lowThresh[1] = config['lowS']
+        self.lowThresh[2] = config['lowV']
+        self.highThresh[0] = config['hiH']
+        self.highThresh[1] = config['hiS']
+        self.highThresh[2] = config['hiV']
+        self.deltaXMultiplier = config['deltaX_multiplier']
+        self.sidemoveMovementOffset = config['sidemove_movement_offset']
+        self.forwardOffset = config['forward_offset']
+        self.headOnArea = config['head_on_area']       
         
         return config
     
@@ -126,9 +136,9 @@ class Flare:
         rospy.loginfo("Topics registered")
         
     def unregister(self):
-#         self.image_pub.unregister()
-#         self.image_sub.unregister()
-#         self.yaw_sub.unregister()
+        self.image_pub.unregister()
+        self.image_sub.unregister()
+        self.yaw_sub.unregister()
         rospy.loginfo("Topics unregistered")
         
     # Handle srv
@@ -136,31 +146,45 @@ class Flare:
         if req.start_request:
             self.isAborted = False
             self.depth_setpoint = req.start_ctrl.depth_setpoint
+            self.curHeading = req.start_ctrl.heading_setpoint
+            self.gotHeading = True
+            self.register()
+            rospy.loginfo("Received depth: {}".format(self.depth_setpoint))
+            rospy.loginfo("Flare started by Mission")
+            return mission_to_visionResponse(start_response=True, abort_response=False)
         elif req.abort_request:
+            rospy.loginfo("Flare aborted")
+            self.isKilled = True
             self.isAborted = True
-        return mission_to_visionResponse(True, False)
+            self.stopRobot()
+            return mission_to_visionResponse(start_response=True, abort_response=False)
+            #rospy.signal_shutdown("Bye!")
+            #self.taskComplete()
 
     def failedTask(self):
         if not self.testing:
             self.toMission(fail_request=True, task_complete_request=False)
+            self.isAborted = True
+            self.isKilled = True
+            rospy.loginfo("Flare failed")
 
     def taskComplete(self):
         if not self.testing:
             #pass
             self.toMission(task_complete_request=True)
-        self.sendMovement(forward=-0.5)     #Retract
         self.stopRobot()
         self.isAborted = True
         self.isKilled = True
+        rospy.loginfo("Task Complete")
+        rospy.signal_shutdown("Bye!")
 
     def stopRobot(self):
         self.sendMovement(forward=0.0, sidemove=0.0)
     
-    #Utility functions to process callback
+    #Utility functions to process call            
     def camera_callback(self, image):
         out_image = self.findTheFlare(image)
         #self.image_pub.publish(image)
-
         try:
             if (out_image != None):
                 try:
@@ -174,13 +198,17 @@ class Flare:
             rospy.logerr(str(e))
               
     def yaw_callback(self, msg):
-        self.curHeading = msg.yaw
+        if self.gotHeading:
+            pass
+        else:
+            self.curHeading = msg.yaw
+            self.gotHeading = True
     
     #Utility functions to send movements through locomotion server
     def sendMovement(self, forward=0.0, heading=None, sidemove=0.0, depth=None):
 #         pass
         depth = depth if depth else self.depth_setpoint
-        heading = heading if heading else self.curHeading
+        heading = self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
                                              sidemove_setpoint=sidemove, depth_setpoint=depth)
         rospy.loginfo("forward: {} heading: {} sidemove: {}".format(forward, heading, sidemove))
@@ -205,7 +233,6 @@ class Flare:
         
     
     def findTheFlare(self, image):
-        rospy.loginfo("Finding flare")
         #Convert ROS to CV image 
         try:
             cv_image = self.rosimg2cv(image)
@@ -215,9 +242,9 @@ class Flare:
         #cv_image = cv2.merge(np.array([cv2.equalizeHist(cv_image[:,:,0]),cv2.equalizeHist(cv_image[:,:,1]),
         #                               cv2.equalizeHist(cv_image[:,:,2])]))
         cv_image = cv2.resize(cv_image, dsize=(self.screen['width'], self.screen['height']))        
-        cv_image = cv2.GaussianBlur(cv_image, ksize=(5, 5), sigmaX=0)
+        cv_image = cv2.GaussianBlur(cv_image, ksize=(3, 3), sigmaX=0)
         
-        cv_image = cv_image*2
+        #cv_image = cv_image*2
 
 #          gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 #          contourImg = gray
@@ -241,7 +268,7 @@ class Flare:
 
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)   #Convert to HSV image
         hsv_image = np.array(hsv_image, dtype=np.uint8)         #Convert to numpy array
-        hsv_image = hsv_image[self.screen['height']/3:(self.screen['height'])*2/3,0:self.screen['width'],:]
+        hsv_image = hsv_image[self.screen['height']/4:(self.screen['height'])*3/4,0:self.screen['width'],:]
    
         #Canny edge
 #         contourImg = contourImg[self.screen['height']/3:(self.screen['height'])*(3/4),0:self.screen['width']]
@@ -254,9 +281,9 @@ class Flare:
 #         contourImg = cv2.morphologyEx(contourImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3,3)))
   
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        contourImg = cv2.dilate(contourImg, dilateEl, iterations=2)
-        contourImg = cv2.erode(contourImg, erodeEl, iterations=2)
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (11,11))
+        contourImg = cv2.dilate(contourImg, dilateEl, iterations=1)
+        contourImg = cv2.erode(contourImg, erodeEl, iterations=1)
  
         #Find centroids
         pImg = contourImg.copy()
@@ -290,7 +317,7 @@ class Flare:
                 centroidy = mu['m01']/mu_area
                      
                 rectData['area'] = area
-                rospy.loginfo("Area: {}".format(rectData['area']))
+#                 rospy.loginfo("Area: {}".format(rectData['area']))
                 rectData['centroids'] = (centroidx, centroidy)
                 rectData['rect'] = cv2.minAreaRect(contour)
          
@@ -306,7 +333,7 @@ class Flare:
                     edge2[1] = edge2[1] if edge2[1] is not 0 else 0.01
                     rectData['angle'] = math.degrees(math.atan(edge2[0]/edge2[1]))
                  
-                epislon = 10.0
+                epislon = 15.0
                 if -epislon < rectData['angle'] < epislon:
                     rectData['length'] = max(self.calculateLength(points[0], points[1]),
                                                   self.calculateLength(points[1], points[2]))
@@ -326,7 +353,7 @@ class Flare:
         if rectList:
             self.rectData = rectList[0]
             self.rectData['detected'] = True
-            rospy.loginfo("Angle: {}".format(self.rectData['angle']))            
+#             rospy.loginfo("Angle: {}".format(self.rectData['angle']))            
                  
             #Draw output image 
             centerx = int(self.rectData['centroids'][0])
@@ -336,19 +363,20 @@ class Flare:
             #centery = int(y_median) 
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)
             cv2.circle(contourImg, (centerx, centery), 5, (255,0,0))
-            cv2.circle(out, (centerx, centery), 5, (255,255,255))
+            cv2.circle(out, (centerx, centery), 5, (0,0,255))
             for i in range (4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
                 pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
                                    
-                cv2.line(contourImg, pt1, pt2, (255,0,0))
+                cv2.line(contourImg, pt1, pt2, (255,255,255))
             cv2.putText(contourImg, str(self.rectData['angle']), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0))
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
                  
         else:
             self.rectData['detected'] = False 
             contourImg = cv2.cvtColor(contourImg, cv2.cv.CV_GRAY2RGB)            
-               
+        
+        contourImg = cv2.resize(contourImg, dsize=(self.screen['width'], self.screen['height']))
         return contourImg
     
     def calculateLength(self, pt1, pt2):

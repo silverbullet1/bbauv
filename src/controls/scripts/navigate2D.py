@@ -34,6 +34,7 @@ class Navigate2D(object):
         rospy.loginfo("Current position: x:%f, y:%f" % (self.currPos['x'],
                                                         self.currPos['y']))
         rospy.loginfo("Current depth is: %f" % (self.depth))
+        rospy.loginfo("Goal recieved x: %f, y: %f" % (float(req.x), float(req.y)))
         (heading, magnitude) = self.getPoints(req.x, req.y)
         try:
             res = self.navigate(heading, magnitude)

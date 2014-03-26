@@ -21,6 +21,10 @@ Utility::~Utility() {
 	if (ping != NULL) BVTPing_Destroy(ping);
 }
 
+/**
+ * initialize the sonar head's connection (ethernet or file interface)
+ * shall be used whenever a ping has to be retrieved
+ */
 int Utility::initSonar() {
 	son = BVTSonar_Create();
 	retVal = BVTSonar_Open(son, "NET", "192.168.1.45");
@@ -37,6 +41,11 @@ int Utility::initSonar() {
 	return 0;
 }
 
+/**
+ * Get the sonar head's parameter values related to the
+ * environment. Set the range and image related parameters
+ * along with the obtained environment parameters
+ */
 int Utility::setHeadParams() {
 	startRange = BVTHead_GetStartRange(head);
 //	stopRange = BVTHead_GetStopRange(head);
@@ -46,12 +55,14 @@ int Utility::setHeadParams() {
 	tvGain = BVTHead_GetTVGSlope(head);
 	pingCount = BVTHead_GetPingCount(head);
 	stopRange = MAX_RANGE;
+//	startRange = MIN_RANGE;
 
-	cout << "(Start, Stop) range:\t" << BVTHead_GetStartRange(head) << "\t" << BVTHead_GetStopRange(head) << endl;
 
 	//sets
 	if((retVal = BVTHead_SetRange(head, startRange, stopRange)) != 0)
 			cout << "error setting range" << endl;
+
+	cout << "(Start, Stop) range:\t" << BVTHead_GetStartRange(head) << "\t" << BVTHead_GetStopRange(head) << endl;
 
 	if((retVal = BVTHead_SetImageRes(head, RES_TYPE)) != 0)
 		cout << "error setting image resolution" << endl;
@@ -74,6 +85,10 @@ int Utility::setHeadParams() {
 	return 0;
 }
 
+/**
+ * create a grayscale image for processing from the
+ * intensities of the retrieved ping
+ */
 int Utility::writeIntensities() {
 	std::string imgName = "-intensities.png";
 	std::string intensitiesName = "-intensities.txt";
@@ -108,23 +123,23 @@ int Utility::writeIntensities() {
 	std::string grayFile = timeString + imgName;
 	std::string intensitiesFile = timeString + intensitiesName;
 
-//	imwrite("newIntensities.png", matImg);
 	imwrite(grayFile, matImg);
+	imwrite("newIntensities.png", matImg);
 
 	cout << "matImg size: " << "height: " << matImg.rows << "  width: " << matImg.cols << endl;
 
-	ofstream iOut(intensitiesFile.c_str());
-	for(int row=0; row < matImg.rows; ++row) {
-		for(int col=0; col < matImg.cols; ++col) {
-			cv::Scalar intensity = matImg.at<uchar>(col, row);
-			uInt intensityVal = (uInt)intensity.val[0];
-			intensityVal = intensityVal > (uInt)GRAYSCALE_THRESH ? intensityVal : 0;
-			iOut << intensityVal;
-			iOut << " " ;
-		}
-		iOut << endl;
-	}
-	iOut.close();
+//	ofstream iOut(intensitiesFile.c_str());
+//	for(int row=0; row < matImg.rows; ++row) {
+//		for(int col=0; col < matImg.cols; ++col) {
+//			cv::Scalar intensity = matImg.at<uchar>(col, row);
+//			uInt intensityVal = (uInt)intensity.val[0];
+//			intensityVal = intensityVal > (uInt)GRAYSCALE_THRESH ? intensityVal : 0;
+//			iOut << intensityVal;
+//			iOut << " " ;
+//		}
+//		iOut << endl;
+//	}
+//	iOut.close();
 
 //	backup data storage in xml format
 	cv::FileStorage storage("store.yml", cv::FileStorage::WRITE);
@@ -141,9 +156,10 @@ int Utility::writeIntensities() {
 	return 0;
 }
 
+/**
+ * apply all the image processing approaches here
+ */
 int Utility::processImage() {
-//	ifstream intensityIn;
-
 //	hardcoded read : reading the image from the stored xml file
 //	cv::Mat grayImg = Mat::zeros(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1);
 //	cv::FileStorage storage("store.yml", cv::FileStorage::READ);
@@ -153,13 +169,12 @@ int Utility::processImage() {
 //	hardcoded read : beware of the image's path
 //	cv::Mat grayImg = Mat::zeros(316, 250, CV_16UC1);
 	grayImg = imread("newIntensities.png", 0);
-	cout << "grayImg size: " << grayImg.size() << endl;
+	cout << "grayImg size: " << grayImg.size() << " [w x h] " << endl;
 
-	Rect roiRect = Rect(Point(0, 25), Point(grayImg.cols, grayImg.rows - ROWS_CROPPED));
+	Rect roiRect = Rect(Point(0, 0), Point(grayImg.cols, grayImg.rows));
 	Mat roiImg = grayImg(roiRect).clone();
-	cout << "ROI size: " << roiImg.size() << endl;
+	cout << "ROI size: " << roiImg.size()  << " [w x h] " << endl;
 
-//	all processing stuffs with the saved grayscale image
 //	cv::Mat grayImg = matImg.clone();
 	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, dilatedImg, labelledImg;
 
@@ -174,10 +189,16 @@ int Utility::processImage() {
 //	smoothened
 	cv::medianBlur(roiImg, smoothImg, 3);
 
+/* all kinds of thresholding on
+ * the sonar image done/called here
+ */
+
+//	global thresholding
 	double threshVal = getGlobalThreshold(roiImg);
-//	double threshVal = 200;
 	cout << "global threshold value: " << threshVal << endl;
-	cv::threshold(smoothImg, threshImg, threshVal, 255, CV_THRESH_BINARY);
+	cv::threshold(smoothImg, threshImg, threshVal+THRESH_CONSTANT, 255, CV_THRESH_BINARY);
+
+//	OpenCV's adaptive thresholding
 //	cv::adaptiveThreshold(smoothImg, threshImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 23, 25);
 
 //	morphology : opening, closing and dilating
@@ -189,37 +210,31 @@ int Utility::processImage() {
 //	applying canny filter for detecting edges
 	Canny(dilatedImg, edgedImg, 1.0, 3.0, 3);
 
-//	labelled image
-//	RNG rng;
-//	vector<vector<Point> > contours;
-//	vector<Vec4i> hierarchy;
-//	findContours(edgedImg, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-//	labelledImg = Mat::zeros(edgedImg.size(), CV_16UC1);
-//	for(int i = 0; i< contours.size(); i++) {
-//		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-//		drawContours(labelledImg, contours, i, color, 2, 8, hierarchy, 0, Point());
-//	}
-
 //	cout << "image depth: " << (grayImg.dataend-grayImg.datastart) / (grayImg.cols*grayImg.rows*grayImg.channels()) * 8 << endl;
 
-	myAdaptiveThreshold(smoothImg, dilatedImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 5, 25);
+//	Modified adaptive threshold: derived from OpenCV's adaptive thresholding
+	myAdaptiveThreshold(smoothImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV, 5, 25);
 
-	imshow("grayImg", grayImg);
-	imshow("ROI", roiImg);
+//	imshow("grayImg", grayImg);
+//	imshow("ROI", roiImg);
 //	imshow("smoothened", smoothImg);
 //	imshow("thresholded", threshImg);
 //	imshow("morphOpened", morphOImg);
 //	imshow("morphClosed", morphCImg);
-	imshow("dilated", dilatedImg);
-	imshow("edged", edgedImg);
+//	imshow("dilated", dilatedImg);
+//	imshow("edged", edgedImg);
 //	imshow("labelled", labelledImg);
 
-	imwrite("edged.png", edgedImg);
-	waitKey(0);
+//	imwrite("edged.png", edgedImg);
+//	waitKey(0);
 
 	return 0;
 }
 
+/**
+ * visualize the intensities of the image using histograms
+ * Equalized grayscale image will give a good view
+ */
 int Utility::drawHistogram() {
 	Mat src, equalizedSrc;
 	src = imread("newIntensities.png", 0);
@@ -312,13 +327,183 @@ int Utility::drawHistogram() {
 
 	namedWindow("histogram", CV_WINDOW_AUTOSIZE);
 	namedWindow("equalized histogram", CV_WINDOW_AUTOSIZE);
-	imshow("histogram", histImage);
-	imshow("equalized histogram", histEqImage);
+//	imshow("histogram", histImage);
+//	imshow("equalized histogram", histEqImage);
 
     waitKey(0);
 	return 0;
 }
 
+/**
+ * Thresholding approaches applied here
+ * Gamma correction to be included first for pool environments
+ * Adaptive threshold based on the mean of local pixel intensities implemented
+ */
+void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
+		int type, int blockSize, double delta) {
+
+	uchar imaxval = saturate_cast<uchar>(maxValue);
+	int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
+	uchar tab[768];
+
+//	grayImg for Gamma correction
+	Mat grayImg = gImg.clone();
+	Mat powerImg = Mat::zeros(grayImg.size(), CV_8UC1);
+	uchar* srcData = grayImg.data;
+	uchar* dstData = powerImg.data;
+
+//	applying gamma correction to increase the contrast in the image
+	for (int i=0; i < grayImg.rows; ++i) {
+		for (int j=0; j < grayImg.cols; ++j) {
+			dstData[i * grayImg.step + j] = PL_CONST * pow(srcData[i * grayImg.step + j], PL_GAMMA);
+//			Scalar s = grayImg.at<uchar>(Point(i, j));
+//			uInt intensity = (unsigned int)s.val[0];
+		}
+	}
+
+	cv::FileStorage storage("powerStore.yml", cv::FileStorage::WRITE);
+	storage << "mat" << powerImg;
+	storage.release();
+
+	imshow("powerImg", powerImg);
+
+//	src image for adaptive thresholding
+	Mat src = powerImg.clone();
+	Mat mean;
+	Mat dst = Mat::zeros(src.size(), CV_8UC1);
+	Size size = src.size();
+
+	if(src.data != dst.data)
+		mean = dst;
+
+	if(method == ADAPTIVE_THRESH_MEAN_C)
+		boxFilter(src, mean, src.type(), Size(blockSize, blockSize),
+				Point(-1,-1), true, BORDER_REPLICATE);
+	else if(method == ADAPTIVE_THRESH_GAUSSIAN_C)
+		GaussianBlur(src, mean, Size(blockSize, blockSize), 0, 0, BORDER_REPLICATE);
+
+	if(type == CV_THRESH_BINARY)
+		for(int i = 0; i < 768; i++ )
+			tab[i] = (uchar)(i - 255 > -idelta ? imaxval : 0);
+	else if(type == CV_THRESH_BINARY_INV)
+		for(int i = 0; i < 768; i++)
+			tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0);
+	else
+		cout << "Unknown/unsupported threshold type applied on the binary image" << endl;
+
+	if(src.isContinuous() && mean.isContinuous() && dst.isContinuous()) {
+		size.width *= size.height;
+		size.height = 1;
+	}
+
+	for(int i = 0; i < size.height; i++ ) {
+		const uchar* sdata = src.data + src.step*i;
+		const uchar* mdata = mean.data + mean.step*i;
+		uchar* ddata = dst.data + dst.step*i;
+
+		for(int j = 0; j < size.width; j++ )
+			ddata[j] = tab[sdata[j] - mdata[j] + 255];
+	}
+
+	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
+	Mat dstDilated = Mat::zeros(dst.size(), CV_8UC1);
+	dilate(dst, dstDilated, element);
+
+	Mat dstEdged = Mat::zeros(dst.size(), CV_8UC1);
+	Canny(dstDilated, dstEdged, 1.0, 3.0, 3);
+
+	Mat dstGray = dstEdged.clone();
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	imshow("dstGray", dstGray);
+	cv::findContours(dstGray, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	cout << "number of contours detected: " << contours.size() << endl;
+//	if (!contours.size()) {
+//		cout << "exiting now since no objects could be detected" << endl;
+//		exit(EXIT_FAILURE);
+//	}
+
+	Mat labelledImg = Mat::zeros(dstGray.size(), CV_8UC1);
+	vector<vector<Point> > contours_poly(contours.size());
+	vector<Rect> boundRect(contours.size());
+	RNG rng;
+
+//	polygon and rectangle shapes around the contours are saved in a vector
+	for(uInt i = 0; i < contours.size(); i++) {
+		approxPolyDP(Mat(contours[i]), contours_poly[i], 3, true);
+		boundRect[i] = boundingRect(Mat(contours_poly[i]));
+	}
+
+//	drawing the saved rectangular boxes around the contours
+//	and saving their coordinates
+	int pointnum = 0;
+	vector<vector<Point> > savedContours;
+	vector<Point> savedPoints;
+
+	for(uInt i = 0; i < contours.size(); i++) {
+		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+//		drawContours(labelledImg, contours, i, color, 2, 8, hierarchy, 0, Point());
+		drawContours(labelledImg, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
+		if (boundRect[i].area() > CONTOUR_AREA_LOWER_BOUND && boundRect[i].area() < CONTOUR_AREA_UPPER_BOUND) {
+			savedContours.push_back(contours[i]);
+			++pointnum;
+//			rectangle(dstDilated, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
+			rectangle(labelledImg, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
+			cout << pointnum << ": " << boundRect[i].tl() << " " << boundRect[i].br() << " " << boundRect[i].area() << endl;
+			savedPoints.push_back(boundRect[i].br());
+		}
+	}
+
+//	Boolean operations on src and dst image to be experimented here
+//	Mat orImg = Mat::zeros(dst.size(), CV_8UC1);
+//	for( i = 0; i < size.height; i++ ) {
+//		const uchar* srcData = srcDilated.data + srcDilated.step*i ;
+//		const uchar* dstData = dstDilated.data + dstDilated.step*i ;
+//		uchar* andData = orImg.data + orImg.step*i ;
+//
+//		for( j = 0; j < size.width; j++ ) {
+//			andData[j] = srcData[j] * dstData[j] ;
+//		}
+//	}
+//	Canny(orImg, dstEdged, 1.0, 3.0, 3);
+//	imshow("OREdged", dstEdged);
+
+//	imshow("dst", dst);
+	imshow("dstDilated", dstDilated);
+	imshow("dstEdged", dstEdged);
+	imshow("labelledImg", labelledImg);
+
+	imwrite("powerImg.png", powerImg);
+	imwrite("edgedImg.png", dstEdged);
+	imwrite("labelledImg.png", labelledImg);
+
+	waitKey(0);
+
+//	calculate range/bearing of the saved points
+	getRangeBearing(savedPoints);
+
+	return;
+}
+
+void Utility::getRangeBearing(vector<cv::Point> savedPoints) {
+	for (uInt pointIdx=0; pointIdx < savedPoints.size(); ++pointIdx) {
+		int x = savedPoints[pointIdx].x;
+		int y = savedPoints[pointIdx].y;
+		cout << "(x  y): " << x << " " << y << endl;
+		if (magImg == NULL)
+			cout << "magImg null, can't find range" << endl;
+		else {
+			cout << "range: " << BVTMagImage_GetPixelRange(magImg, x, y) << endl;
+			cout << "bearing: " << BVTMagImage_GetPixelRelativeBearing(magImg, x, y) << endl;
+		}
+	}
+}
+
+/**
+ * get a global threshold value
+ * Reference: Gonzalez's book on Image Processing
+ * works fine only when there are nice peaks in the intensities histogram
+ */
 double Utility::getGlobalThreshold(Mat gImg) {
 	cv::Mat g, ginv;
 	bool done;
@@ -342,84 +527,9 @@ double Utility::getGlobalThreshold(Mat gImg) {
 	return T;
 }
 
-void Utility::myAdaptiveThreshold(Mat gImg, Mat srcDilated, double maxValue, int method,
-		int type, int blockSize, double delta) {
-
-		Mat src = gImg.clone();
-		Mat dst = Mat::zeros(src.size(), CV_8UC1);
-		Mat mean;
-		Size size = src.size();
-
-		if( src.data != dst.data )
-			mean = dst;
-
-		if(method == ADAPTIVE_THRESH_MEAN_C)
-			boxFilter( src, mean, src.type(), Size(blockSize, blockSize),
-					Point(-1,-1), true, BORDER_REPLICATE );
-		else if(method == ADAPTIVE_THRESH_GAUSSIAN_C)
-			GaussianBlur(src, mean, Size(blockSize, blockSize), 0, 0, BORDER_REPLICATE);
-
-		 int i, j;
-		 uchar imaxval = saturate_cast<uchar>(maxValue);
-		 int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
-		 uchar tab[768];
-
-		 if(type == CV_THRESH_BINARY)
-			 for( i = 0; i < 768; i++ )
-				 tab[i] = (uchar)(i - 255 > -idelta ? imaxval : 0);
-		 else if(type == CV_THRESH_BINARY_INV)
-			 for(i = 0; i < 768; i++)
-				 tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0);
-		 else
-			 CV_Error(CV_StsBadFlag, "Unknown/unsupported threshold type");
-
-		 if(src.isContinuous() && mean.isContinuous() && dst.isContinuous()) {
-			 cout << "continous!!" << endl;
-			 size.width *= size.height;
-			 size.height = 1;
-		 }
-
-		 for( i = 0; i < size.height; i++ ) {
-			 const uchar* sdata = src.data + src.step*i;
-			 const uchar* mdata = mean.data + mean.step*i;
-			 uchar* ddata = dst.data + dst.step*i;
-
-			 for( j = 0; j < size.width; j++ )
-				 ddata[j] = tab[sdata[j] - mdata[j] + 255];
-		 }
-
-		 Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
-		 Mat dstDilated = Mat::zeros(dst.size(), CV_8UC1);
-		 dilate(dst, dstDilated, element);
-
-		 Mat dstEdged = Mat::zeros(dst.size(), CV_8UC1);
-		 Canny(dstDilated, dstEdged, 1.0, 3.0, 3);
-		 imshow("dstEdged", dstEdged);
-
-//		 Bollean operations on src and dst image to be experimented here
-//		 Mat orImg = Mat::zeros(dst.size(), CV_8UC1);
-//		 for( i = 0; i < size.height; i++ ) {
-//			 const uchar* srcData = srcDilated.data + srcDilated.step*i ;
-//			 const uchar* dstData = dstDilated.data + dstDilated.step*i ;
-//			 uchar* andData = orImg.data + orImg.step*i ;
-//
-//			 for( j = 0; j < size.width; j++ ) {
-//				andData[j] = srcData[j] * dstData[j] ;
-//			 }
-//		 }
-//		 Canny(orImg, dstEdged, 1.0, 3.0, 3);
-//		 imshow("OREdged", dstEdged);
-
-		 imshow("dst", dst);
-		 imshow("dstDilated", dstDilated);
-
-//		 imwrite("dstEdged.png", dstEdged);
-		 waitKey(0);
-
-		 return;
-}
-
-// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
+/**
+ * get current date/time in this format: YYYY-MM-DD.HH:mm:ss
+ */
 inline const std::string Utility::currentDateTime() {
     time_t now = time(0);
     struct tm tstruct;

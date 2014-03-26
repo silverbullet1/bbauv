@@ -13,13 +13,14 @@ class State(smach.State):
 
     def timerCallback(self, e):
         rospy.logerr("Bucket detector ran out of time.")
-        rospy.logerr("Sending bucket abort request because of time")
+        rospy.loginfo("Sending bucket abort request because of time")
         r = self.world.bucketService(abort_request=True, start_request=False,
                                  start_ctrl=controller())
         rospy.loginfo("Bucket replied to the abort signal with: %s" % (str(r)))
         self.world.bucketDone = True
 
     def execute(self, userdata):
+        self.world.lights.publish(7)
         self.bbox = BoundingBox([(self.world.current_pos['x'] - 1,
                                   self.world.current_pos['y'] - 1),
                                  (self.world.current_pos['x'] + 1,
@@ -49,5 +50,6 @@ class State(smach.State):
                 self.timer.shutdown()
                 return 'pass'
             if self.world.bucketFailed:
+                self.timer.shutdown()
                 return 'fail'
 

@@ -10,6 +10,7 @@ class Wait(smach.State):
     def execute(self, userdata):
         rospy.sleep(self.world.config['qualifier_wait'])
         self.world.static_yaw = self.world.current_yaw
+        self.world.lights.publish(5)
         if self.world.static_yaw is not None:
             return 'pass'
         else:
@@ -73,6 +74,11 @@ class State(smach.State):
 
 
     def execute(self, userdata):
+        self.world.lights.publish(4)
+        rospy.loginfo("Initial state depth: %s" %
+                      (str(self.world.config['sauvc_depth'])))
+        rospy.loginfo("Initial state forward %s" %
+                      (str(self.world.config['sauvc_forward'])))
         #self.world.enable_PID()
         outcome = self.sm.execute()
         self.world.locomotionServer.cancel_all_goals()
