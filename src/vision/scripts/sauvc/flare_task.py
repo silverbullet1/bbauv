@@ -16,6 +16,8 @@ from dynamic_reconfigure.server import Server
 import math
 import os
 import sys
+
+
 import numpy as np
 
 from bbauv_msgs.msg import *
@@ -36,6 +38,7 @@ movement_client = None
 locomotionGoal = None
 
 flare_params = {'flare_area':0, 'centering_x':0, 'centering_y':0}
+
 
 #Starts off in disengage class
 class Disengage(smach.State):
@@ -74,6 +77,7 @@ class Search(smach.State):
     def execute(self, userdata):
         #Check for abort signal
         if self.flare.isAborted:
+            rospy.signal_shutdown("Bye!")
             return 'aborted'
         
         #Check if flare found or timeout already
@@ -103,20 +107,21 @@ class Manuoevre(smach.State):
     def execute(self,userdata):
         #Check for aborted signal
         if self.flare.isAborted:
+            rospy.signal_shutdown("Bye!")
             return 'aborted'
         
-        #Cannot detect already
-        if not self.flare.rectData['detected']:
-            self.count += 1
-        if self.count > 4:
-            self.flare.taskComplete()
-            return 'manuoevre_complete'
+#         #Cannot detect already
+#         if not self.flare.rectData['detected']:
+#             self.count += 1
+#         if self.count > 4:
+#             self.flare.taskComplete()
+#             return 'manuoevre_complete'
          
-        if not self.flare.rectData['detected'] and self.flareSeen:
-            self.flare.sendMovement(forward=2.0)
-            rospy.sleep(rospy.Duration(3))
-            self.flare.taskComplete()
-            return 'manuoevre_complete'
+#         if not self.flare.rectData['detected'] and self.flareSeen:
+#             self.flare.sendMovement(forward=2.0)
+#             rospy.sleep(rospy.Duration(3))
+#             self.flare.taskComplete()
+#             return 'manuoevre_complete'
          
         #Get to the flare
         screenWidth = self.flare.screen['width']
@@ -150,10 +155,13 @@ class Completing(smach.State):
         smach.State.__init__(self, outcomes=['complete_complete', 'completing',
                                              'aborted', 'mission_abort'])
         self.flare = flare_task
+        self.count = 0
                 
     def execute(self,userdata):
         #Check for aborted signal
         if self.flare.isAborted:
+            self.flare.isKilled = True
+            rospy.signal_shutdown("Bye!")
             return 'aborted'
         
         screenWidth = self.flare.screen['width']
@@ -163,19 +171,26 @@ class Completing(smach.State):
         deltaXMult =2.0
         rospy.loginfo("Delta X:{}".format(deltaX))
          
-        if abs(deltaX) < 0.05:
-            self.flare.sendMovement(forward=1.3)
+        if abs(deltaX) < 0.03:
+            self.count += 1
+            rospy.loginfo("Count: {}".format(self.count))
+            return 'completing'
+        
+        if self.count >= 2000:
+            self.flare.sendMovement(forward=4.0)
             rospy.loginfo("Hitting the flare")
             self.flare.locomotionClient.wait_for_result()
-            self.flare.sendMovement(forward=-0.5)     #Retract
+            self.flare.sendMovement(forward=-2.0)     #Retract
             self.flare.locomotionClient.wait_for_result()
             self.flare.taskComplete()
             return 'complete_complete'
-         
-        sidemove = math.copysign(deltaX*deltaXMult, deltaX)     #Random number
-        self.flare.sendMovement(forward=0.00, sidemove=sidemove)
-        rospy.sleep(rospy.Duration(0.5))
-        return 'completing'
+        
+        else:
+            self.count = 0
+            sidemove = math.copysign(deltaX*deltaXMult, deltaX)     #Random number
+            self.flare.sendMovement(forward=0.00, sidemove=sidemove)
+            rospy.sleep(rospy.Duration(0.5))
+            return 'completing'
 
         #self.flare.taskComplete()
         #return 'complete_complete'
