@@ -18,3 +18,7 @@ class Utils():
         while angle < 0:
             angle += 360
         return angle % 360
+
+    @staticmethod
+    def toHeadingSpace(angle):
+        return 90 + angle

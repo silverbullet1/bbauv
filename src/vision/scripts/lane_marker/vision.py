@@ -4,17 +4,21 @@ import math
 import numpy as np
 import cv2
 
+from utils.utils import Utils
+
 class LaneMarkerVision:
+    screen = { 'width': 640, 'height': 480 }
+
     # Vision parameters
-    hsvLoThresh = (19, 58, 0)
-    hsvHiThresh = (54, 128, 255)
-    minContourArea = 12000
+    hsvLoThresh = (100, 0, 0)
+    hsvHiThresh = (120, 255, 255)
+    minContourArea = 5000
     
     houghThreshold = 80
     houghMinLength = 60
     houghMaxGap = 10
 
-    def init(self, com=None, debugMode=True):
+    def __init__(self, com=None, debugMode=True):
         self.com = com
         self.debugMode = debugMode
 
@@ -38,9 +42,11 @@ class LaneMarkerVision:
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         foundLines = []
-        centroid = (-1, -1)
+        centroid = [0, 0]
         outImg = None
+        retData = { 'foundLines': foundLines, 'centroid': centroid }
 
+        img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh, self.hsvHiThresh)
@@ -54,12 +60,16 @@ class LaneMarkerVision:
         binImg = cv2.dilate(binImg, dilateEl)
         binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
 
-        if self.debugMode: outImg = binImg.copy() 
+        if self.debugMode:
+            outImg = binImg.copy() 
+            outImg = cv2.cvtColor(outImg, cv2.COLOR_GRAY2BGR)
 
         # Find large enough contours and their bounding rectangles
         scratchImg = binImg.copy()
         contours, _ = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda contour: cv2.contourArea(contour) > self.minContourArea, contours)
+        if len(contours) < 1: return retData, outImg
+
         contourRects = [cv2.minAreaRect(contour) for contour in contours]
         # Find the centroid from averaging all the contours
         for contour in contours:
@@ -84,14 +94,19 @@ class LaneMarkerVision:
                 for i in range(4):
                     pt1 = (points[i][0], points[i][1])
                     pt2 = (points[(i+1)%4][0], points[(i+1)%4][1])
-                    cv2.line(outImg, pt1, pt2, (0,0,255), 1)
+                    cv2.line(outImg, pt1, pt2, (0,0,255), 2)
 
-            lines = cv2.HoughLinesP(rectImg, 1, math.pi/180.0,
+            lines = cv2.HoughLinesP(rectImg, 2, math.pi/180.0,
                                     self.houghThreshold, self.houghMinLength, self.houghMaxGap)
             # Find and fix angle
             if lines != None:
+                #print len(lines[0])
+                #for line in lines[0]:
+                #    cv2.line(outImg,
+                #            (line[0], line[1]), (line[2], line[3]),
+                #            (0,255,0), 1)
                 gradients = [math.atan2(y2 - y1, x2 - x1)
-                             for x1, y1, x2, y2 in lines]
+                             for x1, y1, x2, y2 in lines[0]]
                 gradient = np.median(gradients)
                 angle = np.rad2deg(gradient)
 
@@ -105,13 +120,17 @@ class LaneMarkerVision:
                          int(startpt[1] + 100 * math.sin(gradient)))
                 startpt = (int(startpt[0]), int(startpt[1]))
                 cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
+                angleStr = "{0:.2f}".format(Utils.toHeadingSpace(line['angle']))
+                cv2.putText(outImg, angleStr, startpt,
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-        retData = { 'foundLines': foundLines, 'centroid': centroid }
         return retData, outImg
 
 def main():
     cv2.namedWindow("test")
-    inImg = cv2.imread("test.jpg")
+    inImg = cv2.imread("lane_marker/test1.jpg")
+    inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
     detector = LaneMarkerVision()
-    outImg = detector.gotFrame(inImg)
-    cv2.imshow("test", outImg)
+    _, outImg = detector.gotFrame(inImg)
+    if outImg is not None: cv2.imshow("test", outImg)
+    cv2.waitKey()
