@@ -26,15 +26,18 @@ class Flare:
     #35-68 for slightly cloudy
     #5-38 for very sunny & val is 230
     #77-100 for brighter flare 
+    #39 - 87 standard
+    #Friday: 26-77 H & val 210
     highThresh = np.array([87, 255, 255])
     lowThresh = np.array([39, 0, 0])
 #     highThresh = np.array([100,161,234])
 #     lowThresh = np.array([77,0,210])
 
     rectData = {'detected': False, 'centroids': (0,0), 'rect': None, 'angle': 0.0, 'area':0, 'length':0,
-                'width':0, 'aspect':0.0}
+                'width':0        
+, 'aspect':0.0}
     previous_centroids = collections.deque(maxlen=7)
-    areaThresh = 1000
+    areaThresh = 800
     
     bridge = None
     
@@ -47,8 +50,9 @@ class Flare:
 
     deltaXMultiplier = 10.0
     sidemoveMovementOffset = 0.3    #For sidemove plus straight
-    forwardOffset = 0.4     #For just shooting straight
-    headOnArea = 11500       #Area for shooting straight
+    forwardOffset = 0.2     #For just shooting straight
+    #headOnArea = 11500       #Area for shooting straight
+    headOnArea = 4200
     
     #Necessary publisher and subscribers
     image_pub = None
@@ -80,7 +84,7 @@ class Flare:
             self.isAborted = True
             self.comServer = rospy.Service("/flare/mission_to_vision", mission_to_vision, self.handleSrv)
             self.toMission = rospy.ServiceProxy("/flare/vision_to_mission", vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service(60)
         
         if self.testing:
         #Initialising controller service
@@ -110,7 +114,7 @@ class Flare:
     def reconfigure(self, config, level):
         rospy.loginfo("Got reconfigure request")
         self.areaThresh = config['area_thresh']
-          
+           
         self.lowThresh[0] = config['lowH']
         self.lowThresh[1] = config['lowS']
         self.lowThresh[2] = config['lowV']
@@ -145,13 +149,17 @@ class Flare:
             self.curHeading = req.start_ctrl.heading_setpoint
             self.gotHeading = True
             self.register()
+            rospy.loginfo("Received depth: {}".format(self.depth_setpoint))
             rospy.loginfo("Flare started by Mission")
+            return mission_to_visionResponse(start_response=True, abort_response=False)
         elif req.abort_request:
             rospy.loginfo("Flare aborted")
             self.isKilled = True
             self.isAborted = True
-            self.taskComplete()
-        return mission_to_visionResponse(start_response=True, abort_response=False)
+            self.stopRobot()
+            return mission_to_visionResponse(start_response=True, abort_response=False)
+            #rospy.signal_shutdown("Bye!")
+            #self.taskComplete()
 
     def failedTask(self):
         if not self.testing:
@@ -168,6 +176,7 @@ class Flare:
         self.isAborted = True
         self.isKilled = True
         rospy.loginfo("Task Complete")
+        rospy.signal_shutdown("Bye!")
 
     def stopRobot(self):
         self.sendMovement(forward=0.0, sidemove=0.0)
