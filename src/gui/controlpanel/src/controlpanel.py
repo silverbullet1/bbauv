@@ -940,11 +940,11 @@ class AUV_gui(QMainWindow):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
     
     def goToPosHandler(self):
-        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         handle(x=xpos, y=ypos)
+        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
 
     def homeBtnHandler(self):
         self.status_text.setText("Going home.... (0,0")
