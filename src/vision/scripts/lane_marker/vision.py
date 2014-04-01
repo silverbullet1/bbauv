@@ -36,8 +36,8 @@ class LaneMarkerVision:
         det = 1.0 / (u2 * v1 - u1 * v2)
         dx, dy = x2 - x1, y2 - y1
         t1 = det * (-v2 * dx + u2 * dy)
-        t2 = det * (-v1 * dx + u1 * dy)
-        return (t1, t2)
+        #t2 = det * (-v1 * dx + u1 * dy)
+        return (x1 + t1*u1, y1 + t1*v1)
 
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
@@ -112,6 +112,24 @@ class LaneMarkerVision:
 
                 foundLines.append({'pos': rect[0], 'angle': angle})
 
+        if len(foundLines) == 2:
+            # if there are 2 lines, find their intersection and adjust angle
+            l1 = self.vectorizeLine(foundLines[0]['pos'], foundLines[0]['angle'])
+            l2 = self.vectorizeLine(foundLines[1]['pos'], foundLines[1]['angle'])
+            crossPt = self.findIntersection(l1, l2) # intersection b/w l1 & l2
+            if self.debugMode:
+                cv2.circle(outImg, (int(crossPt[0]), int(crossPt[1])), 3, (0, 255, 0))
+            foundLines[0]['angle'] = np.rad2deg(math.atan2(l1[0][1] - crossPt[1],
+                                                           l1[0][0] - crossPt[0]))
+            foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1] - crossPt[1],
+                                                           l2[0][0] - crossPt[0]))
+        else:
+            # otherwise adjust to the angle closest to input heading
+            lineAngle = foundLines[0]['angle']
+            adjustAngle = Utils.normAngle(self.com.curHeading - Utils.toHeadingSpace(lineAngle))
+            if 90 < abs(self.com.inputAngle - adjustAngle) < 270:
+                foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
+
         if self.debugMode:
             for line in foundLines:
                 startpt = line['pos']
@@ -119,8 +137,10 @@ class LaneMarkerVision:
                 endpt = (int(startpt[0] + 100 * math.cos(gradient)),
                          int(startpt[1] + 100 * math.sin(gradient)))
                 startpt = (int(startpt[0]), int(startpt[1]))
+                angleStr = "{0:.2f}".format(line['angle'])
+
                 cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
-                angleStr = "{0:.2f}".format(Utils.toHeadingSpace(line['angle']))
+                cv2.circle(outImg, startpt, 3, (0, 0, 255), 1)
                 cv2.putText(outImg, angleStr, startpt,
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
