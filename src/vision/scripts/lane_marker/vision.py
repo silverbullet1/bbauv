@@ -1,5 +1,3 @@
-import roslib; roslib.load_manifest('vision')
-
 import math
 import numpy as np
 import cv2

@@ -1,4 +1,3 @@
-import roslib; roslib.load_manifest('vision')
 import rospy
 from sensor_msgs.msg import Image
 
@@ -9,6 +8,8 @@ import utils.config as config
 from vision import LaneMarkerVision
 
 class Com:
+    """ Class to facilitate communication b/w ROS and task submodules """
+
     inputHeading = 0
     curHeading = 0
 
