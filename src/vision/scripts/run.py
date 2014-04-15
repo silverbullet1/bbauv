@@ -10,7 +10,7 @@ Bootstrap script to run vision module and submodule
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         print "Loading module..."
-        mod = importlib.import_module(sys.argv[1]) 
+        mod = importlib.import_module(sys.argv[1])
         print "Module loaded"
 
         if not mod:

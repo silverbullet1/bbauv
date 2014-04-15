@@ -19,7 +19,9 @@ def main():
     with sm:
         pass
 
-    introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/LANE_MARKER')
+    introServer = smach_ros.IntrospectionServer('mission_server',
+                                                sm,
+                                                '/MISSION/LANE_MARKER')
     introServer.start()
 
     sm.execute()

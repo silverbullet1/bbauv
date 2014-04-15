@@ -11,14 +11,14 @@ class Utils():
         except CvBridgeError as e:
             rospy.logerr(e)
 
-        return frame 
+        return frame
 
     @staticmethod
     def cv2rosimg(cv_img):
         try:
             return Utils.bridge.cv2_to_imgmsg(cv_img, encoding="bgr8")
         except CvBridgeError as e:
-            rospy.logerr(e) 
+            rospy.logerr(e)
 
     @staticmethod
     def normAngle(angle):

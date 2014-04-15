@@ -23,9 +23,9 @@ class LineFollower():
     areaThresh = 3000
     upperAreaThresh = 100000
     screen = { 'width' : 640, 'height' : 480 }
-    
+
     locomotionClient = actionlib.SimpleActionClient("LocomotionServer",
-                                                    bbauv_msgs.msg.ControllerAction) 
+                                                    bbauv_msgs.msg.ControllerAction)
 
     curHeading = 0.0
     depth_setpoint = 0.6
@@ -46,10 +46,10 @@ class LineFollower():
         self.registerSubscribers()
         #Publisher for testing output image
         self.outPub = rospy.Publisher("/Vision/image_filter", Image)
-        
+
         # Set up dynamic reconfigure for linefollower
 #         self.dyn_reconf_server = DynServer(Config, self.reconfigure)
-        
+
         #Initialize mission planner communication server and client
         self.comServer = rospy.Service("/linefollower/mission_to_vision", mission_to_vision, self.handleSrv)
 
@@ -66,7 +66,7 @@ class LineFollower():
             self.locomotionClient.wait_for_server(timeout=rospy.Duration(5))
         except:
             rospy.loginfo("Locomotion Server timeout!")
-            self.isKilled = True  
+            self.isKilled = True
 
         #Setting controller server
         if self.testing:
@@ -83,7 +83,7 @@ class LineFollower():
 #         rospy.loginfo("Got dynamic reconfigure params")
 #         self.areaThresh = config['area_thresh']
 #         self.upperThresh = config['upper_thresh']
-#         
+#
         return config
 
     def registerSubscribers(self):
@@ -102,7 +102,7 @@ class LineFollower():
 #         self.comSub.unregister()
         self.rectData['detected'] = False
 
-    #Handle communication service with mission planner    
+    #Handle communication service with mission planner
     def handleSrv(self, req):
         if req.start_request:
             self.isAborted = False
@@ -110,7 +110,7 @@ class LineFollower():
         elif req.abort_request:
             rospy.loginfo("Got abort request")
             self.isAborted = True
-        
+
         lastHeading = [self.curHeading, self.curHeading]
         length = len(self.actionsHist)
         if length > 1:
@@ -120,7 +120,7 @@ class LineFollower():
 
         return mission_to_visionResponse(start_response=True, abort_response=False,
                                          data=controller(heading_setpoint=lastHeading[1]))
-    
+
     def stopRobot(self):
         self.sendMovement(f=0, sm=0)
 
@@ -132,7 +132,7 @@ class LineFollower():
             rospy.logerr(e)
 
         self.detectBlackLine(cvImg)
-    
+
     def compassCallback(self, data):
         self.curHeading = data.yaw
 
@@ -142,7 +142,7 @@ class LineFollower():
         h = h if h else self.curHeading
         goal = bbauv_msgs.msg.ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                                              sidemove_setpoint=sm, depth_setpoint=d)
-                                              
+
         # Record actions to revert if necessary
         if recordAction:
             if len(self.actionsHist) > 10:
@@ -152,11 +152,11 @@ class LineFollower():
         rospy.loginfo("Moving f:{}, h:{}, sm:{}, d:{}".format(f, h, sm, d))
         self.locomotionClient.send_goal(goal)
         self.locomotionClient.wait_for_result(rospy.Duration(0.5))
-    
+
     def revertMovement(self):
         if len(self.actionsHist) == 0:
             return False
-        
+
         rospy.loginfo("Reverting...")
         movements = self.actionsHist.popleft()
         # Reverse the direction of forward and sidemove
@@ -193,18 +193,18 @@ class LineFollower():
         rospy.logdebug(self.thval)
 
         #Thresholding and noise removal
-        grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1] 
+        grayImg = cv2.threshold(grayImg, self.thval, 255, cv2.THRESH_BINARY_INV)[1]
 
         #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        
+
         #grayImg = cv2.erode(grayImg, erodeEl)
         grayImg = cv2.dilate(grayImg, dilateEl)
         grayImg = cv2.morphologyEx(grayImg, cv2.MORPH_OPEN, openEl)
 
         out = cv2.cvtColor(grayImg, cv2.cv.CV_GRAY2BGR)
-        
+
         # Find centroid and bounding box
         pImg = grayImg.copy()
         contours, hierachy = cv2.findContours(pImg, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -214,11 +214,11 @@ class LineFollower():
             area = cv2.contourArea(contour)
             if area > self.areaThresh and area < self.upperAreaThresh and area > maxArea:
                 #Find the center using moments
-                mu = cv2.moments(contour, False) 
+                mu = cv2.moments(contour, False)
                 centroidx = mu['m10'] / mu['m00']
                 centroidy = mu['m01'] / mu['m00']
                 maxArea = area
-                
+
                 self.rectData['centroid'] = (centroidx, centroidy)
                 self.rectData['rect'] = cv2.minAreaRect(contour)
 
@@ -227,9 +227,9 @@ class LineFollower():
             points = np.array(cv2.cv.BoxPoints(self.rectData['rect']))
 
             #Find the blackline heading
-            edge1 = points[1] - points[0] 
+            edge1 = points[1] - points[0]
             edge2 = points[2] - points[1]
-            
+
             #Choose the vertical edge
             if cv2.norm(edge1) > cv2.norm(edge2):
                 edge1[1] = edge1[1] if edge1[1] != 0.0 else math.copysign(0.01, edge1[1])
@@ -245,11 +245,11 @@ class LineFollower():
             elif self.rectData['angle'] == -90:
                 if self.rectData['centroid'][0] < self.screen['width'] / 2:
                     self.rectData['angle'] = 90
-      
+
             #Testing
             centerx = int(self.rectData['centroid'][0])
             centery = int(self.rectData['centroid'][1])
-            cv2.circle(out, (centerx, centery), 5, (0, 255, 0)) 
+            cv2.circle(out, (centerx, centery), 5, (0, 255, 0))
 
             for i in range(4):
                 pt1 = (int(points[i][0]), int(points[i][1]))
@@ -260,7 +260,7 @@ class LineFollower():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
         else:
             self.rectData['detected'] = False
-            
+
         try:
             self.outPub.publish(self.cvbridge.cv2_to_imgmsg(out, encoding="bgr8"))
         except CvBridgeError as e:

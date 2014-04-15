@@ -11,7 +11,7 @@ class LaneMarkerVision:
     hsvLoThresh = (100, 0, 0)
     hsvHiThresh = (120, 255, 255)
     minContourArea = 5000
-    
+
     houghThreshold = 80
     houghMinLength = 60
     houghMaxGap = 10
@@ -48,24 +48,26 @@ class LaneMarkerVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh, self.hsvHiThresh)
-        
+
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        
+
         binImg = cv2.erode(binImg, erodeEl)
         binImg = cv2.dilate(binImg, dilateEl)
         binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
 
         if self.debugMode:
-            outImg = binImg.copy() 
+            outImg = binImg.copy()
             outImg = cv2.cvtColor(outImg, cv2.COLOR_GRAY2BGR)
 
         # Find large enough contours and their bounding rectangles
         scratchImg = binImg.copy()
-        contours, _ = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        contours = filter(lambda contour: cv2.contourArea(contour) > self.minContourArea, contours)
+        contours, _ = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_NONE)
+        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
+                          contours)
         if len(contours) < 1: return retData, outImg
 
         contourRects = [cv2.minAreaRect(contour) for contour in contours]
@@ -95,7 +97,9 @@ class LaneMarkerVision:
                     cv2.line(outImg, pt1, pt2, (0,0,255), 2)
 
             lines = cv2.HoughLinesP(rectImg, 2, math.pi/180.0,
-                                    self.houghThreshold, self.houghMinLength, self.houghMaxGap)
+                                    self.houghThreshold,
+                                    self.houghMinLength,
+                                    self.houghMaxGap)
             # Find and fix angle
             if lines != None:
                 #print len(lines[0])
@@ -112,19 +116,24 @@ class LaneMarkerVision:
 
         if len(foundLines) == 2:
             # if there are 2 lines, find their intersection and adjust angle
-            l1 = self.vectorizeLine(foundLines[0]['pos'], foundLines[0]['angle'])
-            l2 = self.vectorizeLine(foundLines[1]['pos'], foundLines[1]['angle'])
+            l1 = self.vectorizeLine(foundLines[0]['pos'],
+                                    foundLines[0]['angle'])
+            l2 = self.vectorizeLine(foundLines[1]['pos'],
+                                    foundLines[1]['angle'])
             crossPt = self.findIntersection(l1, l2) # intersection b/w l1 & l2
+
             if self.debugMode:
-                cv2.circle(outImg, (int(crossPt[0]), int(crossPt[1])), 3, (0, 255, 0))
-            foundLines[0]['angle'] = np.rad2deg(math.atan2(l1[0][1] - crossPt[1],
-                                                           l1[0][0] - crossPt[0]))
-            foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1] - crossPt[1],
-                                                           l2[0][0] - crossPt[0]))
+                cv2.circle(outImg, (int(crossPt[0]), int(crossPt[1])),
+                           3, (0, 255, 0))
+            foundLines[0]['angle'] = np.rad2deg(math.atan2(l1[0][1]-crossPt[1],
+                                                           l1[0][0]-crossPt[0]))
+            foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
+                                                           l2[0][0]-crossPt[0]))
         else:
             # otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
-            adjustAngle = Utils.normAngle(self.com.curHeading - Utils.toHeadingSpace(lineAngle))
+            adjustAngle = Utils.normAngle(self.com.curHeading -
+                                          Utils.toHeadingSpace(lineAngle))
             if 90 < abs(self.com.inputAngle - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 

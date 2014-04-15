@@ -23,10 +23,12 @@ class Com:
         # Get private params
         self.isAlone = rospy.get_param('~alone', True)
         self.imageTopic = rospy.get_param('~image', config.botCamTopic)
-    
+
     def register(self):
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
-        self.compassSub = rospy.Subscriber(config.compassTopic, compass_data, self.compassCallback)
+        self.compassSub = rospy.Subscriber(config.compassTopic,
+                                           compass_data,
+                                           self.compassCallback)
         self.outPub = rospy.Publisher(config.visionTopic, Image)
 
     def unregister(self):
