@@ -172,5 +172,7 @@ if __name__ == '__main__':
                                transitions={'firing_complete' : 'task_complete',
                                             'aborted':'DISENGAGE'})
 
+    sis = smach_ros.IntrospectionServer('flare_task', sm, '/SM_ROOT')
+    sis.start()
     outcomes = sm.execute()
     rospy.loginfo(outcomes)

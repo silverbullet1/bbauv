@@ -29,7 +29,7 @@ class Com:
         self.compassSub = rospy.Subscriber(config.compassTopic,
                                            compass_data,
                                            self.compassCallback)
-        self.outPub = rospy.Publisher(config.visionTopic, Image)
+        self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
 
     def unregister(self):
         self.camSub.unregister()

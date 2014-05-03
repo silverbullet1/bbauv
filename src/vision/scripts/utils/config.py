@@ -4,4 +4,4 @@ botCamLocalTopic = ''
 frontCamLocalTopic = ''
 
 compassTopic = '/euler'
-visionTopic = '/Vision/filter'
+visionFilterTopic = '/Vision/filter'
