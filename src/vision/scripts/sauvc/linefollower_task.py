@@ -169,6 +169,10 @@ def main():
                                 transitions={'following_line':'FOLLOWINGLINE',
                                              'lost_line':'SEARCHING',
                                              'aborted':'DISENGAGE'})
+        
+    sis = smach_ros.IntrospectionServer('flare_task', sm, '/SM_ROOT')
+    sis.start()
+    
     outcomes = sm.execute()
     rospy.loginfo(outcomes)
 
