@@ -267,12 +267,11 @@ class Vision_filter(QWidget):
         return (label, qle,layout)
     
     def compression_btn_handler(self):
-        pass
-#         self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
-#                  
-#         params = {'jpeg_quality': 40}
-#         config = self.vision_client.update_configuration(params)
-#         rospy.loginfo("Set vision compression to 40%")
+        vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
+                  
+        params = {'jpeg_quality': 40}
+        config = vision_client.update_configuration(params)
+        rospy.loginfo("Set vision compression to 40%")
     
     
     

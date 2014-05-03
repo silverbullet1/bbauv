@@ -10,5 +10,10 @@
   <node pkg="image_transport" type="republish" name="image_filter" ns="Vision" output="screen" args="raw in:=image_filter compressed out:=image_filter">
   </node>
   
+  <!--dynamic reconfigure to 40% -->
+  <node pkg="dynamic_reconfigure" type="dynparam" args="set_from_parameters Vision/image_filter/compressed">
+  	<param name="jpeg_quality" type="int" value="40" />
+  </node>
+  
 </launch>
 
