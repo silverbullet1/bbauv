@@ -3,7 +3,7 @@ import rospy
 
 import smach, smach_ros
 
-from com import Com
+from comms import Comms
 
 class Disengage(smach.State):
     def __init__(self):
@@ -13,7 +13,7 @@ class Disengage(smach.State):
 
 def main():
     rospy.init_node('lane_marker_node')
-    myCom = Com()
+    myCom = Comms()
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
