@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 	enable();
 
 	int joy_fd;
-    int num_of_axis = 0, num_of_buttons = 0;
+        int num_of_axis = 0, num_of_buttons = 0;
 	int *axis = NULL;
 	char *button = NULL;
 	char name_of_joystick[80];
