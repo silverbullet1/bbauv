@@ -10,13 +10,18 @@ class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
     
     #Vision parameters
-    greenThres = {'lo': (30, 0, 27), 'hi': (90, 147, 255)}
-    redThres = {'lo': (110, 0, 0), 'hi': (137, 255, 255)}
-    blueThres = {'lo': (100, 150, 0), 'hi': (140, 255, 255)}
+    greenParams = {'lo': (30, 0, 27), 'hi': (90, 147, 255), 
+                   'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
+    redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
+                 'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
+    blueParams = {'lo': (18, 16, 2), 'hi': (180, 255, 255),
+                  'dilate': (7,7), 'erode': (3,3), 'open': (3,3)}
     
     minContourArea = 5000
-    
+
+    #Whether we should bump the lights 
     rgbCount = {'red': 0, 'green': 0, 'yellow': 0}
+    toBump = False
     
     def __init__(self, debugMode = True):
         self.debugMode = debugMode
@@ -27,7 +32,6 @@ class RgbBuoyVision:
         foundLines = []
         centroid = [0, 0]
         outImg = None
-        rectData = {'foundLines': foundLines, 'centroid': centroid}
         
         #Preprocessing
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
@@ -35,18 +39,19 @@ class RgbBuoyVision:
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX = 0)
                 
         #Find red image
-        #redImg = self.threshold(img, "RED")
+        _, redImg = self.threshold(hsvImg, "RED")
         
         #Find blue image
-        #blueImg = self.threshold(img, "BLUE")
+        _, blueImg = self.threshold(hsvImg, "BLUE")
         
         #Find green image 
-        greenImg = self.threshold(hsvImg, "GREEN")
-        outImg = greenImg
-        
+        _, greenImg = self.threshold(hsvImg, "GREEN")
+              
         #If any count is 3, bump
+        self.checkCountAndBump()
         
         #Combine images 
+        outImg = blueImg | redImg | greenImg
         
         return outImg
     
@@ -56,26 +61,57 @@ class RgbBuoyVision:
         self.rgbCount['yellow'] = 0
     
     def threshold(self, image, colour):
-        loThres, hiThres = self.getThreshVal(colour) 
-        binImg = cv2.inRange(image, loThres, hiThres)
-
+        centroid = [0, 0]
+        rectData = {'foundLines': foundLines, 'centroid': centroid}
+        
+        params = self.getParams(colour) 
+        binImg = cv2.inRange(image, params['lo'], params['hi'])
+        binImg = self.erodeAndDilateImg(binImg, params)
+        
+        scratchImg = binImg.copy()
+        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, 
+                                       cv2.CHAIN_APPROX_NONE)
+        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
+        
+        if len(contours) < 1: return retData, outImg
+        
+        contourRects = [cv2.minAreaRect(contour) for contour in contours]
+        
         thresImg = binImg 
         return thresImg
     
-    def getThreshVal(self, inColour):
+    def getParams(self, inColour):
         colours = ["RED", "GREEN", "BLUE"]
         
         if inColour == colours[0]:
-            return self.redThres['lo'], self.redThres['hi']
+            return self.redParams
         elif inColour == colours[1]:
-            return self.greenThres['lo'], self.greenThres['hi']
+            return self.greenParams
         else:
-            return self.blueThres['lo'], self.blueThres['hi']
+            return self.blueParams
+
+    def erodeAndDilateImg(self, image, params):
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['erode'])
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['dilate'])
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['open'])
+        
+        image = cv2.erode(image, erodeEl)
+        image = cv2.dilate(image, dilateEl)
+        image = cv2.morphologyEx(image, cv2.MORPH_OPEN, openEl)
+        
+        return image
+
+    def checkCountAndBump(self):
+        for key in self.rgbCount:
+            if self.rgbCount[key] == 3:
+                self.toBump = True
+                rospy.loginfo("Bumping...{}".format(key))
+                #TODO: Input bump code here 
 
 def main():
     cv2.namedWindow("test")
     
-    inImg = cv2.imread("rgb_buoy/RGB6.jpg")
+    inImg = cv2.imread("rgb_buoy/RGB5.jpg")
     inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
     detector = RgbBuoyVision()
     outImg = detector.gotFrame(inImg)
