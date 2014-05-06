@@ -16,8 +16,8 @@ class LaneMarkerVision:
     houghMinLength = 60
     houghMaxGap = 10
 
-    def __init__(self, com=None, debugMode=True):
-        self.com = com
+    def __init__(self, comms=None, debugMode=True):
+        self.commsms = comms
         self.debugMode = debugMode
 
     # Convert line equation to vector equation
@@ -132,9 +132,9 @@ class LaneMarkerVision:
         else:
             # otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
-            adjustAngle = Utils.normAngle(self.com.curHeading -
+            adjustAngle = Utils.normAngle(self.comms.curHeading -
                                           Utils.toHeadingSpace(lineAngle))
-            if 90 < abs(self.com.inputAngle - adjustAngle) < 270:
+            if 90 < abs(self.comms.inputAngle - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
         if self.debugMode:
