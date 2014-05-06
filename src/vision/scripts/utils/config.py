@@ -5,3 +5,5 @@ frontCamLocalTopic = ''
 
 compassTopic = '/euler'
 visionFilterTopic = '/Vision/filter'
+
+screen = { 'width': 640, 'height': 480 }

@@ -81,6 +81,12 @@ class LaneMarkerVision:
         centroid[0] /= len(contours)
         centroid[1] /= len(contours)
 
+        # Draw the centroid
+        if self.debugMode:
+            cv2.circle(outImg,
+                       (int(centroid[0]), int(centroid[1])),
+                       3, (0, 0, 255))
+
         # Find lines in each bounded rectangle region and find angle
         for rect in contourRects:
             # mask for the region
