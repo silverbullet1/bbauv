@@ -7,6 +7,9 @@ To test out the HSV values for different colours
 import math
 import numpy as np
 import cv2
+from vision import RgbBuoyVision
+
+from utils.frontComms import FrontComms
 
 #Green
 # loThres = [24, 30, 50]
@@ -22,7 +25,6 @@ hiThres = [180, 255, 255]
 
 img = None
 outImg = None
-
 def nothing(x):
     pass
 
@@ -73,6 +75,8 @@ def main():
     global hiThres
     global img
     global outImg
+    
+    frontComms = FrontComms("rgb_buoy.vision")
     
     img = cv2.imread("rgb_buoy/RGB6.jpg")
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
