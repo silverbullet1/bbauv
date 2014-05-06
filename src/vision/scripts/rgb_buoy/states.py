@@ -16,8 +16,6 @@ from bbauv_msgs.srv import *
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server
-from ctypes.wintypes import RGB
-from ImageQt import rgb
 
 #Globals
 locomotionGoal = None
@@ -40,13 +38,14 @@ class Disengage(smach.State):
         
         if isTesting:
             self.rgb.register()
-            rospy.loginfo("Starting Flare")
+            rospy.loginfo("Starting RGB")
         
         return 'start_complete'
     
 class Search(smach.State):
     def __init__(self, rgb_buoy):
-        pass
+        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        self.rgb = rgb_buoy
     
     def execute(self, ud):
         smach.State.execute(self, ud)
