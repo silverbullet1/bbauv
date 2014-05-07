@@ -46,7 +46,14 @@ class FrontComms:
             rospy.loginfo("Locomotion server timeout!")
             self.isKilled = True
             
+        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+        setServer(forward = True, sidemove = True, heading = True, depth = True,
+                  pitch = True, roll = True, topside = False, navigation = False)
         
+        #Run if in alone mode 
+        if self.isAlone:
+            self.isAborted = False
+            self.canPublish = True       
         
     def register(self):
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
@@ -67,4 +74,8 @@ class FrontComms:
             
     def compassCallback(self, data):
         self.curHeading = data.yaw
+    
+    def userQuit(self, signal, frame):
+        self.isAborted = True
+        self.isKilled = True
         
