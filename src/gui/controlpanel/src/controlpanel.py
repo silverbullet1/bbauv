@@ -118,10 +118,10 @@ class AUV_gui(QMainWindow):
         self.main_tab = QTabWidget()
         self.main_frame = QWidget()
         self.vision_filter_frame = Vision_filter()
-        self.navigation_frame = Navigation_Map()
+        #self.navigation_frame = Navigation_Map()
         self.main_tab.addTab(self.main_frame, "Telemetry")
         self.main_tab.addTab(self.vision_filter_frame, "Vision Filter")
-        self.main_tab.addTab(self.navigation_frame, "Navigation")
+        #self.main_tab.addTab(self.navigation_frame, "Navigation")
         
         goalBox =  QGroupBox("Goal Setter")
         depth_l , self.depth_box, layout4 = self.make_data_box("Depth:       ")

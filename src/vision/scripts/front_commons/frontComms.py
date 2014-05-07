@@ -3,31 +3,50 @@
 '''
 Communication b/w ROS class and submodules for front camera
 '''
-
-import sys
-import importlib
-
 import rospy
+import actionlib
+import signal
+
 from sensor_msgs.msg import Image
 from bbauv_msgs.msg import compass_data
+from bbauv_msgs.srv import set_controller
 
-from utils import Utils
-import config 
+from utils.utils import Utils
+import utils.config as config
 
 class FrontComms:
-    inputHeading = 0
-    curHeading = 0
     
-    def __init__(self, subModule):
-        mod = importlib.import_module(subModule)
-        #Flag for using non-publishing to ROS when testing with images 
-        self.canPublish = False
+    def __init__(self, visionFilter):
+        signal.signal(signal.SIGINT, self.userQuit)
+        
+        #Default parameters
+        self.inputHeading = 0
+        self.curHeading = 0
+        self.retVal = 0
+        
+        # Flags 
+        self.canPublish = False    #Flag for using non-publishing to ROS when testing with images 
+        self.isAborted = False
+        self.isKilled = False
         
         #Initialize vision Filter
-        self.visionFilter = mod
+        self.visionFilter = visionFilter
         
         #Get private params 
         self.imageTopic = rospy.get_param('~image', config.frontCamTopic)
+        self.isAlone = rospy.get_param('~alone', True)
+        
+        #Locomotion servers 
+        self.motionClient = actionlib.SimpleActionClient("LocomotionServer",
+                                                         ControllerAction)
+        try:
+            rospy.loginfo("Waiting for Locomotion Server...")
+            self.motionClient.wait_for_server(timeout=rospy.Duration(5))
+        except:
+            rospy.loginfo("Locomotion server timeout!")
+            self.isKilled = True
+            
+        
         
     def register(self):
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
