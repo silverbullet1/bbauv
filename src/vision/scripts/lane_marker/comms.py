@@ -9,6 +9,7 @@ class Comms(GenericComms):
     def __init__(self):
         GenericComms.__init__(self, LaneMarkerVision())
 
+        #TODO: set default depth for this task
         #TODO: Communicate with mission planner
 
     def handleSrv(self, data):

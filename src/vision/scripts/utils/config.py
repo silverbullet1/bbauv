@@ -1,6 +1,6 @@
 botCamTopic = '/bot_camera/camera/image_raw'
 frontCamTopic = '/front_camera/camera/image_raw'
-botCamLocalTopic = ''
+botCamLocalTopic = '/bottomcam/camera/image_rect_color'
 frontCamLocalTopic = ''
 
 compassTopic = '/euler'

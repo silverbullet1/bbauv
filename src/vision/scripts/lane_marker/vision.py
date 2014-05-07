@@ -69,6 +69,7 @@ class LaneMarkerVision:
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
                           contours)
         if len(contours) < 1: return retData, outImg
+        sorted(contours, key=cv2.contourArea, reverse=True)
 
         contourRects = [cv2.minAreaRect(contour) for contour in contours]
         # Find the centroid from averaging all the contours

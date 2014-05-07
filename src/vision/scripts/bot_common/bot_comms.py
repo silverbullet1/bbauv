@@ -2,7 +2,7 @@ import rospy
 from sensor_msgs.msg import Image
 import actionlib
 
-from bbauv_msgs.msg import compass_data, ControllerAction
+from bbauv_msgs.msg import compass_data, ControllerAction, ControllerGoal
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -20,6 +20,7 @@ class GenericComms:
         self.inputHeading = 0
         self.curHeading = 0
         self.retVal = None
+        self.defaultDepth = 0.0
 
         # Initialize flags
         self.isAborted = True
@@ -74,4 +75,18 @@ class GenericComms:
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+        rospy.signal_shutdown("Task manually killed")
+    
+    def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
+                     timeout=0.4, blocking=False):
+        d = d if d else self.defaultDepth
+        h = h if h else self.curHeading
+        goal = ControllerGoal(forward_setpoint=f, heading_setpoint=h,
+                              sidemove_setpoint=sm, depth_setpoint=d)
+        self.motionClient.send_goal(goal)
+        rospy.loginfo("Moving f:%lf, sm:%lf, h:%lf, d:%lf", f, sm, h, d)
 
+        if blocking:
+            self.motionClient.wait_for_result()
+        else:
+            self.motionClient.wait_for_result(timeout=rospy.Duration(timeout))

@@ -5,12 +5,13 @@ from comms import Comms
 from vision import LaneMarkerVision
 
 import time
+import math
 
 """ The entry script and smach StateMachine for the task"""
 
 class Disengage(smach.State):
     def __init__(self, comms):
-        smach.StateMachine.__init__(outcomes=['started', 'killed'])
+        smach.State.__init__(self, outcomes=['started', 'killed'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -26,7 +27,7 @@ class Search(smach.State):
     timeout = 7
 
     def __init__(self, comms):
-        smach.StateMachine.__init__(outcomes=['foundLanes',
+        smach.State.__init__(self, outcomes=['foundLanes',
                                               'timeout',
                                               'aborted'])
         self.comms = comms
@@ -34,10 +35,12 @@ class Search(smach.State):
     def execute(self, userdata):
         start = time.time()
 
-        while len(self.comms.retVal['foundLines']) == 0:
+        while not self.comms.retVal or \
+              len(self.comms.retVal['foundLines']) == 0:
             if self.comms.isKilled or \
                self.comms.isAborted or \
                (time.time() - start) > self.timeout:
+                self.comms.isAborted = True
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
@@ -49,8 +52,11 @@ class Stablize(smach.State):
     width = LaneMarkerVision.screen['width']
     height = LaneMarkerVision.screen['height']
 
+    xcoeff = 2.0
+    ycoeff = 1.5
+
     def __init__(self, comms):
-        smach.StateMachine.__init__(outcomes=['stablized',
+        smach.State.__init__(self, outcomes=['stablized',
                                               'lost',
                                               'aborted'])
         self.comms = comms
@@ -67,6 +73,30 @@ class Stablize(smach.State):
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
             return 'stablized'
 
+        f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
+        sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
+        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint)
+
+class Align(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['aligned',
+                                              'lost',
+                                              'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isKilled or self.comms.isAborted:
+            return 'aborted'
+
+class Forward(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                              'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isKilled or self.comms.isAborted:
+            return 'aborted'
         
 def main():
     rospy.init_node('lane_marker_node')
@@ -74,7 +104,7 @@ def main():
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
-        smach.StateMachine.add('DISENAGE',
+        smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
                                transitions={'started':'SEARCH',
                                             'killed':'killed'})
@@ -85,8 +115,17 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('STABLIZE',
                                Stablize(myCom),
-                               transitions={'stablized':'',
-                                            'lost':'',
+                               transitions={'stablized':'ALIGN',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('ALIGN',
+                               Align(myCom),
+                               transitions={'aligned':'FORWARD',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('FORWARD',
+                               Forward(myCom),
+                               transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 
     introServer = smach_ros.IntrospectionServer('mission_server',
