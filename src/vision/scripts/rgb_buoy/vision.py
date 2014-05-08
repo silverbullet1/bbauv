@@ -75,17 +75,17 @@ class RgbBuoyVision:
         
         # Find Hough circles
         circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   self.screen['width'], param1=10, param2=10,
+                                   minDist=20, param1=30, param2=20,
                                    minRadius = self.circleParams['minRadius'], 
                                    maxRadius = self.circleParams['maxRadius'])
         # Draw Circles 
         if circles is not None:
             circles = np.uint16(np.around(circles))
-            for circle in circles: 
+            for circle in circles[0,:]: 
                 #Draw outer circle
-                cv2.circle(scratchImg, (circle[0][0], circle[0][1]), circle[0][2], (255, 255, 0), 2)
+                cv2.circle(scratchImg, (circle[1], circle[1]), circle[2], (255, 255, 0), 2)
                 #Draw circle center
-                cv2.circle(scratchImg, (circle[0][0], circle[0][1]), 2, (255, 0, 255), 3)
+                cv2.circle(scratchImg, (circle[0], circle[1]), 2, (255, 0, 255), 3)
         
         # If 3 same colours, bump
         self.checkCountAndBump()
