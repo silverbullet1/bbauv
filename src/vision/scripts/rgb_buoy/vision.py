@@ -11,7 +11,7 @@ class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
 
     # Vision parameters
-    greenParams = {'lo': (30, 0, 27), 'hi': (90, 147, 255),
+    greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
                  'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
@@ -44,17 +44,18 @@ class RgbBuoyVision:
 
         # Find red image
         redImg = self.threshold(hsvImg, "RED")
-        outImg = redImg
+        #outImg = redImg
 
         # Find blue image
         blueImg = self.threshold(hsvImg, "BLUE")
         #outImg = blueImg
 
         # Find green image
-        #greenImg = self.threshold(hsvImg, "GREEN")
+        greenImg = self.threshold(hsvImg, "GREEN")
+        #outImg = greenImg
 
         # Combine images
-        #outImg = blueImg | redImg | greenImg
+        outImg = blueImg | redImg | greenImg
 
         return outImg
 
@@ -79,6 +80,7 @@ class RgbBuoyVision:
                                    minDist=30, param1=100, param2=18,
                                    minRadius = self.circleParams['minRadius'],
                                    maxRadius = self.circleParams['maxRadius'])
+        
         # Draw Circles
         if circles is not None:
             circles = np.uint16(np.around(circles))
@@ -125,7 +127,7 @@ class RgbBuoyVision:
 def main():
     cv2.namedWindow("test")
 
-    inImg = cv2.imread("rgb_buoy/RGB1.jpg")
+    inImg = cv2.imread("rgb_buoy/RGB5.jpg")
     inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
     detector = RgbBuoyVision()
     outImg = detector.gotFrame(inImg)
