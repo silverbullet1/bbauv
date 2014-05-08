@@ -23,6 +23,7 @@ class FrontComms:
         self.inputHeading = 0
         self.curHeading = 0
         self.retVal = 0
+        self.defaultDepth = 0.2
         
         # Flags 
         self.canPublish = False    #Flag for using non-publishing to ROS when testing with images 
@@ -78,4 +79,25 @@ class FrontComms:
     def userQuit(self, signal, frame):
         self.isAborted = True
         self.isKilled = True
+        rospy.signal_shutdown("Task manually killed")
+        
+    def sendMovement(self, forward=0.0, sidemove=0.0,
+                     heading=None, depth=None,
+                     timeout=0.2, wait=False):
+        
+        depth = depth if depth else self.defaultDepth
+        heading = heading if heading else self.curHeading
+        
+        goal = ControllerGoal(forward_setpoint=forward, heading_setpoint=heading,
+                              sidemove_setpoint=sidemove, depth_setpoint=depth)
+        self.motionClient.send_goal(goal)
+        rospy.loginfo("Moving.. f: %lf, sm: %lf, h: %lf, d: %lf", 
+                      forward, sidemove, heading, depth)
+
+        if wait:
+            self.motionClient.wait_for_result()
+        else:
+            self.motionClient.wait_for_result(timeout=rospy.Duration(timeout))
+        
+        
         
