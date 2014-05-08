@@ -78,7 +78,7 @@ def main():
     
     frontComms = FrontComms("rgb_buoy.vision")
     
-    img = cv2.imread("rgb_buoy/RGB6.jpg")
+    img = cv2.imread("rgb_buoy/RGB5.jpg")
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     
     img = cv2.resize(img, (640, 480))

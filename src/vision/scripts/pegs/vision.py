@@ -13,19 +13,18 @@ from utils.utils import Utils
 class PegsVision:
     screen = {'width': 640, 'height': 480}
     
-    #Vision parameters - pegs are either red or empty
-    loThres = (110, 0, 0)
-    hiThres = (137, 255, 255)
+    #Vision parameters - pegs are either red or white
+    redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
+                 'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     
-    #Morphological parameters
-    dilate = (7,7)
-    erode = (5,5)
-    open = (5,5)
+    whiteParams = {'lo': (18, 16, 2), 'hi': (180, 255, 255),
+                  'dilate': (7,7), 'erode': (3,3), 'open': (3,3)}
     
     minContourArea = 5000
     
     def __init__(self, debugMode = True):
         self.debugMode = debugMode
+        self.searchRedPeg = True
         
     def gotFrame(self, img):
         #Set up parameters

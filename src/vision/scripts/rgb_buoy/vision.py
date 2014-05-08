@@ -5,79 +5,92 @@ import numpy as np
 import cv2
 
 from utils.utils import Utils
+from matplotlib.colors import NP_CLIP_OUT
 
 class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
     
-    #Vision parameters
+    # Vision parameters
     greenParams = {'lo': (30, 0, 27), 'hi': (90, 147, 255), 
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
                  'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     blueParams = {'lo': (18, 16, 2), 'hi': (180, 255, 255),
-                  'dilate': (7,7), 'erode': (3,3), 'open': (3,3)}
+                  'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
+    
+    # Hough circle parameters
+    circleParams = {'minRadius':0, 'maxRadius': 0 }
     
     minContourArea = 5000
 
-    #Whether we should bump the lights 
-    rgbCount = {'red': 0, 'green': 0, 'yellow': 0}
+    # Whether we should bump the lights 
+    rgbCount = {'red': 0, 'green': 0, 'blue': 0}
     toBump = False
     
     def __init__(self, debugMode = True):
         self.debugMode = debugMode
         
     def gotFrame(self, img):        
-        #Set up parameters 
+        # Set up parameters 
         self.resetRGBCount()
         foundLines = []
         centroid = [0, 0]
         outImg = None
         
-        #Preprocessing
+        # Preprocessing
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX = 0)
                 
-        #Find red image
-        _, redImg = self.threshold(hsvImg, "RED")
+        # Find red image
+        redImg = self.threshold(hsvImg, "RED")
+        outImg = redImg
         
-        #Find blue image
-        _, blueImg = self.threshold(hsvImg, "BLUE")
+        # Find blue image
+        blueImg = self.threshold(hsvImg, "BLUE")
+        #outImg = blueImg
         
-        #Find green image 
-        _, greenImg = self.threshold(hsvImg, "GREEN")
-              
-        #If any count is 3, bump
-        self.checkCountAndBump()
+        # Find green image 
+        #greenImg = self.threshold(hsvImg, "GREEN")
         
-        #Combine images 
-        outImg = blueImg | redImg | greenImg
+        # Combine images 
+        #outImg = blueImg | redImg | greenImg
         
         return outImg
     
     def resetRGBCount(self):
         self.rgbCount['red'] = 0
         self.rgbCount['green'] = 0
-        self.rgbCount['yellow'] = 0
+        self.rgbCount['blue'] = 0
     
     def threshold(self, image, colour):
         centroid = [0, 0]
-        rectData = {'foundLines': foundLines, 'centroid': centroid}
+        #rectData = {'foundLines': foundLines, 'centroid': centroid}
         
         params = self.getParams(colour) 
         binImg = cv2.inRange(image, params['lo'], params['hi'])
         binImg = self.erodeAndDilateImg(binImg, params)
         
-        scratchImg = binImg.copy()
-        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, 
-                                       cv2.CHAIN_APPROX_NONE)
-        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
+        scratchImg = image.copy()
         
-        if len(contours) < 1: return retData, outImg
+        # Find Hough circles
+        circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
+                                   self.screen['width'], param1=10, param2=10,
+                                   minRadius = self.circleParams['minRadius'], 
+                                   maxRadius = self.circleParams['maxRadius'])
+        # Draw Circles 
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            for circle in circles: 
+                #Draw outer circle
+                cv2.circle(scratchImg, (circle[0][0], circle[0][1]), circle[0][2], (255, 255, 0), 2)
+                #Draw circle center
+                cv2.circle(scratchImg, (circle[0][0], circle[0][1]), 2, (255, 0, 255), 3)
         
-        contourRects = [cv2.minAreaRect(contour) for contour in contours]
+        # If 3 same colours, bump
+        self.checkCountAndBump()
         
-        thresImg = binImg 
+        thresImg = scratchImg 
         return thresImg
     
     def getParams(self, inColour):
@@ -111,7 +124,7 @@ class RgbBuoyVision:
 def main():
     cv2.namedWindow("test")
     
-    inImg = cv2.imread("rgb_buoy/RGB5.jpg")
+    inImg = cv2.imread("rgb_buoy/RGB1.jpg")
     inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
     detector = RgbBuoyVision()
     outImg = detector.gotFrame(inImg)
