@@ -15,7 +15,7 @@ class RgbBuoyVision:
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
                  'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
-    blueParams = {'lo': (18, 16, 2), 'hi': (180, 255, 255),
+    blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
 
     # Hough circle parameters
@@ -77,7 +77,7 @@ class RgbBuoyVision:
 
         # Find Hough circles
         circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=30, param1=100, param2=18,
+                                   minDist=30, param1=100, param2=15,
                                    minRadius = self.circleParams['minRadius'],
                                    maxRadius = self.circleParams['maxRadius'])
         

@@ -13,15 +13,15 @@ from utils.frontComms import FrontComms
 
 #Green
 # loThres = [24, 30, 50]
-# hiThres = [99, 255, 255]
+# hiThres = [111, 255, 255]
 
 #Red
 # loThres = [110, 0, 0]
 # hiThres = [137, 255, 255]
 
 #Blue
-loThres = [18, 16, 2]
-hiThres = [180, 255, 255]
+loThres = [17, 18, 2]
+hiThres = [20, 255, 255]
 
 img = None
 outImg = None
@@ -105,7 +105,7 @@ def main():
     cv2.createTrackbar("Val Lo", "test", loThres[2], 255, ValLoChanged)
     cv2.createTrackbar("Val Hi", "test", hiThres[2], 255, ValHiChanged)
     
-    #drawImg()
+    drawImg()
     cv2.waitKey()
         
         
