@@ -1,13 +1,43 @@
 import rospy
 import smach, smach_ros
+import numpy as np
 
 from comms import Comms
 from vision import LaneMarkerVision
+from utils.utils import Utils
 
 import time
 import math
+import deque
 
 """ The entry script and smach StateMachine for the task"""
+
+class MedianFilter:
+    staleDuration = 3.0
+    def __init__(self, sampleWindow=30):
+        self.samples = deque()
+        self.sampleWindow = sampleWindow
+        self.lastSampled = time.time() 
+
+    def newSample(self, sample):
+        curTime = time.time()
+        # Discard previous samples if we only sampled them a long time ago
+        if (curTime - self.lastSampled) > self.staleDuration:
+            self.samples = deque()
+
+        self.lastSampled = curTime
+        if len(self.samples) >= self.sampleWindow:
+            self.samples.popleft()
+        self.samples.append(sample)
+
+        self.median = np.median(self.samples)
+        return self.median
+
+    def getVariance(self):
+        if len(self.samples) >= self.sampleWindow:
+            return np.var(self.samples)
+        else:
+            return 999 # Just a big value
 
 class Disengage(smach.State):
     def __init__(self, comms):
@@ -57,13 +87,18 @@ class Stablize(smach.State):
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['stablized',
-                                              'lost',
-                                              'aborted'])
+                                             'stablizing'
+                                             'lost',
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
             return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.retVal['foundLines']) == 0:
+            return 'lost'
 
         centroid = self.comms.retVal['centroid']
         dX = (centroid[0] - self.width/2) / self.width
@@ -75,13 +110,14 @@ class Stablize(smach.State):
 
         f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
         sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
-        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint)
+        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint, blocking=False)
+        return 'stablizing'
 
 class Align(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aligned',
-                                              'lost',
-                                              'aborted'])
+                                             'lost',
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -116,6 +152,7 @@ def main():
         smach.StateMachine.add('STABLIZE',
                                Stablize(myCom),
                                transitions={'stablized':'ALIGN',
+                                            'stablizing':'STABLIZE',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('ALIGN',

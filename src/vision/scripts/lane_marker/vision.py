@@ -12,6 +12,8 @@ class LaneMarkerVision:
     hsvHiThresh = (35, 255, 255)
     minContourArea = 5000
 
+    houghDistRes = 2
+    houghAngleRes = math.pi/180.0
     houghThreshold = 80
     houghMinLength = 60
     houghMaxGap = 10
@@ -103,7 +105,8 @@ class LaneMarkerVision:
                     pt2 = (points[(i+1)%4][0], points[(i+1)%4][1])
                     cv2.line(outImg, pt1, pt2, (0,0,255), 2)
 
-            lines = cv2.HoughLinesP(rectImg, 2, math.pi/180.0,
+            lines = cv2.HoughLinesP(rectImg,
+                                    self.houghDistRes, self.houghAngleRes,
                                     self.houghThreshold,
                                     self.houghMinLength,
                                     self.houghMaxGap)

@@ -32,6 +32,7 @@ class Utils():
 
     @staticmethod
     def toHeadingSpace(angle):
+        """ Angle returned is not guaranteed to be normalized """
         return 90 + angle
 
     @staticmethod
