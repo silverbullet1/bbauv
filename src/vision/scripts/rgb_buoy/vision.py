@@ -52,10 +52,10 @@ class RgbBuoyVision:
 
         # Find green image
         greenImg = self.threshold(hsvImg, "GREEN")
-        #outImg = greenImg
+        outImg = greenImg
 
         # Combine images
-        outImg = blueImg | redImg | greenImg
+        #outImg = blueImg | redImg | greenImg
 
         return outImg
 

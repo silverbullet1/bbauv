@@ -31,7 +31,7 @@ class GenericComms:
         self.visionFilter = visionFilter
 
         # Get private params
-        self.isAlone = rospy.get_param('~alone', True)
+        self.isAlone = rospy.get_param('~alone', False)
         self.imageTopic = rospy.get_param('~image', config.botCamTopic)
 
         # Communicate with motion control server
@@ -73,6 +73,7 @@ class GenericComms:
         self.curHeading = data.yaw
 
     def userQuit(self, signal, frame):
+        self.canPublish = False
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")

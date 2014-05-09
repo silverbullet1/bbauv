@@ -8,8 +8,8 @@ class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
-    hsvLoThresh = (100, 0, 0)
-    hsvHiThresh = (120, 255, 255)
+    hsvLoThresh = (0, 0, 0)
+    hsvHiThresh = (35, 255, 255)
     minContourArea = 5000
 
     houghThreshold = 80
@@ -17,7 +17,7 @@ class LaneMarkerVision:
     houghMaxGap = 10
 
     def __init__(self, comms=None, debugMode=True):
-        self.commsms = comms
+        self.comms = comms
         self.debugMode = debugMode
 
     # Convert line equation to vector equation
@@ -141,7 +141,7 @@ class LaneMarkerVision:
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading -
                                           Utils.toHeadingSpace(lineAngle))
-            if 90 < abs(self.comms.inputAngle - adjustAngle) < 270:
+            if 90 < abs(self.comms.inputHeading - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
         if self.debugMode:

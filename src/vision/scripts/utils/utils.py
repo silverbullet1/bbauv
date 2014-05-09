@@ -11,7 +11,7 @@ class Utils():
     @staticmethod
     def rosimg2cv(ros_img):
         try:
-            frame = Utils.bridge.imgmsg_to_cv2(ros_img, ros_img.encoding)
+            frame = Utils.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
         except CvBridgeError as e:
             rospy.logerr(e)
 
