@@ -71,6 +71,7 @@ class LaneMarkerVision:
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
                           contours)
         if len(contours) < 1: return retData, outImg
+        # Sort the thresholded areas from largest to smallest
         sorted(contours, key=cv2.contourArea, reverse=True)
 
         contourRects = [cv2.minAreaRect(contour) for contour in contours]
@@ -92,7 +93,7 @@ class LaneMarkerVision:
 
         # Find lines in each bounded rectangle region and find angle
         for rect in contourRects:
-            # mask for the region
+            # Mask for the region
             mask = np.zeros_like(binImg, dtype=np.uint8)
             points = np.int32(cv2.cv.BoxPoints(rect))
             cv2.fillPoly(mask, [points], 255)
@@ -124,8 +125,8 @@ class LaneMarkerVision:
 
                 foundLines.append({'pos': rect[0], 'angle': angle})
 
-        if len(foundLines) == 2:
-            # if there are 2 lines, find their intersection and adjust angle
+        if len(foundLines) > 2:
+            # If there are 2 lines, find their intersection and adjust angle
             l1 = self.vectorizeLine(foundLines[0]['pos'],
                                     foundLines[0]['angle'])
             l2 = self.vectorizeLine(foundLines[1]['pos'],
@@ -140,7 +141,7 @@ class LaneMarkerVision:
             foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
                                                            l2[0][0]-crossPt[0]))
         else:
-            # otherwise adjust to the angle closest to input heading
+            # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading -
                                           Utils.toHeadingSpace(lineAngle))

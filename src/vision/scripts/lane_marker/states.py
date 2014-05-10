@@ -14,6 +14,7 @@ import deque
 
 class MedianFilter:
     staleDuration = 3.0
+
     def __init__(self, sampleWindow=30):
         self.samples = deque()
         self.sampleWindow = sampleWindow
@@ -30,8 +31,8 @@ class MedianFilter:
             self.samples.popleft()
         self.samples.append(sample)
 
-        self.median = np.median(self.samples)
-        return self.median
+    def getMedian(self):
+        return np.median(self.samples)
 
     def getVariance(self):
         if len(self.samples) >= self.sampleWindow:
@@ -119,10 +120,39 @@ class Align(smach.State):
                                              'lost',
                                              'aborted'])
         self.comms = comms
+        self.angleSampler = MedianFilter()
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
             return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.retVal['foundLines']) == 0:
+               return 'lost'
+
+        lines = self.comms.retVal['foundLines']
+        if len(lines) == 1:
+            self.angleSampler.newSample(lines[0]['angle'])
+        else:
+            left = lines[0]['angle']
+            right = lines[1]['angle']
+            if lines[0]['pos'][0] > lines[1]['pos'][0]:
+                left, right = right, left
+
+            if self.comms.chosenLane == self.comms.LEFT:
+                self.angleSampler.newSample(lines[0]['angle'])
+            elif self.comms.chosenLane == self.comms.RIGHT:
+                self.angleSampler.newSample(lines[1]['angle'])
+            else:
+                rospy.loginfo("Something goes wrong with chosenLane")
+
+        adjustHeading = Utils.normAngle(self.comms.curHeading -
+                                        self.angleSampler.getMedian())
+        if (self.angleSampler.getVariance() < 1.0):
+            self.comms.sendMovement(h=adjustHeading, blocking=True)
+
+        return 'aligned'
+
 
 class Forward(smach.State):
     def __init__(self, comms):
@@ -134,6 +164,9 @@ class Forward(smach.State):
         if self.comms.isKilled or self.comms.isAborted:
             return 'aborted'
         
+        self.comms.sendMovement(f=5.0)
+        return 'completed'
+
 def main():
     rospy.init_node('lane_marker_node')
     myCom = Comms()
