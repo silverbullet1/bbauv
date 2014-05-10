@@ -8,7 +8,7 @@ from utils.utils import Utils
 
 import time
 import math
-import deque
+from collections import deque
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -55,7 +55,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 7
+    timeout = 7 
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -88,7 +88,7 @@ class Stablize(smach.State):
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['stablized',
-                                             'stablizing'
+                                             'stablizing',
                                              'lost',
                                              'aborted'])
         self.comms = comms
@@ -117,6 +117,7 @@ class Stablize(smach.State):
 class Align(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aligned',
+                                             'aligning',
                                              'lost',
                                              'aborted'])
         self.comms = comms
@@ -150,8 +151,9 @@ class Align(smach.State):
                                         self.angleSampler.getMedian())
         if (self.angleSampler.getVariance() < 1.0):
             self.comms.sendMovement(h=adjustHeading, blocking=True)
-
-        return 'aligned'
+            return 'aligned'
+        else:
+            return 'aligning'
 
 
 class Forward(smach.State):
@@ -191,11 +193,12 @@ def main():
         smach.StateMachine.add('ALIGN',
                                Align(myCom),
                                transitions={'aligned':'FORWARD',
+                                            'aligning':'ALIGN',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('FORWARD',
                                Forward(myCom),
-                               transitions={'completed':'succeeded',
+                               transitions={'completed':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
 
     introServer = smach_ros.IntrospectionServer('mission_server',
@@ -204,3 +207,4 @@ def main():
     introServer.start()
 
     sm.execute()
+    rospy.signal_shutdown("lane_marker task ended")
