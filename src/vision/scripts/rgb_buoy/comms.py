@@ -5,44 +5,40 @@ Communication b/w ROS class and submodules
 '''
 
 import rospy
-from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data
 
-from utils.utils import Utils
-import utils.config as config
+from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
-class Comms:
-    inputHeading = 0
-    curHeading = 0
+class Comms():
+    
+    isTesting = False
+    isKilled = False
+    isAborted = False
     
     def __init__(self):
-        #Flag for using non-publishing to ROS when testing with images 
-        self.canPublish = False
+        FrontComms = FrontComms.__init__(self, RgbBuoyVision(comms=self))
         
-        #Initialize vision Filter
-        self.visionFilter = RgbBuoyVision(self)
+    #Handle mission services
+    def handle_srv(self, req):
+        global isStart
+        global isAborted
+        global locomotionGoal
+        global rgb_buoy
         
-        #Get private params 
-        self.imageTopic = rospy.get_param('~image', config.frontCamTopic)
+        rospy.loginfo("RGB Service handled")
         
-    def register(self):
-        self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
-        self.compassSub = rospy.Subscriber(config.compassTopic,
-                                           compass_data,
-                                           self.compassCallback)
-        self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
+        if req.start_request:
+            rospy.loginfo("RGB starting")
+            isStart = True
+            isAborted = False
         
-    def unregister(self):
-        self.camSub.unregister()
-        self.compassSub.unregister()
-        #self.outPub.unregister()
-    
-    def camCallback(self, rosImg):
-        outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
-        if self.canPublish:
-            self.outPub.publish(Utils.cv2rosimg(outImg))
+        if req.abort_request:
+            rospy.loginfo("Flare abort received")
+            isAbort=True
+            isStart = False
+            FrontComms.unregister()
             
-    def compassCallback(self, data):
-        self.curHeading = data.yaw
-        
+        return mission_to_visionResponse(isStart, isAborted)
+
+def main():
+    testCom = Comms()

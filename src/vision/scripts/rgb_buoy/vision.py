@@ -27,7 +27,9 @@ class RgbBuoyVision:
 
     # Whether we should bump the lights
     toBump = False
-    centroidToBump = [0, 0]
+    foundBuoy = False
+    centroidToBump = None
+    previousCentroid = []
 
     def __init__(self, debugMode = True):
         self.debugMode = debugMode
@@ -85,6 +87,7 @@ class RgbBuoyVision:
         
         # Draw Circles
         if circles is not None:
+            self.foundBuoy = True
             circles = np.uint16(np.around(circles))
             for circle in circles[0,:,:]:
                 #Draw outer circle
@@ -97,8 +100,15 @@ class RgbBuoyVision:
         if len(centroid) == 3:
             self.toBump = True
             rospy.loginfo("Time to bump... {}".format(colour))
-            self.centroidToBump[0] = centroid[0][0]
-            self.centroidToBump[1] = centroid[0][1]
+            
+            # Append to previous centroids 
+            for circle in circles[0,:,:]:
+                self.previousCentroid.append((circle[0], circle[1]))
+            
+            # Compare previous centroid to bump to find corresponding one
+            if self.centroidToBump is None:
+                self.centroidToBump = (centroid[0][0], centroid[0][1])
+                #print Utils.distBetweenPoints(self.centroidToBump, (0,0))          
 
         thresImg = scratchImg
         return thresImg
