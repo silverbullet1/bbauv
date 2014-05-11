@@ -4,8 +4,10 @@ import math
 import numpy as np
 import cv2
 
+import rospy
+
 from utils.utils import Utils
-from matplotlib.colors import NP_CLIP_OUT
+from rospy.core import rospydebug
 
 class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
@@ -24,17 +26,14 @@ class RgbBuoyVision:
     minContourArea = 5000
 
     # Whether we should bump the lights
-    rgbCount = {'red': 0, 'green': 0, 'blue': 0}
     toBump = False
+    centroidToBump = [0, 0]
 
     def __init__(self, debugMode = True):
         self.debugMode = debugMode
 
     def gotFrame(self, img):
         # Set up parameters
-        self.resetRGBCount()
-        foundLines = []
-        centroid = [0, 0]
         outImg = None
 
         # Preprocessing
@@ -52,10 +51,14 @@ class RgbBuoyVision:
 
         # Find green image
         greenImg = self.threshold(hsvImg, "GREEN")
-        outImg = greenImg
+        #outImg = greenImg
 
         # Combine images
-        #outImg = blueImg | redImg | greenImg
+        outImg = blueImg | redImg | greenImg
+
+        if self.toBump:
+            #Need to maintain the centroid and bump? 
+            pass
 
         return outImg
 
@@ -65,14 +68,13 @@ class RgbBuoyVision:
         self.rgbCount['blue'] = 0
 
     def threshold(self, image, colour):
-        centroid = [0, 0]
-        #rectData = {'foundLines': foundLines, 'centroid': centroid}
+        centroid = []
 
         params = self.getParams(colour)
         binImg = cv2.inRange(image, params['lo'], params['hi'])
         binImg = self.erodeAndDilateImg(binImg, params)
 
-        scratchImg = binImg.copy()
+        scratchImg = binImg.copy()        
         scratchImg = cv2.cvtColor(scratchImg, cv2.COLOR_GRAY2BGR)
 
         # Find Hough circles
@@ -89,9 +91,14 @@ class RgbBuoyVision:
                 cv2.circle(scratchImg, (circle[0], circle[1]), circle[2], (255, 255, 0), 2)
                 #Draw circle center
                 cv2.circle(scratchImg, (circle[0], circle[1]), 2, (255, 0, 255), 3)
+                centroid.append((circle[0], circle[1]))
 
-        # If 3 same colours, bump
-        self.checkCountAndBump()
+        # Check if to bump
+        if len(centroid) == 3:
+            self.toBump = True
+            rospy.loginfo("Time to bump... {}".format(colour))
+            self.centroidToBump[0] = centroid[0][0]
+            self.centroidToBump[1] = centroid[0][1]
 
         thresImg = scratchImg
         return thresImg
@@ -117,17 +124,10 @@ class RgbBuoyVision:
 
         return image
 
-    def checkCountAndBump(self):
-        for key in self.rgbCount:
-            if self.rgbCount[key] == 3:
-                self.toBump = True
-                rospy.loginfo("Bumping...{}".format(key))
-                #TODO: Input bump code here
-
 def main():
     cv2.namedWindow("test")
 
-    inImg = cv2.imread("rgb_buoy/RGB5.jpg")
+    inImg = cv2.imread("rgb_buoy/RGB6.jpg")
     inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
     detector = RgbBuoyVision()
     outImg = detector.gotFrame(inImg)
