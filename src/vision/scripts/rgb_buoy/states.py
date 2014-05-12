@@ -69,6 +69,11 @@ class WaitForColour(smach.State):
             return 'killed'
         if self.comms.isAborted:
             return 'aborted' 
+        
+        if self.comms.toBump:
+            return 'waiting_complete'
+        
+        return 'waiting'
 
 #When lights same colour 
 class ForwardToCylinder(smach.State):
