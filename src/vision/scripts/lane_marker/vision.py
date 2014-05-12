@@ -8,8 +8,10 @@ class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
-    hsvLoThresh = (0, 0, 0)
-    hsvHiThresh = (35, 255, 255)
+    hsvLoThresh1 = (0, 0, 0)
+    hsvHiThresh1 = (35, 255, 255)
+    hsvLoThresh2 = (165, 0, 0)
+    hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
 
     houghDistRes = 2
@@ -42,14 +44,15 @@ class LaneMarkerVision:
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         foundLines = []
-        centroid = [0, 0]
+        centroid = [-1, -1]
         outImg = None
         retData = { 'foundLines': foundLines, 'centroid': centroid }
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        binImg = cv2.inRange(hsvImg, self.hsvLoThresh, self.hsvHiThresh)
+        binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
+        binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
@@ -125,7 +128,7 @@ class LaneMarkerVision:
 
                 foundLines.append({'pos': rect[0], 'angle': angle})
 
-        if len(foundLines) > 2:
+        if len(foundLines) >= 2 and self.comms.expectedLanes == 2:
             # If there are 2 lines, find their intersection and adjust angle
             l1 = self.vectorizeLine(foundLines[0]['pos'],
                                     foundLines[0]['angle'])
@@ -140,10 +143,11 @@ class LaneMarkerVision:
                                                            l1[0][0]-crossPt[0]))
             foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
                                                            l2[0][0]-crossPt[0]))
+            retData['crossPoint'] = crossPt
         else:
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
-            adjustAngle = Utils.normAngle(self.comms.curHeading -
+            adjustAngle = Utils.normAngle(self.comms.curHeading +
                                           Utils.toHeadingSpace(lineAngle))
             if 90 < abs(self.comms.inputHeading - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
@@ -166,9 +170,9 @@ class LaneMarkerVision:
 
 def main():
     cv2.namedWindow("test")
+    from comms import Comms
     inImg = cv2.imread("lane_marker/test1.jpg")
-    inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
-    detector = LaneMarkerVision()
+    detector = LaneMarkerVision(Comms())
     _, outImg = detector.gotFrame(inImg)
     if outImg is not None: cv2.imshow("test", outImg)
     cv2.waitKey()

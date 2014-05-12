@@ -18,7 +18,7 @@ class MedianFilter:
     def __init__(self, sampleWindow=30):
         self.samples = deque()
         self.sampleWindow = sampleWindow
-        self.lastSampled = time.time() 
+        self.lastSampled = time.time()
 
     def newSample(self, sample):
         curTime = time.time()
@@ -55,7 +55,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 7 
+    timeout = 7
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -132,12 +132,18 @@ class Align(smach.State):
                return 'lost'
 
         lines = self.comms.retVal['foundLines']
-        if len(lines) == 1:
+        if len(lines) == 1 or self.comms.expectedLanes == 1:
             self.angleSampler.newSample(lines[0]['angle'])
-        else:
+        elif len(lines) >= 2:
             left = lines[0]['angle']
             right = lines[1]['angle']
             if lines[0]['pos'][0] > lines[1]['pos'][0]:
+                left, right = right, left
+
+            crossPt = self.comms.retVal['crossPt']
+            if crossPt and \
+               crossPt[1] < lines[0]['pos'][1] or \
+               crossPt[1] < lines[1]['pos'][1]:
                 left, right = right, left
 
             if self.comms.chosenLane == self.comms.LEFT:
@@ -147,9 +153,10 @@ class Align(smach.State):
             else:
                 rospy.loginfo("Something goes wrong with chosenLane")
 
-        adjustHeading = Utils.normAngle(self.comms.curHeading -
-                                        self.angleSampler.getMedian())
         if (self.angleSampler.getVariance() < 1.0):
+            dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
+            adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
+
             self.comms.sendMovement(h=adjustHeading, blocking=True)
             return 'aligned'
         else:
@@ -165,7 +172,7 @@ class Forward(smach.State):
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
             return 'aborted'
-        
+
         self.comms.sendMovement(f=5.0)
         return 'completed'
 
