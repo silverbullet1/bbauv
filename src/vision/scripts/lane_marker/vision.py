@@ -35,11 +35,30 @@ class LaneMarkerVision:
     def findIntersection(self, line1, line2):
         ((x1, y1), (u1, v1)) = line1
         ((x2, y2), (u2, v2)) = line2
-        det = 1.0 / (u2 * v1 - u1 * v2)
+        det = 1.0 / (u2 * v1 - u1 * v2 + 0.0001)
         dx, dy = x2 - x1, y2 - y1
         t1 = det * (-v2 * dx + u2 * dy)
         #t2 = det * (-v1 * dx + u1 * dy)
         return (x1 + t1*u1, y1 + t1*v1)
+
+    def morphology(self, img):
+        # Closing up gaps and remove noise with morphological ops
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+        img = cv2.erode(img, erodeEl)
+        img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+
+        return img
+
+    def findContourAndBound(self, img):
+        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_NONE)
+        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
+                          contours)
+        return contours
 
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
@@ -54,14 +73,7 @@ class LaneMarkerVision:
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
         binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
-        # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-
-        binImg = cv2.erode(binImg, erodeEl)
-        binImg = cv2.dilate(binImg, dilateEl)
-        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
+        binImg = self.morphology(binImg)
 
         if self.debugMode:
             outImg = binImg.copy()
@@ -69,10 +81,7 @@ class LaneMarkerVision:
 
         # Find large enough contours and their bounding rectangles
         scratchImg = binImg.copy()
-        contours, _ = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_NONE)
-        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
-                          contours)
+        contours = self.findContourAndBound(scratchImg)
         if len(contours) < 1: return retData, outImg
         # Sort the thresholded areas from largest to smallest
         sorted(contours, key=cv2.contourArea, reverse=True)

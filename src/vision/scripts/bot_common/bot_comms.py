@@ -66,7 +66,7 @@ class GenericComms:
 
     def camCallback(self, rosImg):
         self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
-        if self.canPublish:
+        if self.canPublish and outImg is not None:
             self.outPub.publish(Utils.cv2rosimg(outImg))
 
     def compassCallback(self, data):
