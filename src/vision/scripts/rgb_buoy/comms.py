@@ -20,7 +20,11 @@ class Comms(FrontComms):
     toBump = False
     foundBuoy = False
     centroidToBump = None
+    rectArea = 15000
+    
+    # Bumping parameters 
     colourToBump = "RED"
+    timesToBump = 3
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))

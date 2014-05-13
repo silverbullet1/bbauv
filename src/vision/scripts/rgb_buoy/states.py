@@ -19,6 +19,8 @@ from dynamic_reconfigure.server import Server
 
 #Globals
 locomotionGoal = None
+toBangColour = False
+
 
 class Disengage(smach.State):
     def __init__(self, comms):
@@ -69,12 +71,20 @@ class Centering (smach.State):
             return 'killed'
         if self.comms.isAborted:
             return 'aborted'
+        
+        if self.comms.rectArea > 15000:
+            self.comms.sendMovement(forward=-1.5, wait=True)   #Reverse a bit
+            self.toBangColour = True    # Now we bang the colours
+            return 'centering_complete'
+        
+        return 'centering'
 
 # For bump
 class bangBuoy(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['bang_complete', 'aborted' 'killed'])
+        smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'bang_complete', 'aborted' 'killed'])
         self.comms = comms
+        self.curHits = 0
     
     def execute(self, userdata):
         if self.comms.isKilled:
@@ -82,22 +92,22 @@ class bangBuoy(smach.State):
         if self.comms.isAborted:
             return 'aborted'
   
-        # Move forward
-        return 'bang_complete'
-
-# For subsequent bumps
-class bangColour(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['bang_colour_complete', 'aborted' 'killed'])
-        self.comms = comms
-    
-    def execute(self, userdata):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
+        # To toggle between buoys
+        if not toBangColour:
+            if self.curHits == self.comms.timesToBump:
+                return 'bang_complete'
+            self.comms.sendMovement(forward=2.0, wait=True)    #Move forward
+            self.comms.sendMovement(forward=-2.0, wait=True)    #Reverse
+            self.curHits = self.curHits + 1
+            return 'bang_again'        
   
-        # Move forward    
+        # First time to bang 
+        # Move forward & correct heading 
+        self.comms.sendMovement(forward=1.0)
+        return 'banging'
+        
+        if self.comms.rectArea > 15000:
+            return 'bang_to_center'
 
 def main():
     rospy.init_node('rgb_buoy_node', anonymous=False)
@@ -118,10 +128,16 @@ def main():
                                             'aborted': 'aborted', 
                                             'killed': 'killed'})
     
-        
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                transitions={'centering': "CENTERING",
-                                            'centering_complete': "DISENGAGE",
+                                            'centering_complete': "BANGBUOY",
+                                            'aborted': 'aborted',
+                                            'killed': 'killed'})
+        
+        smach.StateMachine.add("BANGBUOY", bangBuoy(myCom),
+                               transitions={'banging': "BANGBUOY",
+                                            'bangToCenter': "CENTERING",
+                                            'bang_complete': "DISENGAGE",
                                             'aborted': 'aborted',
                                             'killed': 'killed'})
     
