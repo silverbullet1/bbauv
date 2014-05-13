@@ -17,8 +17,8 @@ class PegsVision:
     redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
                  'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     
-    whiteParams = {'lo': (18, 16, 2), 'hi': (180, 255, 255),
-                  'dilate': (7,7), 'erode': (3,3), 'open': (3,3)}
+    blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
+                  'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
     minContourArea = 5000
     

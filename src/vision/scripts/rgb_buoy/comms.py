@@ -14,16 +14,18 @@ class Comms(FrontComms):
     isTesting = False
     isKilled = False
     isAborted = False
+    isStart = False
     
-    # Vision parameters
+    # Vision boolean
     toBump = False
     foundBuoy = False
     centroidToBump = None
+    colourToBump = "RED"
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
         
-    #Handle mission services
+    # Handle mission services
     def handle_srv(self, req):
         global isStart
         global isAborted
@@ -38,7 +40,7 @@ class Comms(FrontComms):
             isAborted = False
         
         if req.abort_request:
-            rospy.loginfo("Flare abort received")
+            rospy.loginfo("RGB abort received")
             isAbort=True
             isStart = False
             self.unregister()

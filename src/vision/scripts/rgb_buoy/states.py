@@ -53,41 +53,12 @@ class Search(smach.State):
                 self.comms.isAborted = True
                 return 'aborted' 
             
-            #Search in figure of 8? 
+            # Search in figure of 8? 
             rospy.sleep(rospy.Duration(0.3))
         
         return 'search_complete'
-
-#Waiting for all three same colour
-class WaitForColour(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['waiting', 'waiting_complete' 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, ud):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted' 
         
-        if self.comms.toBump:
-            return 'waiting_complete'
-        
-        return 'waiting'
-
-#When lights same colour 
-class ForwardToCylinder(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['forward', 'forward_complete', 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, ud):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
-        
-#Precise movements when near cylinder 
+# Precise movements when near buoy 
 class Centering (smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted' 'killed'])
@@ -98,6 +69,35 @@ class Centering (smach.State):
             return 'killed'
         if self.comms.isAborted:
             return 'aborted'
+
+# For bump
+class bangBuoy(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['bang_complete', 'aborted' 'killed'])
+        self.comms = comms
+    
+    def execute(self, userdata):
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
+  
+        # Move forward
+        return 'bang_complete'
+
+# For subsequent bumps
+class bangColour(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['bang_colour_complete', 'aborted' 'killed'])
+        self.comms = comms
+    
+    def execute(self, userdata):
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
+  
+        # Move forward    
 
 def main():
     rospy.init_node('rgb_buoy_node', anonymous=False)
@@ -117,19 +117,7 @@ def main():
                                transitions={'search_complete': "WAITFORCOLOUR",
                                             'aborted': 'aborted', 
                                             'killed': 'killed'})
-        
-        smach.StateMachine.add("WAITFORCOLOUR", WaitForColour(myCom),
-                               transitions={'waiting': "WAITFORCOLOUR",
-                                            'waiting_complete': "FORWARDTOCYLINDER",
-                                            'aborted': 'aborted',
-                                            'killed': 'killed'
-                                            })
-        
-        smach.StateMachine.add("FORWARDTOCYLINDER", ForwardToCylinder(myCom),
-                               transitions={'forward': "FORWARDTOCYLINDER",
-                                            'forward_complete': "CENTERING", 
-                                            'aborted': 'aborted',
-                                            'killed': 'killed'})
+    
         
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                transitions={'centering': "CENTERING",
