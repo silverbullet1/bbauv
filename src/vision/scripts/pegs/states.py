@@ -1,4 +1,4 @@
-#/usr/bin/env/python
+#!/usr/bin/env/python
 
 '''
 Pegs states
@@ -12,7 +12,7 @@ import smach, smach_ros
 from comms import Comms
 
 from bbauv_msgs.msg import *
-from bbauv_msgsmsgs.srv import *
+from bbauv_msgs.srv import *
 from dynamic_reconfigure.server import Server
 
 from vision import PegsVision
@@ -81,23 +81,23 @@ class PutWhitePeg(smach.State):
     def execute(self, ud):
         smach.State.execute(self, ud)
     
-def handle_srv(req):
-    global isStart
-    global isAborted
-    global locomotionGoal
-    global rgb_buoy
+def main():
+    rospy.init_node('pegs_node', anonymous=False)
+    rosRate = rospy.Rate(20)
+    myCom = Comms()
+
+    rospy.loginfo("Pegs Loaded")
     
-    rospy.loginfo("RGB Service handled")
+    sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])      
     
-    if req.start_request:
-        rospy.loginfo("RGB starting")
-        isStart = True
-        isAborted = False
+    with sm:
+        smach.StateMachine.add("DISENGAGE", Disengage(myCom),
+                                transitions={'start_complete': "SEARCH",
+                                         'killed': 'killed'})
     
-    if req.abort_request:
-        rospy.loginfo("Flare abort received")
-        isAbort=True
-        isStart = False
-        Comms.unregister()
-        
-    return mission_to_visionResponse(isStart, isAborted)    
+    #set up introspection Server
+    introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/PEGS')
+    introServer.start()
+    
+    sm.execute()
+    rospy.loginfo(outcomes)

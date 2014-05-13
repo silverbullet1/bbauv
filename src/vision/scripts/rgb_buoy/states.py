@@ -19,6 +19,8 @@ from dynamic_reconfigure.server import Server
 
 #Globals
 locomotionGoal = None
+toBangColour = False
+
 
 class Disengage(smach.State):
     def __init__(self, comms):
@@ -53,36 +55,12 @@ class Search(smach.State):
                 self.comms.isAborted = True
                 return 'aborted' 
             
-            #Search in figure of 8? 
+            # Search in figure of 8? 
             rospy.sleep(rospy.Duration(0.3))
         
         return 'search_complete'
-
-#Waiting for all three same colour
-class WaitForColour(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['waiting', 'waiting_complete' 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, ud):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted' 
-
-#When lights same colour 
-class ForwardToCylinder(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['forward', 'forward_complete', 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, ud):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
         
-#Precise movements when near cylinder 
+# Precise movements when near buoy 
 class Centering (smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted' 'killed'])
@@ -93,6 +71,43 @@ class Centering (smach.State):
             return 'killed'
         if self.comms.isAborted:
             return 'aborted'
+        
+        if self.comms.rectArea > 15000:
+            self.comms.sendMovement(forward=-1.5, wait=True)   #Reverse a bit
+            self.toBangColour = True    # Now we bang the colours
+            return 'centering_complete'
+        
+        return 'centering'
+
+# For bump
+class bangBuoy(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'bang_complete', 'aborted' 'killed'])
+        self.comms = comms
+        self.curHits = 0
+    
+    def execute(self, userdata):
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
+  
+        # To toggle between buoys
+        if not toBangColour:
+            if self.curHits == self.comms.timesToBump:
+                return 'bang_complete'
+            self.comms.sendMovement(forward=2.0, wait=True)    #Move forward
+            self.comms.sendMovement(forward=-2.0, wait=True)    #Reverse
+            self.curHits = self.curHits + 1
+            return 'bang_again'        
+  
+        # First time to bang 
+        # Move forward & correct heading 
+        self.comms.sendMovement(forward=1.0)
+        return 'banging'
+        
+        if self.comms.rectArea > 15000:
+            return 'bang_to_center'
 
 def main():
     rospy.init_node('rgb_buoy_node', anonymous=False)
@@ -112,23 +127,17 @@ def main():
                                transitions={'search_complete': "WAITFORCOLOUR",
                                             'aborted': 'aborted', 
                                             'killed': 'killed'})
-        
-        smach.StateMachine.add("WAITFORCOLOUR", WaitForColour(myCom),
-                               transitions={'waiting': "WAITFORCOLOUR",
-                                            'waiting_complete': "FORWARDTOCYLINDER",
-                                            'aborted': 'aborted',
-                                            'killed': 'killed'
-                                            })
-        
-        smach.StateMachine.add("FORWARDTOCYLINDER", ForwardToCylinder(myCom),
-                               transitions={'forward': "FORWARDTOCYLINDER",
-                                            'forward_complete': "CENTERING", 
+    
+        smach.StateMachine.add("CENTERING", Centering(myCom),
+                               transitions={'centering': "CENTERING",
+                                            'centering_complete': "BANGBUOY",
                                             'aborted': 'aborted',
                                             'killed': 'killed'})
         
-        smach.StateMachine.add("CENTERING", Centering(myCom),
-                               transitions={'centering': "CENTERING",
-                                            'centering_complete': "DISENGAGE",
+        smach.StateMachine.add("BANGBUOY", bangBuoy(myCom),
+                               transitions={'banging': "BANGBUOY",
+                                            'bangToCenter': "CENTERING",
+                                            'bang_complete': "DISENGAGE",
                                             'aborted': 'aborted',
                                             'killed': 'killed'})
     

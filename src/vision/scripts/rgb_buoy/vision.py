@@ -7,7 +7,7 @@ import cv2
 import rospy
 
 from utils.utils import Utils
-from rospy.core import rospydebug
+from front_commons.frontCommsVision import frontCommsVision as vision
 
 class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
@@ -24,15 +24,13 @@ class RgbBuoyVision:
     circleParams = {'minRadius':0, 'maxRadius': 0 }
 
     minContourArea = 5000
-
-    # Whether we should bump the lights
-    toBump = False
-    foundBuoy = False
-    centroidToBump = None
+    
+    # Keep track of the previous centroids for matching 
     previousCentroid = []
 
-    def __init__(self, debugMode = True):
+    def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
+        self.comms = comms
 
     def gotFrame(self, img):
         # Set up parameters
@@ -70,11 +68,11 @@ class RgbBuoyVision:
         self.rgbCount['blue'] = 0
 
     def threshold(self, image, colour):
-        centroid = []
+        currCentroid = []
 
         params = self.getParams(colour)
         binImg = cv2.inRange(image, params['lo'], params['hi'])
-        binImg = self.erodeAndDilateImg(binImg, params)
+        binImg = vision.erodeAndDilateImg(binImg, params)
 
         scratchImg = binImg.copy()        
         scratchImg = cv2.cvtColor(scratchImg, cv2.COLOR_GRAY2BGR)
@@ -87,18 +85,18 @@ class RgbBuoyVision:
         
         # Draw Circles
         if circles is not None:
-            self.foundBuoy = True
+            self.comms.foundBuoy = True
             circles = np.uint16(np.around(circles))
             for circle in circles[0,:,:]:
                 #Draw outer circle
                 cv2.circle(scratchImg, (circle[0], circle[1]), circle[2], (255, 255, 0), 2)
                 #Draw circle center
                 cv2.circle(scratchImg, (circle[0], circle[1]), 2, (255, 0, 255), 3)
-                centroid.append((circle[0], circle[1]))
+                currCentroid.append((circle[0], ciFrontCommsrcle[1]))
 
         # Check if to bump
-        if len(centroid) == 3:
-            self.toBump = True
+        if len(currCentroid) == 3:
+            self.comms.toBump = True
             rospy.loginfo("Time to bump... {}".format(colour))
             
             # Append to previous centroids 
@@ -107,8 +105,15 @@ class RgbBuoyVision:
             
             # Compare previous centroid to bump to find corresponding one
             if self.centroidToBump is None:
-                self.centroidToBump = (centroid[0][0], centroid[0][1])
-                #print Utils.distBetweenPoints(self.centroidToBump, (0,0))          
+                self.comms.centroidToBump = (currCentroid[0][0], currCentroid[0][1])
+                #print Utils.distBetweenPoints(self.centroidToBump, (0,0))   
+            else:
+                distToPrevCentroid = []
+                for previousCentroid in self.previousCentroid:
+                    distToPrevCentroid.append(Utils.distBetweenPoints(
+                                              previousCentroid, self.comms.centroidToBump))
+                minIndex = distToPrevCentroid.index(min(distToPrevCentroid))
+                self.comms.centroidToBump = (distToPrevCentroid[minIndex][0], distToPrevCentroid[minIndex][1])    
 
         thresImg = scratchImg
         return thresImg
@@ -122,17 +127,6 @@ class RgbBuoyVision:
             return self.greenParams
         else:
             return self.blueParams
-
-    def erodeAndDilateImg(self, image, params):
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['erode'])
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['dilate'])
-        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['open'])
-
-        image = cv2.erode(image, erodeEl)
-        image = cv2.dilate(image, dilateEl)
-        image = cv2.morphologyEx(image, cv2.MORPH_OPEN, openEl)
-
-        return image
 
 def main():
     cv2.namedWindow("test")

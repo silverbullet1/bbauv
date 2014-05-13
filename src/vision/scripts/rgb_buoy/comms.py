@@ -9,21 +9,31 @@ import rospy
 from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
-class Comms():
-
+class Comms(FrontComms):
+    
     isTesting = False
     isKilled = False
     isAborted = False
-
+    isStart = False
+    
+    # Vision boolean
+    toBump = False
+    foundBuoy = False
+    centroidToBump = None
+    rectArea = 15000
+    
+    # Bumping parameters 
+    colourToBump = "RED"
+    timesToBump = 3
+    
     def __init__(self):
-        FrontComms = FrontComms.__init__(self, RgbBuoyVision(comms=self))
-
-    #Handle mission services
+        FrontComms.__init__(self, RgbBuoyVision(comms=self))
+        
+    # Handle mission services
     def handle_srv(self, req):
         global isStart
         global isAborted
         global locomotionGoal
-        global rgb_buoy
 
         rospy.loginfo("RGB Service handled")
 
@@ -33,11 +43,11 @@ class Comms():
             isAborted = False
 
         if req.abort_request:
-            rospy.loginfo("Flare abort received")
+            rospy.loginfo("RGB abort received")
             isAbort=True
             isStart = False
-            FrontComms.unregister()
-
+            self.unregister()
+            
         return mission_to_visionResponse(isStart, isAborted)
 
 def main():
