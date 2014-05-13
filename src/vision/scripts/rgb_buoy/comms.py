@@ -30,7 +30,6 @@ class Comms(FrontComms):
         global isStart
         global isAborted
         global locomotionGoal
-        global rgb_buoy
         
         rospy.loginfo("RGB Service handled")
         

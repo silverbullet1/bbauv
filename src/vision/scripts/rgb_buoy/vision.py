@@ -7,7 +7,6 @@ import cv2
 import rospy
 
 from utils.utils import Utils
-from rospy.core import rospydebug
 
 class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}

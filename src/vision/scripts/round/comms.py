@@ -1,43 +1,44 @@
-#/usr/bin/env/python 
+#!/usr/bin/env python
 
 '''
-For communication with Robot 
+Communication b/w ROS class and submodules
 '''
 
 import rospy
+
 from front_commons.frontComms import FrontComms
-from vision import PegsVision
+from vision import RoundVision
 
 class Comms(FrontComms):
-    
+
     isTesting = False
-    isKilled = False 
-    isAborted = False 
-    isStart = False
+    isKilled = False
+    isAborted = False
+    isStart = False   
     
-    # Vision parameters 
-    findRedPeg = True   #Either find red or find blue circle 
-    count = 0       # Move up to 4 pegs 
-    centroidToPick = None
+    # Vision boolean
+    centerCentroid = None 
+    firstCross = True   # First cross, then turn 90 deg, then second cross 
+    foundSomething = False 
     
     def __init__(self):
-        FrontComms.__init__(self, PegsVision(comms=self))
+        FrontComms.__init__(self, RoundVision(comms=self))
         
     # Handle mission services
     def handle_srv(self, req):
         global isStart
         global isAborted
         global locomotionGoal
-                
-        rospy.loginfo("Pegs Service handled")
+        
+        rospy.loginfo("Round Service handled")
         
         if req.start_request:
-            rospy.loginfo("Pegs starting")
+            rospy.loginfo("Round starting")
             isStart = True
             isAborted = False
         
         if req.abort_request:
-            rospy.loginfo("Pegs abort received")
+            rospy.loginfo("Round abort received")
             isAbort=True
             isStart = False
             self.unregister()
@@ -45,5 +46,8 @@ class Comms(FrontComms):
         return mission_to_visionResponse(isStart, isAborted)
 
 def main():
-    testCom = Comms()
-        
+    testCom = Comms()    
+    
+    
+    
+    
