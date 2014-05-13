@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 
 '''
 Communication b/w ROS class and submodules
@@ -7,7 +7,7 @@ Communication b/w ROS class and submodules
 import rospy
 
 from front_commons.frontComms import FrontComms
-from vision import RgbBuoyVision
+from vision import TorpedoVision
 
 class Comms(FrontComms):
     
@@ -17,29 +17,27 @@ class Comms(FrontComms):
     isStart = False
     
     # Vision boolean
-    toBump = False
-    foundBuoy = False
-    centroidToBump = None
-    colourToBump = "RED"
+    foundCircle = True 
+    numShoot = 0    # Only given 2 shoots 
     
     def __init__(self):
-        FrontComms.__init__(self, RgbBuoyVision(comms=self))
+        FrontComms.__init__(self, TorpedoVision(comms=self))
         
     # Handle mission services
     def handle_srv(self, req):
         global isStart
         global isAborted
         global locomotionGoal
-
-        rospy.loginfo("RGB Service handled")
-
+        
+        rospy.loginfo("Torpedo Service handled")
+        
         if req.start_request:
-            rospy.loginfo("RGB starting")
+            rospy.loginfo("Torpedo starting")
             isStart = True
             isAborted = False
-
+        
         if req.abort_request:
-            rospy.loginfo("RGB abort received")
+            rospy.loginfo("Torpedo abort received")
             isAbort=True
             isStart = False
             self.unregister()

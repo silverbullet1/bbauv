@@ -28,8 +28,7 @@ class Comms(FrontComms):
         global isStart
         global isAborted
         global locomotionGoal
-        global pegs
-        
+                
         rospy.loginfo("Pegs Service handled")
         
         if req.start_request:
