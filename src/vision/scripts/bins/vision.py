@@ -39,9 +39,10 @@ class BinsVision:
 
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
-        foundRects = []
+        foundRects = list()
+        centroids = list()
         outImg = None
-        retData = {'foundRects': foundRects}
+        retData = {'foundRects': foundRects, 'centroids': centroids}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -54,6 +55,13 @@ class BinsVision:
         scratchImg = binImg.copy()
         contours = self.findContourAndBound(scratchImg)
         if not contours or len(contours) < 1: return retData, outImg
+        sorted(contours, key=cv2.contourArea, reverse=True)
+
+        contourRects = [cv2.minAreaRect(c) for c in contours]
+        for contour in contours:
+            moment = cv2.moments(contour, False)
+            centroids.append((moment['m10']/moment['m00'],
+                              moment['m01']/moment['m00']))
 
 def main():
     pass

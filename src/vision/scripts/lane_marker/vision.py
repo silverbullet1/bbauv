@@ -89,6 +89,7 @@ class LaneMarkerVision:
         contourRects = [cv2.minAreaRect(contour) for contour in contours]
         # Find the centroid from averaging all the contours
         for contour in contours:
+            print contour
             mu = cv2.moments(contour, False)
             muArea = mu['m00']
             centroid[0] += mu['m10'] / muArea
