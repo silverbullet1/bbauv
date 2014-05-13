@@ -7,6 +7,7 @@ import cv2
 import rospy
 
 from utils.utils import Utils
+from front_commons.frontCommsVision import frontCommsVision as vision
 
 class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
@@ -71,7 +72,7 @@ class RgbBuoyVision:
 
         params = self.getParams(colour)
         binImg = cv2.inRange(image, params['lo'], params['hi'])
-        binImg = self.erodeAndDilateImg(binImg, params)
+        binImg = vision.erodeAndDilateImg(binImg, params)
 
         scratchImg = binImg.copy()        
         scratchImg = cv2.cvtColor(scratchImg, cv2.COLOR_GRAY2BGR)
@@ -126,17 +127,6 @@ class RgbBuoyVision:
             return self.greenParams
         else:
             return self.blueParams
-
-    def erodeAndDilateImg(self, image, params):
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['erode'])
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['dilate'])
-        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['open'])
-
-        image = cv2.erode(image, erodeEl)
-        image = cv2.dilate(image, dilateEl)
-        image = cv2.morphologyEx(image, cv2.MORPH_OPEN, openEl)
-
-        return image
 
 def main():
     cv2.namedWindow("test")
