@@ -17,7 +17,9 @@ class Comms(FrontComms):
     isStart = False
     
     # Vision boolean
-    foundCircle = True 
+    foundCircles = False 
+    circlesData = []
+    circleArea = 0 
     numShoot = 0    # Only given 2 shoots 
     
     def __init__(self):

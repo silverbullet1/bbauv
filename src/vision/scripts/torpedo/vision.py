@@ -8,11 +8,10 @@ import rospy
 
 from utils.utils import Utils
 
-class RoundVision:
+class TorpedoVision:
     screen = {'width': 640, 'height': 480}
     
     # Vision parameters
-
         
     def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
@@ -25,7 +24,6 @@ class RoundVision:
         # Preprocessing 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
 
-        
         return outImg 
     
 def main():
@@ -33,7 +31,7 @@ def main():
     
     inImg = cv2.imread("torpedo/torpedo.jpg")
     inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
-    detector = RoundVision()
+    detector = TorpedoVision()
     outImg = detector.gotFrame(inImg)
     
     if outImg is not None: cv2.imshow("Torpedo", outImg)

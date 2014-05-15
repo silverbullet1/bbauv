@@ -9,13 +9,9 @@ from front_commons.frontComms import FrontComms
 from vision import PegsVision
 
 class Comms(FrontComms):
-    
-    isTesting = False
-    isKilled = False 
-    isAborted = False 
-    isStart = False
-    
+      
     # Vision parameters 
+    foundRedPeg = False
     findRedPeg = True   #Either find red or find blue circle 
     count = 0       # Move up to 4 pegs 
     centroidToPick = None
