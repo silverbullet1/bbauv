@@ -3,13 +3,14 @@ import numpy as np
 import cv2
 
 from utils.utils import Utils
+from bot_common.vision import Vision
 
 class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
     hsvLoThresh1 = (0, 0, 0)
-    hsvHiThresh1 = (35, 255, 255)
+    hsvHiThresh1 = (30, 255, 255)
     hsvLoThresh2 = (165, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
@@ -53,11 +54,12 @@ class LaneMarkerVision:
 
         return img
 
-    def findContourAndBound(self, img):
+    def findContourAndBound(self, img, bounded=True):
         contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
-        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
-                          contours)
+        if bounded:
+            contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
+                              contours)
         return contours
 
     # Main processing function, should return (retData, outputImg)
@@ -89,7 +91,6 @@ class LaneMarkerVision:
         contourRects = [cv2.minAreaRect(contour) for contour in contours]
         # Find the centroid from averaging all the contours
         for contour in contours:
-            print contour
             mu = cv2.moments(contour, False)
             muArea = mu['m00']
             centroid[0] += mu['m10'] / muArea
@@ -112,12 +113,9 @@ class LaneMarkerVision:
             cv2.fillPoly(mask, [points], 255)
             rectImg = np.bitwise_and(binImg, mask)
 
+            # Draw bounding rect
             if self.debugMode:
-                # Draw bounding rect
-                for i in range(4):
-                    pt1 = (points[i][0], points[i][1])
-                    pt2 = (points[(i+1)%4][0], points[(i+1)%4][1])
-                    cv2.line(outImg, pt1, pt2, (0,0,255), 2)
+                Vision.drawRect(outImg, points)
 
             lines = cv2.HoughLinesP(rectImg,
                                     self.houghDistRes, self.houghAngleRes,
@@ -162,6 +160,7 @@ class LaneMarkerVision:
             if 90 < abs(self.comms.inputHeading - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
+        # Draw vector line and angle
         if self.debugMode:
             for line in foundLines:
                 startpt = line['pos']

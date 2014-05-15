@@ -52,10 +52,12 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         self.comms.register()
+        if self.comms.isAlone:
+            self.comms.inputHeading = self.comms.curHeading
         return 'started'
 
 class Search(smach.State):
-    timeout = 7
+    timeout = 120
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -121,7 +123,7 @@ class Align(smach.State):
                                              'lost',
                                              'aborted'])
         self.comms = comms
-        self.angleSampler = MedianFilter()
+        self.angleSampler = MedianFilter(sampleWindow=50)
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
@@ -140,7 +142,7 @@ class Align(smach.State):
             if lines[0]['pos'][0] > lines[1]['pos'][0]:
                 left, right = right, left
 
-            crossPt = self.comms.retVal['crossPt']
+            crossPt = self.comms.retVal['crossPoint']
             if crossPt and \
                crossPt[1] < lines[0]['pos'][1] or \
                crossPt[1] < lines[1]['pos'][1]:

@@ -30,11 +30,12 @@ class BinsVision:
 
         return img
 
-    def findContourAndBound(self, img):
+    def findContourAndBound(self, img, bounded=True):
         contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
-        contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
-                          contours)
+        if bounded:
+            contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
+                              contours)
         return contours
 
     # Main processing function, should return (retData, outputImg)

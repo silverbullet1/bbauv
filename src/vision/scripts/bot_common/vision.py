@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import math
 
 class Vision():
@@ -7,11 +8,18 @@ class Vision():
     SHAPE_SQU = 2
     SHAPE_PENTA = 3
     SHAPE_HEXA = 4
-    SHAPE_NONCONVEX = 5
+    SHAPE_CONCAVE = 5
     SHAPE_CIR = 6
 
     _cosBounds = {'rect': (-0.1, 0.3), 'penta': (-0.34, -0.27),
                   'hexa': (-0.55, -0.45)}
+    @staticmethod
+    def drawRect(img, pts):
+        points = np.int32(pts)
+        for i in range(4):
+            pt1 = (points[i][0], points[i][1])
+            pt2 = (points[(i+1)%4][0], points[(i+1)%4][1])
+            cv2.line(img, pt1, pt2, (0, 0, 255), 2)
 
     @staticmethod
     def shapeEnum2Str(shapeEnum):
@@ -30,7 +38,7 @@ class Vision():
             return 'HEXA'
         if shapeEnum == Vision.SHAPE_CIR:
             return 'CIR'
-        if shapeEnum == Vision.SHAPE_NONCONVEX:
+        if shapeEnum == Vision.SHAPE_CONCAVE:
             return 'CONCAVE'
 
         return 'UNKNOWN'
@@ -48,8 +56,9 @@ class Vision():
 
     @staticmethod
     def detectShape(contour, multiplier=0.02):
-        #if not cv2.isContourConvex(contour):
-        #    return Vision.SHAPE_NONCONVEX
+        if not cv2.isContourConvex(contour):
+            return Vision.SHAPE_CONCAVE
+
         approx = cv2.approxPolyDP(contour,
                                   cv2.arcLength(contour, True)*multiplier,
                                   True)
