@@ -109,6 +109,7 @@ class Stablize(smach.State):
         rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
 
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
+            self.comms.sendMovement(f=0.0, sm=0.0)
             return 'stablized'
 
         f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)

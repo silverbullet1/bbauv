@@ -38,6 +38,11 @@ class BinsVision:
                               contours)
         return contours
 
+    def enhance(self, img):
+        enhancedImg = cv2.GaussianBlur(img, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(img, 2.5, enhancedImg, -1.5, 0)
+        return enhancedImg
+
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         foundRects = list()
