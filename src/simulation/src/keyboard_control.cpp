@@ -1,4 +1,4 @@
-/* 
+/*
   keyboard_control.cpp
   For using WSADE to control the Simulation robot
   Date created: November 2013
@@ -11,7 +11,7 @@
 #include <termios.h>
 #include <stdio.h>
 
-#define KEYCODE_RIGHT 0x43 
+#define KEYCODE_RIGHT 0x43
 #define KEYCODE_LEFT 0x44
 #define KEYCODE_UP 0x41
 #define KEYCODE_DOWN 0x42
@@ -32,7 +32,7 @@ private:
   ros::NodeHandle nh;
   double x, y, z, roll, pitch, yaw;
   ros::Publisher position_pub;
-  
+
 };
 
 KeyboardControl::KeyboardControl():
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
   signal(SIGINT, quit);
 
   keyboard_control.keyLoop();
-  
+
   return(0);
 }
 
@@ -71,11 +71,11 @@ void KeyboardControl::keyLoop()
   char c;
   bool dirty = false;
 
-  // get the console in raw mode                                              
+  // get the console in raw mode
   tcgetattr(kfd, &cooked);
   memcpy(&raw, &cooked, sizeof(struct termios));
   raw.c_lflag &=~ (ICANON | ECHO);
-  // Setting a new line, then end of file                         
+  // Setting a new line, then end of file
   raw.c_cc[VEOL] = 1;
   raw.c_cc[VEOF] = 2;
   tcsetattr(kfd, TCSANOW, &raw);
@@ -86,7 +86,7 @@ void KeyboardControl::keyLoop()
 
 
   for(;;) {
-    // get the next event from the keyboard  
+    // get the next event from the keyboard
     if(read(kfd, &c, 1) < 0) {
       perror("read():");
       exit(-1);
@@ -94,7 +94,7 @@ void KeyboardControl::keyLoop()
 
     x = y = z = roll = pitch = yaw = 0;
     ROS_DEBUG("value: 0x%02X\n", c);
-  
+
     switch(c) {
       case KEYCODE_LEFT:
         ROS_DEBUG("LEFT");
@@ -142,7 +142,7 @@ void KeyboardControl::keyLoop()
 	break;
 
     }
-   
+
     if(dirty ==true) {
       nav_msgs::Odometry odom;
       odom.pose.pose.position.x=0.0;
@@ -165,7 +165,7 @@ void KeyboardControl::keyLoop()
       }
       position_pub.publish(odom);
 
-      position_pub.publish(odom);    
+      position_pub.publish(odom);
       dirty=false;
     }
   }
