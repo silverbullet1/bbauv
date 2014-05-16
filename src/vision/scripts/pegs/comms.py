@@ -12,9 +12,14 @@ class Comms(FrontComms):
       
     # Vision parameters 
     foundRedPeg = False
-    findRedPeg = True   #Either find red or find blue circle 
+    findRedPeg = False   #Either find red or find blue circle 
     count = 0       # Move up to 4 pegs 
-    centroidToPick = None
+    centroidToPick = [-1, -1]
+    
+    findYellowSquare = True
+    foundYellowSquare = False  
+    yellowCentroid = [-1, -1]
+    yellowArea = -1
     
     def __init__(self):
         FrontComms.__init__(self, PegsVision(comms=self))
@@ -40,6 +45,11 @@ class Comms(FrontComms):
             
         return mission_to_visionResponse(isStart, isAborted)
 
+    def foundSomething(self):
+        if foundYellowSquare or foundRedPeg:
+            return True
+        return False
+        
 def main():
     testCom = Comms()
         

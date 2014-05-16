@@ -7,6 +7,7 @@ import cv2
 import rospy
 
 from utils.utils import Utils
+from front_commons.frontCommsVision import frontCommsVision as vision
 
 class TorpedoVision:
     screen = {'width': 640, 'height': 480}
@@ -22,7 +23,11 @@ class TorpedoVision:
         outImg = None
         
         # Preprocessing 
-        img = cv2.resize(img, (self.screen['width'], self.screen['height']))
+        img = vision.preProcessing(img)
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsvImg = cv2.GaussianBlur(hsvImg, ksize(3, 3), sigmaX = 0)
+        
+        
 
         return outImg 
     

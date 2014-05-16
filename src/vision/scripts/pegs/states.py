@@ -52,7 +52,7 @@ class Search(smach.State):
     def execute(self, userdata):
         start = time.time()
         
-        while not self.comms.foundRedPeg:
+        while not self.comms.foundSomething():
             if (time.time() - start) > self.timeout:
                 self.comms.isAborted = True
                 return 'timeout'
@@ -60,7 +60,28 @@ class Search(smach.State):
                 return 'aborted'
         
         return 'search_complete'
-    
+
+class FindYellowSquare(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['finding', 'found_square', 'lost', 'aborted'])
+        self.comms = comms
+        
+    def execute(self, userdata):       
+        if self.comms.isKilled or self.comms.isAborted:
+            return 'aborted'
+        
+        if not self.comms.foundYellowSquare:
+            return 'lost'
+        
+        # Near enough to the square
+        if self.comms.yellowArea > 3000:
+            self.comms.foundYellowSquare = True
+            return 'found_square'     
+        
+        # Move forward 0.5 m to the square
+        self.comms.sendMovement(forward = 0.5, wait = True)
+        return 'finding'
+
 class ForwardToPeg(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forward', 'forward_complete', 'lost', 'aborted'])
@@ -138,6 +159,11 @@ def main():
                                 transitions={'search_complete': "SEARCH",
                                              'timeout': 'killed',
                                              'killed': 'killed'})     
+        
+        smach.StateMachine.add("FINDYELLOWSQUARE", FindYellowSquare(myCom),
+                        transitions={'finding': "FINDYELLOWSQUARE",
+                                     'found_complete': "SEARCH",
+                                     'aborted': 'aborted'})   
         
         smach.StateMachine.add("FORWARD", ForwardToPeg(myCom),
                                 transitions={'forward': "FORWARD",
