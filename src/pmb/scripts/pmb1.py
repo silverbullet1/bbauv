@@ -43,8 +43,8 @@ import sys
    
 if __name__=="__main__":
 
-    rospy.init_node("PMB1")
-    rospy.loginfo("PMB 1")
+    rospy.init_node("Battery1")
+    rospy.loginfo("PMB on battery 1")
 
     port_name = rospy.get_param('~port','/dev/ttyBattery1')
     baud = int(rospy.get_param('~baud','57600'))
