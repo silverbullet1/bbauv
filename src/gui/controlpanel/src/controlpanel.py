@@ -612,7 +612,7 @@ class AUV_gui(QMainWindow):
             self.data['rel_pos'] = rel_pos
         if earth_pos != None:
             self.data['earth_pos'] = earth_pos
-            self.navigation_frame.receiveData(self.data['earth_pos'].pose.pose.position.x, self.data['earth_pos'].pose.pose.position.y )
+            #self.navigation_frame.receiveData(self.data['earth_pos'].pose.pose.position.x, self.data['earth_pos'].pose.pose.position.y )
         if depth != None:
             self.data['depth'] = depth.depth
             self.data['pressure'] = depth.pressure
