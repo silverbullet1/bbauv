@@ -45,36 +45,14 @@ class BinsVision:
         enhancedImg = cv2.addWeighted(img, 2.5, enhancedImg, -1.5, 0)
         return enhancedImg
 
-    def makeLineEquation(self, p1, p2):
-        """ Return a higher order function that represent
-            a line made by 2 points """
-        def equation(pt):
-            x = pt[0]
-            y = pt[1]
-            return (y-p1[1])-((p2[1]-p1[1])/(p2[0]-p1[0]))*(x-p1[0])
-
-        return equation
-
-    def contain(self, rect, point):
-        """ Check if a rectangle (4 points) contain a point """
-        for i in range(4):
-            lineEq = self.makeLineEquation(rect[i], rect[(i+1)%4])
-            p1 = lineEq(rect[(i+2)%4])
-            p2 = lineEq(point)
-            if (p1 < 0 and p2 >= 0) or (p1 > 0 and p2 <= 0):
-                return False
-
-        return True
-
-    def match(self, centroids, rects):
-        """ Match each centroid in centroids (x, y) to a rect in rects
-            (4 points) if the centroid is inside the rectangle
-            return list of dicts->{centroid, rect} """
+    def match(self, centroids, contours):
+        """ Match a centroid with a contour if it is inside the contour
+            Return pairs of centroid and contour """
         ret = list()
         for centroid in centroids:
-            for rect in rects:
-                if self.contain(rect, centroid):
-                    ret.append({'centroid':centroid, 'rect': rect})
+            for contour in contours:
+                if cv2.pointPolygonTest(contour, centroid, False) > 0:
+                    ret.append({'centroid':centroid, 'contour': contour})
 
         return ret
 
