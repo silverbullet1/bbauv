@@ -490,34 +490,31 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	return;
 }
 
-bool Utility::getRangeBearing(bbauv_msgs::BBSonarRequest &req, bbauv_msgs::BBSonarResponse &rsp) {
-	bbauv_msgs::sonarData singlePoint;
-	bbauv_msgs::sonarDataArray sonarMsg;
-
-	writeIntensities();
+bool Utility::getRangeBearing() 
+{	
+  writeIntensities();
 	processImage();
 
-	for (uInt pointIdx=0; pointIdx < savedPoints.size(); ++pointIdx) {
-		int x = savedPoints[pointIdx].x;
-		int y = savedPoints[pointIdx].y;
-		cout << "(x  y): " << x << " " << y << endl;
-		if (magImg == NULL)
-			cout << "magImg null, can't find range" << endl;
-		else {
+  if (magImg == NULL ){
+	  cout << "magImg null, can't find range" << endl;
+    return false;
+  }
+  else {
+	  for (uInt pointIdx = 0; pointIdx < savedPoints.size(); ++pointIdx) {
+		  int x = savedPoints[pointIdx].x;
+		  int y = savedPoints[pointIdx].y;
+		  cout << "(x  y): " << x << " " << y << endl;	
 			// cout << "range: " << BVTMagImage_GetPixelRange(magImg, x, y) << endl;
 			// cout << "bearing: " << BVTMagImage_GetPixelRelativeBearing(magImg, x, y) << endl;
-			singlePoint.range = rsp.range = BVTMagImage_GetPixelRange(magImg, x, y) ;
-			singlePoint.bearing = rsp.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, x, y) ;
-			
-			ROS_INFO("Point %d: [range: %lf, bearing: %lf]", pointIdx, rsp.range, rsp.bearing);
+			singlePoint.range = BVTMagImage_GetPixelRange(magImg, x, y) ;
+			singlePoint.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, x, y) ;
 			sonarMsg.rangeBearingArray.push_back(singlePoint);
 		}
 	}
 
-
 	savedContours.clear();
 	savedPoints.clear();
-	remove("newIntensities.png");
+	// remove("newIntensities.png");
 
 	return true;
 }
@@ -563,8 +560,7 @@ inline const std::string Utility::currentDateTime() {
     return buf;
 }
 
-void Utility::delay(time_t timeout)
-{
+void Utility::delay(time_t timeout) {
 	struct timeval tvDeadline, tvCur;
 	gettimeofday(&tvDeadline, NULL);
 	gettimeofday(&tvCur, NULL);;
@@ -578,14 +574,23 @@ void Utility::delay(time_t timeout)
 int main(int argc, char** argv)
 {
 	Utility *util = new Utility();
-	std::string serverName("bbsonar_server");
+  ROS_INFO("BBSonar invoked");
 
-	ros::init(argc, argv, serverName);
-  	ros::NodeHandle n;
+ 
+	ros::init(argc, argv, "BBSonar");
+  ros::NodeHandle n;
 
-  	ros::ServiceServer service = n.advertiseService(serverName, &Utility::getRangeBearing, util);
-  	ROS_INFO("BBSonar ready to serve you with range/bearing values");
-  	ros::spin();
-	
+  ros::Publisher sonarPub = n.advertise<bbauv_msgs::sonarDataVector>("sonarTopic", 1000;
+  ros::Rate loopRate(10);
+  
+  while (ros::ok()) {
+    getRangeBearing();
+
+    // ROS_INFO("%s", sonarMsg.c_str());
+    sonarPub.publish(sonarMsg);
+    ros::spin();
+
+    loopRate.sleep();
+  }  
 	return 0;
 }
