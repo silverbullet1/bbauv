@@ -13,6 +13,8 @@
 #include <iostream>
 #include <fstream>
 #include <time.h>
+#include <sys/time.h>
+#include <string>
 
 #include "bvt_sdk.h"
 #include "Config.h"
@@ -24,7 +26,13 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
 
+#include "ros/ros.h"
+#include <bbauv_msgs/BBSonar.h>
+#include <bbauv_msgs/sonarData.h>
+#include <bbauv_msgs/sonarDataArray.h>
+
 using namespace std;
+using namespace cv;
 
 typedef unsigned short uShort;
 typedef unsigned int uInt;
@@ -56,6 +64,9 @@ public:
 
 	cv::Mat matImg;
 
+	vector<vector<Point> > savedContours;
+	vector<Point> savedPoints;
+
 	Utility();
 	virtual ~Utility();
 
@@ -71,12 +82,14 @@ public:
 
 	double getGlobalThreshold(cv::Mat gImg);
 	void myAdaptiveThreshold(cv::Mat gImg, double maxValue, int method, int type, int blockSize, double delta);
-	void getRangeBearing(vector<cv::Point> savedPoints);
+	
+	bool getRangeBearing(bbauv_msgs::BBSonarRequest &req, bbauv_msgs::BBSonarResponse &rsp);
 
-private:
 	int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
+
+private:
 };
 
 #endif /* UTILITY_H_ */
