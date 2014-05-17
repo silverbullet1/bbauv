@@ -1,0 +1,6 @@
+0   1    2  3             4         5          6   7        8        9        10  11  12 13       14       15        16     17 18    19 20   21  22
+P:,11517,ap,-619.266602,-489.647461,804.782166,gp,0.009241,-0.013761,0.000951,yt,9.77,q,0.973435,-0.100566,0.205272,0.013229,T,31.06,p,23.72,r,-12.00
+   msec      ax          ay         az             gx        gy       gz          yaw    w         x         y         z       temp    pitch   roll
+
+
+time_trigger yawt_trigger or pitch_trigger or roll_trigger or accelp_trigger or gyrop_trigger or quat_trigger or temp_trigger or set drop

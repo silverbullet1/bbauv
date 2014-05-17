@@ -111,7 +111,7 @@ include_directories(
 ## Declare a cpp executable
 add_executable(DVL_Q2E wh_dvl/Q2E.cpp)
 add_executable(DVL wh_dvl/WH_main.cpp)
-add_executable(AHRS8_Q2E imu/src/Q2E.cpp)
+add_executable(AHRS8_Q2E imu/Q2E.cpp)
 add_dependencies(DVL_Q2E bbauv_msgs_generate_messages_cpp)
 add_dependencies(DVL bbauv_msgs_generate_messages_cpp)
 add_dependencies(AHRS8_Q2E bbauv_msgs_generate_messages_cpp)
@@ -119,11 +119,15 @@ add_dependencies(AHRS8_Q2E bbauv_msgs_generate_messages_cpp)
 add_executable(DVL_node src/DVL.cpp)
 add_dependencies(DVL_node bbauv_msgs_generate_messages_cpp)
 
-add_executable(IMU_node src/IMU.cpp)
-add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
+#add_executable(IMU_node src/IMU.cpp)
+#add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
 
+if(NOT APPLE)
 add_executable(cpu_temp cpu_temp/main.cpp)
 add_dependencies(cpu_temp bbauv_msgs_generate_messages_cpp)
+endif()
+add_executable(IMU_node imu/main.cpp imu/IMU_node.cpp)
+add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -146,12 +150,18 @@ target_link_libraries(DVL_node
 
 target_link_libraries(IMU_node
 	${catkin_LIBRARIES}
+	serial
 )
-
+if(NOT APPLE)
 target_link_libraries(cpu_temp
 	${catkin_LIBRARIES}
 	sensors
 )
+endif()
+#target_link_libraries(IMU_test
+#    ${catkin_LIBRARIES}
+#    serial
+#)
 
 #############
 ## Install ##
