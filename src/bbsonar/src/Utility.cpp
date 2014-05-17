@@ -13,6 +13,11 @@ Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NU
 
 	retVal = startRange = stopRange = fluidType = soundSpeed = analogGain = tvGain =
 	pingCount = imgWidth = imgHeight = imgWidthStep = rangeValCount = 0;
+
+	initSonar();
+	setHeadParams();
+	// writeIntensities();
+	// processImage();
 }
 
 Utility::~Utility() {
@@ -119,11 +124,11 @@ int Utility::writeIntensities() {
 	matImg = Mat(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1, imgBuffer);
 //	cout  << "matImg depth, channel: " << matImg.depth() << " " << matImg.channels() << endl;
 
-	std::string timeString = currentDateTime();
-	std::string grayFile = timeString + imgName;
-	std::string intensitiesFile = timeString + intensitiesName;
+	// std::string timeString = currentDateTime();
+	// std::string grayFile = timeString + imgName;
+	// std::string intensitiesFile = timeString + intensitiesName;
 
-	imwrite(grayFile, matImg);
+	// imwrite(grayFile, matImg);
 	imwrite("newIntensities.png", matImg);
 
 	cout << "matImg size: " << "height: " << matImg.rows << "  width: " << matImg.cols << endl;
@@ -142,9 +147,9 @@ int Utility::writeIntensities() {
 //	iOut.close();
 
 //	backup data storage in xml format
-	cv::FileStorage storage("store.yml", cv::FileStorage::WRITE);
-	storage << "mat" << matImg;
-	storage.release();
+	// cv::FileStorage storage("store.yml", cv::FileStorage::WRITE);
+	// storage << "mat" << matImg;
+	// storage.release();
 
 //	imshow("matImg", matImg);
 //	cv::waitKey(0);
@@ -437,8 +442,8 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //	drawing the saved rectangular boxes around the contours
 //	and saving their coordinates
 	int pointnum = 0;
-	vector<vector<Point> > savedContours;
-	vector<Point> savedPoints;
+	// vector<vector<Point> > savedContours;
+	// vector<Point> savedPoints;
 
 	for(uInt i = 0; i < contours.size(); i++) {
 		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
@@ -464,28 +469,34 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //		for( j = 0; j < size.width; j++ ) {
 //			andData[j] = srcData[j] * dstData[j] ;
 //		}
-//	}
+// 	}
 //	Canny(orImg, dstEdged, 1.0, 3.0, 3);
 //	imshow("OREdged", dstEdged);
 
 //	imshow("dst", dst);
-	imshow("dstDilated", dstDilated);
-	imshow("dstEdged", dstEdged);
-	imshow("labelledImg", labelledImg);
+	// imshow("dstDilated", dstDilated);
+	// imshow("dstEdged", dstEdged);
+	// imshow("labelledImg", labelledImg);
 
-	imwrite("powerImg.png", powerImg);
-	imwrite("edgedImg.png", dstEdged);
-	imwrite("labelledImg.png", labelledImg);
+	// imwrite("powerImg.png", powerImg);
+	// imwrite("edgedImg.png", dstEdged);
+	// imwrite("labelledImg.png", labelledImg);
 
-	waitKey(0);
+	// waitKey(0);
 
 //	calculate range/bearing of the saved points
-	getRangeBearing(savedPoints);
+	// getRangeBearing();
 
 	return;
 }
 
-void Utility::getRangeBearing(vector<cv::Point> savedPoints) {
+bool Utility::getRangeBearing(bbauv_msgs::BBSonarRequest &req, bbauv_msgs::BBSonarResponse &rsp) {
+	bbauv_msgs::sonarData singlePoint;
+	bbauv_msgs::sonarDataArray sonarMsg;
+
+	writeIntensities();
+	processImage();
+
 	for (uInt pointIdx=0; pointIdx < savedPoints.size(); ++pointIdx) {
 		int x = savedPoints[pointIdx].x;
 		int y = savedPoints[pointIdx].y;
@@ -493,10 +504,22 @@ void Utility::getRangeBearing(vector<cv::Point> savedPoints) {
 		if (magImg == NULL)
 			cout << "magImg null, can't find range" << endl;
 		else {
-			cout << "range: " << BVTMagImage_GetPixelRange(magImg, x, y) << endl;
-			cout << "bearing: " << BVTMagImage_GetPixelRelativeBearing(magImg, x, y) << endl;
+			// cout << "range: " << BVTMagImage_GetPixelRange(magImg, x, y) << endl;
+			// cout << "bearing: " << BVTMagImage_GetPixelRelativeBearing(magImg, x, y) << endl;
+			singlePoint.range = rsp.range = BVTMagImage_GetPixelRange(magImg, x, y) ;
+			singlePoint.bearing = rsp.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, x, y) ;
+			
+			ROS_INFO("Point %d: [range: %lf, bearing: %lf]", pointIdx, rsp.range, rsp.bearing);
+			sonarMsg.rangeBearingArray.push_back(singlePoint);
 		}
 	}
+
+
+	savedContours.clear();
+	savedPoints.clear();
+	remove("newIntensities.png");
+
+	return true;
 }
 
 /**
@@ -540,8 +563,29 @@ inline const std::string Utility::currentDateTime() {
     return buf;
 }
 
-void Utility::delay(long delay)
+void Utility::delay(time_t timeout)
 {
-	clock_t start = clock();
-	while(clock() - start < delay);
+	struct timeval tvDeadline, tvCur;
+	gettimeofday(&tvDeadline, NULL);
+	gettimeofday(&tvCur, NULL);;
+	tvDeadline.tv_sec += timeout;
+	
+	while(tvCur.tv_sec < tvDeadline.tv_sec) {
+		gettimeofday(&tvCur, NULL);
+	}
+}
+
+int main(int argc, char** argv)
+{
+	Utility *util = new Utility();
+	std::string serverName("bbsonar_server");
+
+	ros::init(argc, argv, serverName);
+  	ros::NodeHandle n;
+
+  	ros::ServiceServer service = n.advertiseService(serverName, &Utility::getRangeBearing, util);
+  	ROS_INFO("BBSonar ready to serve you with range/bearing values");
+  	ros::spin();
+	
+	return 0;
 }

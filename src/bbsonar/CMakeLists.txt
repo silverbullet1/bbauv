@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(sensors)
+cmake_minimum_required(VERSION 2.8.9)
+project(bbsonar)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -8,14 +8,16 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  message_generation
+  cv_bridge
+  image_transport
+  bbauv_msgs
+  sensor_msgs
   dynamic_reconfigure
-  geometry_msgs
-  nav_msgs
-  tf
 )
 
 ## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(OpenCV)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -83,12 +85,11 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-generate_dynamic_reconfigure_options(wh_dvl/cfg/WH_DVL.cfg )
 catkin_package(
-   INCLUDE_DIRS include
-#  LIBRARIES sensors
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
+  INCLUDE_DIRS include
+  LIBRARIES bbsonar
+  CATKIN_DEPENDS roscpp rospy std_msgs
+  DEPENDS system_lib message_runtime
 )
 
 ###########
@@ -98,70 +99,34 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include)
-include_directories(include/wh_dvl)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+)
+
+link_directories (
+	lib
 )
 
 ## Declare a cpp library
-# add_library(sensors
-#   src/${PROJECT_NAME}/sensors.cpp
+# add_library(bbsonar
+#   src/${PROJECT_NAME}/bbsonar.cpp
 # )
 
 ## Declare a cpp executable
-add_executable(DVL_Q2E wh_dvl/Q2E.cpp)
-add_executable(DVL wh_dvl/WH_main.cpp)
-add_executable(AHRS8_Q2E imu/Q2E.cpp)
-add_dependencies(DVL_Q2E bbauv_msgs_generate_messages_cpp)
-add_dependencies(DVL bbauv_msgs_generate_messages_cpp)
-add_dependencies(AHRS8_Q2E bbauv_msgs_generate_messages_cpp)
-
-add_executable(DVL_node src/DVL.cpp)
-add_dependencies(DVL_node bbauv_msgs_generate_messages_cpp)
-
-#add_executable(IMU_node src/IMU.cpp)
-#add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
-
-if(NOT APPLE)
-add_executable(cpu_temp cpu_temp/main.cpp)
-add_dependencies(cpu_temp bbauv_msgs_generate_messages_cpp)
-endif()
-add_executable(IMU_node imu/main.cpp imu/IMU_node.cpp)
-add_dependencies(IMU_node bbauv_msgs_generate_messages_cpp)
+add_executable(bbsonar src/Utility.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(sensors_node sensors_generate_messages_cpp)
+ add_dependencies(bbsonar bbsonar_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(DVL_Q2E
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(DVL
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(AHRS8_Q2E
-  ${catkin_LIBRARIES}
-)
-
-target_link_libraries(DVL_node
-	${catkin_LIBRARIES}
-)
-
-target_link_libraries(IMU_node
-	${catkin_LIBRARIES}
-	serial
-)
-if(NOT APPLE)
-target_link_libraries(cpu_temp
-	${catkin_LIBRARIES}
-	sensors
-)
-endif()
-#target_link_libraries(IMU_test
-#    ${catkin_LIBRARIES}
-#    serial
-#)
+ target_link_libraries(bbsonar
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   bvtsdk
+ )
 
 #############
 ## Install ##
@@ -178,7 +143,7 @@ endif()
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS sensors sensors_node
+# install(TARGETS bbsonar bbsonar
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -203,7 +168,7 @@ endif()
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_sensors.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_bbsonar.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
