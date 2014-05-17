@@ -580,7 +580,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "BBSonar");
   ros::NodeHandle n;
 
-  ros::Publisher sonarPub = n.advertise<bbauv_msgs::sonarDataVector>("sonarTopic", 1000;
+  ros::Publisher sonarPub = n.advertise<bbauv_msgs::sonarDataVector>("sonarTopic", 1000);
   ros::Rate loopRate(10);
   
   while (ros::ok()) {
