@@ -37,7 +37,7 @@ class RgbBuoyVision:
         outImg = None
 
         # Preprocessing
-        img = vision.preProcessing(img)
+        img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX = 0)
 
@@ -56,7 +56,16 @@ class RgbBuoyVision:
         # Combine images
         outImg = blueImg | redImg | greenImg
 
+        if self.toBump:
+            #Need to maintain the centroid and bump? 
+            pass
+
         return outImg
+
+    def resetRGBCount(self):
+        self.rgbCount['red'] = 0
+        self.rgbCount['green'] = 0
+        self.rgbCount['blue'] = 0
 
     def threshold(self, image, colour):
         currCentroid = []

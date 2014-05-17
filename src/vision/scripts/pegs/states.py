@@ -19,126 +19,67 @@ from vision import PegsVision
 
 #Globals
 locomotionGoal = None
-pegCount = 0    # We try moving total 4 times 
+isTesting = False
+isKilled = False
+isAborted = False
 
 class Disengage(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['start_complete', 'aborted', 'killed'])
-        self.comms = comms
+    def __init__(self, pegs):
+        smach.State.__init__(self, outcomes=['start_complete', 'killed'])
+        self.pegs = pegs
         
     def execute(self, userdata):
-        while not self.comms.foundRedPeg:
-            if self.comms.isKilled:
-                rospy.signal_shutdown("Bye")
-                return 'killed'
-            if self.comms.isAborted:
-                rospy.signal_shutdown("User aborted")
-                return 'aborted'
-            
-            rospy.sleep(rospy.Duration(0.3))
-    
-        self.comms.register()
-        if self.comms.isAlone:
-            self.comms.inputHeading = self.comms.curHeading
-                
-        return 'start_complete'
-        
-class Search(smach.State):
-    timeout = 120
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'timeout', 'aborted'])
-        self.comms = comms
-        
-    def execute(self, userdata):
-        start = time.time()
-        
-        while not self.comms.foundSomething():
-            if (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'timeout'
-            if self.comms.isKilled or self.comms.isAborted:
-                return 'aborted'
-        
-        return 'search_complete'
+        if isKilled:
+            rospy.signal_shutdown("Bye")
+            return 'killed'
 
-class FindYellowSquare(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['finding', 'found_square', 'lost', 'aborted'])
-        self.comms = comms
-        
-    def execute(self, userdata):       
-        if self.comms.isKilled or self.comms.isAborted:
-            return 'aborted'
-        
-        if not self.comms.foundYellowSquare:
-            return 'lost'
-        
-        # Near enough to the square
-        if self.comms.yellowArea > 3000:
-            self.comms.foundYellowSquare = True
-            return 'found_square'     
-        
-        # Move forward 0.5 m to the square
-        self.comms.sendMovement(forward = 0.5, wait = True)
-        return 'finding'
+        while isAborted:
+            rospy.sleep(rospy.Duration(0.2))
 
-class ForwardToPeg(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['forward', 'forward_complete', 'lost', 'aborted'])
-        self.comms = comms
-        
-    def execute(self, userdata):       
-        if self.comms.isKilled or self.comms.isAborted:
-            return 'aborted'
+            if isTesting:
+                self.pegs.register()
+                rospy.loginfo("Starting Pegs")
                 
-        return 'forward_complete' 
+            return 'start_complete'
+        
+class SearchRedPeg(smach.State):
+    def __init__(self, pegs):
+        smach.State.__init__(self, outcomes=['searchRed_complete', 'aborted', 'killed'])
+        self.pegs = pegs
     
+    def execute(self, ud):
+        smach.State.execute(self, ud)
+
 class Centering(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted'])
-        self.comms = comms
-        
-    def execute(self, userdata):       
-        if self.comms.isKilled or self.comms.isAborted:
-            return 'aborted'
-                
-        return 'centering_complete'      
+    def __init__(self, pegs):
+        smach.State.__init__(self, outcomes=['centering_complete', 'centering', 'aborted', 'killed'])
+        self.pegs = pegs
     
-class Offset(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['offset', 'offset_complete', 'lost', 'aborted'])
-        self.comms = comms
-        
-    def execute(self, userdata):       
-        if self.comms.isKilled or self.comms.isAborted:
-            return 'aborted'
-                
-        return 'offset_complete'   
-    
-class MovePeg(smach.State):
-    global pegCount
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['move_complete', 'task_complete', 'aborted'])
-        self.comms = comms
-        
-    def execute(self, userdata):       
-        if self.comms.isKilled or self.comms.isAborted:
-            return 'aborted'
-        
-        if self.comms.findRedPeg:
-            # open the manipulator to grab
-            self.comms.findRedPeg = False
+    def execute(self, ud):
+        smach.State.execute(self, ud)
 
-        elif not self.comms.findRedPeg:
-            # Close manipulator to put peg
-            self.comms.findRedPeg = True
-            pegCount = pegCount + 1
-            # Return to (x,y) coordinate
-            
-        if pegCount == 4:
-            return 'task_complete'
-                
-        return 'move_complete'   
+class OffSet(smach.State):
+    def __init__(self, pegs):
+        smach.State.__init__(self, outcomes=['offset_complete', 'aborted', 'killed'])
+        self.pegs = pegs
+    
+    def execute(self, ud):
+        smach.State.execute(self, ud)
+
+class TakeRedPeg(smach.State):
+    def __init__(self, pegs):
+        smach.State.__init__(self, outcomes=['takeRedPeg_complete', 'takingRedPeg', 'aborted', 'killed'])
+        self.pegs = pegs
+    
+    def execute(self, ud):
+        smach.State.execute(self, ud)
+        
+class PutWhitePeg(smach.State):
+    def __init__(self, pegs):
+        pass
+    
+    def execute(self, ud):
+        smach.State.execute(self, ud)
     
 def main():
     rospy.init_node('pegs_node', anonymous=False)
@@ -152,40 +93,7 @@ def main():
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
                                 transitions={'start_complete': "SEARCH",
-                                             'aborted': 'aborted',
-                                             'killed': 'killed'})
-        
-        smach.StateMachine.add("SEARCH", Search(myCom),
-                                transitions={'search_complete': "SEARCH",
-                                             'timeout': 'killed',
-                                             'killed': 'killed'})     
-        
-        smach.StateMachine.add("FINDYELLOWSQUARE", FindYellowSquare(myCom),
-                        transitions={'finding': "FINDYELLOWSQUARE",
-                                     'found_complete': "SEARCH",
-                                     'aborted': 'aborted'})   
-        
-        smach.StateMachine.add("FORWARD", ForwardToPeg(myCom),
-                                transitions={'forward': "FORWARD",
-                                             'forward_complete': "CENTERING",
-                                             'lost': "SEARCH",
-                                             'aborted': 'aborted'})             
-    
-        smach.StateMachine.add("CENTERING", Centering(myCom),
-                                transitions={'centering': "CENTERING",
-                                             'centering_complete': "OFFSET",
-                                             'lost': "SEARCH",
-                                             'aborted': 'aborted'})  
-        
-        smach.StateMachine.add("OFFSET", Offset(myCom),
-                                transitions={'offset_complete': "MOVEPEG",
-                                             'lost': "SEARCH",
-                                             'aborted': 'aborted'})  
- 
-        smach.StateMachine.add("MOVEPEG", MovePeg(myCom),
-                                transitions={'move_complete': "SEARCH",
-                                             'task_complete': 'succeeded',
-                                             'aborted': 'aborted'})  
+                                         'killed': 'killed'})
     
     #set up introspection Server
     introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/PEGS')

@@ -77,7 +77,7 @@ class GenericComms:
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")
-    
+
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
                      timeout=0.4, blocking=False):
         d = d if d else self.defaultDepth

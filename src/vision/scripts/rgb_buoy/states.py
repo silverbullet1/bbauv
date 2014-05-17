@@ -33,9 +33,9 @@ class Disengage(smach.State):
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
         
-        self.comms.register()
-        if self.comms.isAlone:
-            self.comms.inputHeading = self.comms.curHeading
+        if isTesting:
+            self.comms.register()
+            rospy.loginfo("Starting RGB")
         
         return 'start_complete'
     

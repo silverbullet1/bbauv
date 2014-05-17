@@ -9,17 +9,16 @@ from front_commons.frontComms import FrontComms
 from vision import PegsVision
 
 class Comms(FrontComms):
-      
-    # Vision parameters 
-    foundRedPeg = False
-    findRedPeg = False   #Either find red or find blue circle 
-    count = 0       # Move up to 4 pegs 
-    centroidToPick = [-1, -1]
     
-    findYellowSquare = True
-    foundYellowSquare = False  
-    yellowCentroid = [-1, -1]
-    yellowArea = -1
+    isTesting = False
+    isKilled = False 
+    isAborted = False 
+    isStart = False
+    
+    # Vision parameters 
+    findRedPeg = True   #Either find red or find blue circle 
+    count = 0       # Move up to 4 pegs 
+    centroidToPick = None
     
     def __init__(self):
         FrontComms.__init__(self, PegsVision(comms=self))
@@ -45,11 +44,6 @@ class Comms(FrontComms):
             
         return mission_to_visionResponse(isStart, isAborted)
 
-    def foundSomething(self):
-        if foundYellowSquare or foundRedPeg:
-            return True
-        return False
-        
 def main():
     testCom = Comms()
         

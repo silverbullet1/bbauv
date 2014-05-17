@@ -80,8 +80,8 @@ class Search(smach.State):
         return 'foundLanes'
 
 class Stablize(smach.State):
-    maxdx = 0.2
-    maxdy = 0.2
+    maxdx = 0.15
+    maxdy = 0.15
     width = LaneMarkerVision.screen['width']
     height = LaneMarkerVision.screen['height']
 
