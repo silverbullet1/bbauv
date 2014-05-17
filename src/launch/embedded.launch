@@ -4,4 +4,10 @@
         pkg="actuators" name="actuators" type="sensors_actuators.py" args="$(arg port)" >
     </node>
 
+    <remap from="battery_status" to="battery1_status" />
+    <node pkg="pmb" name="Battery1" type="pmb1.py"/>
+
+    <remap from="battery_status" to="battery2_status" />
+    <node pkg="pmb" name="Battery2" type="pmb2.py" />
+
 </launch>

@@ -4,7 +4,7 @@ CFLAGS = -I./include -I/usr/local/include/opencv -I/usr/local/include
 GFLAGS = -Wall -g
 CC = g++
 
-OBJ = main.o BBSonar.o Utility.o
+OBJ = main.o Utility.o
 
 all: main
 
@@ -14,8 +14,6 @@ main: $(OBJ)
 main.o: main.cpp 
 	$(CC) $(GFLAGS) -c main.cpp $(CFLAGS)
 	
-BBSonar.o: BBSonar.cpp BBSonar.h Config.h
-	$(CC) $(GFLAGS) -c BBSonar.cpp $(CFLAGS)
 	
 Utility.o: Utility.cpp Utility.h Config.h
 	$(CC) $(GFLAGS) -c Utility.cpp $(CFLAGS) 

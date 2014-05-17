@@ -118,10 +118,10 @@ class AUV_gui(QMainWindow):
         self.main_tab = QTabWidget()
         self.main_frame = QWidget()
         self.vision_filter_frame = Vision_filter()
-        self.navigation_frame = Navigation_Map()
+        #self.navigation_frame = Navigation_Map()
         self.main_tab.addTab(self.main_frame, "Telemetry")
         self.main_tab.addTab(self.vision_filter_frame, "Vision Filter")
-        self.main_tab.addTab(self.navigation_frame, "Navigation")
+        #self.main_tab.addTab(self.navigation_frame, "Navigation")
         
         goalBox =  QGroupBox("Goal Setter")
         depth_l , self.depth_box, layout4 = self.make_data_box("Depth:       ")
@@ -940,11 +940,11 @@ class AUV_gui(QMainWindow):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
     
     def goToPosHandler(self):
-        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         handle(x=xpos, y=ypos)
+        self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
 
     def homeBtnHandler(self):
         self.status_text.setText("Going home.... (0,0")
@@ -1118,11 +1118,6 @@ class AUV_gui(QMainWindow):
             
             self.controller_client = dynamic_reconfigure.client.Client('/Controller')
             rospy.loginfo("Controller client connected")
-        
-            self.vision_client = dynamic_reconfigure.client.Client('/Vision/image_filter/compressed')
-            params = {'jpeg_quality': 40}
-            config = self.vision_client.update_configuration(params)
-            rospy.loginfo("Set vision compression to 40%")
         
     def valueChanged(self,value):
         self.heading_box.setText(str(value))

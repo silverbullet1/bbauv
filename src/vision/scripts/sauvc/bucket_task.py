@@ -12,18 +12,18 @@ from bucket_vision import BucketDetector
 #Starts off in disengage class
 class Disengage(smach.State):
     timeout = 1500
-    
+
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['start_complete', 'task_complete', 'aborted'])
         self.bucketDetector = bucketDetector
-    
+
     def execute(self, userdata):
         self.bucketDetector.unregister()
         #Check for abort or kill signal
         timecount = 0
         while bucketDetector.isAborted:
             if timecount > self.timeout or bucketDetector.isKilled:
-                return 'aborted' 
+                return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
 
@@ -35,7 +35,7 @@ class Searching1(smach.State):
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted'])
         self.bucketDetector = bucketDetector
-    
+
     def execute(self, userdata):
         #Check for abort signal
         if self.bucketDetector.isAborted:
@@ -71,7 +71,7 @@ class Searching2(smach.State):
                 break
             timecount += 1
             rospy.sleep(rospy.Duration(0.1))
-            
+
 #         while self.bucketDetector.revertMovement():
 #             if self.bucketDetector.rectData['detected']:
 #                 return 'search_complete'
@@ -92,7 +92,7 @@ class Centering(smach.State):
         smach.State.__init__(self, outcomes=['centering_complete', 'centering',
                                              'lost_bucket', 'aborted'])
         self.bucketDetector = bucketDetector
-    
+
     def execute(self, userdata):
         if self.bucketDetector.isAborted:
             return 'aborted'
@@ -108,7 +108,7 @@ class Centering(smach.State):
         deltaX = (rectData['centroid'][0] - screenCenterX) / screenWidth
         deltaY = (rectData['centroid'][1] - screenCenterY) / screenHeight
         rospy.loginfo("x-off: %lf, y-off: %lf", deltaX, deltaY)
-        
+
         if abs(deltaX) < 0.02 and abs(deltaY) < 0.02:
             self.bucketDetector.stopRobot()
             rospy.loginfo("--- Done centering! ---")
@@ -124,7 +124,7 @@ class Firing(smach.State):
     def __init__(self, bucketDetector):
         smach.State.__init__(self, outcomes=['firing_complete', 'aborted'])
         self.bucketDetector = bucketDetector
-    
+
     def execute(self, userdata):
         rospy.loginfo("--- Moving down and backward! ---")
         self.bucketDetector.depth_setpoint = 0.8
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     rospy.init_node('bucketdetector')
     bucketDetector = BucketDetector()
     rospy.loginfo("Bucket loaded!")
-    
+
     sm = smach.StateMachine(outcomes=['task_complete', 'aborted'])
     with sm:
         smach.StateMachine.add('DISENGAGE', Disengage(bucketDetector),
@@ -171,6 +171,8 @@ if __name__ == '__main__':
         smach.StateMachine.add('FIRING', Firing(bucketDetector),
                                transitions={'firing_complete' : 'task_complete',
                                             'aborted':'DISENGAGE'})
-    
+
+    sis = smach_ros.IntrospectionServer('flare_task', sm, '/SM_ROOT')
+    sis.start()
     outcomes = sm.execute()
     rospy.loginfo(outcomes)

@@ -269,5 +269,11 @@ if __name__ == '__main__':
                                       'aborted': 'aborted',
                                       'mission_abort': "DISENGAGE"})
     
+    sis = smach_ros.IntrospectionServer('flare_task', sm, '/SM_ROOT')
+    sis.start()
     outcomes = sm.execute()
+    
+    #wait for ctrl-c
+    rospy.spin()
+    sis.stop()
     

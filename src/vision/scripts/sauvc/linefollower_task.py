@@ -12,7 +12,7 @@ from bbauv_msgs.srv import *
 from linefollower_vision import LineFollower
 
 class Disengage(smach.State):
-    timeout = 1500 
+    timeout = 1500
 
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['start_complete', 'complete_outcome', 'aborted'])
@@ -26,15 +26,15 @@ class Disengage(smach.State):
         while self.linefollower.isAborted:
             if timecount > self.timeout or self.linefollower.isKilled:
                 return 'aborted'
-            rospy.sleep(rospy.Duration(0.1)) 
+            rospy.sleep(rospy.Duration(0.1))
             timecount += 1
-        
+
         self.linefollower.registerSubscribers()
         return 'start_complete'
 
 class Searching(smach.State):
     timeout = 50 # 3 seconds time out before aborting
-    
+
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['line_found', 'aborted'])
         self.linefollower = lf
@@ -54,14 +54,14 @@ class Searching(smach.State):
                 break
             rospy.sleep(rospy.Duration(0.1))
             timecount += 1
-        
+
         while self.linefollower.revertMovement():
             #Check for aborted signal
             if self.linefollower.isAborted:
                 return 'aborted'
             if self.linefollower.rectData['detected']:
-                return 'line_found'            
-        
+                return 'line_found'
+
         #Check if blackline is found or timeout
         timecount = 0
         while not self.linefollower.rectData['detected']:
@@ -75,13 +75,13 @@ class Searching(smach.State):
             timecount += 1
 
         return 'line_found'
-    
+
 class FollowingLine(smach.State):
     def __init__(self, lf):
         smach.State.__init__(self, outcomes=['following_line', 'lost_line', 'aborted'])
         self.linefollower = lf
         self.deltaThresh = 0.15
-        self.prevAngle = [] 
+        self.prevAngle = []
 
     def execute(self, userdata):
         #Check for aborted signal
@@ -108,7 +108,7 @@ class FollowingLine(smach.State):
             sidemove = math.copysign(3.0, deltaX)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
             return 'following_line'
-# 
+#
 #         if len(self.prevAngle) > 1:
 #             oppAngle = angle - 180 if angle > 0 else angle + 180
 #             if abs(angle - self.prevAngle[0]) > abs(oppAngle - self.prevAngle[0]):
@@ -120,7 +120,7 @@ class FollowingLine(smach.State):
         if deltaX < -self.deltaThresh:
             sidemove = -2.0
         elif deltaX > self.deltaThresh:
-            sidemove = 2.0 
+            sidemove = 2.0
         else:
             sidemove = 0.0
 
@@ -133,7 +133,7 @@ class FollowingLine(smach.State):
             else:
                 if abs(angle) > 30:
                     angle = math.copysign(angle, angle)
-            
+
             heading = normHeading(self.linefollower.curHeading - angle)
             self.linefollower.sendMovement(f=0.0, h=heading, sm=sidemove)
 
@@ -150,10 +150,10 @@ def normHeading(heading):
 def main():
     rospy.init_node("linefollower")
     linefollower = LineFollower();
-    
+
 
     #Creating a State Machine Container
-    sm = smach.StateMachine(outcomes=['complete_line', 'aborted']) 
+    sm = smach.StateMachine(outcomes=['complete_line', 'aborted'])
 
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(linefollower),
@@ -169,6 +169,10 @@ def main():
                                 transitions={'following_line':'FOLLOWINGLINE',
                                              'lost_line':'SEARCHING',
                                              'aborted':'DISENGAGE'})
+
+    sis = smach_ros.IntrospectionServer('flare_task', sm, '/SM_ROOT')
+    sis.start()
+
     outcomes = sm.execute()
     rospy.loginfo(outcomes)
 
