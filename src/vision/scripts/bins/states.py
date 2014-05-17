@@ -3,6 +3,7 @@ import rospy
 import smach, smach_ros
 
 from comms import Comms
+from vision import BinsVision
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -24,18 +25,45 @@ class Disengage(smach.State):
 class Search(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
-                                              'timeout',
-                                              'aborted'])
+                                             'timeout',
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
         while not self.comms.retVal or \
-              len(self.comms.retVal['centroids']) == 0:
+              len(self.comms.retVal['matches']) == 0:
             if self.comms.isKilled or self.comms.isAborted:
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
         return 'foundBins' 
+
+class Center(smach.State):
+    maxdx = 0.03
+    maxdy = 0.03
+
+    width = BinsVision.screen['width']
+    height = BinsVision.screen['height']
+
+    xcoeff = 2.0
+    ycoeff = 1.5
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            return 'aborted'
+
+        if not self.comms.rectVal or \
+           len(self.comms.rectVal['matches']) == 0:
+            return 'lost'
+
+        return 'aligning'
 
 def main():
     rospy.init_node('pickup_node')
@@ -49,8 +77,14 @@ def main():
                                             'killed':'killed'})
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
-                               transitions={'foundBins':'SEARCH',
+                               transitions={'foundBins':'CENTER',
                                             'timeout':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTER',
+                               Center(myCom),
+                               transitions={'centered':'CENTER',
+                                            'centering':'CENTER',
+                                            'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
 
     introServer = smach_ros.IntrospectionServer('mission_server',
