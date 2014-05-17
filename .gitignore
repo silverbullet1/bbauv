@@ -10,7 +10,9 @@ install/
 *~
 *.bak
 *.swp
-.png
+*.png
+*.jpg
+*.vim
 ### /Users/alex/.gitignore-boilerplates/Global/OSX.gitignore
 
 .DS_Store
