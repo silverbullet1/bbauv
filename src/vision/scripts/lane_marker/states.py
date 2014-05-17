@@ -46,6 +46,8 @@ class Disengage(smach.State):
         self.comms = comms
 
     def execute(self, userdata):
+        self.comms.unregister()
+
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
@@ -80,8 +82,8 @@ class Search(smach.State):
         return 'foundLanes'
 
 class Stablize(smach.State):
-    maxdx = 0.2
-    maxdy = 0.2
+    maxdx = 0.15
+    maxdy = 0.15
     width = LaneMarkerVision.screen['width']
     height = LaneMarkerVision.screen['height']
 

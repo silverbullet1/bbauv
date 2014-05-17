@@ -10,5 +10,8 @@ ROS_NAMESPACE=/stereo_camera/right rosrun image_transport republish compressed i
 
 # For 2014 sauvc bags
 ROS_NAMESPACE=/bot_camera/camera rosrun image_transport republish compressed in:=image_raw raw out:=image_raw_thien &
+ROS_NAMESPACE=/front_camera/camera rosrun image_transport republish compressed in:=image_raw raw out:=image_raw_thien &
 ROS_NAMESPACE=/Vision rosrun image_transport republish compressed in:=image_filter raw out:=image_filter_thien &
 
+wait
+pkill "republish"

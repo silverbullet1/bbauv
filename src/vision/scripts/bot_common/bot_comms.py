@@ -27,6 +27,11 @@ class GenericComms:
         self.isKilled = False
         self.canPublish = False
 
+        # Initialize subscribers and publishers
+        self.camSub = None
+        self.compassSub = None
+        self.outPub = None
+
         #Initialize vision filter
         self.visionFilter = visionFilter
 
@@ -61,8 +66,10 @@ class GenericComms:
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
 
     def unregister(self):
-        self.camSub.unregister()
-        self.compassSub.unregister()
+        if self.camSub is not None:
+            self.camSub.unregister()
+        if self.compassSub is not None:
+            self.compassSub.unregister()
 
     def camCallback(self, rosImg):
         self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
@@ -77,7 +84,7 @@ class GenericComms:
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")
-    
+
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
                      timeout=0.4, blocking=False):
         d = d if d else self.defaultDepth

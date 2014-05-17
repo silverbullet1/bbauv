@@ -12,8 +12,8 @@ class Comms(GenericComms):
         GenericComms.__init__(self, LaneMarkerVision(comms=self))
         self.chosenLane = self.LEFT
         self.expectedLanes = 2
+        self.defaultDepth = 3.0
 
-        #TODO: set default depth for this task
         #TODO: Communicate with mission planner
 
     def handleSrv(self, data):
