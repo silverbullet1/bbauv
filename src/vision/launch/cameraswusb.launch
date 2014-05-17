@@ -11,7 +11,7 @@
   </node>
   
   <!--dynamic reconfigure to 40% -->
-  <node pkg="dynamic_reconfigure" type="dynparam" args="set_from_parameters Vision/image_filter/compressed">
+  <node name="camera_configure" pkg="dynamic_reconfigure" type="dynparam" args="set_from_parameters Vision/image_filter/compressed">
   	<param name="jpeg_quality" type="int" value="40" />
   </node>
   

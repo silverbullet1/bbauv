@@ -1,8 +1,5 @@
-import math
-import numpy as np
 import cv2
 
-from utils.utils import Utils
 from bot_common.vision import Vision
 
 class BinsVision:
@@ -10,7 +7,7 @@ class BinsVision:
 
     # Vision parameters
     hsvLoThresh1 = (0, 0, 0)
-    hsvHiThresh1 = (35, 255, 255)
+    hsvHiThresh1 = (20, 255, 255)
     hsvLoThresh2 = (165, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
@@ -86,7 +83,9 @@ class BinsVision:
         foundRects = list()
         centroids = list()
         outImg = None
-        retData = {'foundRects': foundRects, 'centroids': centroids}
+        matches = list()
+        retData = {'foundRects': foundRects, 'centroids': centroids,
+                   'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = self.enhance(img)
@@ -107,7 +106,7 @@ class BinsVision:
         if not contours or len(contours) < 1: return retData, outImg
         sorted(contours, key=cv2.contourArea, reverse=True)
 
-        for contour in contours[:5]:
+        for contour in contours:
             moment = cv2.moments(contour, False)
             centroids.append((moment['m10']/moment['m00'],
                               moment['m01']/moment['m00']))
@@ -133,6 +132,7 @@ class BinsVision:
                 Vision.drawRect(outImg, rect)
 
         matches = self.match(centroids, contourRects)
+        retData['matches'] = matches
 
         return retData, outImg
 
