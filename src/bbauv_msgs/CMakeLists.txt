@@ -94,9 +94,6 @@ add_service_files(
 
   #navigate2d
   navigate2d.srv
-
-  BBSonar.srv
-
 )
 
 ## Generate actions in the 'action' folder
