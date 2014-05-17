@@ -413,26 +413,29 @@ class AUV_gui(QMainWindow):
         self.oPanel3.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
         self.oPanel4 = QTextBrowser()
         self.oPanel4.setStyleSheet("QTextBrowser { background-color : black; color :white; }")
+        self.lPanel1 = QTextBrowser()
+        self.lPanel1.setStyleSheet("QTextBrowser { background-color : black; color : white}")
 
         o_layout = QHBoxLayout()
         o_layout.addWidget(self.oPanel1)
         o_layout.addWidget(self.oPanel2)
         o_layout.addWidget(self.oPanel3)
         o_layout.addWidget(self.oPanel4)
+        o_layout.addWidget(self.lPanel1)
         oBox.setLayout(o_layout)
 
         #Leak sensors Information
-        lBox = QGroupBox("Leak Sensors")
-        self.lPanel1 = QTextBrowser()
-        self.lPanel1.setStyleSheet("QTextBrowser { background-color : black; color : white}")
-        leak_layout = QVBoxLayout()
-        leak_layout.addWidget(self.lPanel1)
-        lBox.setLayout(leak_layout)
+        #lBox = QGroupBox("Leak Sensors")
+        #self.lPanel1 = QTextBrowser()
+        #self.lPanel1.setStyleSheet("QTextBrowser { background-color : black; color : white}")
+        #leak_layout = QVBoxLayout()
+        #leak_layout.addWidget(self.lPanel1)
+        #lBox.setLayout(leak_layout)
 
         #Bottom layout
         bottom_layout = QHBoxLayout()
         bottom_layout.addWidget(oBox)
-        bottom_layout.addWidget(lBox)
+        #bottom_layout.addWidget(lBox)
 
         display_layout = QVBoxLayout()
         display_layout.addWidget(attitudeBox)
@@ -741,34 +744,33 @@ class AUV_gui(QMainWindow):
         else:
             self.isLeak = False
 
-        battery_notification = ""
-        if self.data['openups1'].cell6*0.1 < 18.0 or \
-           self.data['openups2'].cell6*0.1 < 18.0:
-            battery_notification = "BATTERY DYING!"
-        elif self.data['openups1'].cell6*0.1 < 22.1 or \
-                self.data['openups2'].cell6*0.1 < 22.1:
-            battery_notification = "Battery Low!"
+        battery_notification1 = ""
+        battery_notification2 = ""
+        if self.data['openups1'].battery_percentage < 15.0:
+            battery_notification1 = "BATTERY DYING!"
+        if self.data['openups2'].battery_percentage < 15.0:
+            battery_notification2 = "BATTERY DYING!"
 
 
-        self.oPanel1.setText("<b>VOLT1: " + str(self.data['openups1'].cell6*0.1) +
-                              "<br>CUR1: " + str(self.data['openups1'].current) +
-                              "<br>CAP1: " + str(self.data['openups1'].battery_percentage) +
-                              "<br> " + battery_notification +
+        self.oPanel1.setText("<b>VOLT1: " + str(round(self.data['openups1'].cell6,2)) +
+                              "<br>CUR1: " + str(round(self.data['openups1'].current,3)) +
+                              "<br>CAP1: " + str(round(self.data['openups1'].battery_percentage,2)) +
+                              "<br> " + battery_notification1 +
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")
 
-        self.oPanel2.setText("<b>VOLT2: " + str(self.data['openups2'].cell6*0.1) +
-                              "<br>CUR2: " + str(self.data['openups2'].current) +
-                              "<br>CAP2: " + str(self.data['openups2'].battery_percentage) +
-                              "<br> " + battery_notification +
+        self.oPanel2.setText("<b>VOLT2: " + str(round(self.data['openups2'].cell6,2)) +
+                              "<br>CUR2: " + str(round(self.data['openups2'].current,3)) +
+                              "<br>CAP2: " + str(round(self.data['openups2'].battery_percentage,2)) +
+                              "<br> " + battery_notification2 +
                               #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
                               # str(self.data['openups'].current1 +
                               "</b>")
 
-        self.lPanel1.setText("<b>HULL LEAK1: " + str(self.data['hull_status'].WaterDetA) +
-                             "<br>HULL LEAK2: " + str(self.data['hull_status'].WaterDetB) +
-                             "<br>HYDRO LEAK: " + str(self.data['hull_status'].WaterDetC) +
+        self.lPanel1.setText("<b>HU LEAK1: " + str(self.data['hull_status'].WaterDetA) +
+                             "<br>HU LEAK2: " + str(self.data['hull_status'].WaterDetB) +
+                             "<br>HY LEAK: " + str(self.data['hull_status'].WaterDetC) +
                              "</b>")
 
         self.oPanel3.setText("<b>TMP0: " + str(round(self.data['temp'],2)) +
