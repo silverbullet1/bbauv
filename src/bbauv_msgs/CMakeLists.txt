@@ -72,7 +72,7 @@ add_message_files(
   acoustic.msg
 
   sonarData.msg
-  sonarDataArray.msg
+  sonarDataVector.msg
 )
 
 ## Generate services in the 'srv' folder
