@@ -62,7 +62,8 @@ class PegsVision:
         contours, _ = cv2.findContours(stracthImg, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
-        
+        sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour 
+
         centers = []
         radii = []
         for contour in contours:
