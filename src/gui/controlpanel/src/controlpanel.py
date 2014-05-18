@@ -193,7 +193,7 @@ class AUV_gui(QMainWindow):
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
 
-        self.armButton = QCommandLinkButton("NOT ARMED")
+        self.armButton = QPushButton("NOT ARMED")
         fireButton = QPushButton("&Fire")
         self.check1 = QCheckBox("&Top Torpedo")
         self.check2 = QCheckBox("&Bottom Torpedo")
@@ -202,6 +202,16 @@ class AUV_gui(QMainWindow):
         self.check5 = QCheckBox("Grabber")
         self.check6 = QCheckBox("Linear")
         self.check7 = QCheckBox("Rotary")
+
+        self.ledSelector = QComboBox()
+        self.leds_map = zip(xrange(1, 10),
+                           ['red', 'orange', 'yellow', 'green',
+                            'blue', 'indigo', 'violet', 'white',
+                            'off'])
+        for led_map in self.leds_map:
+            self.ledSelector.addItem(led_map[1])
+        self.ledSelector.setCurrentIndex(len(self.leds_map)-1)
+        self.ledSelector.currentIndexChanged.connect(self.ledSelectorCb)
 
         mani_layout = QVBoxLayout()
         mani_layout.addWidget(self.check2)
@@ -213,8 +223,10 @@ class AUV_gui(QMainWindow):
         mani_layout.addWidget(self.check7)
         mani_layout.addWidget(self.armButton)
         mani_layout.addWidget(fireButton)
+        mani_layout.addWidget(self.ledSelector)
         maniBox = QGroupBox("Manipulators Console")
         maniBox.setLayout(mani_layout)
+
 
         self.armButton.clicked.connect(self.armBtnHandler)
         fireButton.clicked.connect(self.fireBtnHandler)
@@ -864,6 +876,12 @@ class AUV_gui(QMainWindow):
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
         self.acoustic_sub = rospy.Subscriber("/acoustic/angFromPing", acoustic, self.acoustic_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
+
+    def ledSelectorCb(self, index):
+        ledPub = rospy.Publisher("/led_strips", Int8)
+        data = Int8(self.leds_map[index][0])
+        for i in range(5):
+            ledPub.publish(data)
 
     def get_status(self,val):
         if val == -1:
