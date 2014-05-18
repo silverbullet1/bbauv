@@ -29,6 +29,11 @@
 #include "ros/ros.h"
 #include <bbauv_msgs/sonarData.h>
 #include <bbauv_msgs/sonarDataVector.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
+#include <image_transport/image_transport.h>
+
 
 using namespace std;
 using namespace cv;
@@ -46,7 +51,6 @@ public:
 	BVTColorImage colorImg;
 	BVTColorMapper colorMap;
 
-	cv::Mat grayImg;
 
 	//	head params
 	float startRange;
@@ -60,8 +64,11 @@ public:
 
 	uShort *imgBuffer;
 	int retVal;
-
-	cv::Mat matImg;
+    
+    cv::Mat grayImg;        // image having the grayscale intensities on disk
+	cv::Mat matImg;         // image for saving the grayscale intensities
+    cv::Mat labelledImg;    // image having the bounded objects
+    cv::Mat outImg;         // image that is to be published in ROS image format
 
 	vector<vector<Point> > savedContours;
 	vector<Point> savedPoints;
@@ -87,9 +94,11 @@ public:
 	int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
+    
+    
 
-  bbauv_msgs::sonarData singlePoint;
-	bbauv_msgs::sonarDataVector sonarMsg;
+    bbauv_msgs::sonarData singlePoint;
+    bbauv_msgs::sonarDataVector sonarMsg;
 
 private:
 };
