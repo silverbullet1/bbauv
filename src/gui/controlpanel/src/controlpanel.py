@@ -185,27 +185,37 @@ class AUV_gui(QMainWindow):
         self.disablePIDButton = QPushButton("&Disable PID")
         hoverButton = QPushButton("&Hover")
         surfaceButton = QPushButton("S&urface")
-        homeButton = QPushButton("Home &Base")
-        self.modeButton = QPushButton("De&fault")
-        self.unsubscribeButton = QPushButton("U&nsubscribe")
+        homeButton = QPushButton("Home Base")
+        self.modeButton = QPushButton("Default")
+        self.unsubscribeButton = QPushButton("Unsubscribe")
         self.calDepthButton = QPushButton("&Calibrate Depth")
         mode_l, self.l_mode,mode_layout = self.make_data_box("Loc Mode:")
         self.l_mode.setAlignment(Qt.AlignCenter)
         self.l_mode.setEnabled(False)
 
-        self.armButton = QCommandLinkButton("NOT ARMED")
+        self.armButton = QPushButton("NOT ARMED")
         fireButton = QPushButton("&Fire")
-        self.check1 = QCheckBox("Top Torpedo")
-        self.check2 = QCheckBox("Bottom Torpedo")
-        self.check3 = QCheckBox("Grabber")
-        self.check4 = QCheckBox("Dropper")
+        self.check1 = QCheckBox("&Top Torpedo")
+        self.check2 = QCheckBox("&Bottom Torpedo")
+        self.check3 = QCheckBox("&Grabber")
+        self.check4 = QCheckBox("D&ropper")
         self.check5 = QCheckBox("Grabber")
         self.check6 = QCheckBox("Linear")
         self.check7 = QCheckBox("Rotary")
 
+        self.ledSelector = QComboBox()
+        self.leds_map = zip(xrange(1, 10),
+                           ['red', 'orange', 'yellow', 'green',
+                            'blue', 'indigo', 'violet', 'white',
+                            'off'])
+        for led_map in self.leds_map:
+            self.ledSelector.addItem(led_map[1])
+        self.ledSelector.setCurrentIndex(len(self.leds_map)-1)
+        self.ledSelector.currentIndexChanged.connect(self.ledSelectorCb)
+
         mani_layout = QVBoxLayout()
-        mani_layout.addWidget(self.check1)
         mani_layout.addWidget(self.check2)
+        mani_layout.addWidget(self.check1)
         mani_layout.addWidget(self.check3)
         mani_layout.addWidget(self.check4)
         mani_layout.addWidget(self.check5)
@@ -213,8 +223,10 @@ class AUV_gui(QMainWindow):
         mani_layout.addWidget(self.check7)
         mani_layout.addWidget(self.armButton)
         mani_layout.addWidget(fireButton)
+        mani_layout.addWidget(self.ledSelector)
         maniBox = QGroupBox("Manipulators Console")
         maniBox.setLayout(mani_layout)
+
 
         self.armButton.clicked.connect(self.armBtnHandler)
         fireButton.clicked.connect(self.fireBtnHandler)
@@ -248,7 +260,7 @@ class AUV_gui(QMainWindow):
         Navigation = QLabel("<b>Navigation</b>")
         xpos_l , self.xpos_box, layout6 = self.make_data_box("x coord:")
         ypos_l, self.ypos_box,layout7 = self.make_data_box("y coord:")
-        self.goToPos = QPushButton("&Go!")
+        self.goToPos = QPushButton("Go!")
         self.goToPos.clicked.connect(self.goToPosHandler)
         self.resetEarth = QPushButton("Reset E&arth")
         self.resetEarth.clicked.connect(self.resetEarthHandler)
@@ -311,7 +323,7 @@ class AUV_gui(QMainWindow):
         acoustic_l = QLabel("<b>Acoustics</b>")
         a_heading_l , self.acoustic_h_box, acoustic_h_provider = self.make_data_box("Heading:")
         a_forward_l , self.acoustic_f_box, acoustic_f_provider = self.make_data_box("Forward:")
-        acousticBtn = QPushButton("&Turn")
+        acousticBtn = QPushButton("Turn")
         acousticBtn.clicked.connect(self.acousticBtnHandler)
         acousticGoBtn = QPushButton("F&wd")
         acousticGoBtn.clicked.connect(self.acousticGoBtnHandler)
@@ -864,6 +876,12 @@ class AUV_gui(QMainWindow):
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
         self.acoustic_sub = rospy.Subscriber("/acoustic/angFromPing", acoustic, self.acoustic_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
+
+    def ledSelectorCb(self, index):
+        ledPub = rospy.Publisher("/led_strips", Int8)
+        data = Int8(self.leds_map[index][0])
+        for i in range(5):
+            ledPub.publish(data)
 
     def get_status(self,val):
         if val == -1:

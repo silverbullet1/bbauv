@@ -58,12 +58,10 @@ class BinsVision:
 
     def gotFrame(self, img):
         """ Main processing function, should return (retData, outputImg) """
-        foundRects = list()
         centroids = list()
         outImg = None
         matches = list()
-        retData = {'foundRects': foundRects, 'centroids': centroids,
-                   'matches': matches}
+        retData = {'centroids': centroids, 'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = self.enhance(img)
@@ -81,7 +79,7 @@ class BinsVision:
         contours = self.findContourAndBound(scratchImg,
                                             bounded=True,
                                             minArea=self.minContourArea)
-        if not contours or len(contours) < 1: return retData, outImg
+        #if not contours or len(contours) < 1: return retData, outImg
         sorted(contours, key=cv2.contourArea, reverse=True)
 
         for contour in contours:
