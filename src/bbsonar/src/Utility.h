@@ -27,9 +27,8 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 #include "ros/ros.h"
-#include <bbauv_msgs/BBSonar.h>
 #include <bbauv_msgs/sonarData.h>
-#include <bbauv_msgs/sonarDataArray.h>
+#include <bbauv_msgs/sonarDataVector.h>
 
 using namespace std;
 using namespace cv;
@@ -83,11 +82,14 @@ public:
 	double getGlobalThreshold(cv::Mat gImg);
 	void myAdaptiveThreshold(cv::Mat gImg, double maxValue, int method, int type, int blockSize, double delta);
 	
-	bool getRangeBearing(bbauv_msgs::BBSonarRequest &req, bbauv_msgs::BBSonarResponse &rsp);
+	bool getRangeBearing();
 
 	int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
+
+  bbauv_msgs::sonarData singlePoint;
+	bbauv_msgs::sonarDataVector sonarMsg;
 
 private:
 };
