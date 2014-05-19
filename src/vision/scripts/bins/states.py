@@ -15,6 +15,7 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         self.comms.unregister()
+
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'

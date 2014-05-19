@@ -199,9 +199,9 @@ class AUV_gui(QMainWindow):
         self.check2 = QCheckBox("&Bottom Torpedo")
         self.check3 = QCheckBox("&Grabber")
         self.check4 = QCheckBox("D&ropper")
-        self.check5 = QCheckBox("Grabber")
-        self.check6 = QCheckBox("Linear")
-        self.check7 = QCheckBox("Rotary")
+        self.check5 = QCheckBox("")
+        self.check6 = QCheckBox("")
+        self.check7 = QCheckBox("")
 
         self.ledSelector = QComboBox()
         self.leds_map = zip(xrange(1, 10),
