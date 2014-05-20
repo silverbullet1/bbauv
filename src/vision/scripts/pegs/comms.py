@@ -16,7 +16,10 @@ class Comms(FrontComms):
     isStart = False
     
     # Vision parameters 
-    findRedPeg = True   #Either find red or find blue circle 
+    findYellowBoard = True  # First find yellow board
+    foundYellowBoard = False 
+    findRedPeg = False   #Either find red or find blue circle 
+    foundSomething = False 
     count = 0       # Move up to 4 pegs 
     centroidToPick = None
     

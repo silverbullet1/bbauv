@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 
 from utils.utils import Utils
-from front_commons.frontCommsVision import frontCommsVision as vision
+from front_commons.frontCommsVision import FrontCommsVision as vision
 
 class PegsVision:
     screen = {'width': 640, 'height': 480}
