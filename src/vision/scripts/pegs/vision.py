@@ -21,6 +21,10 @@ class PegsVision:
     blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
+    # Not tested yet 
+    yellowParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
+                  'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
+    
     minContourArea = 5000
     
     def __init__(self, comms = None, debugMode = True):

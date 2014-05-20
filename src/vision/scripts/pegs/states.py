@@ -36,18 +36,18 @@ class Disengage(smach.State):
             rospy.loginfo("Starting Pegs")
         
         return 'start_complete'
-    
-class Search(smach.State):
+
+class SearchYellowBoard(smach.State):
     timeout = 10
     
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['searchYellow_complete', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, ud):
         start = time.time()
         
-        while not self.comms.foundSomething or self.comms.foundYellowBoard:
+        while not self.comms.foundYellowBoard: 
             if self.comms.isKilled:
                 return 'killed'
             if self.comms.isAborted or (time.time() - start) > self.timeout:
@@ -55,97 +55,113 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))
-        
+            rospy.sleep(rospy.Duration(0.3))   
+
         return 'search_complete'
     
+class SearchPegs(smach.State):
+    timeout = 10
+    
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['searchPeg_complete', 'aborted', 'killed'])
+        self.comms = comms
+    
+    def execute(self, ud):
+        start = time.time()
+        
+        while not self.comms.foundSomething: 
+            if self.comms.isKilled:
+                return 'killed'
+            if self.comms.isAborted or (time.time() - start) > self.timeout:
+                self.comms.isAborted = True
+                return 'aborted' 
+            
+            # Search in figure of 8? 
+            rospy.sleep(rospy.Duration(0.3))   
+
+        return 'search_complete'
+
 class MoveForward(smach.State):
-    timeout = 10
     
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'aborted', 'killed'])
         self.comms = comms
     
-    def execute(self, ud):
-        start = time.time()
-        
-        while not self.comms.foundSomething or self.comms.foundYellowBoard:
-            if self.comms.isKilled:
-                return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'aborted' 
+    def execute(self, ud):    
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            self.comms.isAborted = True
+            return 'aborted' 
             
-            # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))
+        if self.comms.areaRect > 10000:
+            return 'forward_complete'
         
-        return 'search_complete'
+        return 'forwarding'
     
 class Centering(smach.State):
-    timeout = 10
     
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
         self.comms = comms
     
-    def execute(self, ud):
-        start = time.time()
-        
-        while not self.comms.foundSomething or self.comms.foundYellowBoard:
-            if self.comms.isKilled:
-                return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'aborted' 
+    def execute(self, ud):        
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            self.comms.isAborted = True
+            return 'aborted' 
             
-            # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))
+        if self.comms.angleError < 0.005:
+            return 'centering_complete'
         
-        return 'search_complete'
+        return 'centering'
 
-class Offset(smach.State):
-    timeout = 10
-    
+class Offset(smach.State):    
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['offset_complete', 'aborted', 'killed'])
         self.comms = comms
     
-    def execute(self, ud):
-        start = time.time()
+    def execute(self, ud):        
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            self.comms.isAborted = True
+            return 'aborted' 
         
-        while not self.comms.foundSomething or self.comms.foundYellowBoard:
-            if self.comms.isKilled:
-                return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'aborted' 
-            
-            # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))
+        # Move robot 
         
-        return 'search_complete'
+        # For offset 
+        self.comms.sendMovement(sidemove = -0.20)
+        return 'offset_complete'
+        
 
-class MovePeg(smach.State):
-    timeout = 10
-    
+class MovePeg(smach.State):    
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['task_complete', 'move_complete', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, ud):
         start = time.time()
         
-        while not self.comms.foundSomething or self.comms.foundYellowBoard:
-            if self.comms.isKilled:
-                return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'aborted' 
-            
-            # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            self.comms.isAborted = True
+            return 'aborted' 
         
-        return 'search_complete'
+        if self.comms.findRedPeg: 
+            # Open grabber to grab peg & wait for response
+            self.comms.findRedPeg = False    
+        elif not self.comms.findRedPeg:
+            # Put back peg & wait for response 
+            self.comms.findRedPeg = True
+            self.comms.count = self.comms.count + 1
+        
+        if self.comms.count == 4:
+            return 'task_complete'
+        
+        return 'move_complete'
 
 def main():
     rospy.init_node('pegs_node', anonymous=False)
@@ -158,9 +174,41 @@ def main():
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
-                                transitions={'start_complete': "SEARCH",
-                                         'killed': 'killed'})
+                                transitions={'start_complete': "SEARCHYELLOW",
+                                             'killed': 'killed'})
+        
+        smach.StateMachine.add("SEARCHYELLOW", SearchYellowBoard(myCom),
+                                transitions={'searchYellow_complete': "CENTERING",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})        
     
+        smach.StateMachine.add("SEARCHPEGS", SearchPegs(myCom),
+                                transitions={'searchPeg_complete': "SEARCHYELLOW",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})       
+    
+        smach.StateMachine.add("MOVEFORWARD", MoveForward(myCom),
+                                transitions={'forwarding': "MOVEFORWARD",
+                                             'forwarding_complete': "CENTERING",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})       
+        
+        smach.StateMachine.add("CENTERING", Centering(myCom),
+                                transitions={'centering': "CENTERING",
+                                             'centering_complete': "OFFSET",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})        
+ 
+        smach.StateMachine.add("OFFSET", Offset(myCom),
+                                transitions={'offset_complete': "MOVEPEG",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})      
+        
+        smach.StateMachine.add("MOVEPEG", MovePeg(myCom),
+                                transitions={'move_complete': "SEARCHPEG",
+                                             'task_complete': "SUCCEEDED",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})      
     #set up introspection Server
     introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/PEGS')
     introServer.start()
