@@ -7,6 +7,7 @@ import math
 import numpy
 
 class FrontCommsVision():
+    screen = { 'width': 640, 'height': 480 }
     
     # For morphological operations 
     @staticmethod
@@ -20,3 +21,8 @@ class FrontCommsVision():
         image = cv2.morphologyEx(image, cv2.MORPH_OPEN, openEl)
 
         return image
+    
+    # For preprocessing 
+    @staticmethod
+    def preprocessImg(self, image):
+        

@@ -16,6 +16,7 @@ from bbauv_msgs.srv import *
 from dynamic_reconfigure.server import Server
 
 from vision import PegsVision
+from Pyste.declarations import self
 
 #Globals
 locomotionGoal = None
@@ -113,6 +114,8 @@ class Centering(smach.State):
             return 'aborted' 
             
         if self.comms.angleError < 0.005:
+            if self.comms.foundYellowBoard:
+                self.comms.timeToFindPegs = True
             return 'centering_complete'
         
         return 'centering'
@@ -155,8 +158,12 @@ class MovePeg(smach.State):
             self.comms.findRedPeg = False    
         elif not self.comms.findRedPeg:
             # Put back peg & wait for response 
+            self.comms.sendMovement(forward = -2.0)     # Reverse
+            
             self.comms.findRedPeg = True
             self.comms.count = self.comms.count + 1
+        
+            # Maybe can reverse to find yellow board again then find next beg
         
         if self.comms.count == 4:
             return 'task_complete'

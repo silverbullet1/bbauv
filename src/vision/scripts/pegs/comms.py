@@ -18,6 +18,8 @@ class Comms(FrontComms):
     # Vision parameters 
     findYellowBoard = True  # First find yellow board
     foundYellowBoard = False 
+    
+    timeToFindPegs = False 
     findRedPeg = True   #Either find red or find blue circle 
     foundSomething = False 
     

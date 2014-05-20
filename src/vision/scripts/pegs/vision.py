@@ -42,6 +42,10 @@ class PegsVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX  = 0)
         
+        if self.comms.findYellowBoard:
+            # Find and center robot to the yellow board first 
+            params = yellowParams 
+        
         if self.comms.findRedPegs:
             # Threshold red 
             params = redParams
@@ -58,6 +62,10 @@ class PegsVision:
         contours, _ = cv2.findContours(stracthImg, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
+        
+        if self.comms.findYellowBoard and len(contours) > 1:
+            self.comms.foundYellowBoard = True
+        
         sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour 
 
         centers = []
