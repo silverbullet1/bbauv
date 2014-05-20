@@ -8,7 +8,7 @@ import actionlib
 import signal
 
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data
+from bbauv_msgs.msg import compass_data, ControllerAction, ControlData
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
