@@ -31,7 +31,7 @@ bool IMU::setup()
 
     std::string stop("printtrigger 0 set drop\r\n");
     std::string mask("printmask time_trigger yawt_trigger or roll_trigger or pitch_trigger or accelp_trigger or gyrop_trigger or temp_trigger or set drop\r\n");
-    std::string rate("printmodulus 1 set drop\r\n");
+    std::string rate("printmodulus 2 set drop\r\n");
     std::string start("printtrigger printmask set drop\r\n");
 
     //imu_data = new bbauv_msgs::imu_data();
@@ -68,6 +68,8 @@ std::string IMU::read()
     boost::erase_all(data, " ");
 
     if(boost::starts_with(data, "P:")){
+        //ROS_INFO("%s\n", data.c_str());
+        //fprintf(stdout, "%s\n", data.c_str());
         return data;
     } else{
         return read();

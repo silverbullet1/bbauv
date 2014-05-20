@@ -59,26 +59,51 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 120
+    timeout = 20
+    defaultWaitingTime = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
-                                              'timeout',
-                                              'aborted'])
+                                             'timeout',
+                                             'aborted'])
         self.comms = comms
+        self.waitingTimeout = self.defaultWaitingTime
 
     def execute(self, userdata):
         start = time.time()
 
-        while not self.comms.retVal or \
-              len(self.comms.retVal['foundLines']) == 0:
-            if self.comms.isKilled or \
-               self.comms.isAborted or \
-               (time.time() - start) > self.timeout:
+        while (not self.comms.retVal or
+               len(self.comms.retVal['foundLines']) == 0):
+            # Waiting to see if lanes found until waitingTimeout
+            if self.comms.isKilled or self.comms.isAborted:
                 self.comms.isAborted = True
                 return 'aborted'
+
+            if (time.time() - start) > self.waitingTimeout:
+                self.waitingTimeout = -1
+                break
+
             rospy.sleep(rospy.Duration(0.3))
 
+        start = time.time()
+        if self.waitingTimeout < 0:
+            # Waiting timeout, start searching pattern until timeout
+            rospy.loginfo("Idling timeout, start searching")
+
+            while (not self.comms.retVal or
+                   len(self.comms.retVal['foundLines']) == 0):
+                if self.comms.isKilled or self.comms.isAborted:
+                    self.comms.isAborted = True
+                    return 'aborted'
+
+                if (time.time() - start) > self.timeout:
+                    self.comms.isAborted = True
+                    return 'aborted'
+
+                self.comms.sendMovement(f=0.2, sm=0.5, blocking=False)
+
+        # Reset waitingTimeout for next time
+        self.waitingTimeout = self.defaultWaitingTime
         return 'foundLanes'
 
 class Stablize(smach.State):

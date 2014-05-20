@@ -64,12 +64,14 @@ class GenericComms:
                                            compass_data,
                                            self.compassCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
+        self.canPublish = True
 
     def unregister(self):
         if self.camSub is not None:
             self.camSub.unregister()
         if self.compassSub is not None:
             self.compassSub.unregister()
+        self.canPublish = False
 
     def camCallback(self, rosImg):
         self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))

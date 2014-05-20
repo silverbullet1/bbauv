@@ -15,5 +15,11 @@ class Comms(GenericComms):
     def handleSrv(self, data):
         pass
 
+    def closeDropper(self):
+        pass
+
+    def openDropper(self):
+        pass
+
 def main():
     testCom = Comms()
