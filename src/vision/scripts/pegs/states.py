@@ -113,7 +113,7 @@ class Centering(smach.State):
             self.comms.isAborted = True
             return 'aborted' 
             
-        if self.comms.angleError < 0.005:
+        if self.comms.deltaX < 0.005:
             if self.comms.foundYellowBoard:
                 self.comms.timeToFindPegs = True
             return 'centering_complete'
@@ -132,9 +132,7 @@ class Offset(smach.State):
             self.comms.isAborted = True
             return 'aborted' 
         
-        # Move robot 
-        
-        # For offset 
+        # Offset robot
         self.comms.sendMovement(sidemove = -0.20)
         return 'offset_complete'
         

@@ -21,6 +21,7 @@ class Comms(FrontComms):
     foundBuoy = False
     centroidToBump = None
     rectArea = 15000
+    deltaX = 10000
     
     # Bumping parameters 
     colourToBump = "RED"

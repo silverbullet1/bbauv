@@ -26,7 +26,7 @@ class Comms(FrontComms):
     count = 0       # Move up to 4 pegs 
     
     centroidToPick = [-1, -1]
-    angleError = 100
+    deltaX = 100
     areaRect = 0
     
     def __init__(self):

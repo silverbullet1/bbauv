@@ -7,10 +7,9 @@ import cv2
 import rospy
 
 from utils.utils import Utils
+from front_commons.frontCommsVision import FrontCommsVision as vision
 
-class RoundVision:
-    screen = {'width': 640, 'height': 480}
-    
+class RoundVision:    
     # Vision parameters
 
         

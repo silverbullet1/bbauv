@@ -11,7 +11,7 @@ class FrontCommsVision():
     
     # For morphological operations 
     @staticmethod
-    def erodeAndDilateImg(self, image, params):
+    def erodeAndDilateImg(image, params):
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['erode'])
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['dilate'])
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['open'])
@@ -24,5 +24,8 @@ class FrontCommsVision():
     
     # For preprocessing 
     @staticmethod
-    def preprocessImg(self, image):
-        
+    def preprocessImg(image):
+        image = cv2.resize(image, (self.screen['width'], self.screen['height']))
+        enhancedImg = cv2.GaussianBlur(image, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(image, 2.5, enhancedImg, -1.5, 0)
+        return enhancedImg        
