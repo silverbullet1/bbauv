@@ -73,7 +73,9 @@ class Centering (smach.State):
         
         if self.comms.rectArea > 15000:
             self.comms.sendMovement(forward=-1.5, wait=True)   #Reverse a bit
-            self.toBangColour = True    # Now we bang the colours
+            if not self.toBangColour:
+                self.comms.navigationRegister()
+                self.toBangColour = True    # Now we bang the colours
             return 'centering_complete'
         
         return 'centering'
@@ -92,18 +94,24 @@ class bangBuoy(smach.State):
             return 'aborted'
   
         # To toggle between buoys
-        if not toBangColour:
+        if toBangColour:
             if self.curHits == self.comms.timesToBump:
                 return 'bang_complete'
+            rospy.loginfo("Banging again")
             self.comms.sendMovement(forward=2.0, wait=True)    #Move forward
             self.comms.sendMovement(forward=-2.0, wait=True)    #Reverse
             self.curHits = self.curHits + 1
+            
+            # Return to original position
+            self.comms.goToPos()
+            
             return 'bang_again'        
   
-        # First time to bang 
-        # Move forward & correct heading 
-        self.comms.sendMovement(forward=1.0)
-        return 'banging'
+        else:
+            # First time to bang 
+            # Move forward & correct heading 
+            self.comms.sendMovement(forward=1.0)
+            return 'banging'
         
         if self.comms.rectArea > 15000:
             return 'bang_to_center'

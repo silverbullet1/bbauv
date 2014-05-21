@@ -23,6 +23,8 @@ class Comms(FrontComms):
     rectArea = 15000
     deltaX = 10000
     
+    rgbCoordinates = (-1, -1)
+    
     # Bumping parameters 
     colourToBump = "RED"
     timesToBump = 3
@@ -50,6 +52,23 @@ class Comms(FrontComms):
             self.unregister()
             
         return mission_to_visionResponse(isStart, isAborted)
+
+    def navigationRegister(self):
+        self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)
+
+    def navigationUnregister(self):
+        self.earth_odom_sub.unregister()
+    
+    def earthOdomCallback(self, data):
+        self.rgbCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
+        self.navigationUnregister()
+        rospy.loginfo("Current coordinate of rgb buoy is: ({},{})".format(self.rgbCoordinates[0], 
+                                                                             self.rgbCoordinates[1]))
+    
+    def goToPos(self):
+        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+        handle(x=self.rgbCoordinates[0], y=self.rgbCoordinates[1])
+        rospy.loginfo("Moving to the center of rgb buoy")
 
 def main():
     testCom = Comms()

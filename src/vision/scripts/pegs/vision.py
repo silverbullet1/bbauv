@@ -31,9 +31,6 @@ class PegsVision:
     
     previousCentroid = []
     
-    # Movement parameters
-    deltaXMult = 5.0
-    
     def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
         self.comms = comms
@@ -48,7 +45,7 @@ class PegsVision:
         #Preprocessing 
         img = vision.preprocessImg(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX  = 0)
+        hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX=0)
         
         if self.comms.findYellowBoard:
             # Find and center robot to the yellow board first 
@@ -127,8 +124,9 @@ class PegsVision:
             self.comms.areaRect = previousArea[count]
                             
         # How far the centroid is off the screen center
-        self.comms.deltaX = (self.screen['width']/2-self.comms.centroidToPick[0]) * self.deltaXMult
+        self.comms.deltaX = (self.screen['width']/2-self.comms.centroidToPick[0]) * self.comms.deltaXMult
         
+        outImg = scratchImg
         return outImg
             
 def main():

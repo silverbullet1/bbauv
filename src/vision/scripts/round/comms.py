@@ -17,9 +17,17 @@ class Comms(FrontComms):
     isStart = False   
     
     # Vision boolean
-    centerCentroid = None 
-    firstCross = True   # First cross, then turn 90 deg, then second cross 
+    centerCentroid = (-1, -1)
     foundSomething = False 
+    
+    foundRed = False
+    foundBlack = False 
+    
+    # Movement parameters
+    firstCross = True   # First cross, then turn 90 deg, then second cross 
+    areaRect = None
+    deltaX = None
+    deltaXMult = 5.0
     
     def __init__(self):
         FrontComms.__init__(self, RoundVision(comms=self))

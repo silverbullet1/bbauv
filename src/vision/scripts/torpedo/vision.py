@@ -22,9 +22,6 @@ class RoundVision:
     
     previousCentroid = []
     previousArea = []
-    
-    # Movement parameters
-    deltaXMult = 5.0
         
     def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
@@ -43,10 +40,10 @@ class RoundVision:
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3,3), sigmaX=0)
         
         # Threshold green and center 
-        greenImg = self.findGreenBoard(img, params)            
+        greenImg = self.findGreenBoard(hsvImg, params)            
         
         # Threshold black
-        blackImg = self.findBlackCircles(img)
+        blackImg = self.findBlackCircles(hsvImg)
         
         outImg = greenImg | blackImg
         
@@ -81,7 +78,7 @@ class RoundVision:
         
         # Find difference with center
         if not self.comms.timeToFindCircles:
-            self.comms.deltaX = (vision.screen['width']/2 - self.comms.greenCentroid[0]) * self.deltaXMult
+            self.comms.deltaX = (vision.screen['width']/2 - self.comms.greenCentroid[0]) * self.comms.deltaXMult
                 
         return scratchImg
     

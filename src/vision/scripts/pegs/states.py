@@ -160,7 +160,8 @@ class MovePeg(smach.State):
             self.comms.findRedPeg = True
             self.comms.count = self.comms.count + 1
         
-            # Maybe can reverse to find yellow board again then find next beg
+            # Reverse to find yellow board again then find next peg
+            self.comms.gotoPos()
         
         if self.comms.count == 4:
             return 'task_complete'

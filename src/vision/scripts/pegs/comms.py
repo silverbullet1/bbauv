@@ -18,6 +18,7 @@ class Comms(FrontComms):
     # Vision parameters 
     findYellowBoard = True  # First find yellow board
     foundYellowBoard = False 
+    yellowCoordinates = (-1, -1)
     
     timeToFindPegs = False 
     findRedPeg = True   #Either find red or find blue circle 
@@ -26,7 +27,8 @@ class Comms(FrontComms):
     count = 0       # Move up to 4 pegs 
     
     centroidToPick = (-1, -1)
-    deltaX = 100
+    deltaX = None
+    deltaXMult = 5.0
     areaRect = 0
     
     def __init__(self):
@@ -52,6 +54,23 @@ class Comms(FrontComms):
             self.unregister()
             
         return mission_to_visionResponse(isStart, isAborted)
+
+    def navigationRegister(self):
+        self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)
+
+    def navigationUnregister(self):
+        self.earth_odom_sub.unregister()
+    
+    def earthOdomCallback(self, data):
+        self.yellowCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
+        self.navigationUnregister()
+        rospy.loginfo("Current coordinate of yellow board is: ({},{})".format(self.yellowCoordinates[0], 
+                                                                             self.yellowCoordinates[1]))
+    
+    def goToPos(self):
+        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+        handle(x=self.yellowCoordinates[0], y=self.yellowCoordinates[1])
+        rospy.loginfo("Moving to the center of yellow board")
 
 def main():
     testCom = Comms()

@@ -130,6 +130,8 @@ class ShootTorpedo(smach.State):
         
         # Shoot once more 
         if self.comms.numShoot is not 2:
+            # Move back to centering of green board 
+            self.comms.gotoPos()
             return 'shoot_again'
         
         return 'shoot_forward_complete'

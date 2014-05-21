@@ -15,6 +15,7 @@ import dynamic_reconfigure.client
 from bbauv_msgs.msg import openups_stats
 from bbauv_msgs.msg import openups
 from batt_msgs.msg import Battery
+
 import math
 from math import pi
 from PyQt4.QtCore import *
@@ -985,11 +986,19 @@ class AUV_gui(QMainWindow):
           resp = self.set_controller_request(False, False, False, False, False, False,False,False)
 
     def goToPosHandler(self):
-        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
-        handle(x=xpos, y=ypos)
         self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
+        
+        bbLock = threading.Lock()
+        try:
+            bbLock.acquire()
+            handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+            handle(x=xpos, y=ypos)
+        except:
+            rospy.logerr("Unable to move to position")
+        finally:
+            bbLock.release()
 
     def homeBtnHandler(self):
         self.status_text.setText("Going home.... (0,0")

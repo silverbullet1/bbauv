@@ -31,10 +31,11 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = (-1, -1)
-    areaRect = 0    
+    areaRect = None   
     
     # Movement parameters
-    deltaX = 100
+    deltaX = None
+    deltaXMult = 5.0
     greenPos = (0, 0)
     
     def __init__(self):
@@ -69,8 +70,15 @@ class Comms(FrontComms):
         self.earth_odom_sub.unregister()
     
     def earthOdomCallback(self, data):
-        greenCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
+        self.greenCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
         self.navigationUnregister()
+        rospy.loginfo("Current coordinate of green board is: ({},{})".format(self.greenCoordinates[0], 
+                                                                             self.greenCoordinates[1]))
+    
+    def goToPos(self):
+        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+        handle(x=self.greenCoordinates[0], y=self.greenCoordinates[1])
+        rospy.loginfo("Moving to the center of green board")
     
 def main():
     testCom = Comms()
