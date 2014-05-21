@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 
 from utils.utils import Utils
-from front_commons.frontCommsVision import frontCommsVision as vision
+from front_commons.frontCommsVision import FrontCommsVision as vision
 
 class PegsVision:
     screen = {'width': 640, 'height': 480}
@@ -21,7 +21,16 @@ class PegsVision:
     blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
+    # Not tested yet 
+    yellowParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
+                  'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
+    
     minContourArea = 5000
+    
+    previousCentroids = []
+    
+    # Movement parameters
+    deltaXMult = 5.0
     
     def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
@@ -29,21 +38,24 @@ class PegsVision:
         
     def gotFrame(self, img):
         #Set up parameters
-        foundLines = []
         centroid = [0, 0]
         outImg = None
         
         #Preprocessing 
-        img = cv2.resize(img, (self.screen['width'], self.screen['height']))
+        img = vision.preprocessImg(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX  = 0)
         
-        if self.comms.findRedPegs:
-            # Threshold red 
-            params = redParams
-        else: 
-            # Threshold blue 
-            params = blueParams
+        if self.comms.findYellowBoard:
+            # Find and center robot to the yellow board first 
+            params = yellowParams 
+        elif self.comms.timeToFindPegs:
+            if self.comms.findRedPegs:
+                # Threshold red 
+                params = redParams
+            else: 
+                # Threshold blue 
+                params = blueParams
         
         # Perform thresholding
         binImg = cv2.inRange(image, params['lo'], params['hi'])
@@ -51,27 +63,62 @@ class PegsVision:
         
         # Find contours 
         scratchImg = binImg.copy()
-        contours, _ = cv2.findContours(stracthImg, cv2.RETR_EXTERNAL,
+        contours, _ = cv2.findContours(stratchImg, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
-        sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour 
-
-        centers = []
-        radii = []
-        for contour in contours:
-            # Radius
-            radii.append(cv2.boundingRect(contour)[2])
-            
-            # Circle 
-            mu = cv2.moments(contour)
-            muArea = mu['m00']
-            centers.append((mu['m10']/muArea, mu['m01']/muArea))
         
-        # Draw the circles and centers 
-        radius = int(np.average(radii)) + 5     # Just a random radius hack
-        for center in centers:
-            cv2.circle(stratchImg, center, 3, (255, 0, 0), -1)
-            cv2.circle(scratchImg, center, radius, (0, 255, 0), 1)
+        sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour 
+        
+        # Finding center of yellow board 
+        if self.comms.findYellowBoard and len(contours) > 1:
+            self.comms.foundYellowBoard = True
+            mu = cv2.moments(contours[0])
+            muArea = mu['m00']
+            self.comms.centroidToPick = ((mu['m10']/muArea, mu['m01']/muArea))
+            self.comms.areaRect = cv2.minAreaRect(contours[0])
+
+        else:
+            centers = []
+            radii = []
+            areas = []
+            for contour in contours:
+                # Radius
+                radii.append(cv2.boundingRect(contour)[2])
+                # Area
+                areas.append(cv2.minAreaRect(contour))
+                
+                # Circle 
+                mu = cv2.moments(contour)
+                muArea = mu['m00']
+                centers.append((mu['m10']/muArea, mu['m01']/muArea))
+            
+            # Draw the circles and centers 
+            radius = int(np.average(radii)) + 5     # Just a random radius hack
+            for center in centers:
+                cv2.circle(stratchImg, center, 3, (255, 0, 0), -1)
+                cv2.circle(scratchImg, center, radius, (0, 255, 0), 1)
+        
+            # Compare to previous centroids and pick the nth one 
+            if len(self.previousCentroids) > 0:
+                distToPrevCentroid = []
+                contourArea = []         # Keeping track of current contour area
+                
+                for previousCentroid in self.previousCentroid:
+                    for i in range(len(centers)):
+                        distCenter = []
+                        distCenter.append(Utils.distBetweenPoints(
+                                            previousCentroid, centers[i]))
+                    minIndex = distCenter.index(min(distCenter))
+                    previousCentroid['centroid'] = (distCenter[minIndex][0], distCenter[minIndex][1])
+                    contourArea.append(areas[i])
+                  
+                self.comms.centroidToPick = previousCentroid[count]
+                self.comms.areaRect = contourArea[count]
+            
+            self.previousCentroids = centers
+                
+        # How far the centroid is off the screen center
+        self.comms.deltaX = (self.screen['width']/2-self.comms.centroidToPick[0]) * self.deltaXMult
         
         return outImg
             

@@ -21,7 +21,6 @@ from dynamic_reconfigure.server import Server
 locomotionGoal = None
 toBangColour = False
 
-
 class Disengage(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['start_complete', 'killed'])
@@ -33,7 +32,7 @@ class Disengage(smach.State):
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
         
-        if isTesting:
+        if self.comms.isTesting:
             self.comms.register()
             rospy.loginfo("Starting RGB")
         
