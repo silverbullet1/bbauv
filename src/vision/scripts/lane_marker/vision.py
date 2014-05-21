@@ -9,10 +9,10 @@ class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
-    hsvLoThresh1 = (0, 0, 0)
-    hsvHiThresh1 = (30, 255, 255)
+    hsvLoThresh1 = (1, 0, 0)
+    hsvHiThresh1 = (35, 255, 255)
     hsvLoThresh2 = (165, 0, 0)
-    hsvHiThresh2 = (180, 255, 255)
+    hsvHiThresh2 = (179, 255, 255)
     minContourArea = 5000
 
     houghDistRes = 2
@@ -174,7 +174,7 @@ class LaneMarkerVision:
                 endpt = (int(startpt[0] + 100 * math.cos(gradient)),
                          int(startpt[1] + 100 * math.sin(gradient)))
                 startpt = (int(startpt[0]), int(startpt[1]))
-                angleStr = "{0:.2f}".format(line['angle'])
+                angleStr = "{0:.2f}".format(Utils.toHeadingSpace(line['angle']))
 
                 cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
                 cv2.circle(outImg, startpt, 3, (0, 0, 255), 1)

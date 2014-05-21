@@ -1,5 +1,6 @@
-import rospy
+import time
 
+import rospy
 import smach, smach_ros
 
 from comms import Comms
@@ -21,14 +22,24 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
+    timeout = 10
+
     def __init__(self, comms):
-        smach.StateMachine.__init__(outcomes=['foundLanes',
+        smach.StateMachine.__init__(outcomes=['foundSamples',
                                               'timeout',
                                               'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
-        pass
+        start = time.time()
+
+        while not self.comms.retVal or \
+              len (self.comms.retVal['centroids']) < 1:
+            if time.time() - start > self.timeout:
+                self.comms.isAborted = True
+                return 'timeout'
+            rospy.sleep(rospy.Duration(0.3))
+
 
 def main():
     rospy.init_node('pickup_node')
@@ -36,14 +47,14 @@ def main():
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
-        smach.StateMachine.add('DISENAGE',
+        smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
                                transitions={'started':'SEARCH',
                                             'killed':'killed'})
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
-                               transitions={'foundLanes':'',
-                                            'timeout':'',
+                               transitions={'foundSamples':'',
+                                            'timeout':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
 
     introServer = smach_ros.IntrospectionServer('mission_server',

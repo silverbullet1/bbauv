@@ -7,7 +7,7 @@ import cv2
 import rospy
 
 from utils.utils import Utils
-from front_commons.frontCommsVision import frontCommsVision as vision
+from front_commons.frontCommsVision import FrontCommsVision as vision
 
 class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
