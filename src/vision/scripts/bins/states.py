@@ -1,10 +1,11 @@
 import rospy
-
 import smach, smach_ros
 
 from utils.utils import Utils
 from comms import Comms
 from vision import BinsVision
+
+import time
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -25,6 +26,8 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
+    timeout = 1000
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
                                              'timeout',
@@ -32,9 +35,14 @@ class Search(smach.State):
         self.comms = comms
 
     def execute(self, userdata):
+        start = time.time()
+
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
             if self.comms.isKilled or self.comms.isAborted:
+                return 'aborted'
+            if time.time() - start > self.timeout:
+                self.comms.isAborted = True
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
@@ -63,8 +71,8 @@ class Center(smach.State):
         if self.comms.isAborted or self.comms.isKilled:
             return 'aborted'
 
-        if not self.comms.rectVal or \
-           len(self.comms.rectVal['matches']) == 0:
+        if not self.comms.retVal or \
+           len(self.comms.retVal['matches']) == 0:
             return 'lost'
 
         matches = self.comms.retVal['matches']
@@ -98,10 +106,7 @@ class Fire(smach.State):
         if self.comms.isAborted or self.comms.isKilled:
             return 'aborted'
 
-        self.comms.openDropper()
-        rospy.sleep(rospy.Duration(0.5))
-        self.comms.closeDropper()
-
+        self.comms.drop()
         return 'completed'
 
 
@@ -137,4 +142,5 @@ def main():
     introServer.start()
 
     sm.execute()
+    rospy.signal_shutdown("lane_marker task ended")
 

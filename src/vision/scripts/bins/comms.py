@@ -1,5 +1,7 @@
 import rospy
 
+from bbauv_msgs.msg import manipulator
+
 from vision import BinsVision
 from bot_common.bot_comms import GenericComms
 
@@ -15,11 +17,9 @@ class Comms(GenericComms):
     def handleSrv(self, data):
         pass
 
-    def closeDropper(self):
-        pass
-
-    def openDropper(self):
-        pass
+    def drop(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 8)
 
 def main():
     testCom = Comms()
