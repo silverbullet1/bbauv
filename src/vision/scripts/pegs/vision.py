@@ -25,9 +25,11 @@ class PegsVision:
     yellowParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
+    circleParams = {'minRadius': 0, 'maxRadius': 0}
+    
     minContourArea = 5000
     
-    previousCentroids = []
+    previousCentroid = []
     
     # Movement parameters
     deltaXMult = 5.0
@@ -38,7 +40,9 @@ class PegsVision:
         
     def gotFrame(self, img):
         #Set up parameters
-        centroid = [0, 0]
+        allCentroidList = []
+        allAreaList = []
+        
         outImg = None
         
         #Preprocessing 
@@ -74,49 +78,54 @@ class PegsVision:
             self.comms.foundYellowBoard = True
             mu = cv2.moments(contours[0])
             muArea = mu['m00']
-            self.comms.centroidToPick = ((mu['m10']/muArea, mu['m01']/muArea))
-            self.comms.areaRect = cv2.minAreaRect(contours[0])
+            self.comms.centroidToPick = (mu['m10']/muArea, mu['m01']/muArea)
+            self.comms.areaRect = cv2.contourArea(contours[0])
 
         else:
-            centers = []
-            radii = []
-            areas = []
+            # Find Hough circles
+            circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
+                                       minDist=30, param1=100, param2=15,
+                                       minRadius = self.circleParams['minRadius'],
+                                       maxRadius = self.circleParams['maxRadius'])
+            
+            # Check if centroid of contour is inside a circle
             for contour in contours:
-                # Radius
-                radii.append(cv2.boundingRect(contour)[2])
-                # Area
-                areas.append(cv2.minAreaRect(contour))
-                
-                # Circle 
                 mu = cv2.moments(contour)
                 muArea = mu['m00']
-                centers.append((mu['m10']/muArea, mu['m01']/muArea))
+                centroid = (mu['m10']/muArea, mu['m01']/muArea)
+                
+                for circle in circles[0,:,:]:
+                    circleCentroid = (circle[0], circle[1])
+                    if abs((Utils.distBetweenPoints(centroid, circleCentroid))) < circle[2]:
+    
+                        # Find new centroid by averaging the centroid and the circle centroid
+                        newCentroid = ((centroid[0]+circleCentroid[0])/2, (centroid[1]+circleCentroid[1])/2)
+                        allCentroidList.append(newCentroid)
+                        allAreaList.append(cv2.contourArea(contour))
+                        
+                        # Draw Circles
+                        cv2.circle(scratchImg, newCentroid, circle[2], (255, 255, 0), 2)
+                        cv2.circle(scratchImg, newCentroid, 2, (255, 0, 255), 3)
+                        
+                        break            
             
-            # Draw the circles and centers 
-            radius = int(np.average(radii)) + 5     # Just a random radius hack
-            for center in centers:
-                cv2.circle(stratchImg, center, 3, (255, 0, 0), -1)
-                cv2.circle(scratchImg, center, radius, (0, 255, 0), 1)
-        
             # Compare to previous centroids and pick the nth one 
-            if len(self.previousCentroids) > 0:
-                distToPrevCentroid = []
-                contourArea = []         # Keeping track of current contour area
-                
+            if len(self.previousCentroids) == 0:
+                self.previousCentroid = allCentroidList
+                self.previousArea = allAreaList
+            else:                
                 for previousCentroid in self.previousCentroid:
-                    for i in range(len(centers)):
+                    for i in range(len(allCentroidList)):
                         distCenter = []
-                        distCenter.append(Utils.distBetweenPoints(
-                                            previousCentroid, centers[i]))
+                        distCenter.append(abs((Utils.distBetweenPoints(
+                                            previousCentroid, centers[i]))))
                     minIndex = distCenter.index(min(distCenter))
-                    previousCentroid['centroid'] = (distCenter[minIndex][0], distCenter[minIndex][1])
-                    contourArea.append(areas[i])
+                    self.previousCentroid[minIndex] = (distCenter[minIndex][0], distCenter[minIndex][1])
+                    self.previousArea[minIndex] = allAreaList[minIndex]
                   
-                self.comms.centroidToPick = previousCentroid[count]
-                self.comms.areaRect = contourArea[count]
-            
-            self.previousCentroids = centers
-                
+            self.comms.centroidToPick = previousCentroid[count]
+            self.comms.areaRect = previousArea[count]
+                            
         # How far the centroid is off the screen center
         self.comms.deltaX = (self.screen['width']/2-self.comms.centroidToPick[0]) * self.deltaXMult
         

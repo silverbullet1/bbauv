@@ -9,14 +9,13 @@ import rospy
 
 import smach, smach_ros
 
-from comms import Comms
+from front_commons.frontComms import FrontComms
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from dynamic_reconfigure.server import Server
 
 from vision import PegsVision
-from Pyste.declarations import self
 
 #Globals
 locomotionGoal = None

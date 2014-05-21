@@ -70,8 +70,8 @@ class RgbBuoyVision:
             for i in range(len(self.allCentroidList)):
                 distPrevCentroid = []
                 for previousCentroid in self.previousCentroid:
-                    distPrevCentroid.append(Utils.distBetweenPoints(
-                                        previousCentroid, self.allCentroidList[i]))
+                    distPrevCentroid.append(abs(Utils.distBetweenPoints(
+                                        previousCentroid, self.allCentroidList[i])))
                     minIndex = distPrevCentroid.index(min(distPrevCentroid))
                     self.previousCentroid[minIndex] = self.allCentroidList[i]
                     self.previousArea[minIndex] = self.allAreaList[i]
@@ -116,20 +116,18 @@ class RgbBuoyVision:
         self.allAreaList = []
         
         for contour in contours:
-            insideCircle = False
             mu = cv2.moments(contour)
             muArea = mu['m00']
-            centroid = ((mu['m10']/muArea, mu['m01']/muArea))
+            centroid = (mu['m10']/muArea, mu['m01']/muArea)
             
             for circle in circles[0,:,:]:
                 circleCentroid = (circle[0], circle[1])
-                if (Utils.distBetweenPoints(centroid, circleCentroid)) < circle[2]:
-                    insideCircle = True
+                if abs((Utils.distBetweenPoints(centroid, circleCentroid))) < circle[2]:
 
                     # Find new centroid by averaging the centroid and the circle centroid
                     self.allCentroidList.append((centroid[0]+circleCentroid[0])/2, 
                                         (centroid[1]+circleCentroid[1])/2)
-                    self.allAreaList.append(cv2.minAreaRect(contour))
+                    self.allAreaList.append(cv2.contourArea(contour))
                     
                     # Draw Circles
                     cv2.circle(scratchImg, (circle[0], circle[1]), circle[2], (255, 255, 0), 2)
