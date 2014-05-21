@@ -43,7 +43,7 @@ class RoundVision:
         greenImg = self.findGreenBoard(hsvImg, params)            
         
         # Threshold black
-        blackImg = self.findBlackCircles(hsvImg)
+        blackImg = self.findBlackCircles(img)
         
         outImg = greenImg | blackImg
         

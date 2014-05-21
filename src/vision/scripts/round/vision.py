@@ -46,7 +46,7 @@ class RoundVision:
         redImg = self.thresholdRed(hsvImg)
         
         # Then threshold black 
-        blackImg = self.thresholdBlack(hsvImg)
+        blackImg = self.thresholdBlack(img)
     
         # Find the center centroids of the two centroids 
         if self.redCentroid is not None and \
@@ -54,9 +54,9 @@ class RoundVision:
             self.comms.centerCentroid = ((self.redCentroid[0]+self.blackCentroid[1])/2, 
                                          (self.redCentroid[1]+self.blackCentroid[1])/2)
         elif self.redCentroid is None and self.blackCentroid is not None:
-            pass
+            self.comms.deltaX = (vision.screen['width']-self.blackCentroid[0]) * self.comms.deltaXMult
         elif self.blackCentroid is None and self.redCentroid is not None:
-            pass        
+            self.comms.deltaX = (vision.screen['width']-self.redCentroid[0]) * self.comms.deltaXMult
         else:
             self.comms.centerCentroid = (vision.screen['width']/2, vision.screen['height']/2)
         
@@ -78,6 +78,42 @@ class RoundVision:
         if len(contours) > 0:
             self.comms.foundRed = True
             
+        # Center of largest contour
+        largestContour = contours[0]
+        mu = cv2.moments(largestContour, False)
+        muArea = mu['m00']
+        self.redCentroid = (mu['m10']/ muArea, mu['m01']/muArea)
+        self.redArea = cv2.contourArea(largestContour)
+        
+        # Draw contour and centroid
+        cv2.circle(scratchImg, self.redCentroid, 3, (255, 255, 0), 2)
+        points = np.array(cv2.cv.BoxPoints(cv2.minAreaRect(largestContour)))
+        
+        for i in range(4):
+            pt1 = (int(points[i][0]), int(points[i][1]))
+            pt2 = (int(points[(i+1)%4][0]), int(points[(i+1)%4][1]))
+            cv2.line(scratchImg, pt1, pt2, (255, 255, 255))
+        
+        return scratchImg
+    
+    def thresholdBlack(self, image):
+        grayImg = cv2.cvtColor(image, cv2.cvtColor.CV_BGR2GRAY)
+        grayImg = cv2.resize(grayImg, dsize=(vision.screen['width'], vision.screen['height']))
+        
+        # Calcualate adaptive threshold value
+        mean = cv2.mean(grayImg)[0]
+        lowest = cv2.minMaxLoc(grayImg)[0]
+        self.blackThVal = min((mean+lowest)/ 3.99, self.blackParams['hi'])
+        rospy.logdebug(self.blackThVal)          
+        
+        # Threshold and noise removal
+        grayImg = cv2.threshold(grayImg, self.blackThVal, 255, cv2.THRESH_BINARY_INV)[1]
+        grayImg = vision.erodeAndDilateImg(grayImg, self.blackParams)
+        
+        # Find contours 
+        scratchImg = grayImg.copy()
+        contours = vision.findAndSortContours(scratchImg)  
+        
         # Center of largest contour
         largestContour = contours[0]
         mu = cv2.moments(largestContour, False)
