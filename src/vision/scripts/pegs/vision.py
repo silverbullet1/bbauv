@@ -18,7 +18,7 @@ class PegsVision:
     redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
                  'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     
-    blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
+    blueParams = {'lo': (72, 184, 2), 'hi': (114, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
     # Not tested yet 

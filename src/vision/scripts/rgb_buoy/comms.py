@@ -31,6 +31,7 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
+        self.colourToBump = rospy.get_param("~color", "RED")
         
     # Handle mission services
     def handle_srv(self, req):

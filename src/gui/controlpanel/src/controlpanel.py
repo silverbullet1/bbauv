@@ -737,15 +737,15 @@ class AUV_gui(QMainWindow):
         else:
             mani_name[6] = "FALSE"
 
-        self.saPanel3.setText("<b>LD: " + mani_name[0] +
-                              "<br> RD: " + mani_name[1] +
-                              "<br> LT: " + mani_name[2] +
-                              "<br> RT: " + mani_name[3] +
+        self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
+                              "<br>Top Tor: " + mani_name[1] +
+                              "<br>Grabber: " + mani_name[2] +
+                              "<br>Dropper: " + mani_name[3] +
                               "</b>")
 
-        self.saPanel4.setText("<b>GA: " + mani_name[4] +
-                              "<br>LR: " + mani_name[5] +
-                              "<br>ROT: " + mani_name[6] +
+        self.saPanel4.setText("<b>: " + mani_name[4] +
+                              "<br>: " + mani_name[5] +
+                              "<br>: " + mani_name[6] +
                               "</b>")
 
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB
@@ -964,6 +964,7 @@ class AUV_gui(QMainWindow):
 
         params = {'depth_offset': self.data['depth']}
         config = self.controller_client.update_configuration(params)
+        rospy.loginfo("Depth calibrated")
         self.status_text.setText("Depth calibrated!! :) ")
 
     def sidemove_revHandler(self):
@@ -1202,17 +1203,18 @@ class AUV_gui(QMainWindow):
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
         # Convert from ROS Image to old OpenCV image
-        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        frame = self.bridge.imgmsg_to_cv(ros_image, desired_encoding="bgr8")
         # Convert from old OpenCV image trackbarnameto Numpy matrix
         return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
 
     def update_video_front(self,image):
         #convert numpy mat to pixmap image
-        cvRGBImg_front = self.drawReticle(self.rosimg2cv(image))
+        cvBGRImg_front = self.drawReticle(self.rosimg2cv(image))
         #cv2.cvtColor(self.drawReticle(self.rosimg2cv(image)), cv2.cv.CV_BGR2RGB)
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
+            cvRGBImg_front = cv2.cvtColor(cvBGRImg_front, cv2.COLOR_BGR2RGB)
             qimg = QImage(cvRGBImg_front.data,cvRGBImg_front.shape[1], cvRGBImg_front.shape[0], QImage.Format_RGB888)
         finally:
             bbLock.release()
@@ -1230,9 +1232,8 @@ class AUV_gui(QMainWindow):
         self.vision_filter_frame.update_image_filter(image)
 
     def update_video_bot(self,image):
-        cvRGBImg_bot = self.rosimg2cv(image)
-        #cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
-        ####
+        cvBGRImg_bot = self.rosimg2cv(image)
+        cvRGBImg_bot = cv2.cvtColor(cvBGRImg_bot, cv2.COLOR_BGR2RGB)
         qimg = QImage(cvRGBImg_bot.data,cvRGBImg_bot.shape[1], cvRGBImg_bot.shape[0], QImage.Format_RGB888)
         qpm = QPixmap.fromImage(qimg)
         self.video_bot.setPixmap(qpm.scaledToHeight(250))

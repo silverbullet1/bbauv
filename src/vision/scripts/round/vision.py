@@ -62,7 +62,9 @@ class RoundVision:
         
         # Find offset from the screen center and make a multiplier for movement
         self.comms.deltaX = (vision.screen['width']/2-self.comms.centerCentroid[0]) * self.comms.deltaXMult
-        
+        cv2.putText(contourImg, str(self.comms.deltaX), (30,30), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+                    
         outImg = redImg | blackImg 
            
         return outImg 
