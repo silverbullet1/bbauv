@@ -71,12 +71,12 @@ class BinsVision:
         return ret
 
     def classify(self, match):
-        """ Classify a match -> {aline, centroid, contour}
+        """ Classify a match -> {alienContour, centroid, contour}
             into an alien category """
         rval = None
         closestMatch = float("inf")
         for alien in self.aliens:
-            humatch = cv2.matchShapes(alien, match['alien']) 
+            humatch = cv2.matchShapes(alien, match['alien'])
             if humatch < closestMatch:
                 closestMatch = humatch
                 rval = alien
