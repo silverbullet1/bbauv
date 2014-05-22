@@ -21,7 +21,7 @@ class Comms(FrontComms):
     yellowCoordinates = (-1, -1)
     
     timeToFindPegs = False 
-    findRedPeg = True   #Either find red or find blue circle 
+    findRedPeg = False   #Either find red or find blue circle 
     foundSomething = False 
     
     count = 0       # Move up to 4 pegs 

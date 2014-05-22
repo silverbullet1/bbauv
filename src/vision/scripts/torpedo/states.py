@@ -7,7 +7,8 @@ import rospy
 
 import smach, smach_ros
 
-from front_commons.frontComms import FrontComms
+from comms import Comms
+import time
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
@@ -29,9 +30,9 @@ class Disengage(smach.State):
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
         
-        if isTesting:
+        if self.comms.isAlone:
             self.comms.register()
-            rospy.loginfo("Starting Round")
+            rospy.loginfo("Starting Torpedo")
         
         return 'start_complete'
     
@@ -77,7 +78,7 @@ class SearchCircles(smach.State):
             # Search in figure of 8? 
             rospy.sleep(rospy.Duration(0.3))   
 
-        return 'search_complete'
+        return 'searchCircles_complete'
 
 class MoveForward(smach.State):
     def __init__(self, comms):
@@ -99,7 +100,7 @@ class MoveForward(smach.State):
 # Precise movements when near centroid
 class Centering (smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted' 'killed'])
+        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, userdata):
@@ -119,7 +120,7 @@ class Centering (smach.State):
 # Shoot torpedo forward
 class ShootTorpedo(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['shoot_again', 'shoot_complete', 'aborted' 'killed'])
+        smach.State.__init__(self, outcomes=['shoot_again', 'shoot_complete', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, userdata):
@@ -148,7 +149,7 @@ def main():
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
-                                transitions={'start_complete': "SEARCH",
+                                transitions={'start_complete': "SEARCHCIRCLES",
                                          'killed': 'killed'})
     
         smach.StateMachine.add("SEARCHGREEN", SearchGreenBoard(myCom),
@@ -157,25 +158,25 @@ def main():
                                              'killed': 'killed'})        
     
         smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
-                                transitions={'searchCircles_complete': "SEARCHYELLOW",
+                                transitions={'searchCircles_complete': "SEARCHGREEN",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})      
         
         smach.StateMachine.add("MOVEFORWARD", MoveForward(myCom),
                                 transitions={'forwarding': "MOVEFORWARD",
-                                             'forwarding_complete': "CENTERING",
+                                             'forward_complete': "CENTERING",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})       
         
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                 transitions={'centering': "CENTERING",
-                                             'centering_complete': "OFFSET",
+                                             'centering_complete': "SHOOTING",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})  
         
         smach.StateMachine.add("SHOOTING", ShootTorpedo(myCom),
                                 transitions={'shoot_again': "SEARCHCIRCLES",
-                                             'shoot_complete': "SUCCEEDED",
+                                             'shoot_complete': 'succeeded',
                                              'aborted': 'aborted',
                                              'killed': 'killed'})     
     
@@ -184,5 +185,4 @@ def main():
     introServer.start()
     
     sm.execute()
-    rospy.loginfo(outcomes)
         

@@ -34,9 +34,11 @@ class Comms(FrontComms):
     areaRect = None   
     
     # Movement parameters
+    greenPos = (0, 0)
+    
+    radius = None
     deltaX = None
     deltaXMult = 5.0
-    greenPos = (0, 0)
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
