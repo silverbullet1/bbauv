@@ -25,6 +25,8 @@ class FrontCommsVision():
     # For preprocessing 
     @staticmethod
     def preprocessImg(image):
+        # Cut out reflection
+        image = image[self.screen['height']/4:(self.screen['height'])*3/4,0:self.screen['width'],:]
         image = cv2.resize(image, (self.screen['width'], self.screen['height']))
         enhancedImg = cv2.GaussianBlur(image, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(image, 2.5, enhancedImg, -1.5, 0)

@@ -114,6 +114,10 @@ class bangBuoy(smach.State):
             return 'banging'
         
         if self.comms.rectArea > 15000:
+            # First bang -- lock in coordinates 
+            if not toBangColour:
+                self.comms.navigationRegister()
+            
             return 'bang_to_center'
 
 def main():
@@ -143,7 +147,7 @@ def main():
         
         smach.StateMachine.add("BANGBUOY", bangBuoy(myCom),
                                transitions={'banging': "BANGBUOY",
-                                            'bangToCenter': "CENTERING",
+                                            'bang_to_center': "CENTERING",
                                             'bang_complete': "DISENGAGE",
                                             'aborted': 'aborted',
                                             'killed': 'killed'})

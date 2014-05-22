@@ -11,7 +11,7 @@ from front_commons.frontCommsVision import FrontCommsVision as vision
 
 class RoundVision:    
     # Vision parameters
-    greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
+    greenParams = {'lo': (24, 93, 228), 'hi': (55, 187, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     
     blackParams = {'lo': 30, 'hi': 70, 'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
@@ -40,12 +40,14 @@ class RoundVision:
         hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3,3), sigmaX=0)
         
         # Threshold green and center 
-        greenImg = self.findGreenBoard(hsvImg, params)            
+        #greenImg = self.findGreenBoard(hsvImg, params)            
+        #outImg = greenImg
         
         # Threshold black
-        blackImg = self.findBlackCircles(hsvImg)
+        blackImg = self.findBlackCircles(img)
+        outImg = blackImg
         
-        outImg = greenImg | blackImg
+        #outImg = greenImg | blackImg
         
         return outImg 
     
@@ -79,6 +81,8 @@ class RoundVision:
         # Find difference with center
         if not self.comms.timeToFindCircles:
             self.comms.deltaX = (vision.screen['width']/2 - self.comms.greenCentroid[0]) * self.comms.deltaXMult
+            cv2.putText(contourImg, str(self.comms.deltaX), (30,30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
                 
         return scratchImg
     
@@ -152,6 +156,8 @@ class RoundVision:
             self.comms.areaRect = previousArea[self.comms.count]
             # How far the centroid is off center
             self.comms.deltaX = (vision.screen['width']/2 - self.comms.centroidToShoot[0]) * self.deltaXMult
+            cv2.putText(contourImg, str(self.comms.deltaX), (30,30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
         
         return scratchImg
     
