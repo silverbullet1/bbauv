@@ -103,11 +103,20 @@ class BinsVision:
 
         if self.debugMode:
             outImg1 = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
+            # Draw the aiming rectangle
+            midX = self.screen['width'] / 2.0
+            midY = self.screen['height'] / 2.0
+            maxDeltaX = self.screen['width'] * 0.03
+            maxDeltaY = self.screen['height'] * 0.03
+            cv2.rectangle(outImg1,
+                          (int(midX - maxDeltaX), int(midY - maxDeltaY)),
+                          (int(midX + maxDeltaX), int(midY + maxDeltaY)),
+                          (0, 255, 0), 1)
 
         scratchImg = binImg.copy()
         alienContours = self.findContourAndBound(scratchImg,
-                                            bounded=True,
-                                            minArea=self.minContourArea)
+                                                 bounded=True,
+                                                 minArea=self.minContourArea)
         #if not contours or len(contours) < 1: return retData, outImg
         sorted(alienContours, key=cv2.contourArea, reverse=True)
 
@@ -124,11 +133,12 @@ class BinsVision:
         # Threshold and find contours that represent the black bins
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         grayImg = cv2.equalizeHist(grayImg)
-        outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
         thVal = min((lowest + mean)/3.99, self.upperThresh)
         grayImg = cv2.threshold(grayImg, thVal, 255, cv2.THRESH_BINARY_INV)[1]
+        if self.debugMode == True:
+            outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
 
         contours = self.findContourAndBound(grayImg, minArea=self.areaThresh)
         sorted(contours, key=cv2.contourArea, reverse=True)
@@ -146,6 +156,12 @@ class BinsVision:
         # Classify each alien
         classes = [self.classify(match) for match in retData['matches']]
         retData['classes'] = classes
+
+        for match in enumerate(matches):
+            center = match[1]['centroid']
+            cv2.putText(outImg,
+                        classes[match[0]], (int(center[0]), int(center[1])),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
         outImg = np.vstack((outImg1, outImg2))
         return retData, outImg

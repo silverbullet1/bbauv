@@ -4,12 +4,13 @@ import rospy
 import smach, smach_ros
 
 from comms import Comms
+from vision import PickupVision
 
 """ The entry script and smach StateMachine for the task"""
 
 class Disengage(smach.State):
     def __init__(self, comms):
-        smach.StateMachine.__init__(outcomes=['started', 'killed'])
+        smach.State.__init__(outcomes=['started', 'killed'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -25,7 +26,7 @@ class Search(smach.State):
     timeout = 10
 
     def __init__(self, comms):
-        smach.StateMachine.__init__(outcomes=['foundSamples',
+        smach.State.__init__(outcomes=['foundSamples',
                                               'timeout',
                                               'aborted'])
         self.comms = comms
@@ -39,6 +40,18 @@ class Search(smach.State):
                 self.comms.isAborted = True
                 return 'timeout'
             rospy.sleep(rospy.Duration(0.3))
+
+        return 'foundSamples'
+
+class Center(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(outcomes=['centered',
+                                      'lost',
+                                      'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        pass 
 
 
 def main():
