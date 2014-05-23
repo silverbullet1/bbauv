@@ -10,6 +10,7 @@ import cv2
 
 from utils.utils import Utils
 from front_commons.frontCommsVision import FrontCommsVision as vision
+import rospy
 
 class PegsVision:
     screen = {'width': 640, 'height': 480}
@@ -39,6 +40,7 @@ class PegsVision:
         #Set up parameters
         allCentroidList = []
         allAreaList = []
+        self.comms.foundSomething = False 
         
         outImg = None
         
@@ -77,7 +79,6 @@ class PegsVision:
 #         else:
 
         # Find Hough circles
-        
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
         circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
@@ -90,12 +91,16 @@ class PegsVision:
             mu = cv2.moments(contour)
             muArea = mu['m00']
             centroid = (mu['m10']/muArea, mu['m01']/muArea)
-                
+            
+            if circles is None:
+                self.comms.foundSomething = False 
+                return scratchImgCol
+            
             for circle in circles[0,:,:]:
                 circleCentroid = (circle[0], circle[1])
 #                 print abs((Utils.distBetweenPoints(centroid, circleCentroid))), circle[2]
                 if abs((Utils.distBetweenPoints(centroid, circleCentroid))) < circle[2]:
-    
+                    self.comms.foundSomething = True
                     # Find new centroid by averaging the centroid and the circle centroid
                     newCentroid = (int(centroid[0]+circleCentroid[0])/2, 
                                    int(centroid[1]+circleCentroid[1])/2)
@@ -113,13 +118,13 @@ class PegsVision:
             self.previousCentroids = allCentroidList
             self.previousArea = allAreaList
         else:                
-            for previousCentroid in self.previousCentroid:
+            for previousCentroid in self.previousCentroids:
                 for i in range(len(allCentroidList)):
                     distCenter = []
-                    distCenter.append(abs((Utils.distBetweenPoints(
-                                        previousCentroid, centers[i]))))
+                    distCenter.append(Utils.distBetweenPoints(
+                                        previousCentroid, allCentroidList[i]))
                 minIndex = distCenter.index(min(distCenter))
-                self.previousCentroid[minIndex] = (distCenter[minIndex][0], distCenter[minIndex][1])
+                self.previousCentroids[minIndex] = allCentroidList[minIndex]
                 self.previousArea[minIndex] = allAreaList[minIndex]
         
         self.comms.centroidToPick = self.previousCentroids[self.comms.count]

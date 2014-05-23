@@ -120,8 +120,12 @@ class TorpedoVision:
                                    minDist=5, param1=350, param2=44,
                                    minRadius = 0,
                                    maxRadius = self.circleParams['maxRadius'])
-
-        if circles is not None:    
+        
+        if circles is None:
+            #TODO: Add a counter to eliminate false positives 
+            self.comms.foundCircles = False
+        
+        elif circles is not None:    
             self.comms.foundCircles = True
             for circle in circles[0,:,:]:
                 circleCentroid = (circle[0], circle[1])
@@ -130,63 +134,36 @@ class TorpedoVision:
                         
                 # Draw Circles
                 cv2.circle(scratchImgCol, (circle[0], circle[1]), circle[2], (255, 255, 0), 2)
-                cv2.circle(scratchImgCol, (circle[0], circle[1]), 2, (255, 0, 255), 3)        
+                cv2.circle(scratchImgCol, (circle[0], circle[1]), 2, (255, 0, 255), 3)      
+                  
+            # Compare to previous centroid and pick the nth one 
+            if len(self.previousCentroid) == 0:
+                self.previousCentroid = allCentroidList
+                self.previousRadius = allRadiusList
+                # First time: Can find the center of all the circles for center position
+    #             self.comms.centerPos = (mean(self.comms.allCentroidList[0]), 
+    #                                     mean(self.comms.allCentroidList[1]))
+            else:         
+                for previousCentroid in self.previousCentroid:
+                    for i in range(len(allCentroidList)):
+                        distDiff = []
+                        distDiff.append(abs((Utils.distBetweenPoints(
+                                            previousCentroid, allCentroidList[i]))))
+                        minIndex = distDiff.index(min(distDiff))
+                        self.previousCentroid[minIndex] = allCentroidList[minIndex]
             
-#         contours = vision.findAndSortContours(scratchImg)  
-        
-#         if len(contours) > 0 and circles is not None:
-#             self.comms.foundCircles = True   
-
-        # Check if centroid of contour is inside a circle
-#         allCentroidList = []
-#         allAreaList = []
-#         for contour in contours:
-#             mu = cv2.moments(contour)
-#             muArea = mu['m00']
-#             centroid = (mu['m10']/muArea, mu['m01']/muArea)
-#             
-#             for circle in circles[0,:,:]:
-#                 circleCentroid = (circle[0], circle[1])
-#                 if abs((Utils.distBetweenPoints(centroid, circleCentroid))) < circle[2]:
-#                     # Find new centroid by averaging the centroid and the circle centroid
-#                     newCentroid = (int((centroid[0]+circleCentroid[0])/2), 
-#                                    int((centroid[1]+circleCentroid[1])/2))
-#                     allCentroidList.append(newCentroid)
-#                     allAreaList.append(cv2.contourArea(contour))
-#                     
-#                     # Draw Circles
-#                     cv2.circle(scratchImg, newCentroid, circle[2], (255, 255, 0), 2)
-#                     cv2.circle(scratchImg, newCentroid, 2, (255, 0, 255), 3)
-#                     
-#                     break
-                
-        # Compare to previous centroid and pick the nth one 
-        if len(self.previousCentroid) == 0:
-            self.previousCentroid = allCentroidList
-            self.previousRadius = allRadiusList
-        else:         
-            for previousCentroid in self.previousCentroid:
-                for i in range(len(allCentroidList)):
-                    distDiff = []
-                    rospy.loginfo(previousCentroid)
-                    distDiff.append(abs((Utils.distBetweenPoints(
-                                        previousCentroid, allCentroidList[i]))))
-                    minIndex = distDiff.index(min(distDiff))
-                    self.previousCentroid[minIndex] = distDiff[minIndex]
-#                     self.previousArea[minIndex] = allAreaList[minIndex]
+            self.comms.centroidToShoot = self.previousCentroid[self.comms.numShoot]
+            self.comms.radius = self.previousRadius[self.comms.numShoot]
             
-        self.comms.centroidToShoot = self.previousCentroid[self.comms.numShoot]
-        self.comms.radius = self.previousRadius[self.comms.numShoot]
-        
-        # Overwrite if time to find circles 
-#         if self.comms.timeToFindCircles:
-#             self.comms.areaRect = previousArea[self.comms.count]
-
-        # How far the centroid is off center
-        self.comms.deltaX = (vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'] 
-        self.comms.deltaX = self.comms.deltaX * self.comms.deltaXMult
-        cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            # Overwrite if time to find circles 
+    #         if self.comms.timeToFindCircles:
+    #             self.comms.areaRect = previousArea[self.comms.count]
+    
+            # How far the centroid is off center
+            self.comms.deltaX = (vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'] 
+            self.comms.deltaX = self.comms.deltaX * self.comms.deltaXMult
+            cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
         
         scratchImg = cv2.resize(scratchImgCol, dsize=(vision.screen['width'], vision.screen['height']))
 

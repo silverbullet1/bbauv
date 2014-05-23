@@ -7,9 +7,10 @@ Pegs states
 import roslib; roslib.load_manifest('vision')
 import rospy 
 
+import time
 import smach, smach_ros
 
-from front_commons.frontComms import FrontComms
+from comms import Comms
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
@@ -31,7 +32,7 @@ class Disengage(smach.State):
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
         
-        if self.comms.isTesting:
+        if self.comms.isAlone:
             self.comms.register()
             rospy.loginfo("Starting Pegs")
         
@@ -60,7 +61,7 @@ class SearchYellowBoard(smach.State):
         return 'search_complete'
     
 class SearchPegs(smach.State):
-    timeout = 10
+    timeout = 1000
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['searchPeg_complete', 'aborted', 'killed'])
@@ -79,12 +80,13 @@ class SearchPegs(smach.State):
             # Search in figure of 8? 
             rospy.sleep(rospy.Duration(0.3))   
 
-        return 'search_complete'
+        return 'searchPeg_complete'
 
 class MoveForward(smach.State):
+    counter = 0
     
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, ud):    
@@ -93,16 +95,22 @@ class MoveForward(smach.State):
         if self.comms.isAborted:
             self.comms.isAborted = True
             return 'aborted' 
-            
+        
+        if not self.comms.foundSomething:
+            self.counter = self.counter + 1
+            if self.counter == 100:
+                return 'lost'
+        
         if self.comms.areaRect > 10000:
             return 'forward_complete'
         
         return 'forwarding'
     
 class Centering(smach.State):
+    counter = 0
     
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, ud):        
@@ -111,10 +119,13 @@ class Centering(smach.State):
         if self.comms.isAborted:
             self.comms.isAborted = True
             return 'aborted' 
-            
+        
+        if not self.comms.foundSomething:
+            self.counter = self.counter + 1
+            if self.counter == 100:
+                return 'lost'
+        
         if self.comms.deltaX < 0.005:
-            if self.comms.foundYellowBoard:
-                self.comms.timeToFindPegs = True
             return 'centering_complete'
         
         return 'centering'
@@ -179,7 +190,7 @@ def main():
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
-                                transitions={'start_complete': "SEARCHYELLOW",
+                                transitions={'start_complete': "SEARCHPEGS",
                                              'killed': 'killed'})
         
         smach.StateMachine.add("SEARCHYELLOW", SearchYellowBoard(myCom),
@@ -188,19 +199,21 @@ def main():
                                              'killed': 'killed'})        
     
         smach.StateMachine.add("SEARCHPEGS", SearchPegs(myCom),
-                                transitions={'searchPeg_complete': "SEARCHYELLOW",
+                                transitions={'searchPeg_complete': "MOVEFORWARD",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})       
     
         smach.StateMachine.add("MOVEFORWARD", MoveForward(myCom),
                                 transitions={'forwarding': "MOVEFORWARD",
-                                             'forwarding_complete': "CENTERING",
+                                             'forward_complete': "CENTERING",
+                                             'lost': "SEARCHPEGS",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})       
         
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                 transitions={'centering': "CENTERING",
                                              'centering_complete': "OFFSET",
+                                             'lost': "SEARCHPEGS",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})        
  
@@ -210,8 +223,8 @@ def main():
                                              'killed': 'killed'})      
         
         smach.StateMachine.add("MOVEPEG", MovePeg(myCom),
-                                transitions={'move_complete': "SEARCHPEG",
-                                             'task_complete': "SUCCEEDED",
+                                transitions={'move_complete': "SEARCHPEGS",
+                                             'task_complete': 'succeeded',
                                              'aborted': 'aborted',
                                              'killed': 'killed'})      
     #set up introspection Server
@@ -219,4 +232,3 @@ def main():
     introServer.start()
     
     sm.execute()
-    rospy.loginfo(outcomes)

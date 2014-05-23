@@ -36,6 +36,7 @@ class Comms(FrontComms):
     # Movement parameters
     greenPos = (0, 0)
     
+    centerPos = (0, 0)
     radius = None
     deltaX = None
     deltaXMult = 5.0
@@ -74,12 +75,12 @@ class Comms(FrontComms):
     def earthOdomCallback(self, data):
         self.greenCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
         self.navigationUnregister()
-        rospy.loginfo("Current coordinate of green board is: ({},{})".format(self.greenCoordinates[0], 
-                                                                             self.greenCoordinates[1]))
+        rospy.loginfo("Current coordinate of green board is: ({},{})".format(self.centerPos[0], 
+                                                                             self.centerPos[1]))
     
     def goToPos(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        handle(x=self.greenCoordinates[0], y=self.greenCoordinates[1])
+        handle(x=self.centerPos[0], y=self.centerPos[1])
         rospy.loginfo("Moving to the center of green board")
     
 def main():

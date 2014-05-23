@@ -59,7 +59,7 @@ class SearchGreenBoard(smach.State):
         return 'search_complete'
 
 class SearchCircles(smach.State):
-    timeout = 10
+    timeout = 1000
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['searchCircles_complete', 'aborted', 'killed'])
@@ -82,7 +82,7 @@ class SearchCircles(smach.State):
 
 class MoveForward(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, ud):    
@@ -91,8 +91,11 @@ class MoveForward(smach.State):
         if self.comms.isAborted:
             self.comms.isAborted = True
             return 'aborted' 
+        
+        if not self.comms.foundCircles:
+            return 'lost'
             
-        if self.comms.areaRect > 10000:
+        if self.comms.radius > 100:
             return 'forward_complete'
         
         return 'forwarding'
@@ -100,7 +103,7 @@ class MoveForward(smach.State):
 # Precise movements when near centroid
 class Centering (smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, userdata):
@@ -110,9 +113,6 @@ class Centering (smach.State):
             return 'aborted'
         
         if self.comms.deltaX < 0.005:
-            if self.comms.foundGreenBoard:
-                self.comms.navigationRegister()
-                self.comms.timeToFindPegs = True
             return 'centering_complete'
         
         return 'centering'        
@@ -131,7 +131,7 @@ class ShootTorpedo(smach.State):
         
         # Shoot once more 
         if self.comms.numShoot is not 2:
-            # Move back to centering of green board 
+            # Move back to center of green board 
             self.comms.gotoPos()
             return 'shoot_again'
         
@@ -158,19 +158,21 @@ def main():
                                              'killed': 'killed'})        
     
         smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
-                                transitions={'searchCircles_complete': "SEARCHGREEN",
+                                transitions={'searchCircles_complete': "MOVEFORWARD",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})      
         
         smach.StateMachine.add("MOVEFORWARD", MoveForward(myCom),
                                 transitions={'forwarding': "MOVEFORWARD",
                                              'forward_complete': "CENTERING",
+                                             'lost': "SEARCHCIRCLES",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})       
         
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                 transitions={'centering': "CENTERING",
                                              'centering_complete': "SHOOTING",
+                                             'lost': "SEARCHCIRCLES",
                                              'aborted': 'aborted',
                                              'killed': 'killed'})  
         
