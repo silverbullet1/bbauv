@@ -37,28 +37,6 @@ class Disengage(smach.State):
             rospy.loginfo("Starting Pegs")
         
         return 'start_complete'
-
-class SearchYellowBoard(smach.State):
-    timeout = 10
-    
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['searchYellow_complete', 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, ud):
-        start = time.time()
-        
-        while not self.comms.foundYellowBoard: 
-            if self.comms.isKilled:
-                return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'aborted' 
-            
-            # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))   
-
-        return 'search_complete'
     
 class SearchPegs(smach.State):
     timeout = 1000
@@ -84,6 +62,9 @@ class SearchPegs(smach.State):
 
 class MoveForward(smach.State):
     counter = 0
+    deltaXMult = 5.0
+    forward_setpoint = 0.3
+    areaRectComplete = 10000
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -101,13 +82,19 @@ class MoveForward(smach.State):
             if self.counter == 100:
                 return 'lost'
         
-        if self.comms.areaRect > 10000:
+        if self.comms.areaRect > self.areaRectComplete:
+            self.comms.centering = True
             return 'forward_complete'
         
+        # Forward and sidemove, keep heading
+        self.comms.sendMovement(forward=self.forward_setpoint,
+                                sidemove=self.comms.deltaX * self.deltaXMult,
+                                blocking=False)
         return 'forwarding'
     
 class Centering(smach.State):
     counter = 0
+    deltaXMult = 3.0
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
@@ -128,6 +115,10 @@ class Centering(smach.State):
         if self.comms.deltaX < 0.005:
             return 'centering_complete'
         
+        # Center by sidemove
+        self.comms.sendMovement(forward = 0.0,
+                                sidemove = self.comms.deltaX*self.deltaXMult,
+                                blocking = False)
         return 'centering'
 
 class Offset(smach.State):    
@@ -161,18 +152,23 @@ class MovePeg(smach.State):
             self.comms.isAborted = True
             return 'aborted' 
         
+        grabberPub = rospy.Publisher("/manipulators", manipulator)
+        
         if self.comms.findRedPeg: 
             # Open grabber to grab peg & wait for response
+            self.comms.grabRedPeg()
             self.comms.findRedPeg = False    
         elif not self.comms.findRedPeg:
             # Put back peg & wait for response 
+            self.comms.putPeg()
             self.comms.sendMovement(forward = -2.0)     # Reverse
             
+            self.comms.centering = False 
             self.comms.findRedPeg = True
             self.comms.count = self.comms.count + 1
         
             # Reverse to find yellow board again then find next peg
-            self.comms.gotoPos()
+            # self.comms.gotoPos()
         
         if self.comms.count == 4:
             return 'task_complete'
@@ -193,11 +189,6 @@ def main():
                                 transitions={'start_complete': "SEARCHPEGS",
                                              'killed': 'killed'})
         
-        smach.StateMachine.add("SEARCHYELLOW", SearchYellowBoard(myCom),
-                                transitions={'searchYellow_complete': "CENTERING",
-                                             'aborted': 'aborted',
-                                             'killed': 'killed'})        
-    
         smach.StateMachine.add("SEARCHPEGS", SearchPegs(myCom),
                                 transitions={'searchPeg_complete': "MOVEFORWARD",
                                              'aborted': 'aborted',

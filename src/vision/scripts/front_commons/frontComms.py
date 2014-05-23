@@ -8,7 +8,7 @@ import actionlib
 import signal
 
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data, ControllerAction, ControlData
+from bbauv_msgs.msg import compass_data, ControllerAction, ControllerGoal
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -22,6 +22,7 @@ class FrontComms:
         #Default parameters
         self.inputHeading = 0
         self.curHeading = 0
+        self.gotHeading = False 
         self.retVal = 0
         self.defaultDepth = 0.2
         
@@ -74,16 +75,19 @@ class FrontComms:
             self.outPub.publish(Utils.cv2rosimg(outImg))
             
     def compassCallback(self, data):
-        self.curHeading = data.yaw
+        if not self.gotHeading:
+            self.curHeading = data.yaw
+            self.gotHeading = True
     
     def userQuit(self, signal, frame):
+        self.unregister()
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")
         
     def sendMovement(self, forward=0.0, sidemove=0.0,
                      heading=None, depth=None,
-                     timeout=0.2, wait=False):
+                     timeout=0.2, blocking=False):
         
         depth = depth if depth else self.defaultDepth
         heading = heading if heading else self.curHeading
@@ -94,7 +98,7 @@ class FrontComms:
         rospy.loginfo("Moving.. f: %lf, sm: %lf, h: %lf, d: %lf", 
                       forward, sidemove, heading, depth)
 
-        if wait:
+        if blocking:
             self.motionClient.wait_for_result()
         else:
             self.motionClient.wait_for_result(timeout=rospy.Duration(timeout))

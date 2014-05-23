@@ -106,9 +106,15 @@ class TorpedoVision:
 #         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.blackParams['dilate'])            
 #         threshold_image = cv2.erode(threshold_image, erodeEl)
 #         threshold_image = cv2.dilate(threshold_image, dilateEl)        
+
+        # Enhance the image
+#         enhancedImg = cv2.GaussianBlur(image, ksize=(0, 0), sigmaX=10)
+#         enhancedImg = cv2.addWeighted(image, 2.5, enhancedImg, -1.5, 0)
+#         
+#         image = enhancedImg
         
         # Canny edge detection
-        edges = cv2.Canny(image, 150, 350)
+        edges = cv2.Canny(image, 250, 380)
                 
         scratchImg = edges.copy()
         
@@ -117,7 +123,7 @@ class TorpedoVision:
         scratchImgCol = cv2.cvtColor(scratchImg, cv2.COLOR_GRAY2BGR)
 
         circles = cv2.HoughCircles(scratchImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=5, param1=350, param2=44,
+                                   minDist=5, param1=380, param2=38,
                                    minRadius = 0,
                                    maxRadius = self.circleParams['maxRadius'])
         
@@ -161,7 +167,6 @@ class TorpedoVision:
     
             # How far the centroid is off center
             self.comms.deltaX = (vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'] 
-            self.comms.deltaX = self.comms.deltaX * self.comms.deltaXMult
             cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
         

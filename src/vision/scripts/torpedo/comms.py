@@ -66,6 +66,16 @@ class Comms(FrontComms):
             
         return mission_to_visionResponse(isStart, isAborted)
 
+    def shootTopTorpedo(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 1)
+        rospy.sleep(rospy.Duration(0.2)) 
+
+    def shootBotTorpedo(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 2)
+        rospy.sleep(rospy.Duration(0.2))       
+    
     def navigationRegister(self):
         self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)
 

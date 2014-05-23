@@ -84,11 +84,6 @@ class RgbBuoyVision:
 
         return outImg
 
-    def resetRGBCount(self):
-        self.rgbCount['red'] = 0
-        self.rgbCount['green'] = 0
-        self.rgbCount['blue'] = 0
-
     def threshold(self, image, colour):
         currCentroid = []
 
@@ -148,12 +143,12 @@ class RgbBuoyVision:
             return self.blueParams
 
 def main():
-    cv2.namedWindow("test")
-
+    cv2.namedWindow("RGB")
+    
     inImg = cv2.imread("rgb_buoy/RGB6.jpg")
-    inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
-    detector = RgbBuoyVision()
+    from comms import Comms
+    detector = RgbBuoyVision(comms = Comms())
     outImg = detector.gotFrame(inImg)
 
-    if outImg is not None: cv2.imshow("test", outImg)
+    if outImg is not None: cv2.imshow("RGB", outImg)
     cv2.waitKey()

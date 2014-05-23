@@ -61,7 +61,9 @@ class PegsVision:
         binImg = vision.erodeAndDilateImg(binImg, params)
 
         # Find contours 
-        scratchImg = binImg.copy()
+        scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)    # To overlay with centroids
+        
+        scratchImg = binImg.copy()  # For contours to mess up
         contours, _ = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
@@ -78,9 +80,27 @@ class PegsVision:
 # 
 #         else:
 
-        # Find Hough circles
-        scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
-        
+        if self.comms.centering:
+            # Find largest contour
+            largestContour = contours[0]
+            mu = cv2.moments(largestContour)
+            muArea = mu['m00']
+            self.comms.centroidToPick = (mu['m10']/muArea, mu['m01']/muArea)
+            self.comms.areaRect = cv2.minAreaRect(largestContour)
+
+            rospy.loginfo("Area of centroid:{}".format(self.comms.areaRect))
+            
+            # Draw new centroid
+            cv2.circle(scratchImgCol, self.comms.centroidToPick, 3, (0, 255, 255), 2)
+            
+            # How far the centroid is off the screen center
+            self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
+            cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            
+            return scratchImgCol
+
+        # Find Hough circles        
         circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
                                    minDist=1, param1=350, param2=23,
                                    minRadius = 0,
@@ -129,7 +149,11 @@ class PegsVision:
         
         self.comms.centroidToPick = self.previousCentroids[self.comms.count]
         self.comms.areaRect = self.previousArea[self.comms.count]
-                            
+        rospy.loginfo("Area of centroid:{}".format(self.comms.areaRect))
+        
+        # Draw new centroid
+        cv2.circle(scratchImgCol, self.comms.centroidToPick, 3, (0, 255, 255), 2)
+        
         # How far the centroid is off the screen center
         self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
         self.comms.deltaX = self.comms.deltaX * self.comms.deltaXMult  

@@ -35,28 +35,6 @@ class Disengage(smach.State):
             rospy.loginfo("Starting Torpedo")
         
         return 'start_complete'
-    
-class SearchGreenBoard(smach.State):
-    timeout = 10
-    
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['searchGreen_complete', 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, ud):
-        start = time.time()
-        
-        while not self.comms.foundGreenBoard: 
-            if self.comms.isKilled:
-                return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
-                self.comms.isAborted = True
-                return 'aborted' 
-            
-            # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))   
-
-        return 'search_complete'
 
 class SearchCircles(smach.State):
     timeout = 1000
@@ -81,6 +59,10 @@ class SearchCircles(smach.State):
         return 'searchCircles_complete'
 
 class MoveForward(smach.State):
+    forward_setpoint = 0.3
+    deltaXMult = 5.0
+    completeRadius = 200
+    
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
@@ -95,13 +77,20 @@ class MoveForward(smach.State):
         if not self.comms.foundCircles:
             return 'lost'
             
-        if self.comms.radius > 100:
+        if self.comms.radius > self.completeRadius:
             return 'forward_complete'
+        
+        # Side move and keep heading
+        self.comms.sendMovement(forward=self.forward_setpoint, 
+                                sidemove=self.comms.deltaX * self.deltaXMult, 
+                                blocking=False)
         
         return 'forwarding'
 
 # Precise movements when near centroid
 class Centering (smach.State):
+    deltaXMult = 3.0
+    
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
@@ -115,6 +104,10 @@ class Centering (smach.State):
         if self.comms.deltaX < 0.005:
             return 'centering_complete'
         
+        # Sidemove and center
+        self.comms.sendMovement(forward = 0.0,
+                                sidemove = self.comms.deltaX * self.deltaXMult,
+                                blocking = False)
         return 'centering'        
         
 # Shoot torpedo forward
@@ -130,12 +123,16 @@ class ShootTorpedo(smach.State):
             return 'aborted'
         
         # Shoot once more 
-        if self.comms.numShoot is not 2:
-            # Move back to center of green board 
-            self.comms.gotoPos()
-            return 'shoot_again'
+        if self.comms.numShoot == 0:
+            self.comms.shootTopTorpedo()
+            self.comms.numShoot = self.comms.numShoot + 1
+        elif self.comms.numShoot == 1:
+            self.comms.shootBotTorpedo()
+            self.comms.numShoot = self.comms.numShoot + 1
+        else:
+            return 'shoot_complete'
         
-        return 'shoot_forward_complete'
+        return 'shoot_again'
     
     
 def main():
@@ -150,12 +147,7 @@ def main():
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
                                 transitions={'start_complete': "SEARCHCIRCLES",
-                                         'killed': 'killed'})
-    
-        smach.StateMachine.add("SEARCHGREEN", SearchGreenBoard(myCom),
-                                transitions={'searchGreen_complete': "CENTERING",
-                                             'aborted': 'aborted',
-                                             'killed': 'killed'})        
+                                         'killed': 'killed'})      
     
         smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
                                 transitions={'searchCircles_complete': "MOVEFORWARD",
