@@ -10,7 +10,7 @@ class LaneMarkerVision:
 
     # Vision parameters
     hsvLoThresh1 = (1, 0, 0)
-    hsvHiThresh1 = (85, 255, 255)
+    hsvHiThresh1 = (80, 255, 255)
     hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000

@@ -1,5 +1,5 @@
 import rospy
-import smach, smach_ros
+import smach
 
 from utils.utils import Utils
 from comms import Comms
@@ -40,9 +40,10 @@ class Search(smach.State):
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
             if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.timeout:
-                self.comms.isAborted = True
+                self.comms.abortMission()
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
@@ -69,6 +70,7 @@ class Center(smach.State):
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
             return 'aborted'
 
         if not self.comms.retVal or \
@@ -101,6 +103,7 @@ class Fire(smach.State):
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
             return 'aborted'
 
         self.comms.drop()
@@ -133,10 +136,10 @@ def main():
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 
-    introServer = smach_ros.IntrospectionServer('mission_server',
-                                                sm,
-                                                '/MISSION/BINS')
-    introServer.start()
+    #introServer = smach_ros.IntrospectionServer('mission_server',
+    #                                            sm,
+    #                                            '/MISSION/BINS')
+    #introServer.start()
 
     sm.execute()
     rospy.signal_shutdown("lane_marker task ended")

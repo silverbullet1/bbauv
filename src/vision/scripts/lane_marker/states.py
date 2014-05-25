@@ -1,5 +1,5 @@
 import rospy
-import smach, smach_ros
+import smach
 import numpy as np
 
 from comms import Comms
@@ -59,8 +59,8 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 1000
-    defaultWaitingTime = 5
+    timeout = 7 
+    defaultWaitingTime = 7
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -76,7 +76,7 @@ class Search(smach.State):
                len(self.comms.retVal['foundLines']) == 0):
             # Waiting to see if lanes found until waitingTimeout
             if self.comms.isKilled or self.comms.isAborted:
-                self.comms.isAborted = True
+                self.comms.abortMission()
                 return 'aborted'
 
             if (time.time() - start) > self.waitingTimeout:
@@ -93,14 +93,14 @@ class Search(smach.State):
             while (not self.comms.retVal or
                    len(self.comms.retVal['foundLines']) == 0):
                 if self.comms.isKilled or self.comms.isAborted:
-                    self.comms.isAborted = True
+                    self.comms.abortMission()
                     return 'aborted'
 
                 if (time.time() - start) > self.timeout:
-                    self.comms.isAborted = True
+                    self.comms.abortMission()
                     return 'aborted'
 
-                self.comms.sendMovement(f=-1.0, sm=-1.0, blocking=False)
+                self.comms.sendMovement(f=0.0, sm=0.0, blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
@@ -124,6 +124,7 @@ class Stablize(smach.State):
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
             return 'aborted'
 
         if not self.comms.retVal or \
@@ -155,6 +156,7 @@ class Align(smach.State):
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
             return 'aborted'
 
         if not self.comms.retVal or \
@@ -201,10 +203,12 @@ class Forward(smach.State):
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(f=5.0, blocking=True)
+        self.comms.sendMovement(f=2.0, blocking=True)
         self.comms.isAborted = True
+        self.comms.taskComplete()
         return 'completed'
 
 def main():
