@@ -7,6 +7,7 @@ For communication with Robot
 import rospy
 from front_commons.frontComms import FrontComms
 from vision import PegsVision
+from bbauv_msgs.msg._manipulator import manipulator
 
 class Comms(FrontComms):
     
@@ -21,15 +22,15 @@ class Comms(FrontComms):
     yellowCoordinates = (-1, -1)
     
     timeToFindPegs = False 
-    findRedPeg = True   #Either find red or find blue circle 
+    findRedPeg = False   #Either find red or find blue circle 
     foundSomething = False 
     
     count = 0       # Move up to 4 pegs 
     
     centroidToPick = (-1, -1)
     deltaX = None
-    deltaXMult = 5.0
     areaRect = 0
+    centering = False 
     
     def __init__(self):
         FrontComms.__init__(self, PegsVision(comms=self))
@@ -54,6 +55,16 @@ class Comms(FrontComms):
             self.unregister()
             
         return mission_to_visionResponse(isStart, isAborted)
+
+    def grabRedPeg(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 4)
+        rospy.sleep(rospy.Duration(0.2))
+        
+    def putPeg(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(1 & 4)
+        rospy.sleep(rospy.Duration(0.2))
 
     def navigationRegister(self):
         self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)

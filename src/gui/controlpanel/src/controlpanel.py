@@ -912,7 +912,7 @@ class AUV_gui(QMainWindow):
         if self.isSubscribed:
             self.unsubscribeButton.setText("Subscribe&n")
             self.unsubscribe()
-            self.navigation_frame.unregisterSub()
+#             self.navigation_frame.unregisterSub()
         else:
             self.unsubscribeButton.setText("U&nsubscribe")
             self.initSub()

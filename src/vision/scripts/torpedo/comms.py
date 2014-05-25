@@ -34,9 +34,12 @@ class Comms(FrontComms):
     areaRect = None   
     
     # Movement parameters
+    greenPos = (0, 0)
+    
+    centerPos = (0, 0)
+    radius = None
     deltaX = None
     deltaXMult = 5.0
-    greenPos = (0, 0)
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
@@ -63,6 +66,16 @@ class Comms(FrontComms):
             
         return mission_to_visionResponse(isStart, isAborted)
 
+    def shootTopTorpedo(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 1)
+        rospy.sleep(rospy.Duration(0.2)) 
+
+    def shootBotTorpedo(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 2)
+        rospy.sleep(rospy.Duration(0.2))       
+    
     def navigationRegister(self):
         self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)
 
@@ -72,12 +85,12 @@ class Comms(FrontComms):
     def earthOdomCallback(self, data):
         self.greenCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
         self.navigationUnregister()
-        rospy.loginfo("Current coordinate of green board is: ({},{})".format(self.greenCoordinates[0], 
-                                                                             self.greenCoordinates[1]))
+        rospy.loginfo("Current coordinate of green board is: ({},{})".format(self.centerPos[0], 
+                                                                             self.centerPos[1]))
     
     def goToPos(self):
         handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        handle(x=self.greenCoordinates[0], y=self.greenCoordinates[1])
+        handle(x=self.centerPos[0], y=self.centerPos[1])
         rospy.loginfo("Moving to the center of green board")
     
 def main():
