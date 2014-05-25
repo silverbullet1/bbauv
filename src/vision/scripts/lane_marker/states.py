@@ -167,16 +167,13 @@ class Align(smach.State):
         if len(lines) == 1 or self.comms.expectedLanes == 1:
             self.angleSampler.newSample(lines[0]['angle'])
         elif len(lines) >= 2:
-            left = lines[0]['angle']
-            right = lines[1]['angle']
-            if lines[0]['pos'][0] > lines[1]['pos'][0]:
-                left, right = right, left
-
-            crossPt = self.comms.retVal['crossPoint']
-            if crossPt and \
-               crossPt[1] < lines[0]['pos'][1] or \
-               crossPt[1] < lines[1]['pos'][1]:
-                left, right = right, left
+            # Figure out which lane marker is left or right
+            left = Utils.normAngle(lines[0]['angle'])
+            right = Utils.normAngle(lines[1]['angle'])
+            if (not ((right-left > 0 and abs(right-left) < 180) or
+                     (right-left < 0 and abs(right-left) > 180))):
+                lines[0]['angle'], lines[1]['angle'] = \
+                        lines[1]['angle'], lines[0]['angle']
 
             if self.comms.chosenLane == self.comms.LEFT:
                 self.angleSampler.newSample(lines[0]['angle'])

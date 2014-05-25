@@ -18,7 +18,7 @@ class Comms(GenericComms):
         self.expectedLanes = 2
         self.defaultDepth = 0.6
 
-        if self.isAlone:
+        if not self.isAlone:
             # Initialize mission planner communication server and client
             self.comServer = rospy.Service("/lane_marker/mission_to_vision",
                                            mission_to_vision,
@@ -39,7 +39,7 @@ class Comms(GenericComms):
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
         elif req.abort_request:
-            rospy.loginfo("Received Abort Request!!!")
+            rospy.loginfo("Received Abort Request")
             self.sendMovement(f=0.0, sm=0.0)
             self.isAborted = True
             return mission_to_visionResponse(start_response=False,
