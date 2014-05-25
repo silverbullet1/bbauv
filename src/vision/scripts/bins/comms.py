@@ -10,7 +10,7 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 3.0
+        self.defaultDepth = 2.0
 
         #TODO: Communicate with mission planner
 

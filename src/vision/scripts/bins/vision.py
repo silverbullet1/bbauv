@@ -12,12 +12,15 @@ class BinsVision:
     hsvLoThresh1 = (1, 0, 0)
     hsvHiThresh1 = (20, 255, 255)
     hsvLoThresh2 = (165, 0, 0)
-    hsvHiThresh2 = (180, 255, 255)
-    minContourArea = 5000
+    hsvHiThresh2 = (179, 255, 255)
+
+    loBlueThresh = (100, 1, 0)
+    hiBlueThresh = (120, 255, 255)
+    minContourArea = 4000
 
     # Parameters for gray-scale thresholding
     upperThresh = 70
-    areaThresh = 10000
+    areaThresh = 8000
 
     # Contours of aliens for shape matching
     aliens = {'1a':None, '1b':None, '2a':None, '2b':None,
@@ -34,8 +37,20 @@ class BinsVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+        img = cv2.erode(img, erodeEl)
+        img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+
+        return img
+
+    def morphology2(self, img):
+        # Closing up gaps and remove noise with morphological ops
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -76,7 +91,8 @@ class BinsVision:
         rval = None
         closestMatch = float("inf")
         for alien in self.aliens:
-            humatch = cv2.matchShapes(alien, match['alien'])
+            humatch = cv2.matchShapes(self.aliens[alien], match['alien'],
+                                      1, 0)
             if humatch < closestMatch:
                 closestMatch = humatch
                 rval = alien
@@ -104,14 +120,14 @@ class BinsVision:
         if self.debugMode:
             outImg1 = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
             # Draw the aiming rectangle
-            midX = self.screen['width'] / 2.0
-            midY = self.screen['height'] / 2.0
-            maxDeltaX = self.screen['width'] * 0.03
-            maxDeltaY = self.screen['height'] * 0.03
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
             cv2.rectangle(outImg1,
-                          (int(midX - maxDeltaX), int(midY - maxDeltaY)),
-                          (int(midX + maxDeltaX), int(midY + maxDeltaY)),
-                          (0, 255, 0), 1)
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 2)
 
         scratchImg = binImg.copy()
         alienContours = self.findContourAndBound(scratchImg,
@@ -137,6 +153,10 @@ class BinsVision:
         lowest = cv2.minMaxLoc(grayImg)[0]
         thVal = min((lowest + mean)/3.99, self.upperThresh)
         grayImg = cv2.threshold(grayImg, thVal, 255, cv2.THRESH_BINARY_INV)[1]
+        #grayImg &= cv2.bitwise_not(cv2.inRange(hsvImg,
+        #                                       self.loBlueThresh,
+        #                                       self.hiBlueThresh))
+        grayImg = self.morphology2(grayImg)
         if self.debugMode == True:
             outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
 
@@ -159,9 +179,9 @@ class BinsVision:
 
         for match in enumerate(matches):
             center = match[1]['centroid']
-            cv2.putText(outImg,
+            cv2.putText(outImg1,
                         classes[match[0]], (int(center[0]), int(center[1])),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
         outImg = np.vstack((outImg1, outImg2))
         return retData, outImg

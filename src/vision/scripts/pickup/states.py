@@ -5,6 +5,7 @@ import smach, smach_ros
 
 from comms import Comms
 from vision import PickupVision
+from utils.utils import Utils
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -44,14 +45,47 @@ class Search(smach.State):
         return 'foundSamples'
 
 class Center(smach.State):
+    width = PickupVision.screen['width']
+    height = PickupVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    maxdx = 0.03
+    maxdy = 0.03
+    xcoeff = 2.0
+    ycoeff = 1.5
+
     def __init__(self, comms):
         smach.State.__init__(outcomes=['centered',
-                                      'lost',
-                                      'aborted'])
+                                       'centering',
+                                       'lost',
+                                       'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
-        pass 
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.rectVal['centroid']) < 1:
+            return 'lost'
+
+        centroids = self.comms.retVal['centroids']
+        closest = min(centroids,
+                      key=lambda c:
+                      Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
+
+        dx = (closest - self.centerX) / self.width
+        dy = (closest - self.centerY) / self.height
+
+        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
+            self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                    blocking=False)
+            return 'centering'
+
+        self.comms.sendMovement(f=0.0, sm=0.0)
+        return 'centered'
 
 
 def main():

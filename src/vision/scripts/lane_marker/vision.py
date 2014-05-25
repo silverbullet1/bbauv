@@ -10,14 +10,14 @@ class LaneMarkerVision:
 
     # Vision parameters
     hsvLoThresh1 = (1, 0, 0)
-    hsvHiThresh1 = (35, 255, 255)
-    hsvLoThresh2 = (165, 0, 0)
-    hsvHiThresh2 = (179, 255, 255)
+    hsvHiThresh1 = (85, 255, 255)
+    hsvLoThresh2 = (160, 0, 0)
+    hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
-    houghThreshold = 80
+    houghThreshold = 50
     houghMinLength = 60
     houghMaxGap = 10
 
@@ -44,8 +44,8 @@ class LaneMarkerVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
