@@ -2,10 +2,10 @@ let SessionLoad = 1
 if &cp | set nocp | endif
 let s:cpo_save=&cpo
 set cpo&vim
-inoremap <expr> <Down> pumvisible() ? "\" : "\<Down>"
-inoremap <expr> <S-Tab> pumvisible() ? "\" : "\<S-Tab>"
-inoremap <expr> <Up> pumvisible() ? "\" : "\<Up>"
 inoremap <Nul> 
+inoremap <expr> <Up> pumvisible() ? "\" : "\<Up>"
+inoremap <expr> <S-Tab> pumvisible() ? "\" : "\<S-Tab>"
+inoremap <expr> <Down> pumvisible() ? "\" : "\<Down>"
 nnoremap ,d :YcmShowDetailedDiagnostic
 nnoremap ,rtw :%s/\s\+$//e
 nnoremap ,cd :cd %:p:h:pwd
@@ -53,8 +53,7 @@ set shortmess=aoO
 badd +1 comms.py
 badd +1 states.py
 badd +1 vision.py
-badd +0 __init__.py
-badd +0 ../bot_common/vision.py
+badd +1 __init__.py
 args comms.py __init__.py states.py vision.py
 edit comms.py
 set splitbelow splitright
@@ -167,7 +166,7 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 19) / 39)
+let s:l = 1 - ((0 * winheight(0) + 20) / 41)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -285,12 +284,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 51 - ((34 * winheight(0) + 19) / 39)
+let s:l = 51 - ((35 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
 51
-normal! 062|
+normal! 01|
 tabedit vision.py
 set splitbelow splitright
 set nosplitbelow
@@ -403,131 +402,13 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 46 - ((27 * winheight(0) + 18) / 37)
+let s:l = 45 - ((28 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-46
+45
 normal! 0
-tabedit ../bot_common/vision.py
-set splitbelow splitright
-set nosplitbelow
-set nosplitright
-wincmd t
-set winheight=1 winwidth=1
-argglobal
-edit ../bot_common/vision.py
-setlocal keymap=
-setlocal noarabic
-setlocal autoindent
-setlocal balloonexpr=
-setlocal nobinary
-setlocal bufhidden=
-setlocal buflisted
-setlocal buftype=
-setlocal nocindent
-setlocal cinkeys=0{,0},0),:,!^F,o,O,e
-setlocal cinoptions=(0
-setlocal cinwords=if,else,while,do,for,switch
-set colorcolumn=81
-setlocal colorcolumn=81
-setlocal comments=b:#,fb:-
-setlocal commentstring=#\ %s
-setlocal complete=.,w,b,u,t,i
-setlocal concealcursor=
-setlocal conceallevel=0
-setlocal completefunc=youcompleteme#Complete
-setlocal nocopyindent
-setlocal cryptmethod=
-setlocal nocursorbind
-setlocal nocursorcolumn
-setlocal nocursorline
-setlocal define=
-setlocal dictionary=
-setlocal nodiff
-setlocal equalprg=
-setlocal errorformat=
-setlocal expandtab
-if &filetype != 'python'
-setlocal filetype=python
-endif
-setlocal foldcolumn=0
-setlocal foldenable
-setlocal foldexpr=0
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldmarker={{{,}}}
-setlocal foldmethod=manual
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldtext=foldtext()
-setlocal formatexpr=
-setlocal formatoptions=tcq
-setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
-setlocal grepprg=
-setlocal iminsert=2
-setlocal imsearch=2
-setlocal include=s*\\(from\\|import\\)
-setlocal includeexpr=substitute(v:fname,'\\.','/','g')
-setlocal indentexpr=GetPythonIndent(v:lnum)
-setlocal indentkeys=!^F,o,O,<:>,0),0],0},=elif,=except
-setlocal noinfercase
-setlocal iskeyword=@,48-57,_,192-255
-setlocal keywordprg=pydoc
-setlocal nolinebreak
-setlocal nolisp
-setlocal nolist
-setlocal makeprg=
-setlocal matchpairs=(:),{:},[:]
-setlocal modeline
-setlocal modifiable
-setlocal nrformats=octal,hex
-set number
-setlocal number
-setlocal numberwidth=4
-setlocal omnifunc=youcompleteme#OmniComplete
-setlocal path=
-setlocal nopreserveindent
-setlocal nopreviewwindow
-setlocal quoteescape=\\
-setlocal noreadonly
-setlocal norelativenumber
-setlocal norightleft
-setlocal rightleftcmd=search
-setlocal noscrollbind
-setlocal shiftwidth=4
-setlocal noshortname
-setlocal nosmartindent
-setlocal softtabstop=4
-setlocal nospell
-setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
-setlocal spellfile=
-setlocal spelllang=en
-setlocal statusline=
-setlocal suffixesadd=.py
-setlocal swapfile
-setlocal synmaxcol=3000
-if &syntax != 'python'
-setlocal syntax=python
-endif
-setlocal tabstop=8
-setlocal tags=
-setlocal textwidth=0
-setlocal thesaurus=
-setlocal noundofile
-setlocal undolevels=-123456
-setlocal nowinfixheight
-setlocal nowinfixwidth
-setlocal wrap
-setlocal wrapmargin=0
-silent! normal! zE
-let s:l = 78 - ((29 * winheight(0) + 18) / 37)
-if s:l < 1 | let s:l = 1 | endif
-exe s:l
-normal! zt
-78
-normal! 011|
-tabnext 4
+tabnext 3
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
 endif

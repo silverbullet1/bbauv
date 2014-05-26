@@ -58,6 +58,15 @@ class PickupVision:
 
         if self.debugMode:
             outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
+            # Draw the aiming rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
+            cv2.rectangle(outImg,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 1)
 
         contours = self.findContourAndBound(binImg.copy(), bounded=True)
         sorted(contours, key=cv2.contourArea, reverse=True)

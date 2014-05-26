@@ -1,5 +1,5 @@
 import rospy
-import smach, smach_ros
+import smach
 import numpy as np
 
 from comms import Comms
@@ -13,7 +13,7 @@ from collections import deque
 """ The entry script and smach StateMachine for the task"""
 
 class MedianFilter:
-    staleDuration = 3.0
+    staleDuration = 5.0
 
     def __init__(self, sampleWindow=30):
         self.samples = deque()
@@ -32,7 +32,7 @@ class MedianFilter:
         self.samples.append(sample)
 
     def getMedian(self):
-        return np.median(self.samples)
+        return np.mean(self.samples)
 
     def getVariance(self):
         if len(self.samples) >= self.sampleWindow:
@@ -59,8 +59,8 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 1000
-    defaultWaitingTime = 5
+    timeout = 7 
+    defaultWaitingTime = 7
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -76,7 +76,7 @@ class Search(smach.State):
                len(self.comms.retVal['foundLines']) == 0):
             # Waiting to see if lanes found until waitingTimeout
             if self.comms.isKilled or self.comms.isAborted:
-                self.comms.isAborted = True
+                self.comms.abortMission()
                 return 'aborted'
 
             if (time.time() - start) > self.waitingTimeout:
@@ -93,22 +93,22 @@ class Search(smach.State):
             while (not self.comms.retVal or
                    len(self.comms.retVal['foundLines']) == 0):
                 if self.comms.isKilled or self.comms.isAborted:
-                    self.comms.isAborted = True
+                    self.comms.abortMission()
                     return 'aborted'
 
                 if (time.time() - start) > self.timeout:
-                    self.comms.isAborted = True
+                    self.comms.abortMission()
                     return 'aborted'
 
-                self.comms.sendMovement(f=0.2, sm=0.5, blocking=False)
+                self.comms.sendMovement(f=0.0, sm=0.0, blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
         return 'foundLanes'
 
 class Stablize(smach.State):
-    maxdx = 0.15
-    maxdy = 0.15
+    maxdx = 0.07
+    maxdy = 0.07
     width = LaneMarkerVision.screen['width']
     height = LaneMarkerVision.screen['height']
 
@@ -124,6 +124,7 @@ class Stablize(smach.State):
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
             return 'aborted'
 
         if not self.comms.retVal or \
@@ -151,10 +152,11 @@ class Align(smach.State):
                                              'lost',
                                              'aborted'])
         self.comms = comms
-        self.angleSampler = MedianFilter(sampleWindow=50)
+        self.angleSampler = MedianFilter(sampleWindow=100)
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
             return 'aborted'
 
         if not self.comms.retVal or \
@@ -165,16 +167,13 @@ class Align(smach.State):
         if len(lines) == 1 or self.comms.expectedLanes == 1:
             self.angleSampler.newSample(lines[0]['angle'])
         elif len(lines) >= 2:
-            left = lines[0]['angle']
-            right = lines[1]['angle']
-            if lines[0]['pos'][0] > lines[1]['pos'][0]:
-                left, right = right, left
-
-            crossPt = self.comms.retVal['crossPoint']
-            if crossPt and \
-               crossPt[1] < lines[0]['pos'][1] or \
-               crossPt[1] < lines[1]['pos'][1]:
-                left, right = right, left
+            # Figure out which lane marker is left or right
+            left = Utils.normAngle(lines[0]['angle'])
+            right = Utils.normAngle(lines[1]['angle'])
+            if (not ((right-left > 0 and abs(right-left) < 180) or
+                     (right-left < 0 and abs(right-left) > 180))):
+                lines[0]['angle'], lines[1]['angle'] = \
+                        lines[1]['angle'], lines[0]['angle']
 
             if self.comms.chosenLane == self.comms.LEFT:
                 self.angleSampler.newSample(lines[0]['angle'])
@@ -196,14 +195,17 @@ class Align(smach.State):
 class Forward(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
-                                              'aborted'])
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(f=5.0)
+        self.comms.sendMovement(f=2.0, blocking=True)
+        self.comms.isAborted = True
+        self.comms.taskComplete()
         return 'completed'
 
 def main():
@@ -238,10 +240,9 @@ def main():
                                transitions={'completed':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
 
-    introServer = smach_ros.IntrospectionServer('mission_server',
-                                                sm,
-                                                '/MISSION/LANE_MARKER')
-    introServer.start()
+    #introServer = smach_ros.IntrospectionServer('mission_server',
+    #                                            sm,
+    #                                            '/MISSION/LANE_MARKER')
+    #introServer.start()
 
     sm.execute()
-    rospy.signal_shutdown("lane_marker task ended")
