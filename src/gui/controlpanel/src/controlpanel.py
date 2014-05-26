@@ -227,7 +227,6 @@ class AUV_gui(QMainWindow):
         maniBox = QGroupBox("Manipulators Console")
         maniBox.setLayout(mani_layout)
 
-
         self.armButton.clicked.connect(self.armBtnHandler)
         fireButton.clicked.connect(self.fireBtnHandler)
         okButton.clicked.connect(self.startBtnHandler)
@@ -504,6 +503,7 @@ class AUV_gui(QMainWindow):
         temp = None
         altitude = None
         image_bot = None
+        sonar_bot = None 
         image_front = None
         image_rfront = None
         f_image_bot = None
@@ -579,11 +579,11 @@ class AUV_gui(QMainWindow):
         except Exception,e:
             pass
         try:
-            self.image_bot = self.q_image_bot
+            image_bot = self.q_image_bot
         except Exception,e:
             pass
         try:
-            self.sonar_bot = self.q_sonar
+            sonar_bot = self.q_sonar
         except Exception, e:
             pass
         try:
@@ -640,12 +640,11 @@ class AUV_gui(QMainWindow):
         if self.vision_filter_frame.isFront == 0 and self.q_image_front!=None:
             self.update_video_rfront(self.q_image_front)
         if self.isSonar == 0:
-            if self.image_bot != None:
-                self.update_video_bot(self.image_bot)
+            if image_bot != None:
+                self.update_video_bot(image_bot)
         else:
-            if self.sonar_bot != None:
-                self.update_video_bot(self.sonar_bot)
-
+            if sonar_bot != None:
+                self.update_video_bot(sonar_bot)
         if self.filter_image != None:
             self.vision_filter_frame.update_image_filterchain(self.filter_image)
 
@@ -1153,12 +1152,6 @@ class AUV_gui(QMainWindow):
     
     def onVideoActivated(self, index):
         self.isSonar = index
-        if self.isSonar == 0:
-            if self.image_bot != None:
-                self.update_video_bot(self.image_bot)
-        else:
-            if self.sonar_bot != None:
-                self.update_video_bot(self.sonar_bot)
 
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
@@ -1193,6 +1186,8 @@ class AUV_gui(QMainWindow):
 
     def update_video_bot(self,image):
         cvBGRImg_bot = self.rosimg2cv(image)
+        if self.isSonar == 1:
+            cvBGRImg_bot = cv2.resize(cvBGRImg_bot, (360, 250))
         cvRGBImg_bot = cv2.cvtColor(cvBGRImg_bot, cv2.COLOR_BGR2RGB)
         qimg = QImage(cvRGBImg_bot.data,cvRGBImg_bot.shape[1], cvRGBImg_bot.shape[0], QImage.Format_RGB888)
         qpm = QPixmap.fromImage(qimg)
@@ -1223,7 +1218,6 @@ class AUV_gui(QMainWindow):
     def sonar_callback(self, image):
         try:
             self.q_sonar = image
-            print "Image"
         except CvBridgeError, e:
             print e
 

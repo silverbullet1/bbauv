@@ -47,7 +47,7 @@ class PegsVision:
         outImg = None
         
         #Preprocessing 
-        #img = vision.preprocessImg(img)    # If need then cut image
+        img = vision.preprocessImg(img)    # If need then cut image
         
         # Enhance image
         rawImg = img
