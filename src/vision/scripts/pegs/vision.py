@@ -16,8 +16,10 @@ class PegsVision:
     screen = {'width': 640, 'height': 480}
     
     #Vision parameters - pegs are either red or white
-    redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
-                 'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
+
+    redParams = {'lo1': (0, 0, 0), 'hi1': (25, 255, 255),
+                 'lo2': (167, 0, 0), 'hi2': (188, 255, 255),
+                 'dilate': (9,9), 'erode': (3,3), 'open': (3,3)}
     
     blueParams = {'lo': (97, 0, 0), 'hi': (139, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
@@ -46,8 +48,13 @@ class PegsVision:
         
         #Preprocessing 
         #img = vision.preprocessImg(img)    # If need then cut image
-        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX=0)
+        
+        # Enhance image
+        rawImg = img
+        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
+    
+        hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
                 
         if self.comms.findRedPeg:
             # Threshold red 
@@ -57,8 +64,11 @@ class PegsVision:
             params = self.blueParams
 
         # Perform thresholding
-        binImg = cv2.inRange(hsvImg, params['lo'], params['hi'])
-        binImg = vision.erodeAndDilateImg(binImg, params)
+        binImg1 = cv2.inRange(hsvImg, params['lo1'], params['hi1'])
+        #binImg2 = cv2.inRange(hsvImg, params['lo2'], params['hi2'])
+        #binImg = cv2.bitwise_or(binImg1, binImg2)
+        binImg = vision.erodeAndDilateImg(binImg1, params)
+        return binImg
 
         # Find contours 
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)    # To overlay with centroids
@@ -92,8 +102,8 @@ class PegsVision:
             
             # Draw new centroid
             cv2.circle(scratchImgCol, self.comms.centroidToPick, 3, (0, 255, 255), 2)
-            
             # How far the centroid is off the screen center
+            
             self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
             cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
@@ -156,7 +166,6 @@ class PegsVision:
         
         # How far the centroid is off the screen center
         self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
-        self.comms.deltaX = self.comms.deltaX * self.comms.deltaXMult  
         cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
               
@@ -165,7 +174,7 @@ class PegsVision:
             
 def main():
     cv2.namedWindow("Peg Test")
-    inImg = cv2.imread("pegs/pegs.png")
+    inImg = cv2.imread("pegs/pegs3.png")
     from comms import Comms
     detector = PegsVision(comms = Comms())
     outImg = detector.gotFrame(inImg)
