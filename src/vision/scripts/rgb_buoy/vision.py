@@ -44,7 +44,7 @@ class RgbBuoyVision:
         outImg = None
 
         # Preprocessing
-        #    img = vision.preprocessImg(img)    # Cut image if required 
+        img = vision.preprocessImg(img)    # Cut image if required 
         rawImg = img
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)

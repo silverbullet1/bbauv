@@ -125,12 +125,14 @@ class ShootTorpedo(smach.State):
         # Shoot once more 
         if self.comms.numShoot == 0:
             self.comms.shootTopTorpedo()
-            self.comms.numShoot = self.comms.numShoot + 1
         elif self.comms.numShoot == 1:
             self.comms.shootBotTorpedo()
-            self.comms.numShoot = self.comms.numShoot + 1
         else:
             return 'shoot_complete'
+        
+        # Reset parameters
+        self.comms.centroidToShoot = None
+        self.comms.numShoot = self.comms.numShoot + 1
         
         return 'shoot_again'
     
