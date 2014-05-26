@@ -14,7 +14,7 @@ class Comms(GenericComms):
         GenericComms.__init__(self, BinsVision(self))
         self.defaultDepth = 2.0
 
-        if self.isAlone:
+        if not self.isAlone:
             # Initialize mission planner communication server and client
             self.comServer = rospy.Service("/bins/mission_to_vision",
                                            mission_to_vision,

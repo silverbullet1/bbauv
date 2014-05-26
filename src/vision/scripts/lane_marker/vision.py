@@ -1,3 +1,5 @@
+import rospy
+
 import math
 import numpy as np
 import cv2
@@ -158,6 +160,20 @@ class LaneMarkerVision:
             foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
                                                            l2[0][0]-crossPt[0]))
             retData['crossPoint'] = crossPt
+
+            # Figure out which lane marker is left or right
+            left = Utils.normAngle(foundLines[0]['angle'])
+            right = Utils.normAngle(foundLines[1]['angle'])
+            if (not ((right-left > 0 and abs(right-left) < 180) or
+                     (right-left < 0 and abs(right-left) > 180))):
+                foundLines[0], foundLines[1] = foundLines[1], foundLines[0]
+
+            if self.debugMode:
+                startPt = (int(foundLines[0]['pos'][0])-70,
+                           int(foundLines[0]['pos'][1]))
+                cv2.putText(outImg, "left", startPt,
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
+
         else:
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
@@ -184,6 +200,7 @@ class LaneMarkerVision:
         return retData, outImg
 
 def main():
+    rospy.init_node("lane_marker_vision")
     cv2.namedWindow("test")
     from comms import Comms
     inImg = cv2.imread("lane_marker/test1.jpg")

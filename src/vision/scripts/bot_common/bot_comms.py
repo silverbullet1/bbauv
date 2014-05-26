@@ -58,6 +58,7 @@ class GenericComms:
             self.isAborted = False
             self.canPublish = True
 
+
     def register(self):
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
         self.compassSub = rospy.Subscriber(config.compassTopic,
