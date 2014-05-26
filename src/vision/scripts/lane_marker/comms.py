@@ -20,11 +20,11 @@ class Comms(GenericComms):
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
-            self.comServer = rospy.Service("/lane_marker/mission_to_vision",
+            self.comServer = rospy.Service("/lane/mission_to_vision",
                                            mission_to_vision,
                                            self.handleSrv)
             rospy.loginfo("Waiting for vision to mission service")
-            self.toMission = rospy.ServiceProxy("/lane_marker/vision_to_mission",
+            self.toMission = rospy.ServiceProxy("/lane/vision_to_mission",
                                                 vision_to_mission)
             self.toMission.wait_for_service(timeout=60)
 
