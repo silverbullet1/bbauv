@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#/usr/bin/env/python 
 
 '''
-Communication b/w ROS class and submodules
+For communication with Robot 
 '''
 
 import rospy
-
 from front_commons.frontComms import FrontComms
 from vision import RoundVision
 
@@ -21,7 +20,7 @@ class Comms(FrontComms):
     foundSomething = False 
     
     foundRed = False
-    foundBlack = False 
+    foundGreen = False 
     
     # Movement parameters
     firstCross = True   # First cross, then turn 90 deg, then second cross 
@@ -54,8 +53,6 @@ class Comms(FrontComms):
         return mission_to_visionResponse(isStart, isAborted)
 
 def main():
-    testCom = Comms()    
-    
-    
+    testCom = Comms()        
     
     

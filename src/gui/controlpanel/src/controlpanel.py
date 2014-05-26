@@ -45,7 +45,7 @@ class AUV_gui(QMainWindow):
     depth_thermo = None
     client = None
     movebase_client = None
-    acoustic = 0
+    isSonar = 0
     yaw = 0
     depth = 0
     pos_x = 0
@@ -74,12 +74,12 @@ class AUV_gui(QMainWindow):
     q_openups2 = Queue.Queue()
     q_temp = Queue.Queue()
     q_altitude = Queue.Queue()
-    q_acoustic = Queue.Queue()
     q_cputemp = Queue.Queue()
     q_image_bot = None
+    q_sonar = None
     q_image_front = None
     q_image_rfront = None
-    data = {'acoustic':0, 'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
+    data = {'yaw': 0, 'pitch' : 0,'roll':0, 'depth': 0,'mode':0, 'attitude':0,
             'pressure':0,'forward_setpoint':0,'sidemove_setpoint':0,
             'heading_setpoint':0,'depth_setpoint':0,'altitude':0,'heading_error':0,'openups1':Battery(), 'openups2':Battery(),
             'forward_error':0,'sidemove_error':0,'temp':0,'depth_error':0,'goal_id':"None",'thrusters':thruster(),
@@ -112,7 +112,6 @@ class AUV_gui(QMainWindow):
     frontfilter_sub = None
     botfilter_sub = None
     battery_sub = None
-    acoustic_sub = None
     cputemp_sub = None
 
     def __init__(self, parent=None):
@@ -228,7 +227,6 @@ class AUV_gui(QMainWindow):
         maniBox = QGroupBox("Manipulators Console")
         maniBox.setLayout(mani_layout)
 
-
         self.armButton.clicked.connect(self.armBtnHandler)
         fireButton.clicked.connect(self.fireBtnHandler)
         okButton.clicked.connect(self.startBtnHandler)
@@ -321,23 +319,6 @@ class AUV_gui(QMainWindow):
         compass_l.setAlignment(Qt.AlignHCenter)
         heading_l.setAlignment(Qt.AlignHCenter)
 
-        acoustic_l = QLabel("<b>Acoustics</b>")
-        a_heading_l , self.acoustic_h_box, acoustic_h_provider = self.make_data_box("Heading:")
-        a_forward_l , self.acoustic_f_box, acoustic_f_provider = self.make_data_box("Forward:")
-        acousticBtn = QPushButton("Turn")
-        acousticBtn.clicked.connect(self.acousticBtnHandler)
-        acousticGoBtn = QPushButton("F&wd")
-        acousticGoBtn.clicked.connect(self.acousticGoBtnHandler)
-        acoustic_layout = QVBoxLayout()
-        acoustic_layout.addWidget(acoustic_l)
-        acoustic_layout.addLayout(acoustic_h_provider)
-        acoustic_layout.addLayout(acoustic_f_provider)
-        acoustic_layout_h = QHBoxLayout()
-        acoustic_layout_h.addWidget(acousticBtn)
-        acoustic_layout_h.addWidget(acousticGoBtn)
-        acoustic_layout.addLayout(acoustic_layout_h)
-        acoustic_layout.addStretch()
-
         compass_layout = QHBoxLayout()
         current_layout = QVBoxLayout()
         current_layout.addWidget(self.compass)
@@ -353,7 +334,6 @@ class AUV_gui(QMainWindow):
         compass_box = QGroupBox("AUV Heading")
         compass_box.setLayout(compass_layout)
         goal_gui_layout.addWidget(compass_box)
-        goal_gui_layout.addLayout(acoustic_layout)
 
         #Depth Scale
         self.depth_thermo = Qwt.QwtThermo()
@@ -473,13 +453,17 @@ class AUV_gui(QMainWindow):
         self.video_top = QLabel()
         self.video_bot = QLabel()
         video_top_l = QLabel("<b>Front Camera</b>")
-        video_bot_l = QLabel("<b>Bottom Camera</b>")
+        #video_bot_l = QLabel("<b>Bottom Camera</b>")
+        video_bot_l = QComboBox()
+        video_bot_l.addItem("Bottom Camera")
+        video_bot_l.addItem("Sonar Image")
         video_layout.addWidget(video_top_l)
         video_layout.addWidget(self.video_top)
+        video_layout.addStretch()
         video_layout.addWidget(video_bot_l)
         video_layout.addWidget(self.video_bot)
-        #video_layout.addStretch(1)
         main_layout.addLayout(video_layout)
+        video_bot_l.activated[int].connect(self.onVideoActivated)
 
         #main_layout.addLayout(compass_layout)
         self.main_frame.setLayout(main_layout)
@@ -504,7 +488,6 @@ class AUV_gui(QMainWindow):
              print "Failed to send notification"
 
     def on_timer(self):
-        acoustic = None
         yaw = None
         depth = None
         orientation = None
@@ -520,6 +503,7 @@ class AUV_gui(QMainWindow):
         temp = None
         altitude = None
         image_bot = None
+        sonar_bot = None 
         image_front = None
         image_rfront = None
         f_image_bot = None
@@ -599,8 +583,8 @@ class AUV_gui(QMainWindow):
         except Exception,e:
             pass
         try:
-            acoustic = self.q_acoustic.get(False,0)
-        except Exception,e:
+            sonar_bot = self.q_sonar
+        except Exception, e:
             pass
         try:
             cputemp = self.q_cputemp.get(False,0)
@@ -618,8 +602,6 @@ class AUV_gui(QMainWindow):
             self.data['pitch'] = orientation.pitch
             self.data['yaw'] = orientation.yaw
             self.data['roll'] = orientation.roll
-        if acoustic != None:
-            self.data['acoustic'] = acoustic.angle
         if cputemp != None:
             self.data['cputemp'] = cputemp
         if hull_statuses != None:
@@ -657,14 +639,17 @@ class AUV_gui(QMainWindow):
             self.update_video_front(self.q_image_front)
         if self.vision_filter_frame.isFront == 0 and self.q_image_front!=None:
             self.update_video_rfront(self.q_image_front)
-        if image_bot != None:
-            self.update_video_bot(image_bot)
+        if self.isSonar == 0:
+            if image_bot != None:
+                self.update_video_bot(image_bot)
+        else:
+            if sonar_bot != None:
+                self.update_video_bot(sonar_bot)
         if self.filter_image != None:
             self.vision_filter_frame.update_image_filterchain(self.filter_image)
 
         self.depth_thermo.setValue(round(self.data['depth'],2))
         self.compass.setValue(int(self.data['yaw']))
-        self.acoustic_h_box.setText(str(int(self.data['acoustic'])))
 
         if self.data['mode']== 0:
             self.l_mode.setText("Default")
@@ -834,6 +819,7 @@ class AUV_gui(QMainWindow):
         self.frontcam_sub = rospy.Subscriber(rospy.get_param('~front',"/front_camera/camera/image_rect_color_opt"),Image, self.front_callback)
         self.botcam_sub = rospy.Subscriber(rospy.get_param('~bottom',"/bot_camera/camera/image_rect_color_opt"),Image, self.bottom_callback)
         self.filter_sub = rospy.Subscriber(rospy.get_param('~filter',"/Vision/image_filter_opt"),Image, self.filter_callback)
+        self.sonar_sub = rospy.Subscriber(rospy.get_param('~sonar', "/sonar_image"), Image, self.sonar_callback)
 
     def unsubscribe(self):
         rospy.loginfo("Unsubscribe from PID")
@@ -856,6 +842,7 @@ class AUV_gui(QMainWindow):
         self.frontcam_sub.unregister()
         self.botcam_sub.unregister()
         self.filter_sub.unregister()
+        self.sonar_sub.unregister()
         self.cputemp_sub.unregister()
 
     def initSub(self):
@@ -875,7 +862,6 @@ class AUV_gui(QMainWindow):
         self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
-        self.acoustic_sub = rospy.Subscriber("/acoustic/angFromPing", acoustic, self.acoustic_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
 
     def ledSelectorCb(self, index):
@@ -919,42 +905,6 @@ class AUV_gui(QMainWindow):
             self.initImage()
 #             self.navigation_frame.initSub
         self.isSubscribed = not self.isSubscribed
-
-    def acousticBtnHandler(self):
-        self.status_text.setText("Finding pinger...")
-        resp = self.set_controller_request(True, True, True, False, True, False, False,False)
-        goal = ControllerGoal
-
-        heading = float(self.acoustic_h_box.text())
-
-        goal.forward_setpoint = 0
-        goal.sidemove_setpoint = 0
-        goal.depth_setpoint = 0.3
-        goal.heading_setpoint = (heading + self.data['yaw'] ) % 360
-
-        self.client.send_goal(goal, self.done_cb)
-
-        #Reset boxes
-        self.acoustic_f_box.setText("")
-        self.acoustic_h_box.setText("")
-
-    def acousticGoBtnHandler(self):
-        self.status_text.setText("Going towards pinger...")
-        resp = self.set_controller_request(True, True, True, False, True, False, False,False)
-        goal = ControllerGoal
-
-        forward = float(self.acoustic_f_box.text())
-
-        goal.forward_setpoint = forward
-        goal.sidemove_setpoint = 0
-        goal.depth_setpoint = 0.3
-        goal.heading_setpoint = self.data['yaw']
-
-        self.client.send_goal(goal, self.done_cb)
-
-        #Reset boxes
-        self.acoustic_f_box.setText("")
-        self.acoustic_h_box.setText("")
 
     def calDepthHandler(self):
         self.status_text.setText("Calibrating depth...")
@@ -1199,6 +1149,9 @@ class AUV_gui(QMainWindow):
         layout.addStretch(1)
 
         return (label, qle, layout)
+    
+    def onVideoActivated(self, index):
+        self.isSonar = index
 
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
@@ -1233,6 +1186,8 @@ class AUV_gui(QMainWindow):
 
     def update_video_bot(self,image):
         cvBGRImg_bot = self.rosimg2cv(image)
+        if self.isSonar == 1:
+            cvBGRImg_bot = cv2.resize(cvBGRImg_bot, (360, 250))
         cvRGBImg_bot = cv2.cvtColor(cvBGRImg_bot, cv2.COLOR_BGR2RGB)
         qimg = QImage(cvRGBImg_bot.data,cvRGBImg_bot.shape[1], cvRGBImg_bot.shape[0], QImage.Format_RGB888)
         qpm = QPixmap.fromImage(qimg)
@@ -1260,6 +1215,12 @@ class AUV_gui(QMainWindow):
         except CvBridgeError, e:
             print e
 
+    def sonar_callback(self, image):
+        try:
+            self.q_sonar = image
+        except CvBridgeError, e:
+            print e
+
     def mode_callback(self,mode):
         self.q_mode.put(mode)
 
@@ -1267,9 +1228,6 @@ class AUV_gui(QMainWindow):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):
         self.q_orientation.put(msg)
-
-    def acoustic_callback(self, msg):
-        self.q_acoustic.put(msg)
 
     def cpu_callback(self, msg):
         self.q_cputemp.put(msg)
