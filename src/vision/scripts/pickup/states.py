@@ -1,7 +1,7 @@
 import time
 
 import rospy
-import smach, smach_ros
+import smach
 
 from comms import Comms
 from vision import PickupVision
@@ -28,8 +28,8 @@ class Search(smach.State):
 
     def __init__(self, comms):
         smach.State.__init__(outcomes=['foundSamples',
-                                              'timeout',
-                                              'aborted'])
+                                       'timeout',
+                                       'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -38,7 +38,7 @@ class Search(smach.State):
         while not self.comms.retVal or \
               len (self.comms.retVal['centroids']) < 1:
             if time.time() - start > self.timeout:
-                self.comms.isAborted = True
+                self.comms.abortMission()
                 return 'timeout'
             rospy.sleep(rospy.Duration(0.3))
 
@@ -65,6 +65,7 @@ class Center(smach.State):
     def execute(self, userdata):
         if self.comms.isAborted or \
            self.comms.isKilled:
+            self.comms.abortMission()
             return 'aborted'
 
         if not self.comms.retVal or \
@@ -87,6 +88,47 @@ class Center(smach.State):
         self.comms.sendMovement(f=0.0, sm=0.0)
         return 'centered'
 
+class Approach(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                             'approaching',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        return 'completed'
+
+class Grab(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['grabbed',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        return 'grabbed'
+
+class Surface(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                            'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        return 'complete'
+
 
 def main():
     rospy.init_node('pickup_node')
@@ -100,14 +142,20 @@ def main():
                                             'killed':'killed'})
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
-                               transitions={'foundSamples':'',
+                               transitions={'foundSamples':'CENTER',
                                             'timeout':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTER',
+                               Center(myCom),
+                               transitions={'centered':'',
+                                            'centering':'CENTER',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
 
-    introServer = smach_ros.IntrospectionServer('mission_server',
-                                                sm,
-                                                '/MISSION/PICKUP')
-    introServer.start()
+    #introServer = smach_ros.IntrospectionServer('mission_server',
+    #                                            sm,
+    #                                            '/MISSION/PICKUP')
+    #introServer.start()
 
     sm.execute()
 
