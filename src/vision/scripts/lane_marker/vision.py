@@ -11,16 +11,16 @@ class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
-    hsvLoThresh1 = (1, 0, 0)
-    hsvHiThresh1 = (80, 255, 255)
+    hsvLoThresh1 = (7, 0, 0)
+    hsvHiThresh1 = (79, 255, 255)
     hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
-    houghThreshold = 50
-    houghMinLength = 60
+    houghThreshold = 70
+    houghMinLength = 70
     houghMaxGap = 10
 
     def __init__(self, comms=None, debugMode=True):
@@ -81,7 +81,7 @@ class LaneMarkerVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
-        binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
+        #binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
         binImg = self.morphology(binImg)
 
@@ -182,8 +182,8 @@ class LaneMarkerVision:
             if 90 < abs(self.comms.inputHeading - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
-        # Draw vector line and angle
         if self.debugMode:
+            # Draw vector line and angle
             for line in foundLines:
                 startpt = line['pos']
                 gradient = np.deg2rad(line['angle'])
@@ -196,6 +196,15 @@ class LaneMarkerVision:
                 cv2.circle(outImg, startpt, 3, (0, 0, 255), 1)
                 cv2.putText(outImg, angleStr, startpt,
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            # Draw the centering rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.05
+            maxDeltaY = self.screen['height']*0.05
+            cv2.rectangle(outImg,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 2)
 
         return retData, outImg
 

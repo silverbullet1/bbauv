@@ -10,9 +10,9 @@ class BinsVision:
 
     # Vision parameters
     hsvLoThresh1 = (1, 0, 0)
-    hsvHiThresh1 = (20, 255, 255)
-    hsvLoThresh2 = (165, 0, 0)
-    hsvHiThresh2 = (179, 255, 255)
+    hsvHiThresh1 = (25, 255, 255)
+    hsvLoThresh2 = (160, 0, 0)
+    hsvHiThresh2 = (180, 255, 255)
 
     loBlueThresh = (100, 1, 0)
     hiBlueThresh = (120, 255, 255)
