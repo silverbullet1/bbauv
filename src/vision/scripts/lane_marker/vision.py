@@ -19,7 +19,7 @@ class LaneMarkerVision:
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
-    houghThreshold = 70
+    houghThreshold = 100
     houghMinLength = 70
     houghMaxGap = 10
 
