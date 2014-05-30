@@ -8,6 +8,10 @@ import rospy
 from front_commons.frontComms import FrontComms
 from vision import TorpedoVision
 
+from bbauv_msgs.msg import controller
+from bbauv_msgs.srv import mission_to_visionResponse, \
+        mission_to_vision, vision_to_mission
+
 class Comms(FrontComms):
     
     isTesting = False
@@ -21,6 +25,8 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = None
+    medianCentroid = []
+    medianRadius = []
     
     # Movement parameters
     radius = None
@@ -29,7 +35,17 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
-        self.earth_odom_sub = None
+        self.defaultDepth = 0.6
+        
+        # Initialise mission planner 
+        if not self.isAlone:
+            self.comServer = rospy.Service("/torpedo/mission_to_vision", 
+                                           mission_to_vision,
+                                           self.handle_srv)
+            rospy.loginfo("Waiting for mission planner")
+            self.toMission = rospy.ServiceProxy("/torpedo/vision_to_mission",
+                                                vision_to_mission)
+            self.toMission.wait_for_service(timeout=60)
         
     # Handle mission services
     def handle_srv(self, req):
@@ -43,15 +59,26 @@ class Comms(FrontComms):
             rospy.loginfo("Torpedo starting")
             isStart = True
             isAborted = False
+            self.defaultDepth = req.start_ctrl.depth_setpoint
+            self.inputHeading = req.start_ctrl.heading_setpoint
+            
+            return mission_to_visionResponse(start_response=True,
+                                             abort_response=False,
+                                             data=controller(heading_setpoing=
+                                                             self.curHeading))
         
-        if req.abort_request:
+        elif req.abort_request:
             rospy.loginfo("Torpedo abort received")
+            self.sendMovement(forward=0.0, sidemove=0.0)
             isAbort=True
             isStart = False
             self.unregister()
             
-        return mission_to_visionResponse(isStart, isAborted)
-
+            return mission_to_visionResponse(start_response=False,
+                                             abort_response=True,
+                                             data=controller(heading_setpoint=
+                                                             self.curHeading))
+            
     def shootTopTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 1)
@@ -64,4 +91,4 @@ class Comms(FrontComms):
     
     
 def main():
-    testCom = Comms()
+    pass
