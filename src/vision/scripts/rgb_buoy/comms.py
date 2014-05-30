@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 
 '''
 Communication b/w ROS class and submodules
@@ -17,18 +17,17 @@ class Comms(FrontComms):
     isStart = False
     
     # Vision boolean
-    toBump = False
+    toBumpColor = False
     foundBuoy = False
-    centroidToBump = None
-    rectArea = 15000
-    deltaX = 10000
+    centroidToBump = (-1,-1)
+    rectArea = None
+    deltaX = 0
     
-    # Bumping parameters 
-    colourToBump = "RED"
-    timesToBump = 3
+    isCentering = False 
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
+        #self.colourToBump = int(rospy.get_param("~color", "0"))
         
     # Handle mission services
     def handle_srv(self, req):

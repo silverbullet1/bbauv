@@ -1,3 +1,5 @@
+import rospy
+
 import math
 import numpy as np
 import cv2
@@ -9,16 +11,16 @@ class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
-    hsvLoThresh1 = (0, 0, 0)
-    hsvHiThresh1 = (30, 255, 255)
-    hsvLoThresh2 = (165, 0, 0)
+    hsvLoThresh1 = (7, 0, 0)
+    hsvHiThresh1 = (79, 255, 255)
+    hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
-    houghThreshold = 80
-    houghMinLength = 60
+    houghThreshold = 100
+    houghMinLength = 70
     houghMaxGap = 10
 
     def __init__(self, comms=None, debugMode=True):
@@ -44,8 +46,8 @@ class LaneMarkerVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -79,7 +81,7 @@ class LaneMarkerVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
-        binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
+        #binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
         binImg = self.morphology(binImg)
 
@@ -158,6 +160,20 @@ class LaneMarkerVision:
             foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
                                                            l2[0][0]-crossPt[0]))
             retData['crossPoint'] = crossPt
+
+            # Figure out which lane marker is left or right
+            left = Utils.normAngle(foundLines[0]['angle'])
+            right = Utils.normAngle(foundLines[1]['angle'])
+            if (not ((right-left > 0 and abs(right-left) < 180) or
+                     (right-left < 0 and abs(right-left) > 180))):
+                foundLines[0], foundLines[1] = foundLines[1], foundLines[0]
+
+            if self.debugMode:
+                startPt = (int(foundLines[0]['pos'][0])-70,
+                           int(foundLines[0]['pos'][1]))
+                cv2.putText(outImg, "left", startPt,
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
+
         else:
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
@@ -166,24 +182,34 @@ class LaneMarkerVision:
             if 90 < abs(self.comms.inputHeading - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
-        # Draw vector line and angle
         if self.debugMode:
+            # Draw vector line and angle
             for line in foundLines:
                 startpt = line['pos']
                 gradient = np.deg2rad(line['angle'])
                 endpt = (int(startpt[0] + 100 * math.cos(gradient)),
                          int(startpt[1] + 100 * math.sin(gradient)))
                 startpt = (int(startpt[0]), int(startpt[1]))
-                angleStr = "{0:.2f}".format(line['angle'])
+                angleStr = "{0:.2f}".format(Utils.toHeadingSpace(line['angle']))
 
                 cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
                 cv2.circle(outImg, startpt, 3, (0, 0, 255), 1)
                 cv2.putText(outImg, angleStr, startpt,
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            # Draw the centering rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.05
+            maxDeltaY = self.screen['height']*0.05
+            cv2.rectangle(outImg,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 2)
 
         return retData, outImg
 
 def main():
+    rospy.init_node("lane_marker_vision")
     cv2.namedWindow("test")
     from comms import Comms
     inImg = cv2.imread("lane_marker/test1.jpg")
