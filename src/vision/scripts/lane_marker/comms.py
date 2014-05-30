@@ -20,6 +20,7 @@ class Comms(GenericComms):
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
+            rospy.loginfo("Starting /lane/mission_to_vision")
             self.comServer = rospy.Service("/lane/mission_to_vision",
                                            mission_to_vision,
                                            self.handleSrv)
@@ -34,6 +35,8 @@ class Comms(GenericComms):
             self.isAborted = False
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
+            self.expectedLanes = req.numLanes
+            self.chosenLane = self.LEFT if req.chosenLane == 0 else self.RIGHT
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=

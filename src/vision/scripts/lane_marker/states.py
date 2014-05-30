@@ -32,7 +32,7 @@ class MedianFilter:
         self.samples.append(sample)
 
     def getMedian(self):
-        return np.mean(self.samples)
+        return np.median(self.samples)
 
     def getVariance(self):
         if len(self.samples) >= self.sampleWindow:
@@ -59,8 +59,8 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 7 
-    defaultWaitingTime = 7
+    timeout = 20 
+    defaultWaitingTime = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -100,15 +100,15 @@ class Search(smach.State):
                     self.comms.abortMission()
                     return 'aborted'
 
-                self.comms.sendMovement(f=0.0, sm=0.0, blocking=False)
+                self.comms.sendMovement(f=-1.0, sm=-1.0, blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
         return 'foundLanes'
 
 class Stablize(smach.State):
-    maxdx = 0.07
-    maxdy = 0.07
+    maxdx = 0.05
+    maxdy = 0.05
     width = LaneMarkerVision.screen['width']
     height = LaneMarkerVision.screen['height']
 
@@ -142,8 +142,28 @@ class Stablize(smach.State):
 
         f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
         sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
-        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint, blocking=False)
+        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint, 
+                                h=self.comms.inputHeading, blocking=False)
         return 'stablizing'
+
+#class Center(smach.State):
+#    def __init__(self, comms):
+#        smach.State.__init__(self, outcomes=['centered',
+#                                             'centering',
+#                                             'lost',
+#                                             'aborted'])
+#        self.comms = comms
+#
+#    def execute(self, userdata):
+#        if self.comms.isAborted or self.comms.isKilled:
+#            self.comms.abortMission()
+#
+#        if not self.comms.retVal or \
+#           len(self.comms.retVal['foundLines']) == 0:
+#            return 'lost'
+#
+#        if self.comms.expectedLanes == 1:
+#            return 'centered'
 
 class Align(smach.State):
     def __init__(self, comms):
@@ -152,7 +172,7 @@ class Align(smach.State):
                                              'lost',
                                              'aborted'])
         self.comms = comms
-        self.angleSampler = MedianFilter(sampleWindow=100)
+        self.angleSampler = MedianFilter(sampleWindow=30)
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
@@ -166,25 +186,35 @@ class Align(smach.State):
         lines = self.comms.retVal['foundLines']
         if len(lines) == 1 or self.comms.expectedLanes == 1:
             self.angleSampler.newSample(lines[0]['angle'])
+            rospy.loginfo(Utils.normAngle(
+                Utils.toHeadingSpace(lines[0]['angle'])))
         elif len(lines) >= 2:
             if self.comms.chosenLane == self.comms.LEFT:
                 self.angleSampler.newSample(lines[0]['angle'])
+                rospy.loginfo(Utils.normAngle(
+                    Utils.toHeadingSpace(lines[0]['angle'])))
             elif self.comms.chosenLane == self.comms.RIGHT:
                 self.angleSampler.newSample(lines[1]['angle'])
+                rospy.loginfo(Utils.normAngle(
+                    Utils.toHeadingSpace(lines[1]['angle'])))
             else:
                 rospy.loginfo("Something goes wrong with chosenLane")
 
-        if (self.angleSampler.getVariance() < 1.0):
+        if (self.angleSampler.getVariance() < 1):
             dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
             adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
 
             self.comms.sendMovement(h=adjustHeading, blocking=True)
+            self.comms.adjustHeading = adjustHeading
             return 'aligned'
         else:
+            rospy.sleep(rospy.Duration(0.1))
             return 'aligning'
 
 
 class Forward(smach.State):
+    count = 0
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
                                              'aborted'])
@@ -195,8 +225,13 @@ class Forward(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(f=2.0, blocking=True)
-        self.comms.isAborted = True
+        if self.count == 0 or self.count == 2 or self.count == 3:
+            self.comms.sendMovement(f=6.0, h=self.comms.adjustHeading,
+                                    blocking=True)
+        elif self.count == 1:
+            self.comms.sendMovement(f=12.0, h=self.comms.adjustHeading,
+                                    blocking=True)
+        self.count += 1
         self.comms.taskComplete()
         return 'completed'
 
@@ -221,6 +256,12 @@ def main():
                                             'stablizing':'STABLIZE',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
+        #smach.StateMachine.add('CENTER',
+        #                       Center(myCom),
+        #                       transitions={'centered':'ALIGN',
+        #                                    'centering':'CENTER',
+        #                                    'lost':'SEARCH',
+        #                                    'aborted':'DISENGAGE'})
         smach.StateMachine.add('ALIGN',
                                Align(myCom),
                                transitions={'aligned':'FORWARD',
