@@ -50,6 +50,7 @@ public:
 	BVTMagImage magImg;
 	BVTColorImage colorImg;
 	BVTColorMapper colorMap;
+    
 
 
 	//	head params
@@ -69,6 +70,8 @@ public:
 	cv::Mat matImg;         // image for saving the grayscale intensities
     cv::Mat labelledImg;    // image having the bounded objects
     cv::Mat outImg;         // image that is to be published in ROS image format
+    cv::Mat outLabelled;
+    cv::Mat morphCImg;
 
 	vector<vector<Point> > savedContours;
 	vector<Point> savedPoints;
@@ -94,8 +97,6 @@ public:
 	int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
-    
-    
 
     bbauv_msgs::sonarData singlePoint;
     bbauv_msgs::sonarDataVector sonarMsg;

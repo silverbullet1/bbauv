@@ -27,6 +27,7 @@
 	const std::string GRAYSCALE_MAG_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/grayImage.pgm" ;
 	const std::string GRAYSCALE_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/grayIntensities.txt" ;
 	const std::string COLOR_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/colorImage.png" ;
+    const std::string LABELLED_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/labelledImg.png" ;
 
 //	const std::string GIMG8 = "gImg8bit.png" ;
 //	const std::string SIMG = "sImg.png" ;
@@ -46,7 +47,7 @@ const std::string COLOR_MAPPER_PATH = "/home/bbauvsbc1/bbauv/src/bbsonar/colorma
 
 // range related constants
 const int MIN_RANGE = 2;
-const int MAX_RANGE = 20;
+const int MAX_RANGE = 10;
 const int GRAYSCALE_THRESH = 150;
 
 // for global thresholding (adding a constant)
@@ -55,14 +56,14 @@ const int ROWS_CROPPED = 50;
 
 // for gamma correction, optimal values
 const float PL_CONST = 0.1;
-const float PL_GAMMA = 1.55;
+const float PL_GAMMA = 1.43;
 
 // for contour filtering
-const double CONTOUR_AREA_LOWER_BOUND = 10.0;
+const double CONTOUR_AREA_LOWER_BOUND = 15.0;
 const double CONTOUR_AREA_UPPER_BOUND = 100.0;
 
 // miscellaneous constants
-const int HOTSPOT_THRESH = 150;
+//const int HOTSPOT_THRESH = 150;
 
 #endif /* CONFIG_H_ */
 

@@ -146,8 +146,8 @@ int Utility::writeIntensities() {
     outImg = cImg.clone();
     resize(outImg, outImg, Size(640, 480));
     
-    imshow("colorImg", outImg);
-	cv::waitKey(3);
+//    imshow("colorImg", outImg);
+//	cv::waitKey(3);
 
 //	if (NULL != magImg) BVTMagImage_Destroy(magImg);
 	if (NULL != colorMap) BVTColorMapper_Destroy(colorMap);
@@ -193,13 +193,13 @@ int Utility::processImage() {
 //	cv::adaptiveThreshold(smoothImg, threshImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 23, 25);
 
 //	morphology : opening, closing and dilating
-	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
-	morphologyEx(threshImg, morphOImg, CV_MOP_OPEN, element);
-	morphologyEx(threshImg, morphCImg, CV_MOP_CLOSE, element);
-	dilate(threshImg, dilatedImg, element);
+//	Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1,1));
+//	morphologyEx(threshImg, morphOImg, CV_MOP_OPEN, element);
+//	morphologyEx(threshImg, morphCImg, CV_MOP_CLOSE, element);
+//	dilate(threshImg, dilatedImg, element);
 
 //	applying canny filter for detecting edges
-	Canny(dilatedImg, edgedImg, 1.0, 3.0, 3);
+//	Canny(dilatedImg, edgedImg, 1.0, 3.0, 3);
 
 //	cout << "image depth: " << (grayImg.dataend-grayImg.datastart) / (grayImg.cols*grayImg.rows*grayImg.channels()) * 8 << endl;
 
@@ -265,7 +265,6 @@ int Utility::drawHistogram() {
 //	imshow("histogram", histImage);
 //	imshow("equalized histogram", histEqImage);
 
-    waitKey(0);
 	return 0;
 }
 
@@ -350,10 +349,9 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	vector<Vec4i> hierarchy;
     
 	cv::findContours(dstGray, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-	cout << "number of contours detected: " << contours.size() << endl;
+//	cout << "number of contours detected: " << contours.size() << endl;
 //	if (!contours.size()) {
-//		cout << "exiting now since no objects could be detected" << endl;
-//		exit(EXIT_FAILURE);
+//		cout << "None detected" << endl;
 //	}
 
 	labelledImg = Mat::zeros(dstGray.size(), CV_8UC1);
@@ -399,18 +397,17 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //		}
 // 	}
 //	Canny(orImg, dstEdged, 1.0, 3.0, 3);
-//	imshow("OREdged", dstEdged);
 
 //	imshow("dst", dst);
 	// imshow("dstDilated", dstDilated);
 	// imshow("dstEdged", dstEdged);
-    imshow("labelledImg", labelledImg);
+//    imshow("labelledImg", labelledImg);
 
 	// imwrite("powerImg.png", powerImg);
 	// imwrite("edgedImg.png", dstEdged);
-	// imwrite("labelledImg.png", labelledImg);
+//    imwrite(LABELLED_IMAGE_FILE.c_str(), labelledImg);
 
-    waitKey(3);
+//    waitKey(3);
 
 //	calculate range/bearing of the saved points
 	// getRangeBearing();
@@ -455,7 +452,7 @@ double Utility::getGlobalThreshold(Mat gImg) {
 	double min_val, max_val;
 
 	cv::minMaxLoc(gImg, &min_val, &max_val, 0, 0, noArray());
-	cout << "Min intensity val: " << min_val << "\tMax intensity val: " << max_val << endl;
+//	cout << "Min intensity val: " << min_val << "\tMax intensity val: " << max_val << endl;
 
 	T = 0.5 * (min_val + max_val);
 	done = false;
@@ -501,10 +498,10 @@ int main(int argc, char** argv)
 
     ros::init(argc, argv, "bbsonar");
     ros::NodeHandle nHandle;
-    cv_bridge::CvImage cvImg;
+    cv_bridge::CvImage cvImg, cvLabelledImg;
     
-//    image_transport::ImageTransport it(nHandle);
     ros::Publisher imagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image", 1);
+    ros::Publisher labelledImagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image_labelled", 1);
     ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonarDataVector>("sonar_data", 1000);
     
     ros::Rate loopRate(10);
@@ -512,12 +509,18 @@ int main(int argc, char** argv)
         util->getRangeBearing();
         sonarDataPub.publish(util->sonarMsg);
         
-        cvImg.encoding = sensor_msgs::image_encodings::BGR8;
+        cvImg.encoding = sensor_msgs::image_encodings::MONO8;
         cvImg.image = util->outImg;
+        
+        cvLabelledImg.encoding = sensor_msgs::image_encodings::MONO8;
+        cvLabelledImg.image = util->labelledImg;
+        
         imagePub.publish(cvImg.toImageMsg());
+        labelledImagePub.publish(cvLabelledImg.toImageMsg());
 
         ros::spinOnce();
         loopRate.sleep();
     }
+    
 	return 0;
 }
