@@ -1,10 +1,11 @@
 import rospy
-
-import smach, smach_ros
+import smach
 
 from utils.utils import Utils
 from comms import Comms
 from vision import BinsVision
+
+import time
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -15,6 +16,7 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         self.comms.unregister()
+
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
@@ -24,6 +26,8 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
+    timeout = 1000
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
                                              'timeout',
@@ -31,9 +35,15 @@ class Search(smach.State):
         self.comms = comms
 
     def execute(self, userdata):
+        start = time.time()
+
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
             if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
+            if time.time() - start > self.timeout:
+                self.comms.abortMission()
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
@@ -60,26 +70,24 @@ class Center(smach.State):
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
             return 'aborted'
 
-        if not self.comms.rectVal or \
-           len(self.comms.rectVal['matches']) == 0:
+        if not self.comms.retVal or \
+           len(self.comms.retVal['matches']) == 0:
             return 'lost'
 
         matches = self.comms.retVal['matches']
-        closestCentroid = None
-        closestDist = 1000
-        for match in matches:
-            dist = Utils.distBetweenPoints(match['centroid'],
-                                           (self.centerX, self.centerY))
-            if dist < closestDist:
-                closestCentroid = match['centroid']
-                closestDist = dist
+        nearest = min(matches,
+                      key=lambda m:
+                      Utils.distBetweenPoints(m['centroid'],
+                                              (self.centerX, self.centerY)))
+        closestCentroid = nearest['centroid']
 
         dx = (closestCentroid[0] - self.centerX) / self.width
         dy = (closestCentroid[1] - self.centerY) / self.height
 
-        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
+        if abs(dx) > self.maxdx or abs(dy) > self.maxdy:
             self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
                                     blocking=False)
             return 'centering'
@@ -95,12 +103,10 @@ class Fire(smach.State):
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
             return 'aborted'
 
-        self.comms.openDropper()
-        rospy.sleep(rospy.Duration(0.5))
-        self.comms.closeDropper()
-
+        self.comms.drop()
         return 'completed'
 
 
@@ -130,10 +136,11 @@ def main():
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 
-    introServer = smach_ros.IntrospectionServer('mission_server',
-                                                sm,
-                                                '/MISSION/BINS')
-    introServer.start()
+    #introServer = smach_ros.IntrospectionServer('mission_server',
+    #                                            sm,
+    #                                            '/MISSION/BINS')
+    #introServer.start()
 
     sm.execute()
+    rospy.signal_shutdown("lane_marker task ended")
 

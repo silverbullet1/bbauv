@@ -4,6 +4,6 @@ botCamLocalTopic = '/bottomcam/camera/image_rect_color'
 frontCamLocalTopic = ''
 
 compassTopic = '/euler'
-visionFilterTopic = '/Vision/filter'
+visionFilterTopic = '/Vision/image_filter'
 
 screen = { 'width': 640, 'height': 480 }

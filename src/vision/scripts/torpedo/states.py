@@ -8,12 +8,13 @@ import rospy
 import smach, smach_ros
 
 from comms import Comms
+import time
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from dynamic_reconfigure.server import Server
 
-from vision import RoundVision
+from vision import TorpedoVision
 
 # Globals 
 locomotionGoal = None 
@@ -29,22 +30,23 @@ class Disengage(smach.State):
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
         
-        if isTesting:
+        if self.comms.isAlone:
             self.comms.register()
-            rospy.loginfo("Starting Round")
+            rospy.loginfo("Starting Torpedo")
         
         return 'start_complete'
-    
-class Search(smach.State):
-    timeout = 10
+
+class SearchCircles(smach.State):
+    timeout = 1000
     
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
+        smach.State.__init__(self, outcomes=['searchCircles_complete', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, ud):
         start = time.time()
-        while not self.comms.foundSomething:
+        
+        while not self.comms.foundCircles: 
             if self.comms.isKilled:
                 return 'killed'
             if self.comms.isAborted or (time.time() - start) > self.timeout:
@@ -52,14 +54,45 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search in figure of 8? 
-            rospy.sleep(rospy.Duration(0.3))
-        
-        return 'search_complete'
+            rospy.sleep(rospy.Duration(0.3))   
+
+        return 'searchCircles_complete'
+
+class MoveForward(smach.State):
+    forward_setpoint = 0.3
+    deltaXMult = 5.0
+    completeRadius = 30
     
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
+        self.comms = comms
+    
+    def execute(self, ud):    
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            self.comms.isAborted = True
+            return 'aborted' 
+        
+        if not self.comms.foundCircles:
+            return 'lost'
+            
+        if self.comms.radius > self.completeRadius:
+            return 'forward_complete'
+        
+        # Side move and keep heading
+        self.comms.sendMovement(forward=self.forward_setpoint, 
+                                sidemove=self.comms.deltaX * self.deltaXMult, 
+                                blocking=False)
+        
+        return 'forwarding'
+
 # Precise movements when near centroid
 class Centering (smach.State):
+    deltaXMult = 3.0
+    
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted' 'killed'])
+        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, userdata):
@@ -68,10 +101,19 @@ class Centering (smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-# Shoot forward across the rod
+        if self.comms.deltaX < 0.005:
+            return 'centering_complete'
+        
+        # Sidemove and center
+        self.comms.sendMovement(forward = 0.0,
+                                sidemove = self.comms.deltaX * self.deltaXMult,
+                                blocking = False)
+        return 'centering'        
+        
+# Shoot torpedo forward
 class ShootTorpedo(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['shoot_again', 'shoot_forward_complete', 'aborted' 'killed'])
+        smach.State.__init__(self, outcomes=['shoot_again', 'shoot_complete', 'aborted', 'killed'])
         self.comms = comms
     
     def execute(self, userdata):
@@ -81,11 +123,18 @@ class ShootTorpedo(smach.State):
             return 'aborted'
         
         # Shoot once more 
-        if self.comms.numShoot is not 2:
-            return 'shoot_again'
+        if self.comms.numShoot == 0:
+            self.comms.shootTopTorpedo()
+        elif self.comms.numShoot == 1:
+            self.comms.shootBotTorpedo()
+        else:
+            return 'shoot_complete'
         
-        return 'shoot_forward_complete'
-    
+        # Reset parameters
+        self.comms.centroidToShoot = None
+        self.comms.numShoot = self.comms.numShoot + 1
+        
+        return 'shoot_again'
     
 def main():
     rospy.init_node('torpedo_node', anonymous=False)
@@ -98,13 +147,37 @@ def main():
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
-                                transitions={'start_complete': "SEARCH",
-                                         'killed': 'killed'})
+                                transitions={'start_complete': "SEARCHCIRCLES",
+                                         'killed': 'killed'})      
+    
+        smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
+                                transitions={'searchCircles_complete': "MOVEFORWARD",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})      
+        
+        smach.StateMachine.add("MOVEFORWARD", MoveForward(myCom),
+                                transitions={'forwarding': "MOVEFORWARD",
+                                             'forward_complete': "CENTERING",
+                                             'lost': "SEARCHCIRCLES",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})       
+        
+        smach.StateMachine.add("CENTERING", Centering(myCom),
+                                transitions={'centering': "CENTERING",
+                                             'centering_complete': "SHOOTING",
+                                             'lost': "SEARCHCIRCLES",
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})  
+        
+        smach.StateMachine.add("SHOOTING", ShootTorpedo(myCom),
+                                transitions={'shoot_again': "SEARCHCIRCLES",
+                                             'shoot_complete': 'succeeded',
+                                             'aborted': 'aborted',
+                                             'killed': 'killed'})     
     
     #set up introspection Server
     introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/TORPEDO')
     introServer.start()
     
     sm.execute()
-    rospy.loginfo(outcomes)
         

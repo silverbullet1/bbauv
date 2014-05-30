@@ -64,5 +64,5 @@ class Utils():
     # Input: Point1(x1, y1) Point2(x2,y2)
     @staticmethod
     def distBetweenPoints(point1, point2):
-        return abs(math.sqrt((point1[0]-point2[0])**2 +
-                             (point1[1]-point2[1])**2))
+        return math.sqrt((point1[0] - point2[0])**2 + 
+                         (point1[1] - point2[1])**2)

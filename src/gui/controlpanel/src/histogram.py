@@ -66,6 +66,7 @@ class QHistogram(QLabel):
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
         # Convert from ROS Image to old OpenCV image
-        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        frame = self.bridge.imgmsg_to_cv(ros_image, desired_encoding="bgr8")
         # Convert from old OpenCV image trackbarnameto Numpy matrix
         return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype
+    
