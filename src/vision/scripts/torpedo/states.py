@@ -61,7 +61,7 @@ class SearchCircles(smach.State):
 class MoveForward(smach.State):
     forward_setpoint = 0.3
     deltaXMult = 5.0
-    completeRadius = 200
+    completeRadius = 30
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -135,7 +135,6 @@ class ShootTorpedo(smach.State):
         self.comms.numShoot = self.comms.numShoot + 1
         
         return 'shoot_again'
-    
     
 def main():
     rospy.init_node('torpedo_node', anonymous=False)

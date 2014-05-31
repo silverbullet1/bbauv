@@ -7,7 +7,11 @@ For communication with Robot
 import rospy
 from front_commons.frontComms import FrontComms
 from vision import PegsVision
+
 from bbauv_msgs.msg._manipulator import manipulator
+from bbauv_msgs.msg import controller
+from bbauv_msgs.srv import mission_to_visionResponse, \
+        mission_to_vision, vision_to_mission
 
 class Comms(FrontComms):
     
@@ -29,6 +33,17 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, PegsVision(comms=self))
+        self.defaultDepth = 0.6
+        
+        # Initialise mission planner 
+        if not self.isAlone:
+            self.comServer = rospy.Service("/pegs/mission_to_vision", 
+                                           mission_to_vision,
+                                           self.handle_srv)
+            rospy.loginfo("Waiting for mission planner")
+            self.toMission = rospy.ServiceProxy("/pegs/vision_to_mission",
+                                                vision_to_mission)
+            self.toMission.wait_for_service(timeout=60)
         
     # Handle mission services
     def handle_srv(self, req):
