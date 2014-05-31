@@ -1,4 +1,5 @@
 import os
+import math
 
 import cv2
 import numpy as np
@@ -38,8 +39,8 @@ class BinsVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (21, 21))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -51,7 +52,7 @@ class BinsVision:
     def morphology2(self, img):
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -80,14 +81,17 @@ class BinsVision:
         for centroid in enumerate(centroids):
             for contour in contours:
                 if cv2.pointPolygonTest(contour, centroid[1], False) > 0:
-                    ret.append({'alien':alienContours[centroid[0]],
-                                'centroid':centroid[1],
-                                'contour': contour})
+                    thisMatch = {'alien':alienContours[centroid[0]],
+                                 'centroid':centroid[1],
+                                 'contour': contour}
+                    thisMatch['class'] = self.classify(thisMatch)
+                    thisMatch['angle'] = self.angleFromContour(contour)
+                    ret.append(thisMatch)
 
         return ret
 
     def angleFromContour(self, contour):
-        points = cv2.cv.BoxPoints(cv2.minAreaRect(contour))
+        points = np.array(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
 
         edge1 = points[1] - points[0]
         edge2 = points[2] - points[1]
@@ -120,9 +124,7 @@ class BinsVision:
         centroids = list()
         outImg = None
         matches = list()
-        classes = None
-        retData = {'centroids': centroids, 'matches': matches,
-                   'classes': classes}
+        retData = {'centroids': centroids, 'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = self.enhance(img)
@@ -181,34 +183,31 @@ class BinsVision:
         contourRects = [cv2.cv.BoxPoints(cv2.minAreaRect(contour))
                         for contour in contours]
 
-        if self.debugMode:
-            for rect in contourRects:
-                Vision.drawRect(outImg2, rect)
-
         # Match each alien centroid to a bin
         matches = self.match(alienContours, centroids, contours)
         retData['matches'] = matches
 
-        # Classify each alien
-        classes = [self.classify(match) for match in retData['matches']]
-        retData['classes'] = classes
+        if self.debugMode:
+            for rect in contourRects:
+                Vision.drawRect(outImg2, rect)
 
-        # Find the orientation of each bin
-        retData['angles'] = list()
-        for match in matches:
-            angle = self.angleFromContour(match['contour']) 
-            if 90 < abs(Utils.normAngle(self.comms.curHeading) -
-                        Utils.normAngle(angle)) < 270:
-                angle = Utils.invertAngle(angle)
-            retData['angles'].append(angle)
+            for match in matches:
+                center = match['centroid']
+                cv2.putText(outImg1,
+                            match['class'], (int(center[0]), int(center[1])),
+                            cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
-        for match in enumerate(matches):
-            center = match[1]['centroid']
-            cv2.putText(outImg1,
-                        classes[match[0]], (int(center[0]), int(center[1])),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+                angle = match['angle'] 
+                endPt = (int(center[0] + 100*math.cos(angle)),
+                         int(center[1] + 100*math.sin(angle)))
+                center = (int(center[0]), int(center[1]))
+                cv2.line(outImg2, center, endPt, (0, 255, 0), 2)
+                cv2.putText(outImg2,
+                            str(Utils.toHeadingSpace(angle)),
+                            (int(center[0]), int(center[1])),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        outImg = np.vstack((outImg1, outImg2))
+        outImg = np.hstack((outImg1, outImg2))
         return retData, outImg
 
 def main():

@@ -28,7 +28,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 20
+    timeout = 200
     defaultWaitingTime = 2
 
     def __init__(self, comms):
@@ -108,12 +108,12 @@ class Center(smach.State):
             return 'lost'
 
         matches = self.comms.retVal['matches']
-        nearest = min(enumerate(matches),
+        nearest = min(matches,
                       key=lambda m:
-                      Utils.distBetweenPoints(m[1]['centroid'],
+                      Utils.distBetweenPoints(m['centroid'],
                                               (self.centerX, self.centerY)))
-        closestCentroid = nearest[1]['centroid']
-        self.comms.binAngle = self.comms.retVal['angles'][nearest[0]]
+        closestCentroid = nearest['centroid']
+        self.comms.nearest = nearest
 
         dx = (closestCentroid[0] - self.centerX) / self.width
         dy = (closestCentroid[1] - self.centerY) / self.height
@@ -133,7 +133,7 @@ class Center(smach.State):
             self.trialsPassed += 1
             return 'centering'
 
-class Align(smach.State)
+class Align(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aligned',
                                              'aligning',
@@ -150,8 +150,7 @@ class Align(smach.State)
            len(self.comms.retVal['matches']) == 0:
             return 'lost'
 
-        dAngle = self.comms.binAngle
-        adjustAngle = Utils.normAngle(Utils.toHeadingSpace(dAngle) +
+        adjustAngle = Utils.normAngle(self.comms.nearest['angle'] +
                                       self.comms.curHeading)
         self.comms.adjustAngle = adjustAngle
         self.comms.sendMovement(h=adjustAngle, blocking=True)
@@ -209,11 +208,6 @@ def main():
                                Fire(myCom),
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
-
-    #introServer = smach_ros.IntrospectionServer('mission_server',
-    #                                            sm,
-    #                                            '/MISSION/BINS')
-    #introServer.start()
 
     sm.execute()
     rospy.signal_shutdown("lane_marker task ended")
