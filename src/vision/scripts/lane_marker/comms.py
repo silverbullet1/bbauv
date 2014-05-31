@@ -37,6 +37,9 @@ class Comms(GenericComms):
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.expectedLanes = req.numLanes
             self.chosenLane = self.LEFT if req.chosenLane == 0 else self.RIGHT
+            rospy.loginfo("Input: d={}, h={}, num={}, chosen={}".format(
+                self.defaultDepth, self.inputHeading,
+                self.expectedLanes, self.chosenLane))
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=

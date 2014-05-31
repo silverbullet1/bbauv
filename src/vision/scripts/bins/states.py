@@ -23,16 +23,20 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         self.comms.register()
+        if self.comms.isAlone:
+            self.comms.inputHeading = self.comms.curHeading
         return 'started'
 
 class Search(smach.State):
-    timeout = 1000
+    timeout = 20
+    defaultWaitingTime = 2
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
                                              'timeout',
                                              'aborted'])
         self.comms = comms
+        self.waitingTimeout = self.defaultWaitingTime
 
     def execute(self, userdata):
         start = time.time()
@@ -42,10 +46,33 @@ class Search(smach.State):
             if self.comms.isKilled or self.comms.isAborted:
                 self.comms.abortMission()
                 return 'aborted'
-            if time.time() - start > self.timeout:
-                self.comms.abortMission()
-                return 'aborted'
+
+            if time.time() - start > self.waitingTimeout:
+                self.waitingTimeout = -1
+                break
+
             rospy.sleep(rospy.Duration(0.3))
+
+        start = time.time()
+        if self.waitingTimeout < 0:
+            # Waiting timeout, start searching pattern until timeout
+            rospy.loginfo("Idling timeout, start searching")
+            while (not self.comms.retVal or
+                   len(self.comms.retVal['matches']) == 0):
+                if self.comms.isKilled or self.comms.isAborted:
+                    self.comms.abortMission()
+                    return 'aborted'
+
+                if (time.time() - start) > self.timeout:
+                    self.comms.abortMission()
+                    return 'aborted'
+
+                self.comms.sendMovement(f=1.0, sm=1.0,
+                                        h=self.comms.inputHeading,
+                                        blocking=False)
+
+        # Reset waitingTimeout for next time
+        self.waitingTimeout = self.defaultWaitingTime
 
         return 'foundBins' 
 
@@ -58,8 +85,11 @@ class Center(smach.State):
     centerX = width / 2.0
     centerY = height / 2.0
 
-    xcoeff = 2.0
-    ycoeff = 1.5
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 2
+    trialsPassed = 0
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -78,11 +108,12 @@ class Center(smach.State):
             return 'lost'
 
         matches = self.comms.retVal['matches']
-        nearest = min(matches,
+        nearest = min(enumerate(matches),
                       key=lambda m:
-                      Utils.distBetweenPoints(m['centroid'],
+                      Utils.distBetweenPoints(m[1]['centroid'],
                                               (self.centerX, self.centerY)))
-        closestCentroid = nearest['centroid']
+        closestCentroid = nearest[1]['centroid']
+        self.comms.binAngle = self.comms.retVal['angles'][nearest[0]]
 
         dx = (closestCentroid[0] - self.centerX) / self.width
         dy = (closestCentroid[1] - self.centerY) / self.height
@@ -92,10 +123,44 @@ class Center(smach.State):
                                     blocking=False)
             return 'centering'
 
-        self.comms.sendMovement(f=0.0, sm=0.0)
-        return 'centered'
+        if self.trialsPassed == self.numTrials:
+            self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.inputHeading,
+                                    blocking=True)
+            return 'centered'
+        else:
+            self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.inputHeading,
+                                    blocking=True)
+            self.trialsPassed += 1
+            return 'centering'
+
+class Align(smach.State)
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['aligned',
+                                             'aligning',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.retVal['matches']) == 0:
+            return 'lost'
+
+        dAngle = self.comms.binAngle
+        adjustAngle = Utils.normAngle(Utils.toHeadingSpace(dAngle) +
+                                      self.comms.curHeading)
+        self.comms.adjustAngle = adjustAngle
+        self.comms.sendMovement(h=adjustAngle, blocking=True)
+        return 'aligned'
+
 
 class Fire(smach.State):
+    sinkingDepth = 3.0
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
                                              'aborted'])
@@ -105,6 +170,9 @@ class Fire(smach.State):
         if self.comms.isAborted or self.comms.isKilled:
             self.comms.abortMission()
             return 'aborted'
+
+        self.comms.sendMovement(h=self.comms.adjustAngle,
+                                d=sinkingDepth, blocking=True)
 
         self.comms.drop()
         return 'completed'
@@ -127,8 +195,14 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTER',
                                Center(myCom),
-                               transitions={'centered':'FIRE',
+                               transitions={'centered':'ALIGN',
                                             'centering':'CENTER',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('ALIGN',
+                               Align(myCom),
+                               transitions={'aligned':'FIRE',
+                                            'aligning':'ALIGN',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('FIRE',

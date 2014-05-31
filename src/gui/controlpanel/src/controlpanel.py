@@ -1118,7 +1118,7 @@ class AUV_gui(QMainWindow):
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         if not self.testing:
-            self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
+            self.dynamic_client = dynamic_reconfigure.client.Client('/DVL')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
 
             self.controller_client = dynamic_reconfigure.client.Client('/Controller')

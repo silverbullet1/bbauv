@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from bot_common.vision import Vision
+from utils.utils import Utils
 
 class BinsVision:
     screen = { 'width': 640, 'height': 480 }
@@ -74,7 +75,7 @@ class BinsVision:
 
     def match(self, alienContours, centroids, contours):
         """ Match a centroid with a contour if it is inside the contour
-            Return triplet of alien_contour, centroid and contour """
+            Return triplet of alien_contour, centroid and bin contour """
         ret = list()
         for centroid in enumerate(centroids):
             for contour in contours:
@@ -84,6 +85,21 @@ class BinsVision:
                                 'contour': contour})
 
         return ret
+
+    def angleFromContour(self, contour):
+        points = cv2.cv.BoxPoints(cv2.minAreaRect(contour))
+
+        edge1 = points[1] - points[0]
+        edge2 = points[2] - points[1]
+
+        #Choose the vertical edge
+        if cv2.norm(edge1) > cv2.norm(edge2):
+            rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
+        else:
+            rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+        return rectAngle
+
 
     def classify(self, match):
         """ Classify a match -> {alienContour, centroid, contour}
@@ -176,6 +192,15 @@ class BinsVision:
         # Classify each alien
         classes = [self.classify(match) for match in retData['matches']]
         retData['classes'] = classes
+
+        # Find the orientation of each bin
+        retData['angles'] = list()
+        for match in matches:
+            angle = self.angleFromContour(match['contour']) 
+            if 90 < abs(Utils.normAngle(self.comms.curHeading) -
+                        Utils.normAngle(angle)) < 270:
+                angle = Utils.invertAngle(angle)
+            retData['angles'].append(angle)
 
         for match in enumerate(matches):
             center = match[1]['centroid']
