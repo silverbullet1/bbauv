@@ -56,6 +56,7 @@ class SearchPegs(smach.State):
                 return 'aborted' 
             
             # Search in figure of 8? 
+            self.comms.sendMovement(forward=0.2)
             rospy.sleep(rospy.Duration(0.3))   
 
         return 'searchPeg_complete'
@@ -64,7 +65,7 @@ class MoveForward(smach.State):
     counter = 0
     deltaXMult = 5.0
     forward_setpoint = 0.3
-    areaRectComplete = 10000
+    areaRectComplete = 500
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -133,8 +134,8 @@ class Offset(smach.State):
             self.comms.isAborted = True
             return 'aborted' 
         
-        # Offset robot
-        self.comms.sendMovement(sidemove = -0.20)
+        # Offset robot to move peg
+        self.comms.sendMovement(sidemove = -0.20, blocking=True)
         return 'offset_complete'
         
 
@@ -154,22 +155,26 @@ class MovePeg(smach.State):
         
         grabberPub = rospy.Publisher("/manipulators", manipulator)
         
-        if self.comms.findRedPeg: 
-            # Open grabber to grab peg & wait for response
-            self.comms.grabRedPeg()
-            self.comms.findRedPeg = False    
-        elif not self.comms.findRedPeg:
-            # Put back peg & wait for response 
-            self.comms.putPeg()
-            self.comms.sendMovement(forward = -2.0)     # Reverse
-            
-            self.comms.centering = False 
-            self.comms.findRedPeg = True
-            self.comms.count = self.comms.count + 1
+        # Grab red peg
+        self.comms.grabRedPeg()
         
-            # Reverse to find yellow board again then find next peg
-            # self.comms.gotoPos()
+        # Move back a little
+        self.comms.sendMovement(forward=-0.2, blocking=True)
         
+        # Go forward a littled
+        self.comms.sendMovement(forward=0.2, blocking=True)
+        
+        # Put red peg back
+        self.comms.putPeg()
+        
+        # Move back to see the whole board again
+        self.comms.sendMovement(forward=-0.5, blocking=True)
+        
+        # Reset variables
+        self.comms.centering = False
+        self.comms.count = self.comms.count + 1
+        self.comms.centroidToPick = None
+
         if self.comms.count == 4:
             return 'task_complete'
         

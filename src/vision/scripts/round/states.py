@@ -88,24 +88,6 @@ class ShootForward(smach.State):
         
         return 'shoot_forward_complete'
     
-# After the first cross, turn back towards the structure
-class TurnBackAround(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['turn_back_complete', 'aborted' 'killed'])
-        self.comms = comms
-    
-    def execute(self, userdata):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
-        
-        # Turn right 90 deg
-        # Move forward 2 m -- TODO: Check dimensions 
-        # Turn right 90 deg 
-        
-        return 'turn_back_complete'
-    
 def main():
     rospy.init_node('round_node', anonymous=False)
     rosRate = rospy.Rate(20)

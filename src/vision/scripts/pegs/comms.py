@@ -7,7 +7,11 @@ For communication with Robot
 import rospy
 from front_commons.frontComms import FrontComms
 from vision import PegsVision
+
 from bbauv_msgs.msg._manipulator import manipulator
+from bbauv_msgs.msg import controller
+from bbauv_msgs.srv import mission_to_visionResponse, \
+        mission_to_vision, vision_to_mission
 
 class Comms(FrontComms):
     
@@ -16,24 +20,30 @@ class Comms(FrontComms):
     isAborted = False 
     isStart = False
     
-    # Vision parameters 
-    findYellowBoard = True  # First find yellow board
-    foundYellowBoard = False 
-    yellowCoordinates = (-1, -1)
-    
-    timeToFindPegs = False 
-    findRedPeg = False   #Either find red or find blue circle 
+    # Vision parameters     
+    findRedPeg = True   #Either find red or find blue circle 
     foundSomething = False 
     
     count = 0       # Move up to 4 pegs 
     
-    centroidToPick = (-1, -1)
-    deltaX = None
+    centroidToPick = None
+    deltaX = 0
     areaRect = 0
     centering = False 
     
     def __init__(self):
         FrontComms.__init__(self, PegsVision(comms=self))
+        self.defaultDepth = 0.6
+        
+        # Initialise mission planner 
+        if not self.isAlone:
+            self.comServer = rospy.Service("/pegs/mission_to_vision", 
+                                           mission_to_vision,
+                                           self.handle_srv)
+            rospy.loginfo("Waiting for mission planner")
+            self.toMission = rospy.ServiceProxy("/pegs/vision_to_mission",
+                                                vision_to_mission)
+            self.toMission.wait_for_service(timeout=60)
         
     # Handle mission services
     def handle_srv(self, req):
@@ -65,23 +75,6 @@ class Comms(FrontComms):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(1 & 4)
         rospy.sleep(rospy.Duration(0.2))
-
-    def navigationRegister(self):
-        self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)
-
-    def navigationUnregister(self):
-        self.earth_odom_sub.unregister()
-    
-    def earthOdomCallback(self, data):
-        self.yellowCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
-        self.navigationUnregister()
-        rospy.loginfo("Current coordinate of yellow board is: ({},{})".format(self.yellowCoordinates[0], 
-                                                                             self.yellowCoordinates[1]))
-    
-    def goToPos(self):
-        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        handle(x=self.yellowCoordinates[0], y=self.yellowCoordinates[1])
-        rospy.loginfo("Moving to the center of yellow board")
 
 def main():
     testCom = Comms()

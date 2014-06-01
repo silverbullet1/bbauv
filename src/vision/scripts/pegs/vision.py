@@ -16,21 +16,20 @@ class PegsVision:
     screen = {'width': 640, 'height': 480}
     
     #Vision parameters - pegs are either red or white
-    redParams = {'lo': (110, 0, 0), 'hi': (137, 255, 255),
-                 'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
+
+    redParams = {'lo1': (113, 0, 0), 'hi1': (136, 255, 255),
+                 'lo2': (0, 0, 0), 'hi2': (27, 255, 255),
+                 'dilate': (15,15), 'erode': (5,5), 'open': (3,3)}
     
     blueParams = {'lo': (97, 0, 0), 'hi': (139, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
-    # Not tested yet 
-    yellowParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
-                  'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
-    
     circleParams = {'minRadius': 0, 'maxRadius': 200}
     
-    minContourArea = 200
+    minContourArea = 100
     
-    previousCentroids = []
+    prevCentroid = (-1, -1)
+    prevArea = 0
     
     def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
@@ -45,64 +44,63 @@ class PegsVision:
         outImg = None
         
         #Preprocessing 
-        #img = vision.preprocessImg(img)    # If need then cut image
-        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hsvImg = cv2.GaussianBlur(hsvImg, ksize=(3, 3), sigmaX=0)
+        img = vision.preprocessImg(img)    # If need then cut image
+        
+        # Enhance image
+        rawImg = img
+        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
+    
+        hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
                 
-        if self.comms.findRedPeg:
-            # Threshold red 
-            params = self.redParams
-        else:
-            # Threshold blue 
-            params = self.blueParams
+        # Threshold red 
+        params = self.redParams
 
         # Perform thresholding
-        binImg = cv2.inRange(hsvImg, params['lo'], params['hi'])
-        binImg = vision.erodeAndDilateImg(binImg, params)
+        binImg1 = cv2.inRange(hsvImg, params['lo1'], params['hi1'])
+        binImg2 = cv2.inRange(hsvImg, params['lo2'], params['hi2'])
+        binImg = cv2.bitwise_or(binImg1, binImg2)
+        binImg = self.erodeAndDilateImg(binImg, params)
 
         # Find contours 
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)    # To overlay with centroids
         
         scratchImg = binImg.copy()  # For contours to mess up
-        contours, _ = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
+        contours, hierachy = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
+        
+        if len(contours) == 0:
+            return scratchImgCol
+        
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
         
         sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour 
-        
-        # Finding center of yellow board 
-#         if self.comms.findYellowBoard and len(contours) > 1:
-#             self.comms.foundYellowBoard = True
-#             mu = cv2.moments(contours[0])
-#             muArea = mu['m00']
-#             self.comms.centroidToPick = (mu['m10']/muArea, mu['m01']/muArea)
-#             self.comms.areaRect = cv2.contourArea(contours[0])
-# 
-#         else:
 
         if self.comms.centering:
+            self.comms.foundSomething = True
             # Find largest contour
             largestContour = contours[0]
             mu = cv2.moments(largestContour)
             muArea = mu['m00']
-            self.comms.centroidToPick = (mu['m10']/muArea, mu['m01']/muArea)
+            self.comms.centroidToPick = (int(mu['m10']/muArea), int(mu['m01']/muArea))
             self.comms.areaRect = cv2.minAreaRect(largestContour)
 
             rospy.loginfo("Area of centroid:{}".format(self.comms.areaRect))
             
             # Draw new centroid
             cv2.circle(scratchImgCol, self.comms.centroidToPick, 3, (0, 255, 255), 2)
-            
             # How far the centroid is off the screen center
+            
             self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
             cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
             
             return scratchImgCol
 
+        # When not centering find a circle
         # Find Hough circles        
         circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=1, param1=350, param2=23,
+                                   minDist=1, param1=350, param2=13,
                                    minRadius = 0,
                                    maxRadius = self.circleParams['maxRadius'])
 
@@ -118,7 +116,6 @@ class PegsVision:
             
             for circle in circles[0,:,:]:
                 circleCentroid = (circle[0], circle[1])
-#                 print abs((Utils.distBetweenPoints(centroid, circleCentroid))), circle[2]
                 if abs((Utils.distBetweenPoints(centroid, circleCentroid))) < circle[2]:
                     self.comms.foundSomething = True
                     # Find new centroid by averaging the centroid and the circle centroid
@@ -131,41 +128,64 @@ class PegsVision:
                     cv2.circle(scratchImgCol, newCentroid, circle[2], (255, 255, 0), 2)
                     cv2.circle(scratchImgCol, newCentroid, 2, (255, 0, 255), 3)
                         
-                    break            
+                    break       
+                     
+        # Centroid resetted 
+        if self.comms.centroidToPick == None:
+            if not len(allCentroidList) == 0:                
+                # Pick the nth centroid to hit 
+                self.comms.centroidToPick = allCentroidList[self.comms.count]
+                self.comms.areaRect = allAreaList[self.comms.count]
+                    
+                self.prevCentroid = self.comms.centroidToPick
+                self.prevArea = self.comms.areaRect
                 
-        # Compare to previous centroids and pick the nth one 
-        if len(self.previousCentroids) == 0:
-            self.previousCentroids = allCentroidList
-            self.previousArea = allAreaList
-        else:                
-            for previousCentroid in self.previousCentroids:
-                for i in range(len(allCentroidList)):
-                    distCenter = []
-                    distCenter.append(Utils.distBetweenPoints(
-                                        previousCentroid, allCentroidList[i]))
-                minIndex = distCenter.index(min(distCenter))
-                self.previousCentroids[minIndex] = allCentroidList[minIndex]
-                self.previousArea[minIndex] = allAreaList[minIndex]
-        
-        self.comms.centroidToPick = self.previousCentroids[self.comms.count]
-        self.comms.areaRect = self.previousArea[self.comms.count]
-        rospy.loginfo("Area of centroid:{}".format(self.comms.areaRect))
-        
-        # Draw new centroid
-        cv2.circle(scratchImgCol, self.comms.centroidToPick, 3, (0, 255, 255), 2)
-        
-        # How far the centroid is off the screen center
-        self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
-        self.comms.deltaX = self.comms.deltaX * self.comms.deltaXMult  
-        cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+        else:
+            if not len(allCentroidList) == 0:            
+                # Compare with the previous centroid and pick the one nearest
+                for centroid in allCentroidList:
+                    distDiff = []
+                    distDiff.append(Utils.distBetweenPoints(
+                                        self.previousCentroid, centroid))
+                minIndex = distDiff.index(min(distDiff))
+                self.comms.centroidToPick = allCentroidList[minIndex]
+                self.comms.areaRect = allAreaList[minIndex]
+                
+                self.prevCentroid = self.comms.centroidToPick
+                self.prevArea = self.comms.areaRect
+                
+            else:
+                # Use back the previous
+                self.comms.centroidToPick = self.previousCentroid
+                self.comms.areaRect = self.previousArea
+                 
+            rospy.loginfo("Area: {}".format(self.comms.areaRect))
+                 
+            # Draw new centroid
+            cv2.circle(scratchImgCol, self.comms.centroidToPick, 3, (0, 255, 255), 2)
+                 
+            # How far the centroid is off the screen center
+            self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
+            cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
               
-        outImg = scratchImgCol
-        return outImg
-            
+        return scratchImgCol
+         
+    def erodeAndDilateImg(self, image, params):      
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['erode'])
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, params['dilate'])
+        closeEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, params['open'])
+
+        image = cv2.erode(image, erodeEl)
+        image = cv2.dilate(image, dilateEl)
+        image = cv2.morphologyEx(image, cv2.MORPH_OPEN, closeEl)  
+        
+        return image
+    
+        
 def main():
     cv2.namedWindow("Peg Test")
-    inImg = cv2.imread("pegs/pegs.png")
+    inImg = cv2.imread("pegs/pegs3.png")
     from comms import Comms
     detector = PegsVision(comms = Comms())
     outImg = detector.gotFrame(inImg)

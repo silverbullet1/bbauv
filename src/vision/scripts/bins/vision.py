@@ -1,23 +1,29 @@
 import os
+import math
 
+import rospy
 import cv2
 import numpy as np
 
 from bot_common.vision import Vision
+from utils.utils import Utils
 
 class BinsVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
     hsvLoThresh1 = (1, 0, 0)
-    hsvHiThresh1 = (20, 255, 255)
-    hsvLoThresh2 = (165, 0, 0)
+    hsvHiThresh1 = (25, 255, 255)
+    hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
-    minContourArea = 5000
+
+    loBlueThresh = (100, 1, 0)
+    hiBlueThresh = (120, 255, 255)
+    minContourArea = 4000
 
     # Parameters for gray-scale thresholding
     upperThresh = 70
-    areaThresh = 10000
+    areaThresh = 8000
 
     # Contours of aliens for shape matching
     aliens = {'1a':None, '1b':None, '2a':None, '2b':None,
@@ -34,8 +40,20 @@ class BinsVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+        img = cv2.erode(img, erodeEl)
+        img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+
+        return img
+
+    def morphology2(self, img):
+        # Closing up gaps and remove noise with morphological ops
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -59,16 +77,35 @@ class BinsVision:
 
     def match(self, alienContours, centroids, contours):
         """ Match a centroid with a contour if it is inside the contour
-            Return triplet of alien_contour, centroid and contour """
+            Return dict of alien_contour, centroid, bin contour, class
+            and angle of the bin"""
         ret = list()
         for centroid in enumerate(centroids):
             for contour in contours:
                 if cv2.pointPolygonTest(contour, centroid[1], False) > 0:
-                    ret.append({'alien':alienContours[centroid[0]],
-                                'centroid':centroid[1],
-                                'contour': contour})
+                    thisMatch = {'alien':alienContours[centroid[0]],
+                                 'centroid':centroid[1],
+                                 'contour': contour}
+                    thisMatch['class'] = self.classify(thisMatch)
+                    thisMatch['angle'] = self.angleFromContour(contour)
+                    ret.append(thisMatch)
 
         return ret
+
+    def angleFromContour(self, contour):
+        points = np.array(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
+
+        edge1 = points[1] - points[0]
+        edge2 = points[2] - points[1]
+
+        #Choose the vertical edge
+        if cv2.norm(edge1) > cv2.norm(edge2):
+            rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
+        else:
+            rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+        return rectAngle
+
 
     def classify(self, match):
         """ Classify a match -> {alienContour, centroid, contour}
@@ -76,7 +113,8 @@ class BinsVision:
         rval = None
         closestMatch = float("inf")
         for alien in self.aliens:
-            humatch = cv2.matchShapes(alien, match['alien'])
+            humatch = cv2.matchShapes(self.aliens[alien], match['alien'],
+                                      1, 0)
             if humatch < closestMatch:
                 closestMatch = humatch
                 rval = alien
@@ -88,9 +126,7 @@ class BinsVision:
         centroids = list()
         outImg = None
         matches = list()
-        classes = None
-        retData = {'centroids': centroids, 'matches': matches,
-                   'classes': classes}
+        retData = {'centroids': centroids, 'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = self.enhance(img)
@@ -103,11 +139,20 @@ class BinsVision:
 
         if self.debugMode:
             outImg1 = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
+            # Draw the aiming rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
+            cv2.rectangle(outImg1,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 2)
 
         scratchImg = binImg.copy()
         alienContours = self.findContourAndBound(scratchImg,
-                                            bounded=True,
-                                            minArea=self.minContourArea)
+                                                 bounded=True,
+                                                 minArea=self.minContourArea)
         #if not contours or len(contours) < 1: return retData, outImg
         sorted(alienContours, key=cv2.contourArea, reverse=True)
 
@@ -124,35 +169,56 @@ class BinsVision:
         # Threshold and find contours that represent the black bins
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         grayImg = cv2.equalizeHist(grayImg)
-        outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
         thVal = min((lowest + mean)/3.99, self.upperThresh)
         grayImg = cv2.threshold(grayImg, thVal, 255, cv2.THRESH_BINARY_INV)[1]
+        #grayImg &= cv2.bitwise_not(cv2.inRange(hsvImg,
+        #                                       self.loBlueThresh,
+        #                                       self.hiBlueThresh))
+        grayImg = self.morphology2(grayImg)
+        if self.debugMode == True:
+            outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
 
         contours = self.findContourAndBound(grayImg, minArea=self.areaThresh)
         sorted(contours, key=cv2.contourArea, reverse=True)
-        contourRects = [cv2.cv.BoxPoints(cv2.minAreaRect(contour))
-                        for contour in contours]
-
-        if self.debugMode:
-            for rect in contourRects:
-                Vision.drawRect(outImg2, rect)
+        #contourRects = [cv2.cv.BoxPoints(cv2.minAreaRect(contour))
+        #                for contour in contours]
 
         # Match each alien centroid to a bin
         matches = self.match(alienContours, centroids, contours)
         retData['matches'] = matches
 
-        # Classify each alien
-        classes = [self.classify(match) for match in retData['matches']]
-        retData['classes'] = classes
+        if self.debugMode:
+            #for rect in contourRects:
+            #    Vision.drawRect(outImg2, rect)
 
-        outImg = np.vstack((outImg1, outImg2))
+            for match in matches:
+                center = match['centroid']
+                cv2.putText(outImg1,
+                            match['class'], (int(center[0]), int(center[1])),
+                            cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+
+                angle = match['angle'] 
+                endPt = (int(center[0] + 100*math.cos(math.radians(angle))),
+                         int(center[1] + 100*math.sin(math.radians(angle))))
+                center = (int(center[0]), int(center[1]))
+
+                Vision.drawRect(outImg2,
+                                cv2.cv.BoxPoints(cv2.minAreaRect(match['contour'])))
+                cv2.line(outImg2, center, endPt, (0, 255, 0), 2)
+                cv2.putText(outImg2,
+                            str(Utils.toHeadingSpace(angle)),
+                            (int(center[0]), int(center[1])),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        outImg = np.hstack((outImg1, outImg2))
         return retData, outImg
 
 def main():
+    rospy.init_node("bins_vision")
     cv2.namedWindow("output")
-    img = cv2.imread("bins/bins_layout.jpg")
+    img = cv2.imread("bins/res/std_bin.png")
     from comms import Comms
     visionFilter = BinsVision(comms=Comms())
     _, outImg = visionFilter.gotFrame(img)

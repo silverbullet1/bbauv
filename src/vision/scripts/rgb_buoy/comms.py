@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 
 '''
 Communication b/w ROS class and submodules
@@ -17,21 +17,17 @@ class Comms(FrontComms):
     isStart = False
     
     # Vision boolean
-    toBump = False
+    toBumpColor = False
     foundBuoy = False
-    centroidToBump = None
-    rectArea = 15000
-    deltaX = 10000
+    centroidToBump = (-1,-1)
+    rectArea = None
+    deltaX = 0
     
-    rgbCoordinates = (-1, -1)
-    
-    # Bumping parameters 
-    colourToBump = "RED"
-    timesToBump = 3
+    isCentering = False 
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
-        self.colourToBump = rospy.get_param("~color", "RED")
+        #self.colourToBump = int(rospy.get_param("~color", "0"))
         
     # Handle mission services
     def handle_srv(self, req):
@@ -53,23 +49,6 @@ class Comms(FrontComms):
             self.unregister()
             
         return mission_to_visionResponse(isStart, isAborted)
-
-    def navigationRegister(self):
-        self.earth_odom_sub = rospy.Subscriber('/earth_odom', Odometry, self.earthOdomCallback)
-
-    def navigationUnregister(self):
-        self.earth_odom_sub.unregister()
-    
-    def earthOdomCallback(self, data):
-        self.rgbCoordinates = (data.pose.pose.position.x, data.pose.pose.position.y)
-        self.navigationUnregister()
-        rospy.loginfo("Current coordinate of rgb buoy is: ({},{})".format(self.rgbCoordinates[0], 
-                                                                             self.rgbCoordinates[1]))
-    
-    def goToPos(self):
-        handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-        handle(x=self.rgbCoordinates[0], y=self.rgbCoordinates[1])
-        rospy.loginfo("Moving to the center of rgb buoy")
 
 def main():
     testCom = Comms()
