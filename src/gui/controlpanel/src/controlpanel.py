@@ -940,7 +940,6 @@ class AUV_gui(QMainWindow):
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
-        
         bbLock = threading.Lock()
         try:
             bbLock.acquire()
@@ -971,8 +970,6 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-#         resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
-
         resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
@@ -1024,9 +1021,8 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, pitch, roll, False,False)
+        resp = self.set_controller_request(True, True, True, True, pitch,roll, False,False)
         goal = ControllerGoal
-
         #Forward
         if self.forward_box.text() == "":
              self.forward_box.setText("0")
@@ -1118,7 +1114,7 @@ class AUV_gui(QMainWindow):
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         if not self.testing:
-            self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
+            self.dynamic_client = dynamic_reconfigure.client.Client('/DVL')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
 
             self.controller_client = dynamic_reconfigure.client.Client('/Controller')
@@ -1386,4 +1382,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, form.signal_handler)
     form.show()
     app.exec_()
+
 
