@@ -23,6 +23,7 @@ from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
 import Queue
 import threading
+import thread
 import signal
 import sys
 
@@ -503,7 +504,7 @@ class AUV_gui(QMainWindow):
         temp = None
         altitude = None
         image_bot = None
-        sonar_bot = None 
+        sonar_bot = None
         image_front = None
         image_rfront = None
         f_image_bot = None
@@ -940,16 +941,18 @@ class AUV_gui(QMainWindow):
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
-        
-        bbLock = threading.Lock()
-        try:
-            bbLock.acquire()
-            handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-            handle(x=xpos, y=ypos)
-        except:
-            rospy.logerr("Unable to move to position")
-        finally:
-            bbLock.release()
+        def callService(x_pos, y_pos):
+            bbLock = threading.Lock()
+            try:
+                bbLock.acquire()
+                handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+                handle(x=x_pos, y=y_pos)
+            except Exception as e:
+                rospy.logerr("Unable to move to position")
+            finally:
+                bbLock.release()
+
+        thread.start_new_thread(callService, (xpos, ypos))
 
     def homeBtnHandler(self):
         self.status_text.setText("Going home.... (0,0")
@@ -971,8 +974,6 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-#         resp = self.set_controller_request(True, True, True, True, pitch, roll,False,False)
-
         resp = self.set_controller_request(True, True, True, True, True, False, False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
@@ -1024,9 +1025,8 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, pitch, roll, False,False)
+        resp = self.set_controller_request(True, True, True, True, pitch,roll, False,False)
         goal = ControllerGoal
-
         #Forward
         if self.forward_box.text() == "":
              self.forward_box.setText("0")
@@ -1118,7 +1118,7 @@ class AUV_gui(QMainWindow):
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         if not self.testing:
-            self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
+            self.dynamic_client = dynamic_reconfigure.client.Client('/DVL')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
 
             self.controller_client = dynamic_reconfigure.client.Client('/Controller')
@@ -1149,7 +1149,7 @@ class AUV_gui(QMainWindow):
         layout.addStretch(1)
 
         return (label, qle, layout)
-    
+
     def onVideoActivated(self, index):
         self.isSonar = index
 
@@ -1386,4 +1386,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, form.signal_handler)
     form.show()
     app.exec_()
+
 

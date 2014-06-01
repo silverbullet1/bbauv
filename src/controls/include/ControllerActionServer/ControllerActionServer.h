@@ -16,7 +16,7 @@ class ControllerActionServer {
 public:
 	ControllerActionServer(std::string name);
 	void updateState(float forward,float sidemove,float heading,float depth);
-
+	void setNavigation(bool nav);
 	void executeCB(const bbauv_msgs::ControllerGoalConstPtr &goal);
 	float getForward();
 	float getSidemove();
@@ -35,6 +35,7 @@ private:
 	float _sidemove_setpoint;
 	float _heading_setpoint;
 	float _depth_setpoint;
+	float _inNavigation;
 
 	float MIN_FORWARD;
 	float MIN_SIDEMOVE;

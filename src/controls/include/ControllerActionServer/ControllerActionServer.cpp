@@ -40,10 +40,15 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	double yaw_error = 0;
 	goal_.depth_setpoint =  goal->depth_setpoint;
 	goal_.heading_setpoint =  goal->heading_setpoint;
-	goal_.forward_setpoint =  goal->forward_setpoint + _forward_input;
-	goal_.sidemove_setpoint =  goal->sidemove_setpoint + _sidemove_input;
-	// push_back the seeds for the fibonacci sequence
-	//feedback_.forward_error = 1000;
+	if(_inNavigation)
+	{
+	  goal_.forward_setpoint =  goal->forward_setpoint;
+	  goal_.sidemove_setpoint =  goal->sidemove_setpoint;
+	} else
+	{
+	  goal_.forward_setpoint =  goal->forward_setpoint + _forward_input;
+	  goal_.sidemove_setpoint =  goal->sidemove_setpoint + _sidemove_input;
+	}
 
 	ROS_INFO("Action Server Goal received - f: %3.2f,f_g: %3.2f , s: %3.2f , s_g: %3.2f , h: %3.2f, d: %3.3f" , goal_.forward_setpoint, goal->forward_setpoint,
 			goal_.sidemove_setpoint,goal->sidemove_setpoint, goal_.heading_setpoint,goal_.depth_setpoint);
@@ -158,7 +163,11 @@ float ControllerActionServer::getDepth()
 	return goal_.depth_setpoint;
 }
 
+void ControllerActionServer::setNavigation(bool nav)
+{
+  _inNavigation = nav;
+}
 ControllerActionServer::~ControllerActionServer() {
-	// TODO Auto-generated destructor stub
+  _inNavigation = false;
 }
 

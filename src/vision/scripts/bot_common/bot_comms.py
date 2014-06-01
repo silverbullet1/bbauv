@@ -77,7 +77,10 @@ class GenericComms:
     def camCallback(self, rosImg):
         self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
-            self.outPub.publish(Utils.cv2rosimg(outImg))
+            try:
+                self.outPub.publish(Utils.cv2rosimg(outImg))
+            except Exception as e:
+                pass
 
     def compassCallback(self, data):
         self.curHeading = data.yaw
@@ -98,12 +101,12 @@ class GenericComms:
         self.isAborted = True
         self.sendMovement(f=0.0, sm=0.0)
 
-    def taskComplete(self):
+    def taskComplete(self, heading=0.0):
         rospy.loginfo("Sending Complete request to mission planner")
         if not self.isAlone:
             self.toMission(fail_request=False, task_complete_request=True,
                            task_complete_ctrl=controller(
-                               heading_setpoint=self.curHeading))
+                               heading_setpoint=heading))
         self.canPublish = False
         self.isAborted = True
         self.sendMovement(f=0.0, sm=0.0)

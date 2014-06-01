@@ -50,13 +50,16 @@ double depth_offset = 0;
 bool inTopside,inTeleop,inHovermode = false, oldHovermode = false;
 bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID, inPitchPID, inRollPID;
 bool inNavigation;
+bool velocityMode;
 bool inVisionTracking;
 bool isForward = false;
 bool isSidemove = false;
 
+
 /**********************Function Prototypes**********************************/
-void collectPosition(const nav_msgs::Odometry::ConstPtr& msg);
-void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg);
+void collectDVL(const nav_msgs::Odometry::ConstPtr& msg);
+void collectOdom(const nav_msgs::Odometry::ConstPtr& msg);
+void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
 void collectAutonomous(const bbauv_msgs::controller & msg);
@@ -78,6 +81,7 @@ ros::Publisher pid_infoPub;
 /**********************Subscriber**********************************/
 ros::Subscriber orientationSub;
 ros::Subscriber pressureSub;
+ros::Subscriber earthSub;
 ros::Subscriber teleopSub;
 ros::Subscriber autonomousSub;
 ros::Subscriber velocitySub;
@@ -171,7 +175,6 @@ int main(int argc, char **argv)
 
 	thrusterPub = nh.advertise<bbauv_msgs::thruster>("/thruster_speed", 1000);
 	depthPub = nh.advertise<bbauv_msgs::depth>("/depth",1000);
-	orientationPub = nh.advertise<bbauv_msgs::compass_data>("/euler",1000);
 	controllerPub = nh.advertise<bbauv_msgs::controller>("/controller_points",100);
 	locomotionModePub = nh.advertise<std_msgs::Int8>("/locomotion_mode",100,true);
 	pid_infoPub = nh.advertise<bbauv_msgs::pid_info>("/pid_info",1000);
@@ -179,7 +182,8 @@ int main(int argc, char **argv)
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
 	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectPosition);
-	orientationSub = nh.subscribe("/AHRS8_data_e",1000,collectOrientation);
+	earthSub = nh.subscribe("earth_odom",1000,collectOdom);
+	orientationSub = nh.subscribe("/euler",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
 	dynamic_reconfigure::Server <PID_Controller::PID_ControllerConfig> server;
@@ -304,13 +308,14 @@ int main(int argc, char **argv)
 		setVertThrustSpeed(depthPID_output,pitchPID_output,rollPID_output);
 
 		/*Update Action Server Positions*/
-		if(!inNavigation && !inTopside)
+		if(!inTopside)
 		{
 			ctrl.forward_setpoint = as.getForward();
 			ctrl.sidemove_setpoint = as.getSidemove();
 			ctrl.heading_setpoint = as.getHeading();
 			ctrl.depth_setpoint = as.getDepth();
 			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
+			as.setNavigation(inNavigation);
 		}
 
 		controllerPub.publish(ctrl);
@@ -336,12 +341,25 @@ double getHeadingPIDUpdate()
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
     {
-      thrusterSpeed.speed1=thruster1_ratio*forwardPID_output;
-      thrusterSpeed.speed2=thruster2_ratio*forwardPID_output;
-      thrusterSpeed.speed7= -(double)headingPID_output-(double)sidemovePID_output;
-      thrusterSpeed.speed8= (double)headingPID_output-(double)sidemovePID_output;
-      //ROS_INFO("ts8: %d, ts7: %d", thrusterSpeed.speed8,thrusterSpeed.speed7);
-      //ROS_INFO("o:%d",-(double)headingPID_output-(double)sidemovePID_output);
+      if(fabs(ctrl.forward_setpoint - ctrl.forward_input) > 0)
+      {
+        thrusterSpeed.speed1=thruster1_ratio*forwardPID_output;
+        thrusterSpeed.speed2=thruster2_ratio*forwardPID_output;
+      } else
+      {
+        thrusterSpeed.speed1 = 0;
+        thrusterSpeed.speed2 = 0;
+      }
+      double speed7_output = -(double)headingPID_output-(double)sidemovePID_output;
+      double speed8_output= (double)headingPID_output-(double)sidemovePID_output;
+      if(speed7_output < -2700) thrusterSpeed.speed7 = -2700;
+        else if(speed7_output >2700) thrusterSpeed.speed7 = 2700;
+        else thrusterSpeed.speed7= speed7_output;
+
+        if(speed8_output < -2700) thrusterSpeed.speed8 = -2700;
+        else if(speed8_output >2700) thrusterSpeed.speed8 = 2700;
+        else thrusterSpeed.speed8= speed8_output;
+
     }
 
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output, double rollPID_output)
@@ -351,38 +369,43 @@ void setVertThrustSpeed(double depthPID_output,double pitchPID_output, double ro
 	double speed5_output = thruster5_ratio*(- depthPID_output - pitchPID_output + rollPID_output);
 	double speed6_output = thruster6_ratio*(- depthPID_output - pitchPID_output - rollPID_output);
 
-    if(speed3_output < -3200) thrusterSpeed.speed3 = -3200;
-    else if(speed3_output >3200) thrusterSpeed.speed3 = 3200;
+    if(speed3_output < -2700) thrusterSpeed.speed3 = -2700;
+    else if(speed3_output >2700) thrusterSpeed.speed3 = 2700;
     else thrusterSpeed.speed3= speed3_output;
 
-    if(speed4_output < -3200) thrusterSpeed.speed4 = -3200;
-    else if(speed4_output >3200) thrusterSpeed.speed4 = 3200;
+    if(speed4_output < -2700) thrusterSpeed.speed4 = -2700;
+    else if(speed4_output >2700) thrusterSpeed.speed4 = 2700;
     else thrusterSpeed.speed4= speed4_output;
 
-    if(speed5_output < -3200) thrusterSpeed.speed5 = -3200;
-    else if(speed5_output >3200) thrusterSpeed.speed5 = 3200;
+    if(speed5_output < -2700) thrusterSpeed.speed5 = -2700;
+    else if(speed5_output >2700) thrusterSpeed.speed5 = 2700;
     else thrusterSpeed.speed5= speed5_output;
 
-    if(speed6_output < -3200) thrusterSpeed.speed6 = -3200;
-    else if(speed6_output >3200) thrusterSpeed.speed6 = 3200;
+    if(speed6_output < -2700) thrusterSpeed.speed6 = -2700;
+    else if(speed6_output >2700) thrusterSpeed.speed6 = 2700;
     else thrusterSpeed.speed6= speed6_output;
   }
 
 /***********Subscriber Callbacks*****************/
 
+void collectOdom(const nav_msgs::Odometry::ConstPtr& msg)
+{
+      if(inNavigation)
+      {
+        ctrl.forward_input = msg->pose.pose.position.x;
+        ctrl.sidemove_input = msg->pose.pose.position.y;
+      }
+}
+
 void collectInput(const bbauv_msgs::controller &msg)
 {
 
 }
-void collectOrientation(const bbauv_msgs::imu_data::ConstPtr& msg)
+void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg)
 {
-	ctrl.heading_input =  msg->orientation.z*180/M_PI;
-	ctrl.pitch_input = msg->orientation.y*180/M_PI;
-        ctrl.roll_input = msg->orientation.x*180/M_PI;
-	orientationAngles.roll = ctrl.roll_input;
-	orientationAngles.yaw = ctrl.heading_input;
-	orientationAngles.pitch = ctrl.pitch_input;
-	orientationPub.publish(orientationAngles);
+	ctrl.heading_input =  msg->yaw;
+	ctrl.pitch_input = msg->pitch;
+        ctrl.roll_input = msg->roll;
 }
 
 void collectPressure(const std_msgs::Int16& msg)
@@ -400,10 +423,15 @@ void collectPressure(const std_msgs::Int16& msg)
 	depthReading.pressure = pressure + ATM;
 	depthPub.publish(depthReading);
 }
-void collectPosition(const nav_msgs::Odometry::ConstPtr& msg)
+void collectDVL(const nav_msgs::Odometry::ConstPtr& msg)
 {
-		ctrl.forward_input = msg->pose.pose.position.x;
-		ctrl.sidemove_input = msg->pose.pose.position.y;
+  if(!inNavigation)
+  {
+      ctrl.forward_input = msg->pose.pose.position.x;
+      ctrl.sidemove_input = msg->pose.pose.position.y;
+  }
+  ctrl.forward_vel_input = msg->twist.twist.linear.x;
+  ctrl.sidemove_vel_input = msg-> twist.twist.linear.y;
 }
 
 /*****************Helper Functions*********************/
