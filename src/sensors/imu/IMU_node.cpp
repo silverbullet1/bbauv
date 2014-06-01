@@ -76,10 +76,15 @@ std::string IMU::read()
     }
 }
 
-float radtodeg(float deg)
+float degtorad(float deg)
 {
     return deg * (M_PI / 180.0);
 }
+
+float radtodeg(float rad)
+{
+    return rad * (180 / M_PI);
+} 
 
 void IMU::process()
 {
@@ -105,14 +110,14 @@ void IMU::process()
     float Gx               = atof(tok.at(7).c_str()) * GYRO_SAMPLE_RATE;
     float Gy               = atof(tok.at(8).c_str()) * GYRO_SAMPLE_RATE;
     float Gz               = atof(tok.at(9).c_str()) * GYRO_SAMPLE_RATE;
-    float yaw              = radtodeg(atof(tok.at(11).c_str()));
+    float yaw              = (atof(tok.at(11).c_str()));
     float temp             = atof(tok.at(13).c_str());
-    float pitch            = radtodeg(atof(tok.at(15).c_str()));
-    float roll             = radtodeg(atof(tok.at(17).c_str()));
+    float pitch            = (atof(tok.at(15).c_str()));
+    float roll             = (atof(tok.at(17).c_str()));
 
-    imu_data.orientation.z         = yaw;
-    imu_data.orientation.y         = pitch;
-    imu_data.orientation.x         = roll;
+    imu_data.orientation.z         = degtorad(yaw);
+    imu_data.orientation.y         = degtorad(pitch);
+    imu_data.orientation.x         = degtorad(roll);
 
     imu_data.linear_acceleration.x = Ax;
     imu_data.linear_acceleration.y = Ay;
@@ -123,6 +128,15 @@ void IMU::process()
     imu_data.angular_velocity.z    = Gz;
 
     temperature.data               = temp;
+
+    euler.roll = roll;
+    euler.pitch = pitch;
+    euler.yaw = yaw;
+
+    euler.temperature = temp;
+    euler.Ax = Ax;
+    euler.Ay = Ay;
+    euler.Az = Az;
 
     if(DEBUG)
         fprintf(stderr, "%s\n", data.c_str());
