@@ -941,17 +941,6 @@ class AUV_gui(QMainWindow):
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
-
-        bbLock = threading.Lock()
-        try:
-            bbLock.acquire()
-            handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-            handle(x=xpos, y=ypos)
-        except:
-            rospy.logerr("Unable to move to position")
-        finally:
-            bbLock.release()
-
         def callService(x_pos, y_pos):
             bbLock = threading.Lock()
             try:
