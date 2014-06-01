@@ -52,7 +52,7 @@ int main(int argc, char **argv){
     ros::NodeHandle nh;
     ros::Subscriber imu_sub = nh.subscribe(imu_topic, 1000, imu_callback);
     ros::Subscriber dvl_sub = nh.subscribe(dvl_topic, 1000, dvl_callback);
-    ros::Publisher pubData = nh.advertise<nav_msgs::Odometry>(output_topic, 1000);
+    //ros::Publisher pubData = nh.advertise<nav_msgs::Odometry>(output_topic, 1000);
     ros::Rate loop_rate(20);
     dynamic_reconfigure::Server<earth_odom::earth_odomConfig> server;
     dynamic_reconfigure::Server<earth_odom::earth_odomConfig>::CallbackType f;
@@ -61,7 +61,7 @@ int main(int argc, char **argv){
 
     while(ros::ok()){
         ros::spinOnce();
-        publish_msg(&pubData);
+        //publish_msg(&pubData);
         loop_rate.sleep();
     }
     
@@ -155,7 +155,7 @@ void publish_msg(ros::Publisher *pubData){
 
     // orientation
     odomData.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(angX, angY, angZ);
-    /*ROS_DEBUG("DVL quaternions = %.1f, %.1f, %.1f, %.1f", 
+    /*ROS_DEBUG("DVL quaternions = %.1f, %.1f, %.1f, %.1f",
             odomData.pose.pose.orientation.x, 
             odomData.pose.pose.orientation.y, 
             odomData.pose.pose.orientation.z, 

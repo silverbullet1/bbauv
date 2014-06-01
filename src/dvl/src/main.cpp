@@ -1,48 +1,54 @@
-#include <dvl/dvl.h>
+#include "../include/DVL.h"
 #include <ros/ros.h>
-#include <bbauv_msgs/imu_data.h>
 #include <nav_msgs/Odometry.h>
-#include <std_msgs/Float32.h>
+#include <string>
+#include <dynamic_reconfigure/server.h>
+#include <dvl/dvlConfig.h>
+#include <functional>
 
-int main(int argc, char **argv){
-    /*
-    DVL d("/dev/tty.NoZAP-PL2303-00003014", 9600, 1500, "/dev/tty.usbserial-FTB3LPPT",
-          9600, 1500);
-    d.test("/Users/alex/dvl.cap");
-    */
-
+int main(int argc, char **argv)
+{
     ros::init(argc, argv, "DVL");
     ros::NodeHandle nh("~");
 
-    ros::Rate loop_rate(20);
+    std::string port;
+    int baudrate;
+    int timeout;
+    int rosrate;
 
-    DVL explorer("/dev/ttyDVL", 9600, 1500,
-                 "/dev/ttyDVLSensor", 9600, 1500);
+    nh.param("port", port, std::string("/dev/ttyDVL"));
+    nh.param("baud", baudrate, int(9600));
+    nh.param("timeout", timeout, int(1000));
+    nh.param("rate", rosrate, int(7));
 
-    if(!explorer.setup()){
-        ROS_ERROR("Couldn't proc /dev/ttyDVL");
-        exit(1);
+    ros::Rate loop_rate(rosrate);
+
+    ros::Publisher dvlpub = nh.advertise<nav_msgs::Odometry>("/WH_DVL_data",
+                                                             100);
+    ros::Publisher earth_odom = nh.advertise<nav_msgs::Odometry>
+        ("/earth_odom", 100);
+
+    DVL dvl(port, baudrate, timeout);
+
+    ros::Subscriber ahrs_sub = nh.subscribe("/AHRS8_data_e", 10,
+                                            &DVL::AHRSsub, &dvl);
+    dynamic_reconfigure::Server<dvl::dvlConfig> dynserver;
+    dynamic_reconfigure::Server<dvl::dvlConfig>::CallbackType f;
+    f = boost::bind(&DVL::zero, &dvl, _1, _2);
+    dynserver.setCallback(f);
+
+    if(!dvl.setup()){
+        ROS_ERROR("[DVL] Cannot initialize DVL");
+        nh.shutdown();
+        ros::shutdown();
     }
 
-    ros::Subscriber sub = nh.subscribe("/AHRS8_data_e", 10,
-                                       &DVL::populatesensors, &explorer);
-    ros::Publisher posepub = nh.advertise<nav_msgs::Odometry>
-        ("/WH_DVL_data", 100);
-    ros::Publisher altpub = nh.advertise<std_msgs::Float32>
-        ("/altitude", 100);
-
-    nav_msgs::Odometry odomobject;
-    std_msgs::Float32  altitudeobject;
-
+    ROS_INFO("[DVL] Initialized on %s at %d bps.", port.c_str(), baudrate);
     while(ros::ok()){
-        explorer.runOnce();
-        explorer.fillpose(&odomobject);
-        explorer.fillalt(&altitudeobject);
-        posepub.publish(odomobject);
-        altpub.publish(altitudeobject);
+        dvl.poll();
+        dvl.integrate();
+        dvl.collect(&dvlpub, &earth_odom);
         ros::spinOnce();
-        //loop_rate.sleep();
+        loop_rate.sleep();
     }
-
-    return 0;
 }

@@ -1,186 +1,180 @@
-#include <dvl/dvl.h>
-#include <dvl/decoder.h>
-#include <fstream>
-#include <numeric>
-#include <ros/ros.h>
 #include <boost/algorithm/string.hpp>
+#include <../include/DVL.h>
+#include <nav_msgs/Odometry.h>
+#include <bbauv_msgs/imu_data.h>
+#include <stdexcept>
 
-using std::string;
 
-DVL::DVL(string dport, int dbaud, int dtimeout,
-         string sport, int sbaud, int stimeout)
+DVL::DVL(std::string serial_port, int baud, int tout)
 {
-    dvl_port           = dport;
-    dvl_baud           = dbaud;
-    dvl_timeout        = dtimeout;
-    dvl_sensor_port    = sport;
-    dvl_sensor_baud    = sbaud;
-    dvl_sensor_timeout = stimeout;
-
-    decoder            = new Decoder(this);
-
-    vfwd = vport = vvert = ovfwd = ovport = ovvert = 0;
-}
-
-DVL::~DVL()
-{
-
-    dvl->flush();
-    dvl->close();
-    //dvl_sensor->flush();
-    //dvl_sensor->close();
-
-    delete(dvl);
-    //delete(dvl_sensor);
-}
-
-void DVL::sendBreak()
-{
-    std::string br("+++\r\n");
-    dvl->flushInput();
-    dvl->flushOutput();
-    dvl->write(br);
-    std::vector<std::string> lines;
-    lines = dvl->readlines();
-    /*
-    for(int i = 0; i < (int) lines.size(); i++){
-        boost::trim(lines.at(i));
-        fprintf(stdout, "%s\n", lines.at(i).c_str());
-    }
-    */
-    dvl->write("CS\r\n");
+    port = serial_port;
+    baudrate = baud;
+    timeout = tout;
 }
 
 bool DVL::setup()
 {
-    dvl = new serial::Serial(dvl_port, dvl_baud,
-                             serial::Timeout::simpleTimeout(dvl_timeout));
-    //dvl_sensor = new serial::Serial(dvl_sensor_port, dvl_sensor_baud,
-    //                                serial::Timeout::simpleTimeout(
-    //                                        dvl_sensor_timeout
-    //                                    ));
 
-    if(!dvl->isOpen()){
+    decoder = new PD6Decoder(this);
+    counter = 0;
+    north = east = up = 0;
+    oldvup = oldveast = oldvnorth = 0;
+    currtime = lasttime = 0;
+
+    yaw = 0;
+    debug = false;
+
+    e_north = e_east = e_up = old_e_up = old_e_east =
+        old_e_north = ex_n = ex_e = ex_u = 0;
+
+    try{
+        dvl = new serial::Serial(port, baudrate,
+                                 serial::Timeout::simpleTimeout(timeout));
+        if(!dvl->isOpen()){
+            throw std::runtime_error(std::string("Serial port is not open"));
+        }
+
+        ROS_INFO("[DVL] Sending soft break.");
+        dvl->write("+++\r\n");
+        sleep(1);
+        ROS_INFO("[DVL] Starting to ping.");
+        dvl->write("CS\r\n");
+
+        dvl->flushInput();
+        dvl->flushOutput();
+    } catch(std::exception &e){
+        ROS_ERROR("Exception initializing: [%s]", e.what());
         return false;
     }
-    dvl->flush();
-
-    sendBreak();
-
-    vfwd = vport = vvert = ovfwd =
-        ovvert = ovport = 0;
-    x = y = z = 0;
 
     return true;
 }
 
+void DVL::poll()
+{
+
+    std::string buffer;
+    dvl->read(buffer, dvl->available());
+    decoder->buffer.append(buffer);
+    decoder->parse();
+}
+
 void DVL::integrate()
 {
-    if(abs(vfwd) > 5 || abs(vport) > 5 || abs(vvert) > 5 ||
-       abs(ovfwd) > 5 || abs(ovport) > 5 || abs(ovvert) > 5){
-        return;
+    while(!decoder->ensembles.empty()){
+        //ROS_INFO("size of queue: %d", (int) decoder->ensembles.size());
+        ensemble en = decoder->ensembles.front();
+        if(en.status == false){
+            ROS_ERROR("[DVL] Bottom track lost");
+            decoder->ensembles.pop();
+            return;
+        }
+
+        if(fabs(en.bv_up) > 10 || fabs(en.bv_east) > 10 ||
+           fabs(en.bv_north) > 10)
+        {
+            ROS_ERROR("[DVL] Bad velocity");
+            ROS_INFO("%f %f %f", en.bv_up, en.bv_east, en.bv_north);
+            decoder->ensembles.pop();
+            return;
+        }
+
+        old_e_north = e_north;
+        old_e_up = e_up;
+        old_e_east = e_east;
+
+        oldveast = veast;
+        oldvnorth = vnorth;
+        oldvup = vup;
+
+        veast = en.bv_east;
+        vnorth = en.bv_north;
+        vup = en.bv_up;
+
+        //e_north = vnorth * cos(yaw) + veast * sin(yaw);
+        //e_east = vnorth * sin(yaw) - veast * cos(yaw);
+        e_north = veast * cos(yaw + M_PI) + vnorth * sin(yaw);
+        e_east = veast * sin(yaw + M_PI) + vnorth * cos(yaw);
+        e_up = vup;
+
+        lasttime = currtime;
+        currtime = en.timestamp;
+
+        if(lasttime == 0)
+            lasttime = currtime;
+
+        if(lasttime > currtime){
+            ROS_ERROR("[DVL] Timetravel, previous time more than current");
+            decoder->ensembles.pop();
+            return;
+        }
+
+        if(fabs(currtime - lasttime) > 120){
+            ROS_ERROR("[DVL] Too long before last known bottom track");
+            ROS_INFO("[DVL] curr: %f, last: %f", currtime, lasttime);
+            decoder->ensembles.pop();
+            return;
+        }
+
+        double delta = currtime - lasttime;
+
+        north += (vnorth + oldvnorth) * delta / 2.0;
+        east  += (veast + oldveast) * delta / 2.0;
+        up += (vup + oldvup) * delta / 2.0;
+
+        ex_n += (e_north + old_e_north) * delta / 2.0;
+        ex_e += (e_east + old_e_east) * delta / 2.0;
+        ex_u += (e_up + old_e_up) * delta / 2.0;
+
+        decoder->ensembles.pop();
     }
-
-    double delta = currtime - oldtime;
-
-    //ROS_INFO("Integrating: %f %f %f %lf", y, vport, ovport, delta);
-    
-    x += (vfwd + ovfwd) * delta / 2.0;
-    y += (vport + ovport) * delta / 2.0;
-    z += (vvert + ovvert) * delta / 2.0;
-
-    decoder->timeDone = decoder->velDone = false;
-
-    fprintf(stdout, "%f,%f,%f\n", x, y, z);
-    decoder->timeDone = false;
-    decoder->velDone = false;
 }
 
-/*
- * Local test using a minicom capture file
- */
-void DVL::test(std::string filename)
+DVL::~DVL()
 {
-    std::ifstream capture(filename);
-    for(std::string line; getline(capture, line);){
-        decoder->parse(line);
-        integrate();
+    dvl->close();
+    delete(decoder);
+    delete(dvl);
+}
+
+void DVL::AHRSsub(const bbauv_msgs::imu_dataConstPtr &imu)
+{
+    yaw = imu->orientation.z;
+}
+
+void DVL::collect(ros::Publisher *publisher, ros::Publisher *epub)
+{
+    nav_msgs::Odometry odom;
+    odom.pose.pose.position.x = north;
+    odom.pose.pose.position.y = east;
+    odom.pose.pose.position.z = up;
+    odom.twist.twist.linear.x = vnorth;
+    odom.twist.twist.linear.y = veast;
+    odom.twist.twist.linear.z = vup;
+
+    nav_msgs::Odometry earth;
+    earth.pose.pose.position.x = ex_n;
+    earth.pose.pose.position.y = ex_e;
+    earth.pose.pose.position.z = ex_u;
+
+    publisher->publish(odom);
+    epub->publish(earth);
+}
+
+void DVL::zero(dvl::dvlConfig &config, uint32_t level)
+{
+    if(config.zero_distance){
+        ROS_INFO("[DVL] Zeroing earth odom: level: %d", level);
+        ex_e = ex_n = ex_u = 0;
+        config.zero_distance = false;
     }
 }
 
-/*
- * ros calls this
- */
-void DVL::runOnce()
+void DVL::zero_relative(dvl::dvlConfig &config, uint32_t level)
 {
-
-    std::string data;
-    std::vector<std::string> ensemble;
-    data = dvl->readline();
-    /*data = dvl->readline();
-    boost::trim(data);
-    //decoder->parse(data);
-    ROS_INFO("%s", data.c_str());
-    //integrate();
-    */
-    if(boost::starts_with(data, ":SA")){
-        ensemble = dvl->readlines(200, std::string("\r\n"));
-        //for(int i = 0; i < (int) ensemble.size(); i++)
-        //    ROS_INFO("%s", ensemble.at(i).c_str());
-        //ROS_INFO("ENSEMBLE END");
-    } else{
-        return runOnce();
+    if(config.zero_relative_distance){
+        ROS_INFO("[DVL] Zeroing relative DVL distance: level: %d", level);
+        north = east = up = 0;
+        config.zero_relative_distance = false;
     }
-    
-    for(int i = 0; i < (int) ensemble.size(); i++){
-        decoder->parse(ensemble.at(i));
-    }
-
-    integrate();
-}
-
-uint8_t NMEAchecksum(std::string n)
-{
-    return accumulate(n.begin(), n.end(), 1, [](uint8_t c, char d){
-                        if(d != '$') return c ^ d;
-                        else return 1;
-                      });
-}
-
-float radtodeg(float rad)
-{
-    return rad * (180 / M_PI);
-}
-
-void DVL::populatesensors(const bbauv_msgs::imu_data::ConstPtr &imu)
-{
-    float roll, pitch, yaw;
-    roll  = radtodeg(imu->orientation.x);
-    pitch = radtodeg(imu->orientation.y);
-    yaw   = radtodeg(imu->orientation.z);
-
-    char nmea[] = "$PRDID,%0.2f,%0.2f,%0.2f,*";
-    char buff[256];
-    snprintf(buff, 256, nmea, pitch, roll, yaw);
-    uint8_t checksum = NMEAchecksum(buff);
-    strcat(buff, "%02X\r\n");
-    snprintf(buff, 256, buff, checksum);
-    //fprintf(stdout, "%s\n", buff);
-    //dvl_sensor->write(buff);
-}
-
-void DVL::fillpose(nav_msgs::Odometry* odom)
-{
-    odom->pose.pose.position.x = x;
-    odom->pose.pose.position.y = y;
-    odom->pose.pose.position.z = z;
-
-    odom->twist.twist.linear.x = vfwd;
-    odom->twist.twist.linear.y = vport;
-    odom->twist.twist.linear.z = vvert;
-}
-
-void DVL::fillalt(std_msgs::Float32 *alt)
-{
-    alt->data = altitude;
 }

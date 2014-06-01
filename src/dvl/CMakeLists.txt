@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
   bbauv_msgs
   roscpp
   std_msgs
+  dynamic_reconfigure
+  nav_msgs
 )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -79,6 +81,9 @@ set(CMAKE_BUILD_TYPE Debug)
 #   bbauv_msgs#   std_msgs
 # )
 
+generate_dynamic_reconfigure_options(
+    cfg/dvl.cfg    
+)
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -115,7 +120,8 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(explorer_DVL src/main.cpp src/dvl.cpp src/decoder.cpp)
-
+#add_executable(explorer_Sensor src/streamIMU.cpp)
+#add_executable(serialTest src/testSerial.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(dvl_node dvl_generate_messages_cpp)
@@ -125,6 +131,16 @@ target_link_libraries(explorer_DVL
     serial
    ${catkin_LIBRARIES}
  )
+
+#target_link_libraries(explorer_Sensor
+#    serial
+#    ${catkin_LIBRARIES}
+#)
+
+#target_link_libraries(serialTest
+#    serial
+#    ${catkin_LIBRARIES}
+#)
 
 #############
 ## Install ##

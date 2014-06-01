@@ -1,16 +1,16 @@
-#include <dvl/decoder.h>
-#include <dvl/dvl.h>
 #include <boost/algorithm/string.hpp>
-#include <stdlib.h>
-#include <ros/ros.h>
+#include "../include/decoder.h"
 
-Decoder::Decoder(DVL* dev)
-{
+#define SA_MAX_FIELDS 4
+#define TS_MAX_FIELDS 7
+#define BE_MAX_FIELDS 5
+
+PD6Decoder::PD6Decoder(DVL* dev){
     dvl = dev;
-    timeDone = velDone = false;
+    buffer = "";
 }
 
-void Decoder::parseSA(std::string data)
+void parseSA(std::string data, ensemble *en)
 {
     std::vector<std::string> tok;
     boost::split(tok, data, boost::is_any_of(","));
@@ -19,11 +19,34 @@ void Decoder::parseSA(std::string data)
         return;
     }
 
-    dvl->pitch = strtof(tok.at(1).c_str(), NULL);
-    dvl->roll  = strtof(tok.at(2).c_str(), NULL);
-    dvl->yaw   = strtof(tok.at(3).c_str(), NULL);
+    en->pitch = strtof(tok.at(1).c_str(), NULL);
+    en->roll  = strtof(tok.at(2).c_str(), NULL);
+    en->yaw   = strtof(tok.at(3).c_str(), NULL);
 }
 
+void parseBE(std::string data, ensemble *en)
+{
+    std::vector<std::string> tok;
+    boost::split(tok, data, boost::is_any_of(","));
+
+    if(tok.size() != BE_MAX_FIELDS){
+        return;
+    }
+
+    float veast  = (strtof(tok.at(1).c_str(), NULL) / 1000.0);
+    float vnorth = strtof(tok.at(2).c_str(), NULL) / 1000.0;
+    float vup    = strtof(tok.at(3).c_str(), NULL) / 1000.0;
+
+    if(tok.at(4)[0] == 'V'){
+        ROS_ERROR("Bottom track lost.");
+        en->status = false;
+        return; //no bottom track
+    }
+
+    en->bv_east = veast;
+    en->bv_north = vnorth;
+    en->bv_up = vup;
+}
 
 double toSec(int year, int month, int day, int hour, int minute,
              int seconds, int hseconds)
@@ -44,7 +67,7 @@ double toSec(int year, int month, int day, int hour, int minute,
     return t + (hseconds * 0.01);
 }
 
-void Decoder::parseTS(std::string data)
+void parseTS(std::string data, ensemble *en)
 {
     std::vector<std::string> tok;
     boost::split(tok, data, boost::is_any_of(","));
@@ -54,10 +77,10 @@ void Decoder::parseTS(std::string data)
     }
 
     std::string tstamp = tok.at(1);
-    dvl->salinity      = strtof(tok.at(2).c_str(), NULL);
-    dvl->temp          = strtof(tok.at(3).c_str(), NULL);
-    dvl->depth         = strtof(tok.at(4).c_str(), NULL);
-    dvl->speedofsound  = strtof(tok.at(5).c_str(), NULL);
+    en->salinity       = strtof(tok.at(2).c_str(), NULL);
+    en->temperature    = strtof(tok.at(3).c_str(), NULL);
+    en->depth          = strtof(tok.at(4).c_str(), NULL);
+    en->speed_of_sound = strtof(tok.at(5).c_str(), NULL);
 
     /*
      * remove magic numbers later
@@ -77,97 +100,37 @@ void Decoder::parseTS(std::string data)
     double parsedtime = toSec(year, month, day, hour, minute,
                               seconds, hseconds);
 
-    dvl->oldtime = dvl->currtime;
-    dvl->currtime = parsedtime;
-
-    if(dvl->oldtime == 0)
-        dvl->oldtime = dvl->currtime;
-
-    timeDone = true;
+    en->timestamp = parsedtime;
 }
 
-void Decoder::parseBE(std::string data)
+
+void PD6Decoder::parse()
 {
+    size_t first, last;
+    first = buffer.find(":SA");
+    if(first == buffer.npos)
+        return;
+    last = buffer.rfind(":SA");
+    if(last == first)
+        return;
+
+    std::string to_parse = buffer.substr(first, last - first);
+    buffer = buffer.substr(last, last - first);
+
+    //ROS_INFO("Parsed: %s", to_parse.c_str());
     std::vector<std::string> tok;
-    boost::split(tok, data, boost::is_any_of(","));
-
-    if(tok.size() != BE_MAX_FIELDS){
-        return;
-    }
-
-    float veast  = (strtof(tok.at(1).c_str(), NULL) / 1000.0) * 2;
-    float vnorth = strtof(tok.at(2).c_str(), NULL) / 1000.0;
-    float vup    = strtof(tok.at(3).c_str(), NULL) / 1000.0;
-    
-
-    //ROS_INFO("velocity: %f %f %f", vnorth, veast, vup);
-
-    if(tok.at(4) == "V"){
-        ROS_ERROR("Bottom track lost.");
-        return; //no bottom track
-    } 
-
-    if(abs(veast) > 5 || abs(vnorth) > 5 || abs(vup) > 5){
-        ROS_INFO("Bad velocity");
-        return;
-    }
-    /*else{
-        fprintf(stderr, "Bottom track found\n");
-    }*/
-
-
-    dvl->ovfwd  = dvl->vfwd;
-    dvl->ovport = dvl->ovport;
-    dvl->ovvert = dvl->ovvert;
-
-    dvl->vfwd   = vnorth;
-    dvl->vport  = veast;
-    dvl->vvert  = vup;
-
-    velDone = true;
-}
-
-void Decoder::parseBD(std::string data)
-{
-    std::vector<std::string> tok;
-    boost::split(tok, data, boost::is_any_of(","));
-
-    if(tok.size() != BD_MAX_FIELDS){
-        return;
-    }
-
-    if(strtof(tok.at(5).c_str(), NULL) > 0){
-        ROS_ERROR("Altitude not accurate");
-        return;
-    }
-
-    float t_altitude = strtof(tok.at(4).c_str(), NULL);
-
-    if(abs(t_altitude) < 20)
-        dvl->altitude = t_altitude;
-}
-
-/*
- * expects a raw string, but cleaned up wont hurt either
- */
-void Decoder::parse(std::string data)
-{
-    boost::trim(data);
-    boost::erase_all(data, " ");
-
-    if(boost::starts_with(data, ":SA")){
-        parseSA(data);
-    }
-
-    if(boost::starts_with(data, ":TS")){
-        parseTS(data);
-    }
-
-    if(boost::starts_with(data, ":BE")){
-        parseBE(data);
-    }
-
-    if(boost::starts_with(data, ":BD")){
-        parseBD(data);
+    boost::split(tok, to_parse, boost::is_any_of("\n"));
+    ensemble en;
+    for(int i = 0; i < (int) tok.size(); i++){
+        if(boost::starts_with(tok.at(i), ":SA")){
+            en.status = true;
+            parseSA(tok.at(i), &en);
+            parseTS(tok.at(i + 1), &en);
+            parseBE(tok.at(i + 4), &en);
+            //parseBD(tok.at(i + 5), &en);
+            ensembles.push(en);
+            //ROS_INFO("pushing: %lf", en.timestamp);
+            i = i + 5;
+        }
     }
 }
