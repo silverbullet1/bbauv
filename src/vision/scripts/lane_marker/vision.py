@@ -11,7 +11,7 @@ class LaneMarkerVision:
     screen = { 'width': 840, 'height': 680 }
 
     # Vision parameters
-    hsvLoThresh1 = (25, 0, 0)
+    hsvLoThresh1 = (5, 0, 0)
     hsvHiThresh1 = (79, 255, 255)
     hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
@@ -152,7 +152,8 @@ class LaneMarkerVision:
                 angle = np.rad2deg(gradient)
 
                 #rospy.loginfo(rectAngle - angle)
-                foundLines.append({'pos': rect[0], 'angle': rectAngle})
+                foundLines.append({'pos': rect[0], 'angle': rectAngle,
+                                   'testAngle': angle})
 
         if len(foundLines) >= 2 and self.comms.expectedLanes == 2:
             # If there are 2 lines, find their intersection and adjust angle

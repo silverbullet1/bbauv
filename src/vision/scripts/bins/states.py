@@ -25,6 +25,7 @@ class Disengage(smach.State):
         self.comms.register()
         if self.comms.isAlone:
             self.comms.inputHeading = self.comms.curHeading
+        self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
         return 'started'
 
 class Search(smach.State):
@@ -113,7 +114,6 @@ class Center(smach.State):
                       Utils.distBetweenPoints(m['centroid'],
                                               (self.centerX, self.centerY)))
         closestCentroid = nearest['centroid']
-        self.comms.nearest = nearest
 
         dx = (closestCentroid[0] - self.centerX) / self.width
         dy = (closestCentroid[1] - self.centerY) / self.height
@@ -123,13 +123,12 @@ class Center(smach.State):
                                     blocking=False)
             return 'centering'
 
+        self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.inputHeading,
+                                blocking=True)
         if self.trialsPassed == self.numTrials:
-            self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.inputHeading,
-                                    blocking=True)
+            self.comms.nearest = nearest
             return 'centered'
         else:
-            self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.inputHeading,
-                                    blocking=True)
             self.trialsPassed += 1
             return 'centering'
 
@@ -150,18 +149,34 @@ class Align(smach.State):
            len(self.comms.retVal['matches']) == 0:
             return 'lost'
 
-        adjustAngle = Utils.normAngle(self.comms.nearest['angle'] +
-                                      self.comms.curHeading)
-        self.comms.adjustAngle = adjustAngle
+        self.comms.sendMovement(d=self.comms.sinkingDepth, blocking=True)
+
+        dAngle = Utils.toHeadingSpace(self.comms.nearest['angle'])
+        adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
+        self.comms.adjustHeading = adjustAngle
         self.comms.sendMovement(h=adjustAngle, blocking=True)
+
         return 'aligned'
 
+class CenterAgain(smach.State):
+    maxdx = 0.03
+    maxdy = 0.03
 
-class Fire(smach.State):
-    sinkingDepth = 3.0
+    width = BinsVision.screen['width']
+    height = BinsVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 2
+    trialsPassed = 0
 
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['completed',
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
                                              'aborted'])
         self.comms = comms
 
@@ -170,15 +185,112 @@ class Fire(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(h=self.comms.adjustAngle,
-                                d=sinkingDepth, blocking=True)
+        if not self.comms.retVal or \
+           len(self.comms.retVal['matches']) == 0:
+            return 'lost'
 
+        matches = self.comms.retVal['matches']
+        nearest = min(matches,
+                      key=lambda m:
+                      Utils.distBetweenPoints(m['centroid'],
+                                              (self.centerX, self.centerY)))
+        closestCentroid = nearest['centroid']
+        self.comms.nearest = nearest
+
+        dx = (closestCentroid[0] - self.centerX) / self.width
+        dy = (closestCentroid[1] - self.centerY) / self.height
+
+        if abs(dx) > self.maxdx or abs(dy) > self.maxdy:
+            self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                    d=self.comms.sinkingDepth,
+                                    h=self.comms.adjustHeading,
+                                    blocking=False)
+            return 'centering'
+
+        self.comms.sendMovement(f=0.0, sm=0.0,
+                                d=self.comms.sinkingDepth,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
+        if self.trialsPassed == self.numTrials:
+            return 'centered'
+        else:
+            self.trialsPassed += 1
+            return 'centering'
+
+class Fire(smach.State):
+    fireTimes = 0
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                             'next',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        self.comms.sendMovement(h=self.comms.adjustHeading,
+                                d=self.comms.sinkingDepth, blocking=True)
         self.comms.drop()
-        return 'completed'
+        if self.fireTimes == 0:
+            self.fireTimes += 1
+            return 'next'
+        else:
+            return 'completed'
+
+class Search2(smach.State):
+    turnTime1 = 3
+    turnTime2 = 3
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['foundBins',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        # Turn to the left and look for another bin
+        self.comms.sendMovement(h=Utils.normAngle(self.comms.curHeading-90),
+                                d=self.comms.sinkingDepth,
+                                blocking=True)
+        self.comms.sendMovement(f=1.5, d=self.comms.sinkingDepth, blocking=True)
+        start = time.time()
+        while (not self.comms.retVal or
+               len(self.comms.retVal['matches']) == 0):
+            if time.time() - start > self.turnTime1:
+                break
+            if self.comms.retVal and len(self.comms.retVal['matches']) > 0:
+                return 'foundBins'
+            self.comms.sendMovement(f=1.5,
+                                    d=self.comms.sinkingDepth,
+                                    blocking=False)
+
+        # Turn to the right and look for another bin
+        self.comms.sendMovement(h=Utils.normAngle(self.comms.curHeading+180),
+                                d=self.comms.sinkingDepth,
+                                blocking=True)
+        self.comms.sendMovement(f=3.5, d=self.comms.sinkingDepth, blocking=True)
+        start = time.time()
+        while (not self.comms.retVal or
+               len(self.comms.retVal['matches']) == 0):
+            if time.time() - start > self.turnTime2:
+                self.comms.abortMission()
+                return 'lost'
+            self.comms.sendMovement(f=1.5,
+                                    d=self.comms.sinkingDepth,
+                                    blocking=False)
+
+        return 'foundBins'
 
 
 def main():
-    rospy.init_node('bins_node')
+    rospy.init_node('bins')
     myCom = Comms()
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
@@ -190,7 +302,7 @@ def main():
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
                                transitions={'foundBins':'CENTER',
-                                            'timeout':'SEARCH',
+                                            'timeout':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTER',
                                Center(myCom),
@@ -200,13 +312,25 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('ALIGN',
                                Align(myCom),
-                               transitions={'aligned':'FIRE',
+                               transitions={'aligned':'CENTERAGAIN',
                                             'aligning':'ALIGN',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTERAGAIN',
+                               CenterAgain(myCom),
+                               transitions={'centered':'FIRE',
+                                            'centering':'CENTERAGAIN',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('FIRE',
                                Fire(myCom),
                                transitions={'completed':'succeeded',
+                                            'next':'SEARCH2',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('SEARCH2',
+                               Search2(myCom),
+                               transitions={'foundBins':'CENTERAGAIN',
+                                            'lost':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
 
     sm.execute()

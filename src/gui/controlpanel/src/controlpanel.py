@@ -23,6 +23,7 @@ from PyQt4.QtGui import *
 import PyQt4.Qwt5 as Qwt
 import Queue
 import threading
+import thread
 import signal
 import sys
 
@@ -503,7 +504,7 @@ class AUV_gui(QMainWindow):
         temp = None
         altitude = None
         image_bot = None
-        sonar_bot = None 
+        sonar_bot = None
         image_front = None
         image_rfront = None
         f_image_bot = None
@@ -940,16 +941,20 @@ class AUV_gui(QMainWindow):
         xpos = float(self.xpos_box.text())
         ypos = float(self.ypos_box.text())
         self.status_text.setText("Moving to position x: " + str(xpos) + " ,y: " + str(ypos))
-        
-        bbLock = threading.Lock()
-        try:
-            bbLock.acquire()
-            handle = rospy.ServiceProxy('/navigate2D', navigate2d)
-            handle(x=xpos, y=ypos)
-        except:
-            rospy.logerr("Unable to move to position")
-        finally:
-            bbLock.release()
+
+        def callService(x_pos, y_pos):
+            bbLock = threading.Lock()
+            try:
+                bbLock.acquire()
+                handle = rospy.ServiceProxy('/navigate2D', navigate2d)
+                handle(x=x_pos, y=y_pos)
+            except Exception as e:
+                rospy.logerr("Unable to move to position")
+            finally:
+                bbLock.release()
+
+        thread.start_new_thread(callService, (xpos, ypos))
+
 
     def homeBtnHandler(self):
         self.status_text.setText("Going home.... (0,0")
@@ -1149,7 +1154,7 @@ class AUV_gui(QMainWindow):
         layout.addStretch(1)
 
         return (label, qle, layout)
-    
+
     def onVideoActivated(self, index):
         self.isSonar = index
 

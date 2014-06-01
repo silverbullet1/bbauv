@@ -63,7 +63,7 @@ class Disengage(smach.State):
 
 class Search(smach.State):
     timeout = 35
-    defaultWaitingTime = 2
+    defaultWaitingTime = 1
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -181,18 +181,21 @@ class Align(smach.State):
 
         lines = self.comms.retVal['foundLines']
         if len(lines) == 1 or self.comms.expectedLanes == 1:
-            self.angleSampler.newSample(lines[0]['angle'])
-            rospy.loginfo(Utils.normAngle(
-                Utils.toHeadingSpace(lines[0]['angle'])))
-        elif len(lines) >= 2:
-            if self.comms.chosenLane == self.comms.LEFT:
+            if Utils.angleDif(lines[0]['angle'], lines[0]['testAngle']) < 5:
                 self.angleSampler.newSample(lines[0]['angle'])
                 rospy.loginfo(Utils.normAngle(
                     Utils.toHeadingSpace(lines[0]['angle'])))
+        elif len(lines) >= 2:
+            if self.comms.chosenLane == self.comms.LEFT:
+                if Utils.angleDif(lines[0]['angle'], lines[0]['testAngle']) < 5:
+                    self.angleSampler.newSample(lines[0]['angle'])
+                    rospy.loginfo(Utils.normAngle(
+                        Utils.toHeadingSpace(lines[0]['angle'])))
             elif self.comms.chosenLane == self.comms.RIGHT:
-                self.angleSampler.newSample(lines[1]['angle'])
-                rospy.loginfo(Utils.normAngle(
-                    Utils.toHeadingSpace(lines[1]['angle'])))
+                if Utils.angleDif(lines[1]['angle'], lines[1]['testAngle']) < 5:
+                    self.angleSampler.newSample(lines[1]['angle'])
+                    rospy.loginfo(Utils.normAngle(
+                        Utils.toHeadingSpace(lines[1]['angle'])))
             else:
                 rospy.loginfo("Something goes wrong with chosenLane")
 
@@ -277,7 +280,7 @@ class Forward(smach.State):
         return 'completed'
 
 def main():
-    rospy.init_node('lane_marker_node')
+    rospy.init_node('lane_marker')
     myCom = Comms()
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
