@@ -2,7 +2,7 @@ import rospy
 
 from bbauv_msgs.srv import mission_to_vision, vision_to_mission, \
         mission_to_visionResponse
-from bbauv_msgs.msg import controller
+from bbauv_msgs.msg import controller, manipulator
 
 from vision import PickupVision
 from bot_common.bot_comms import GenericComms
@@ -12,14 +12,15 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, PickupVision())
+        self.defaultDepth = 3.0
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
-            self.comServer = rospy.Service("/lane/mission_to_vision",
+            self.comServer = rospy.Service("/pickup/mission_to_vision",
                                            mission_to_vision,
                                            self.handleSrv)
             rospy.loginfo("Waiting for vision to mission service")
-            self.toMission = rospy.ServiceProxy("/lane/vision_to_mission",
+            self.toMission = rospy.ServiceProxy("/pickup/vision_to_mission",
                                                 vision_to_mission)
             self.toMission.wait_for_service(timeout=60)
 
@@ -41,6 +42,9 @@ class Comms(GenericComms):
                                              abort_response=True,
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
+    def grab(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0 | 4)
 
 def main():
     pass

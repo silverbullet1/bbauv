@@ -11,7 +11,7 @@ from utils.utils import Utils
 
 class Disengage(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(outcomes=['started', 'killed'])
+        smach.State.__init__(self, outcomes=['started', 'killed'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -27,7 +27,7 @@ class Search(smach.State):
     timeout = 10
 
     def __init__(self, comms):
-        smach.State.__init__(outcomes=['foundSamples',
+        smach.State.__init__(self, outcomes=['foundSamples',
                                        'timeout',
                                        'aborted'])
         self.comms = comms
@@ -56,10 +56,10 @@ class Center(smach.State):
     ycoeff = 1.5
 
     def __init__(self, comms):
-        smach.State.__init__(outcomes=['centered',
-                                       'centering',
-                                       'lost',
-                                       'aborted'])
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -69,7 +69,7 @@ class Center(smach.State):
             return 'aborted'
 
         if not self.comms.retVal or \
-           len(self.comms.rectVal['centroid']) < 1:
+           len(self.comms.retVal['centroids']) < 1:
             return 'lost'
 
         centroids = self.comms.retVal['centroids']
@@ -77,8 +77,8 @@ class Center(smach.State):
                       key=lambda c:
                       Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
 
-        dx = (closest - self.centerX) / self.width
-        dy = (closest - self.centerY) / self.height
+        dx = (closest[0] - self.centerX) / self.width
+        dy = (closest[1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
             self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
@@ -89,6 +89,8 @@ class Center(smach.State):
         return 'centered'
 
 class Approach(smach.State):
+    approachDepth = 4.2
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
                                              'approaching',
@@ -100,6 +102,8 @@ class Approach(smach.State):
         if self.comms.isAborted or self.comms.isKilled:
             self.comms.abortMission()
             return 'aborted'
+
+        self.comms.sendMovement(d=self.approachDepth)
 
         return 'completed'
 
@@ -114,12 +118,16 @@ class Grab(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
+        self.comms.grab()
+
         return 'grabbed'
 
 class Surface(smach.State):
+    surfaceDepth = 0.6
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
-                                            'aborted'])
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -127,12 +135,14 @@ class Surface(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        return 'complete'
+        self.comms.sendMovement(d=self.surfaceDepth)
+
+        return 'completed'
 
 
 def main():
     rospy.init_node('pickup_node')
-    myCom = Comms()
+    myCom = Comms()    
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
@@ -147,9 +157,23 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTER',
                                Center(myCom),
-                               transitions={'centered':'',
+                               transitions={'centered':'APPROACH',
                                             'centering':'CENTER',
                                             'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('APPROACH',
+                               Approach(myCom),
+                               transitions={'completed':'GRAB',
+                                            'approaching':'APPROACH',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('GRAB',
+                               Grab(myCom),
+                               transitions={'grabbed':'SURFACE',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('SURFACE',
+                               Surface(myCom),
+                               transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 
     #introServer = smach_ros.IntrospectionServer('mission_server',
@@ -157,5 +181,5 @@ def main():
     #                                            '/MISSION/PICKUP')
     #introServer.start()
 
-    sm.execute()
+    sm.execute()   
 

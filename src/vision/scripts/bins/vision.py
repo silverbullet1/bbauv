@@ -1,9 +1,12 @@
 import os
+import math
 
+import rospy
 import cv2
 import numpy as np
 
 from bot_common.vision import Vision
+from utils.utils import Utils
 
 class BinsVision:
     screen = { 'width': 640, 'height': 480 }
@@ -50,7 +53,7 @@ class BinsVision:
     def morphology2(self, img):
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -74,16 +77,35 @@ class BinsVision:
 
     def match(self, alienContours, centroids, contours):
         """ Match a centroid with a contour if it is inside the contour
-            Return triplet of alien_contour, centroid and contour """
+            Return dict of alien_contour, centroid, bin contour, class
+            and angle of the bin"""
         ret = list()
         for centroid in enumerate(centroids):
             for contour in contours:
                 if cv2.pointPolygonTest(contour, centroid[1], False) > 0:
-                    ret.append({'alien':alienContours[centroid[0]],
-                                'centroid':centroid[1],
-                                'contour': contour})
+                    thisMatch = {'alien':alienContours[centroid[0]],
+                                 'centroid':centroid[1],
+                                 'contour': contour}
+                    thisMatch['class'] = self.classify(thisMatch)
+                    thisMatch['angle'] = self.angleFromContour(contour)
+                    ret.append(thisMatch)
 
         return ret
+
+    def angleFromContour(self, contour):
+        points = np.array(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
+
+        edge1 = points[1] - points[0]
+        edge2 = points[2] - points[1]
+
+        #Choose the vertical edge
+        if cv2.norm(edge1) > cv2.norm(edge2):
+            rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
+        else:
+            rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+        return rectAngle
+
 
     def classify(self, match):
         """ Classify a match -> {alienContour, centroid, contour}
@@ -104,9 +126,7 @@ class BinsVision:
         centroids = list()
         outImg = None
         matches = list()
-        classes = None
-        retData = {'centroids': centroids, 'matches': matches,
-                   'classes': classes}
+        retData = {'centroids': centroids, 'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = self.enhance(img)
@@ -162,33 +182,43 @@ class BinsVision:
 
         contours = self.findContourAndBound(grayImg, minArea=self.areaThresh)
         sorted(contours, key=cv2.contourArea, reverse=True)
-        contourRects = [cv2.cv.BoxPoints(cv2.minAreaRect(contour))
-                        for contour in contours]
-
-        if self.debugMode:
-            for rect in contourRects:
-                Vision.drawRect(outImg2, rect)
+        #contourRects = [cv2.cv.BoxPoints(cv2.minAreaRect(contour))
+        #                for contour in contours]
 
         # Match each alien centroid to a bin
         matches = self.match(alienContours, centroids, contours)
         retData['matches'] = matches
 
-        # Classify each alien
-        classes = [self.classify(match) for match in retData['matches']]
-        retData['classes'] = classes
+        if self.debugMode:
+            #for rect in contourRects:
+            #    Vision.drawRect(outImg2, rect)
 
-        for match in enumerate(matches):
-            center = match[1]['centroid']
-            cv2.putText(outImg1,
-                        classes[match[0]], (int(center[0]), int(center[1])),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            for match in matches:
+                center = match['centroid']
+                cv2.putText(outImg1,
+                            match['class'], (int(center[0]), int(center[1])),
+                            cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
-        outImg = np.vstack((outImg1, outImg2))
+                angle = match['angle'] 
+                endPt = (int(center[0] + 100*math.cos(math.radians(angle))),
+                         int(center[1] + 100*math.sin(math.radians(angle))))
+                center = (int(center[0]), int(center[1]))
+
+                Vision.drawRect(outImg2,
+                                cv2.cv.BoxPoints(cv2.minAreaRect(match['contour'])))
+                cv2.line(outImg2, center, endPt, (0, 255, 0), 2)
+                cv2.putText(outImg2,
+                            str(Utils.toHeadingSpace(angle)),
+                            (int(center[0]), int(center[1])),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        outImg = np.hstack((outImg1, outImg2))
         return retData, outImg
 
 def main():
+    rospy.init_node("bins_vision")
     cv2.namedWindow("output")
-    img = cv2.imread("bins/bins_layout.jpg")
+    img = cv2.imread("bins/res/std_bin.png")
     from comms import Comms
     visionFilter = BinsVision(comms=Comms())
     _, outImg = visionFilter.gotFrame(img)
