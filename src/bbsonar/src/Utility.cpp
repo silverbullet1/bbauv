@@ -8,7 +8,8 @@
 #include "Utility.h"
 using namespace cv;
 
-Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL) {
+
+Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL), SONAR_PING_RATE(10) {
 
 	retVal = startRange = stopRange = fluidType = soundSpeed = analogGain = tvGain =
 	pingCount = imgWidth = imgHeight = imgWidthStep = rangeValCount = 0;
@@ -38,10 +39,7 @@ int Utility::initSonar() {
 		cout << "error retrieving head, exiting now: " << BVTError_GetString(retVal) << endl;
 		return retVal;
 	}
-//	if((retVal = BVTHead_GetPing(head, PING_NUM, &ping)) != 0) {
-//		cout << "error retrieving ping: "  << BVTError_GetString(retVal) << endl;
-//		return retVal;
-//	}
+
 	return 0;
 }
 
@@ -125,29 +123,13 @@ int Utility::writeIntensities() {
 	imgBuffer = BVTMagImage_GetBits(magImg);
 	if (imgBuffer == NULL) cout << "imgBuf null" << endl;
 	matImg = Mat(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1, imgBuffer);
-//	cout  << "matImg depth, channel: " << matImg.depth() << " " << matImg.channels() << endl;
-
-	// std::string timeString = currentDateTime();
-	// std::string grayFile = timeString + imgName;
-	// std::string intensitiesFile = timeString + intensitiesName;
 
 	// imwrite(grayFile, matImg);
 	imwrite(INTENSITIES_FILE.c_str(), matImg);
 
-//	cout << "matImg size: " << "height: " << matImg.rows << "  width: " << matImg.cols << endl;
-
-//	backup data storage in xml format
-	// cv::FileStorage storage("store.yml", cv::FileStorage::WRITE);
-	// storage << "mat" << matImg;
-	// storage.release();
-
     cv::Mat cImg = imread(COLOR_IMAGE_FILE.c_str(), 0);
-    
     outImg = cImg.clone();
     resize(outImg, outImg, Size(640, 480));
-    
-//    imshow("colorImg", outImg);
-//	cv::waitKey(3);
 
 //	if (NULL != magImg) BVTMagImage_Destroy(magImg);
 	if (NULL != colorMap) BVTColorMapper_Destroy(colorMap);
@@ -179,10 +161,6 @@ int Utility::processImage() {
 
 //	smoothened
 	cv::medianBlur(roiImg, smoothImg, 3);
-
-/* all kinds of thresholding on
- * the sonar image done/called here
- */
 
 //	global thresholding : not being used for our operations
 //	double threshVal = getGlobalThreshold(roiImg);
@@ -259,12 +237,6 @@ int Utility::drawHistogram() {
 	   	    	Scalar(255, 255, 0), 2, 8, 0
 	    	  );
 	}
-
-	namedWindow("histogram", CV_WINDOW_AUTOSIZE);
-	namedWindow("equalized histogram", CV_WINDOW_AUTOSIZE);
-//	imshow("histogram", histImage);
-//	imshow("equalized histogram", histEqImage);
-
 	return 0;
 }
 
@@ -292,12 +264,6 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 			dstData[i * grayImg.step + j] = PL_CONST * pow(srcData[i * grayImg.step + j], PL_GAMMA);
 		}
 	}
-
-//	cv::FileStorage storage("powerStore.yml", cv::FileStorage::WRITE);
-//	storage << "mat" << powerImg;
-//	storage.release();
-
-//	imshow("powerImg", powerImg);
 
 //	src image for adaptive thresholding
 	Mat src = powerImg.clone();
@@ -355,6 +321,7 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //	}
 
 	labelledImg = Mat::zeros(dstGray.size(), CV_8UC1);
+//    resize(labelledImg, labelledImg, Size(640, 480));
 	vector<vector<Point> > contours_poly(contours.size());
 	vector<Rect> boundRect(contours.size());
 	RNG rng;
@@ -368,12 +335,9 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //	drawing the saved rectangular boxes around the contours
 //	and saving their coordinates
 	int pointnum = 0;
-	// vector<vector<Point> > savedContours;
-	// vector<Point> savedPoints;
 
 	for(uInt i = 0; i < contours.size(); i++) {
 		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-//		drawContours(labelledImg, contours, i, color, 2, 8, hierarchy, 0, Point());
 		drawContours(labelledImg, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
 		if (boundRect[i].area() > CONTOUR_AREA_LOWER_BOUND && boundRect[i].area() < CONTOUR_AREA_UPPER_BOUND) {
 			savedContours.push_back(contours[i]);
@@ -384,6 +348,10 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 			savedPoints.push_back(boundRect[i].br());
 		}
 	}
+    
+//  resizing, for it to be of equal dimension as the raw image in the UI
+    resize(labelledImg, labelledImg, Size(640, 480));
+    
 
 //	Boolean operations on src and dst image to be experimented here
 //	Mat orImg = Mat::zeros(dst.size(), CV_8UC1);
@@ -398,16 +366,9 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 // 	}
 //	Canny(orImg, dstEdged, 1.0, 3.0, 3);
 
-//	imshow("dst", dst);
-	// imshow("dstDilated", dstDilated);
-	// imshow("dstEdged", dstEdged);
-//    imshow("labelledImg", labelledImg);
-
 	// imwrite("powerImg.png", powerImg);
 	// imwrite("edgedImg.png", dstEdged);
 //    imwrite(LABELLED_IMAGE_FILE.c_str(), labelledImg);
-
-//    waitKey(3);
 
 //	calculate range/bearing of the saved points
 	// getRangeBearing();
@@ -434,7 +395,6 @@ bool Utility::getRangeBearing()
           ROS_INFO("Object %d: [range: %lf, bearing: %lf]", pointIdx, singlePoint.range, singlePoint.bearing);
 		}
 	}
-
 	savedContours.clear();
 	savedPoints.clear();
 	return true;
@@ -504,7 +464,7 @@ int main(int argc, char** argv)
     ros::Publisher labelledImagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image_labelled", 1);
     ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonarDataVector>("sonar_data", 1000);
     
-    ros::Rate loopRate(10);
+    ros::Rate loopRate(util->SONAR_PING_RATE);
     while (ros::ok()) {
         util->getRangeBearing();
         sonarDataPub.publish(util->sonarMsg);

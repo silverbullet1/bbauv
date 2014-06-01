@@ -29,12 +29,6 @@
 	const std::string COLOR_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/colorImage.png" ;
     const std::string LABELLED_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/labelledImg.png" ;
 
-//	const std::string GIMG8 = "gImg8bit.png" ;
-//	const std::string SIMG = "sImg.png" ;
-//	const std::string TIMG = "tImg.png" ;
-//	const std::string MIMG = "mImg.png" ;
-//	const std::string EIMG = "eImg.png" ;
-//	const std::string LIMG = "lImg.png" ;
 #endif
 
 // grayscale image constants
