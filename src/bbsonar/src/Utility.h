@@ -27,9 +27,13 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 #include "ros/ros.h"
-#include <bbauv_msgs/BBSonar.h>
 #include <bbauv_msgs/sonarData.h>
-#include <bbauv_msgs/sonarDataArray.h>
+#include <bbauv_msgs/sonarDataVector.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
+#include <image_transport/image_transport.h>
+
 
 using namespace std;
 using namespace cv;
@@ -47,7 +51,6 @@ public:
 	BVTColorImage colorImg;
 	BVTColorMapper colorMap;
 
-	cv::Mat grayImg;
 
 	//	head params
 	float startRange;
@@ -61,8 +64,11 @@ public:
 
 	uShort *imgBuffer;
 	int retVal;
-
-	cv::Mat matImg;
+    
+    cv::Mat grayImg;        // image having the grayscale intensities on disk
+	cv::Mat matImg;         // image for saving the grayscale intensities
+    cv::Mat labelledImg;    // image having the bounded objects
+    cv::Mat outImg;         // image that is to be published in ROS image format
 
 	vector<vector<Point> > savedContours;
 	vector<Point> savedPoints;
@@ -83,11 +89,16 @@ public:
 	double getGlobalThreshold(cv::Mat gImg);
 	void myAdaptiveThreshold(cv::Mat gImg, double maxValue, int method, int type, int blockSize, double delta);
 	
-	bool getRangeBearing(bbauv_msgs::BBSonarRequest &req, bbauv_msgs::BBSonarResponse &rsp);
+	bool getRangeBearing();
 
 	int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
+    
+    
+
+    bbauv_msgs::sonarData singlePoint;
+    bbauv_msgs::sonarDataVector sonarMsg;
 
 private:
 };

@@ -158,6 +158,7 @@ class Vision_filter(QWidget):
             cvRGBImg_top = cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_GRAY2RGB)
         else:
             cvRGBImg_top = self.rosimg2cv(image)
+            cvRGBImg_top = cv2.cvtColor(cvRGBImg_top, cv2.COLOR_BGR2RGB)
             #cv2.cvtColor(self.rosimg2cv(image), cv2.cv.CV_BGR2RGB)
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
@@ -168,6 +169,7 @@ class Vision_filter(QWidget):
     def update_image_visual(self,image, isRosImg=False):
         image = image if isRosImg else self.rosimg2cv(image)
         cvRGBImg_top = image
+        cvRGBImg_top = cv2.cvtColor(cvRGBImg_top, cv2.COLOR_BGR2RGB)
         #cv2.cvtColor(image, cv2.cv.CV_BGR2RGB)
         qimg = QImage(cvRGBImg_top.data,cvRGBImg_top.shape[1], cvRGBImg_top.shape[0], QImage.Format_RGB888)
         
@@ -197,7 +199,7 @@ class Vision_filter(QWidget):
     # Convert a ROS Image to the Numpy matrix used by cv2 functions
     def rosimg2cv(self, ros_image):
         # Convert from ROS Image to old OpenCV image
-        frame = self.bridge.imgmsg_to_cv(ros_image, ros_image.encoding)
+        frame = self.bridge.imgmsg_to_cv(ros_image, desired_encoding="bgr8")
         # Convert from old OpenCV image trackbarnameto Numpy matrix
         return np.array(frame, dtype=np.uint8) #TODO: find out actual dtype 
     def createColor(self):

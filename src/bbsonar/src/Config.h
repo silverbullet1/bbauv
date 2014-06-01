@@ -23,9 +23,10 @@
 #endif
 
 #ifdef SAVE_SONAR_IMAGES
-	const std::string GRAYSCALE_MAG_FILE = "grayImage.pgm" ;
-	const std::string GRAYSCALE_IMAGE_FILE = "grayIntensities.txt" ;
-	const std::string COLOR_IMAGE_FILE = "colorImage.ppm" ;
+    const std::string INTENSITIES_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/newIntensities.png";
+	const std::string GRAYSCALE_MAG_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/grayImage.pgm" ;
+	const std::string GRAYSCALE_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/grayIntensities.txt" ;
+	const std::string COLOR_IMAGE_FILE = "/home/bbauvsbc1/bbauv/src/bbsonar/colorImage.png" ;
 
 //	const std::string GIMG8 = "gImg8bit.png" ;
 //	const std::string SIMG = "sImg.png" ;
@@ -40,15 +41,10 @@
 #define RES_TYPE	BVTHEAD_RES_AUTO		// option(s): OFF, LOW, MED, HIGH, AUTO
 
 // file path related constants
-const std::string SONAR_LOG_PATH = "/home/freax/bbsonar/sonarLog.son" ;
-const std::string COLOR_MAPPER_PATH = "/home/freax/bvtsdk/colormaps/bone.cmap" ;
-const std::string RANGE_DATA_PATH = "/home/freax/bbsonar/rangeData.txt";
-const std::string BEARING_DATA_PATH = "/home/freax/bbsonar/bearingData.txt";
-const std::string INTENSITY_DATA_PATH = "/home/freax/bbsonar/intensityData.txt";
-const std::string RTHETA_DATA_PATH = "/home/freax/bbsonar/rthetaData.txt";
+//const std::string SONAR_LOG_PATH = "sonarLog.son" ;
+const std::string COLOR_MAPPER_PATH = "/home/bbauvsbc1/bbauv/src/bbsonar/colormaps/cool.cmap" ;
 
 // range related constants
-const int RES_IN_METRES = 20;
 const int MIN_RANGE = 2;
 const int MAX_RANGE = 20;
 const int GRAYSCALE_THRESH = 150;

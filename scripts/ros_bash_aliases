@@ -9,12 +9,8 @@ ros_service_list_params()
 }
 
 #ROS/UBUNTU ALIASES
-alias s='roscore'
-alias dl='sudo apt-get install '
 alias dl_hydro=install_ros_package
 alias rp='echo $ROS_PACKAGE_PATH'
-alias update='sudo apt-get update'
-alias root='sudo su'
 alias nodes='rosnode list'
 alias topics='rostopic list'
 alias svcs='rosservice list'

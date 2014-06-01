@@ -72,7 +72,7 @@ add_message_files(
   acoustic.msg
 
   sonarData.msg
-  sonarDataArray.msg
+  sonarDataVector.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -94,9 +94,6 @@ add_service_files(
 
   #navigate2d
   navigate2d.srv
-
-  BBSonar.srv
-
 )
 
 ## Generate actions in the 'action' folder

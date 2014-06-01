@@ -8,8 +8,7 @@
 #include "Utility.h"
 using namespace cv;
 
-Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL),
-		colorMap(NULL), imgBuffer(NULL) {
+Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL) {
 
 	retVal = startRange = stopRange = fluidType = soundSpeed = analogGain = tvGain =
 	pingCount = imgWidth = imgHeight = imgWidthStep = rangeValCount = 0;
@@ -39,10 +38,10 @@ int Utility::initSonar() {
 		cout << "error retrieving head, exiting now: " << BVTError_GetString(retVal) << endl;
 		return retVal;
 	}
-	if((retVal = BVTHead_GetPing(head, PING_NUM, &ping)) != 0) {
-		cout << "error retrieving ping: "  << BVTError_GetString(retVal) << endl;
-		return retVal;
-	}
+//	if((retVal = BVTHead_GetPing(head, PING_NUM, &ping)) != 0) {
+//		cout << "error retrieving ping: "  << BVTError_GetString(retVal) << endl;
+//		return retVal;
+//	}
 	return 0;
 }
 
@@ -61,7 +60,6 @@ int Utility::setHeadParams() {
 	pingCount = BVTHead_GetPingCount(head);
 	stopRange = MAX_RANGE;
 //	startRange = MIN_RANGE;
-
 
 	//sets
 	if((retVal = BVTHead_SetRange(head, startRange, stopRange)) != 0)
@@ -95,8 +93,13 @@ int Utility::setHeadParams() {
  * intensities of the retrieved ping
  */
 int Utility::writeIntensities() {
-	std::string imgName = "-intensities.png";
-	std::string intensitiesName = "-intensities.txt";
+//	std::string imgName = "-intensities.png";
+//	std::string intensitiesName = "-intensities.txt";
+    
+    if((retVal = BVTHead_GetPing(head, PING_NUM, &ping)) != 0) {
+		cout << "error retrieving ping: "  << BVTError_GetString(retVal) << endl;
+		return retVal;
+	}
 
 	if((retVal = BVTPing_GetImage(ping, &magImg)) != 0) {
 		cout << "error retrieving ping: " << BVTError_GetString(retVal) << endl;
@@ -117,7 +120,7 @@ int Utility::writeIntensities() {
 		return retVal;
 	}
 	BVTColorImage_SavePPM(colorImg, COLOR_IMAGE_FILE.c_str());
-	cout << "magImg size: " << "height: " << BVTMagImage_GetHeight(magImg) << "  width: " << BVTMagImage_GetWidth(magImg) <<  endl;
+//	cout << "magImg size: " << "height: " << BVTMagImage_GetHeight(magImg) << "  width: " << BVTMagImage_GetWidth(magImg) <<  endl;
 
 	imgBuffer = BVTMagImage_GetBits(magImg);
 	if (imgBuffer == NULL) cout << "imgBuf null" << endl;
@@ -129,32 +132,24 @@ int Utility::writeIntensities() {
 	// std::string intensitiesFile = timeString + intensitiesName;
 
 	// imwrite(grayFile, matImg);
-	imwrite("newIntensities.png", matImg);
+	imwrite(INTENSITIES_FILE.c_str(), matImg);
 
-	cout << "matImg size: " << "height: " << matImg.rows << "  width: " << matImg.cols << endl;
-
-//	ofstream iOut(intensitiesFile.c_str());
-//	for(int row=0; row < matImg.rows; ++row) {
-//		for(int col=0; col < matImg.cols; ++col) {
-//			cv::Scalar intensity = matImg.at<uchar>(col, row);
-//			uInt intensityVal = (uInt)intensity.val[0];
-//			intensityVal = intensityVal > (uInt)GRAYSCALE_THRESH ? intensityVal : 0;
-//			iOut << intensityVal;
-//			iOut << " " ;
-//		}
-//		iOut << endl;
-//	}
-//	iOut.close();
+//	cout << "matImg size: " << "height: " << matImg.rows << "  width: " << matImg.cols << endl;
 
 //	backup data storage in xml format
 	// cv::FileStorage storage("store.yml", cv::FileStorage::WRITE);
 	// storage << "mat" << matImg;
 	// storage.release();
 
-//	imshow("matImg", matImg);
-//	cv::waitKey(0);
+    cv::Mat cImg = imread(COLOR_IMAGE_FILE.c_str(), 0);
+    
+    outImg = cImg.clone();
+    resize(outImg, outImg, Size(640, 480));
+    
+    imshow("colorImg", outImg);
+	cv::waitKey(3);
 
-	if (NULL != magImg) BVTMagImage_Destroy(magImg);
+//	if (NULL != magImg) BVTMagImage_Destroy(magImg);
 	if (NULL != colorMap) BVTColorMapper_Destroy(colorMap);
 	if (NULL != colorImg) BVTColorImage_Destroy(colorImg);
 
@@ -165,23 +160,14 @@ int Utility::writeIntensities() {
  * apply all the image processing approaches here
  */
 int Utility::processImage() {
-//	hardcoded read : reading the image from the stored xml file
-//	cv::Mat grayImg = Mat::zeros(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1);
-//	cv::FileStorage storage("store.yml", cv::FileStorage::READ);
-//	storage["mat"] >> grayImg;
-//	storage.release();
-
-//	hardcoded read : beware of the image's path
-//	cv::Mat grayImg = Mat::zeros(316, 250, CV_16UC1);
-	grayImg = imread("newIntensities.png", 0);
-	cout << "grayImg size: " << grayImg.size() << " [w x h] " << endl;
+	grayImg = imread(INTENSITIES_FILE.c_str(), 0);
+//	cout << "grayImg size: " << grayImg.size() << " [w x h] " << endl;
 
 	Rect roiRect = Rect(Point(0, 0), Point(grayImg.cols, grayImg.rows));
 	Mat roiImg = grayImg(roiRect).clone();
-	cout << "ROI size: " << roiImg.size()  << " [w x h] " << endl;
+//	cout << "ROI size: " << roiImg.size()  << " [w x h] " << endl;
 
-//	cv::Mat grayImg = matImg.clone();
-	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, dilatedImg, labelledImg;
+	cv::Mat smoothImg, threshImg, edgedImg, morphOImg, morphCImg, dilatedImg;
 
 //	initializing the image matrices with zeros
 	smoothImg = Mat::zeros(roiImg.rows, roiImg.cols, CV_8UC1);
@@ -198,10 +184,10 @@ int Utility::processImage() {
  * the sonar image done/called here
  */
 
-//	global thresholding
-	double threshVal = getGlobalThreshold(roiImg);
-	cout << "global threshold value: " << threshVal << endl;
-	cv::threshold(smoothImg, threshImg, threshVal+THRESH_CONSTANT, 255, CV_THRESH_BINARY);
+//	global thresholding : not being used for our operations
+//	double threshVal = getGlobalThreshold(roiImg);
+//	cout << "global threshold value: " << threshVal << endl;
+//	cv::threshold(smoothImg, threshImg, threshVal+THRESH_CONSTANT, 255, CV_THRESH_BINARY);
 
 //	OpenCV's adaptive thresholding
 //	cv::adaptiveThreshold(smoothImg, threshImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 23, 25);
@@ -220,19 +206,6 @@ int Utility::processImage() {
 //	Modified adaptive threshold: derived from OpenCV's adaptive thresholding
 	myAdaptiveThreshold(smoothImg, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV, 5, 25);
 
-//	imshow("grayImg", grayImg);
-//	imshow("ROI", roiImg);
-//	imshow("smoothened", smoothImg);
-//	imshow("thresholded", threshImg);
-//	imshow("morphOpened", morphOImg);
-//	imshow("morphClosed", morphCImg);
-//	imshow("dilated", dilatedImg);
-//	imshow("edged", edgedImg);
-//	imshow("labelled", labelledImg);
-
-//	imwrite("edged.png", edgedImg);
-//	waitKey(0);
-
 	return 0;
 }
 
@@ -242,50 +215,7 @@ int Utility::processImage() {
  */
 int Utility::drawHistogram() {
 	Mat src, equalizedSrc;
-	src = imread("newIntensities.png", 0);
-
-//	without using opencv's calcHist method
-//    int bins = 256;             // number of bins
-//    int nc = src.channels();  	// number of channels
-//    vector<Mat> hist(nc);       // array for storing the histograms
-//    vector<Mat> canvas(nc);    	// images for displaying the histogram
-//    int hmax[3] = {0,0,0};     	// peak value for each histogram
-//
-//    for (int i = 0; i < hist.size(); i++)
-//        hist[i] = Mat::zeros(1, bins, CV_32SC1);
-//
-//    for (int i = 0; i < src.rows; i++) {
-//        for (int j = 0; j < src.cols; j++) {
-//            for (int k = 0; k < nc; k++) {
-//                uchar val = nc == 1 ? src.at<uchar>(i,j) : src.at<Vec3b>(i,j)[k];
-//                hist[k].at<int>(val) += 1;
-//            }
-//        }
-//    }
-//
-//    for (int i = 0; i < nc; i++) {
-//        for (int j = 0; j < bins-1; j++)
-//            hmax[i] = hist[i].at<int>(j) > hmax[i] ? hist[i].at<int>(j) : hmax[i];
-//    }
-//
-//    const char* wname[3] = { "blue", "green", "red" };
-//    Scalar colors[3] = { Scalar(255,0,0), Scalar(0,255,0), Scalar(0,0,255) };
-//
-//    for (int i = 0; i < nc; i++) {
-//        canvas[i] = Mat::ones(125, bins, CV_8UC3);
-//        for (int j = 0, rows = canvas[i].rows; j < bins-1; j++) {
-//            line(
-//                canvas[i],
-//                Point(j, rows),
-//                Point(j, rows - (hist[i].at<int>(j) * rows/hmax[i])),
-//                nc == 1 ? Scalar(200,200,200) : colors[i],
-//                1, 8, 0
-//            );
-//        }
-//        namedWindow("histogram", 0);
-////      imshow(nc == 1 ? "value" : wname[i], canvas[i]);
-//        imshow("histogram", canvas[i]);
-//    }
+	src = imread(INTENSITIES_FILE.c_str(), 0);
 
 	if(!src.data)
 		return -1;
@@ -361,16 +291,14 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	for (int i=0; i < grayImg.rows; ++i) {
 		for (int j=0; j < grayImg.cols; ++j) {
 			dstData[i * grayImg.step + j] = PL_CONST * pow(srcData[i * grayImg.step + j], PL_GAMMA);
-//			Scalar s = grayImg.at<uchar>(Point(i, j));
-//			uInt intensity = (unsigned int)s.val[0];
 		}
 	}
 
-	cv::FileStorage storage("powerStore.yml", cv::FileStorage::WRITE);
-	storage << "mat" << powerImg;
-	storage.release();
+//	cv::FileStorage storage("powerStore.yml", cv::FileStorage::WRITE);
+//	storage << "mat" << powerImg;
+//	storage.release();
 
-	imshow("powerImg", powerImg);
+//	imshow("powerImg", powerImg);
 
 //	src image for adaptive thresholding
 	Mat src = powerImg.clone();
@@ -420,7 +348,7 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	Mat dstGray = dstEdged.clone();
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
-	imshow("dstGray", dstGray);
+    
 	cv::findContours(dstGray, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 	cout << "number of contours detected: " << contours.size() << endl;
 //	if (!contours.size()) {
@@ -428,7 +356,7 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //		exit(EXIT_FAILURE);
 //	}
 
-	Mat labelledImg = Mat::zeros(dstGray.size(), CV_8UC1);
+	labelledImg = Mat::zeros(dstGray.size(), CV_8UC1);
 	vector<vector<Point> > contours_poly(contours.size());
 	vector<Rect> boundRect(contours.size());
 	RNG rng;
@@ -476,13 +404,13 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 //	imshow("dst", dst);
 	// imshow("dstDilated", dstDilated);
 	// imshow("dstEdged", dstEdged);
-	// imshow("labelledImg", labelledImg);
+    imshow("labelledImg", labelledImg);
 
 	// imwrite("powerImg.png", powerImg);
 	// imwrite("edgedImg.png", dstEdged);
 	// imwrite("labelledImg.png", labelledImg);
 
-	// waitKey(0);
+    waitKey(3);
 
 //	calculate range/bearing of the saved points
 	// getRangeBearing();
@@ -490,35 +418,28 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	return;
 }
 
-bool Utility::getRangeBearing(bbauv_msgs::BBSonarRequest &req, bbauv_msgs::BBSonarResponse &rsp) {
-	bbauv_msgs::sonarData singlePoint;
-	bbauv_msgs::sonarDataArray sonarMsg;
+bool Utility::getRangeBearing() 
+{
+    writeIntensities();
+    processImage();
 
-	writeIntensities();
-	processImage();
-
-	for (uInt pointIdx=0; pointIdx < savedPoints.size(); ++pointIdx) {
-		int x = savedPoints[pointIdx].x;
-		int y = savedPoints[pointIdx].y;
-		cout << "(x  y): " << x << " " << y << endl;
-		if (magImg == NULL)
-			cout << "magImg null, can't find range" << endl;
-		else {
-			// cout << "range: " << BVTMagImage_GetPixelRange(magImg, x, y) << endl;
-			// cout << "bearing: " << BVTMagImage_GetPixelRelativeBearing(magImg, x, y) << endl;
-			singlePoint.range = rsp.range = BVTMagImage_GetPixelRange(magImg, x, y) ;
-			singlePoint.bearing = rsp.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, x, y) ;
-			
-			ROS_INFO("Point %d: [range: %lf, bearing: %lf]", pointIdx, rsp.range, rsp.bearing);
-			sonarMsg.rangeBearingArray.push_back(singlePoint);
+  if (magImg == NULL){
+	  ROS_INFO("Magnitude image null, can't find range");
+      return false;
+  }
+  else {
+      for (uInt pointIdx = 0; pointIdx < savedPoints.size(); ++pointIdx) {
+          int x = savedPoints[pointIdx].x;
+		  int y = savedPoints[pointIdx].y;
+          singlePoint.range = BVTMagImage_GetPixelRange(magImg, x, y) ;
+          singlePoint.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, x, y) ;
+          sonarMsg.rangeBearingVector.push_back(singlePoint);
+          ROS_INFO("Object %d: [range: %lf, bearing: %lf]", pointIdx, singlePoint.range, singlePoint.bearing);
 		}
 	}
 
-
 	savedContours.clear();
 	savedPoints.clear();
-	remove("newIntensities.png");
-
 	return true;
 }
 
@@ -534,7 +455,7 @@ double Utility::getGlobalThreshold(Mat gImg) {
 	double min_val, max_val;
 
 	cv::minMaxLoc(gImg, &min_val, &max_val, 0, 0, noArray());
-	cout << "Min val: " << min_val << "\tMax val: " << max_val << endl;
+	cout << "Min intensity val: " << min_val << "\tMax intensity val: " << max_val << endl;
 
 	T = 0.5 * (min_val + max_val);
 	done = false;
@@ -546,7 +467,6 @@ double Utility::getGlobalThreshold(Mat gImg) {
 		done = fabs(T-Tnext) < 100;
 		T = Tnext;
 	}
-
 	return T;
 }
 
@@ -563,8 +483,7 @@ inline const std::string Utility::currentDateTime() {
     return buf;
 }
 
-void Utility::delay(time_t timeout)
-{
+void Utility::delay(time_t timeout) {
 	struct timeval tvDeadline, tvCur;
 	gettimeofday(&tvDeadline, NULL);
 	gettimeofday(&tvCur, NULL);;
@@ -578,14 +497,27 @@ void Utility::delay(time_t timeout)
 int main(int argc, char** argv)
 {
 	Utility *util = new Utility();
-	std::string serverName("bbsonar_server");
+    ROS_INFO("BBSonar invoked");
 
-	ros::init(argc, argv, serverName);
-  	ros::NodeHandle n;
+    ros::init(argc, argv, "bbsonar");
+    ros::NodeHandle nHandle;
+    cv_bridge::CvImage cvImg;
+    
+//    image_transport::ImageTransport it(nHandle);
+    ros::Publisher imagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image", 1);
+    ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonarDataVector>("sonar_data", 1000);
+    
+    ros::Rate loopRate(10);
+    while (ros::ok()) {
+        util->getRangeBearing();
+        sonarDataPub.publish(util->sonarMsg);
+        
+        cvImg.encoding = sensor_msgs::image_encodings::BGR8;
+        cvImg.image = util->outImg;
+        imagePub.publish(cvImg.toImageMsg());
 
-  	ros::ServiceServer service = n.advertiseService(serverName, &Utility::getRangeBearing, util);
-  	ROS_INFO("BBSonar ready to serve you with range/bearing values");
-  	ros::spin();
-	
+        ros::spinOnce();
+        loopRate.sleep();
+    }
 	return 0;
 }

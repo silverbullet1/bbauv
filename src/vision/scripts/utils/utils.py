@@ -40,6 +40,10 @@ class Utils():
         if angle < 0: return angle + 180
         else: return angle - 180
 
+    @staticmethod
+    def angleDif(angle1, angle2):
+        return min(abs(angle1 - angle2), abs(angle2 - angle1))
+
     #Convert line equation to vector equation
     @staticmethod
     def vectorizeLine(pt, angle):
@@ -59,10 +63,10 @@ class Utils():
         t1 = det * (-v2 * dx + u2 *dy)
 
         return (x1 + t1*u1, y1 + t1*v1)
-    
+
     # Find distance between two points
     # Input: Point1(x1, y1) Point2(x2,y2)
     @staticmethod
     def distBetweenPoints(point1, point2):
-        from numpy.ma.core import abs
-        return abs(math.sqrt((point1[0]-point2[0])**2 + (point1[1]-point2[1])**2))
+        return math.sqrt((point1[0] - point2[0])**2 + 
+                         (point1[1] - point2[1])**2)

@@ -1,7 +1,6 @@
 <launch>
-  <node pkg="sensors" type="SpartonCompassIMU.py" name="SpartonCompassIMU" respawn="false" output="screen">
-    <!--<param name="port" value="/dev/ttyAHRS" />-->
+  <node pkg="sensors" type="IMU_node" name="IMU_node" respawn="false" output="screen">
+    <param name="port" value="/dev/ttyAHRS" />
     <param name="baud" value="115200" />
-    <param name="printmodulus" value="100" />
   </node>
 </launch>

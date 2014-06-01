@@ -2,7 +2,8 @@ import rospy
 from sensor_msgs.msg import Image
 import actionlib
 
-from bbauv_msgs.msg import compass_data, ControllerAction, ControllerGoal
+from bbauv_msgs.msg import compass_data, \
+        ControllerAction, ControllerGoal, controller
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -49,14 +50,14 @@ class GenericComms:
             rospy.loginfo("LocomotionServer timeout!")
             self.isKilled = True
 
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward=True, sidemove=True, heading=True, depth=True,
-                  pitch=True, roll=True, topside=False, navigation=False)
-
         # Run straight away if in alone mode
         if self.isAlone:
+            setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            setServer(forward=True, sidemove=True, heading=True, depth=True,
+                      pitch=True, roll=True, topside=False, navigation=False)
             self.isAborted = False
             self.canPublish = True
+
 
     def register(self):
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
@@ -64,17 +65,22 @@ class GenericComms:
                                            compass_data,
                                            self.compassCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
+        self.canPublish = True
 
     def unregister(self):
         if self.camSub is not None:
             self.camSub.unregister()
         if self.compassSub is not None:
             self.compassSub.unregister()
+        self.canPublish = False
 
     def camCallback(self, rosImg):
         self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
-            self.outPub.publish(Utils.cv2rosimg(outImg))
+            try:
+                self.outPub.publish(Utils.cv2rosimg(outImg))
+            except Exception as e:
+                pass
 
     def compassCallback(self, data):
         self.curHeading = data.yaw
@@ -84,6 +90,26 @@ class GenericComms:
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")
+
+    def abortMission(self):
+        rospy.loginfo("Sending Abort request to mission planner")
+        if not self.isAlone:
+            self.toMission(fail_request=True, task_complete_request=False,
+                           task_complete_ctrl=controller(
+                               heading_setpoint=self.curHeading))
+        self.canPublish = False
+        self.isAborted = True
+        self.sendMovement(f=0.0, sm=0.0)
+
+    def taskComplete(self, heading=0.0):
+        rospy.loginfo("Sending Complete request to mission planner")
+        if not self.isAlone:
+            self.toMission(fail_request=False, task_complete_request=True,
+                           task_complete_ctrl=controller(
+                               heading_setpoint=heading))
+        self.canPublish = False
+        self.isAborted = True
+        self.sendMovement(f=0.0, sm=0.0)
 
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
                      timeout=0.4, blocking=False):
