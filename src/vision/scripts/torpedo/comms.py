@@ -8,9 +8,11 @@ import rospy
 from front_commons.frontComms import FrontComms
 from vision import TorpedoVision
 
-from bbauv_msgs.msg import controller
+from bbauv_msgs.msg import controller, manipulator
+from bbauv_msgs.msg import sonarData
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
+from rospy.timer import sleep
 
 class Comms(FrontComms):
     
@@ -32,6 +34,11 @@ class Comms(FrontComms):
     radius = None
     deltaX = None
     deltaXMult = 5.0
+    
+    # Sonar parameters
+    sonarRange = None
+    sonarBearing = None 
+    foundSonar = False 
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
@@ -89,6 +96,21 @@ class Comms(FrontComms):
         maniPub.publish(0 | 2)
         rospy.sleep(rospy.Duration(0.2))       
     
+    def regSonar(self):
+        self.sonarSub = rospy.Subscriber("/sonar_data", sonarData, self.sonarDataCallback)
+    
+    def sonarDataCallback(self, data):
+        self.sonarRange = data.range
+        self.sonarBearing = data.bearing
+        
+        if self.sonarRange is not None and self.sonarBearing is not None:
+            self.foundSonar = True 
+        
+        if self.sonarRange < 2.3:
+            self.unregSonar()
+        
+    def unregSonar(self):
+        self.sonarSub.unregister()
     
 def main():
     pass

@@ -146,7 +146,7 @@ class PegsVision:
                 for centroid in allCentroidList:
                     distDiff = []
                     distDiff.append(Utils.distBetweenPoints(
-                                        self.previousCentroid, centroid))
+                                        self.prevCentroid, centroid))
                 minIndex = distDiff.index(min(distDiff))
                 self.comms.centroidToPick = allCentroidList[minIndex]
                 self.comms.areaRect = allAreaList[minIndex]
@@ -168,6 +168,9 @@ class PegsVision:
             self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
             cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            
+            # Draw center of screen
+            scratchImgCol = vision.drawCenterRect(scratchImgCol)
               
         return scratchImgCol
          
