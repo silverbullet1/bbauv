@@ -42,6 +42,7 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	goal_.heading_setpoint =  goal->heading_setpoint;
 	if(_inNavigation)
 	{
+      ROS_INFO("Navigation goal received!");
 	  goal_.forward_setpoint =  goal->forward_setpoint;
 	  goal_.sidemove_setpoint =  goal->sidemove_setpoint;
 	} else

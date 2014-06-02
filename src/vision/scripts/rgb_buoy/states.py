@@ -15,6 +15,7 @@ from comms import Comms
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from vision import RgbBuoyVision
+from front_commons.frontCommsVision import FrontCommsVision as vision
 
 from dynamic_reconfigure.server import Server
 
@@ -37,8 +38,8 @@ class Disengage(smach.State):
             self.comms.register()
             rospy.loginfo("Starting RGB")
         
-        return 'start_complete'
-    
+        return 'start_complete'  
+
 class Search(smach.State):
     timeout = 1000
     
@@ -56,7 +57,7 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search in figure of 8? 
-            self.comms.sendMovement(forward=0.2)
+            #self.comms.sendMovement(forward=0.2)
             rospy.sleep(rospy.Duration(0.3))
         
         return 'search_complete'
@@ -64,6 +65,11 @@ class Search(smach.State):
 # Precise movements when near buoy 
 class Centering (smach.State):
     deltaXMult = 3.0
+    deltaYMult = 0.4
+    depthCount = 0
+    count = 0
+    depthCorrected = False 
+    
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
         self.comms = comms
@@ -76,17 +82,51 @@ class Centering (smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        if self.comms.rectArea > 15000:
-            self.comms.sendMovement(forward=2.5, blocking=True)   # Shoot forward
+        rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
+        rospy.loginfo("Delta Y: {}".format(self.comms.deltaY))
+
+        if self.comms.rectArea > 10000:
+            self.deltaXMult = 1.5
+
+        if self.count > 50:
+            rospy.loginfo("Banging")
+            self.comms.sendMovement(forward=2.0, blocking=True)   # Shoot forward
             self.comms.sendMovement(forward=-1.5, blocking=True)  # Reverse a bit
+            self.comms.isAborted = True
+            self.comms.isKilled = True 
             return 'centering_complete'
         
-        self.comms.sendMovement(sidemove=self.comms.deltaX*self.deltaXMult, blocking=False)
+#         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
+#             self.count = self.count + 1
+#             rospy.loginfo("Count: {}".format(self.count))
+
+        if vision.centroidInCenterRect(self.comms.centroidToBump[0], self.comms.centroidToBump[1]):
+            self.count = self.count + 1
+            rospy.loginfo("Count: {}".format(self.count))
+        
+        # Correct for depth
+        if self.depthCount < 10 and abs(self.comms.deltaY) > 0.010:
+#         if not self.depthCorrected and abs(self.comms.deltaY) > 0.010:
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            # Make sure it doesnt surface
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 0.1
+            self.comms.sendMovement(depth=self.comms.defaultDepth, blocking=True)
+            self.depthCount = self.depthCount + 1
+            rospy.loginfo("Depth corrected {}".format(self.depthCount))
+            self.depthCorrected = True 
+            # pixel radius of buoy seen / screen width * 2 * real radius of bouy * dy / screen width
+
+        self.comms.sendMovement(sidemove=self.comms.deltaX*self.deltaXMult, 
+                                timeout=0.4, blocking=False)
         return 'centering'
 
 # For bump
 class bangBuoy(smach.State):
     deltaXMult = 5.0
+    area = 6000
+    count = 0
+    
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'aborted', 'killed'])
         self.comms = comms
@@ -98,11 +138,14 @@ class bangBuoy(smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        if self.comms.rectArea > 3000:            
+        if self.count > 10:           
             return 'bang_to_center'
+        
+        if self.comms.rectArea > self.area: 
+            self.count = self.count + 1
   
-        # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.3, sidemove=self.comms.deltaX*self.deltaXMult,
+        # Move forward & correct sidemove 
+        self.comms.sendMovement(forward=0.2, sidemove=self.comms.deltaX*self.deltaXMult,
                                 blocking=False)
         return 'banging'
 

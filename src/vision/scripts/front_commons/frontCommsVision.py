@@ -5,6 +5,7 @@ Common methods for front camera vision
 import cv2
 import math
 import numpy
+from multiprocessing.managers import State
 
 class FrontCommsVision():
     screen = { 'width': 640, 'height': 480 }
@@ -41,4 +42,34 @@ class FrontCommsVision():
         contours, hierachy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         contours = filter(lambda c: cv2.contourArea(c) > FrontCommsVision.minContourArea, contours)
         sorted(contours, key=cv2.contourArea, reverse=True)
-        return contours               
+        return contours            
+    
+    # Draw a rect at center of screen
+    @staticmethod
+    def drawCenterRect(image):
+        midX = FrontCommsVision.screen['width']/2.0
+        midY = FrontCommsVision.screen['height']/2.0
+        maxDeltaX = FrontCommsVision.screen['width']*0.05
+        maxDeltaY = FrontCommsVision.screen['height']*0.05
+        cv2.rectangle(image,
+                      (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                      (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                      (0, 255, 0), 2)  
+        return image 
+    
+    # Check if centroid in center RECT
+    @staticmethod
+    def centroidInCenterRect(centroidX, centroidY):
+        centroidX = abs(centroidX)
+        centroidY = abs(centroidY)
+        
+        midX = FrontCommsVision.screen['width']/2.0
+        midY = FrontCommsVision.screen['height']/2.0
+        maxDeltaX = FrontCommsVision.screen['width']*0.15
+        maxDeltaY = FrontCommsVision.screen['height']*0.15
+        if centroidX > (midX-maxDeltaX) and centroidX < (midX + maxDeltaX) and \
+            centroidY > (midY-maxDeltaY) and centroidY < (midY + maxDeltaY):
+            return True
+        else:
+            return False
+        

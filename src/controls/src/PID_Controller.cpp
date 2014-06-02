@@ -62,7 +62,6 @@ void collectOdom(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
-void collectAutonomous(const bbauv_msgs::controller & msg);
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 
@@ -180,8 +179,7 @@ int main(int argc, char **argv)
 	pid_infoPub = nh.advertise<bbauv_msgs::pid_info>("/pid_info",1000);
 
 	//Initialize Subscribers
-	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
-	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectPosition);
+	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectDVL);
 	earthSub = nh.subscribe("earth_odom",1000,collectOdom);
 	orientationSub = nh.subscribe("/euler",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
@@ -314,8 +312,8 @@ int main(int argc, char **argv)
 			ctrl.sidemove_setpoint = as.getSidemove();
 			ctrl.heading_setpoint = as.getHeading();
 			ctrl.depth_setpoint = as.getDepth();
-			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
-			as.setNavigation(inNavigation);
+            as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
+            as.setNavigation(inNavigation);
 		}
 
 		controllerPub.publish(ctrl);
@@ -463,15 +461,6 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 	}
 }
 
-void collectAutonomous(const bbauv_msgs::controller & msg)
-{
-	if(inNavigation)
-	{
-		ctrl.forward_setpoint = msg.forward_setpoint;
-		ctrl.sidemove_setpoint = msg.sidemove_setpoint;
-		ctrl.heading_setpoint = msg.heading_setpoint;
-	}
-}
 /***********Dynamic Reconfigure Callbacks*****************/
 
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
