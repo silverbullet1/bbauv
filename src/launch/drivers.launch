@@ -5,13 +5,13 @@
 
   	<!-- Launch PID Controller -->
 	<include file="$(find launch)/controller.launch" />  	
-    <include file="$(find launch)/battery.launch"/>
+    <!-- <include file="$(find launch)/battery.launch"/> -->
 
   	<!-- Launching Embedded Systems -->
     <include file="$(find launch)/embedded.launch"/>
 
-    <!-- Launching DVL -->
-    <include file="$(find launch)/WH_DVL.launch" />
+    <!-- Launching DVL
+    <include file="$(find launch)/DVL.launch" /> -->
 
     <!-- Launch Sparton IMU -->
     <include file="$(find launch)/SpartonCompass.launch"/>
@@ -21,6 +21,4 @@
     <!-- Launch xy navigation node -->
     <node pkg="controls" name="controls" type="navigate2D.py" respawn="false"></node>
 
-    <!--Launch earth odom -->
-    <node pkg="earth_odom" name="earth_odom" type="earth_odom" respawn="false"></node>
 </launch> 

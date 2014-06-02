@@ -14,8 +14,8 @@ class RgbBuoyVision:
 
     # Vision parameters
     
-    redParams = {'lo': (128, 0, 0), 'hi': (211, 255, 255),
-                 'dilate': (13,13), 'erode': (3,3), 'open': (3,3)}
+    redParams = {'lo': (117, 0, 0), 'hi': (208, 255, 255),
+                 'dilate': (11,11), 'erode': (3,3), 'open': (5,5)}
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
@@ -74,11 +74,7 @@ class RgbBuoyVision:
         
         # Perform thresholding
         binImg = cv2.inRange(img, params['lo'], params['hi'])
-        kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, params['dilate'])
-        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, kern)
-        binImg = cv2.dilate(binImg, dilateEl)
-        #binImg = vision.erodeAndDilateImg(binImg, params)
+        binImg = vision.erodeAndDilateImg(binImg, params)
         
         # Find contours
         scratchImg = binImg.copy()
@@ -89,75 +85,68 @@ class RgbBuoyVision:
         sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour
         
         # If centering, just find the center of largest contour
-#         if self.comms.isCentering:
-#             try:
-#                 largestContour = contours[0]
-#                 mu = cv2.moments(largestContour)
-#                 muArea = mu['m00']
-#                 self.comms.centroidToBump = (int(mu['m10']/muArea), int(mu['m01']/muArea))
-#                 self.comms.rectArea = muArea
-#                 
-#                 self.previousCentroid = self.comms.centroidToBump
-#                 self.previousArea = self.comms.rectArea
-#                 
-#             except Exception, e:
-#                 self.comms.centroidToBump = self.previousCentroid
-#                 self.comms.rectArea = self.previousArea
-#         else:
-# Find hough circles
-        circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                           minDist=30, param1=80, param2=15,
-                           minRadius = self.circleParams['minRadius'],
-                           maxRadius = self.circleParams['maxRadius'])
-        
-        # Check if center of circles inside contours
-        if contours is not None:
-            for contour in contours:
-                mu = cv2.moments(contour)
+        if self.comms.isCentering:
+            if contours is not None:
+                largestContour = contours[0]
+                mu = cv2.moments(largestContour)
                 muArea = mu['m00']
-                centroid = (mu['m10']/muArea, mu['m01']/muArea)
-                if circles is not None:
-                    for circle in circles[0,:,:]:
-                        circleCentroid = (circle[0], circle[1])
-                        if abs((Utils.distBetweenPoints(centroid,circleCentroid))) < circle[2]:
-                            self.comms.foundBuoy = True
-                            # Find new centroid by averaging the centroid and circle centroid
-                            newCentroid =(int(centroid[0]+circleCentroid[0])/2,
-                                          int(centroid[1]+circleCentroid[1])/2)
-                            self.allCentroidList.append(newCentroid)
-                            self.allAreaList.append(cv2.contourArea(contour))
-                            self.allRadiusList.append(circle[2])
-                            # Draw circles
-                            cv2.circle(scratchImgCol, newCentroid, circle[2], (255, 255, 0), 2)
-                            cv2.circle(scratchImgCol, newCentroid, 2, (255, 0, 255), 3)        
-        
-        # Find the circle with the largest radius
-        if not len(self.allCentroidList) == 0:
-            maxIndex = self.allRadiusList.index(max(self.allRadiusList))
-            self.comms.centroidToBump = self.allCentroidList[maxIndex]
-            self.comms.rectArea = self.allAreaList[maxIndex]
-            
-            self.previousCentroid = self.comms.centroidToBump
-            self.previousArea = self.comms.rectArea
+                self.comms.centroidToBump = (int(mu['m10']/muArea), int(mu['m01']/muArea))
+                self.comms.rectArea = muArea
+                
+                self.previousCentroid = self.comms.centroidToBump
+                self.previousArea = self.comms.rectArea
+                
+            else:
+                self.comms.centroidToBump = self.previousCentroid
+                self.comms.rectArea = self.previousArea
         else:
-            self.comms.centroidToBump = self.previousCentroid
-            self.comms.rectArea = self.previousArea
+            # Find hough circles
+            circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
+                               minDist=30, param1=80, param2=15,
+                               minRadius = self.circleParams['minRadius'],
+                               maxRadius = self.circleParams['maxRadius'])
+            
+            # Check if center of circles inside contours
+            if contours is not None:
+                for contour in contours:
+                    mu = cv2.moments(contour)
+                    muArea = mu['m00']
+                    centroid = (mu['m10']/muArea, mu['m01']/muArea)
+                    if circles is not None:
+                        for circle in circles[0,:,:]:
+                            circleCentroid = (circle[0], circle[1])
+                            if abs((Utils.distBetweenPoints(centroid,circleCentroid))) < circle[2]:
+                                self.comms.foundBuoy = True
+                                # Find new centroid by averaging the centroid and circle centroid
+                                newCentroid =(int(centroid[0]+circleCentroid[0])/2,
+                                              int(centroid[1]+circleCentroid[1])/2)
+                                self.allCentroidList.append(newCentroid)
+                                self.allAreaList.append(cv2.contourArea(contour))
+                                self.allRadiusList.append(circle[2])
+                                # Draw circles
+                                cv2.circle(scratchImgCol, newCentroid, circle[2], (255, 255, 0), 2)
+                                cv2.circle(scratchImgCol, newCentroid, 2, (255, 0, 255), 3)        
+            
+            # Find the circle with the largest radius
+            if not len(self.allCentroidList) == 0:
+                maxIndex = self.allRadiusList.index(max(self.allRadiusList))
+                self.comms.centroidToBump = self.allCentroidList[maxIndex]
+                self.comms.rectArea = self.allAreaList[maxIndex]
+                
+                self.previousCentroid = self.comms.centroidToBump
+                self.previousArea = self.comms.rectArea
+            else:
+                self.comms.centroidToBump = self.previousCentroid
+                self.comms.rectArea = self.previousArea
 
         # Draw new centroid
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
         rospy.loginfo("Area: {}".format(self.comms.rectArea))
-        
-        # Draw center of screen
-        scratchImgCol = vision.drawCenterRect(scratchImgCol)
-        
+            
         # How far centroid is off screen center
-        self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/
+        self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToBump[0])*1.0/
                                     vision.screen['width'])
         cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
-        self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
-                                  vision.screen['height'])
-        cv2.putText(scratchImgCol, str(self.comms.deltaY), (30,60), 
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
 
         return scratchImgCol

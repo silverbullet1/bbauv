@@ -735,15 +735,13 @@ class AUV_gui(QMainWindow):
                               "</b>")
 
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB
-            or self.data['hull_status'].WaterDetC) and not self.isLeak and not self.notified:
+            or self.data['hull_status'].WaterDetC) and not self.isLeak:
             n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
             if not n.show():
                 print "Failed to send notification"
             self.isLeak = True
-            self.notified = True 
         else:
             self.isLeak = False
-            self.notified = False 
 
         battery_notification1 = ""
         battery_notification2 = ""
