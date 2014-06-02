@@ -5,7 +5,6 @@ Common methods for front camera vision
 import cv2
 import math
 import numpy
-from multiprocessing.managers import State
 
 class FrontCommsVision():
     screen = { 'width': 640, 'height': 480 }
@@ -42,6 +41,7 @@ class FrontCommsVision():
         contours, hierachy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         contours = filter(lambda c: cv2.contourArea(c) > FrontCommsVision.minContourArea, contours)
         sorted(contours, key=cv2.contourArea, reverse=True)
+<<<<<<< HEAD
         return contours            
     
     # Draw a rect at center of screen
@@ -78,3 +78,6 @@ class FrontCommsVision():
         else:
             return False
         
+=======
+        return contours               
+>>>>>>> parent of b84cdc4... rgb tests
