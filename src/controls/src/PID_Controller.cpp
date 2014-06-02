@@ -48,7 +48,7 @@ double depth_offset = 0;
 
 //State Machines
 bool inTopside,inTeleop,inHovermode = false, oldHovermode = false;
-bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID, inPitchPID, inRollPID;
+bool inDepthPID, inHeadingPID, inForwardPID, inSidemovePID, inPitchPID, inRollPID,inForwardVelPID, inSidemoveVelPID;
 bool inNavigation;
 bool velocityMode;
 bool inVisionTracking;
@@ -62,7 +62,6 @@ void collectOdom(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
-void collectAutonomous(const bbauv_msgs::controller & msg);
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 
@@ -92,6 +91,8 @@ bbauv::bbPID headingPID("h",1.2,0,0,20);
 bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
 bbauv::bbPID rollPID("r",1.2,0,0,20);
+bbauv::bbPID forwardVelPID("vf",1.2,0,0,20);
+bbauv::bbPID sidemoveVelPID("vs",1.2,0,0,20);
 
 int act_forward[2];
 int act_sidemove[2];
@@ -156,6 +157,8 @@ bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
   inPitchPID = req.pitch;
   inRollPID = req.roll;
   inTopside = req.topside;
+  inForwardVelPID = req.forward_vel;
+  inSidemoveVelPID = req.sidemove_vel;
   inNavigation = req.navigation;
   res.complete = true;
   return true;
@@ -166,7 +169,7 @@ int main(int argc, char **argv)
 	//Initialize PID output variables
 
 	double forwardPIDoutput, headingPID_output,depthPID_output,sidemovePID_output,pitchPID_output, rollPID_output;
-
+	double forwardVelPID_output,sidemoveVelPID_output;
 	//Initialize Node
 
 	ros::init(argc, argv, "Controller");
@@ -181,7 +184,7 @@ int main(int argc, char **argv)
 
 	//Initialize Subscribers
 	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
-	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectPosition);
+	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectDVL);
 	earthSub = nh.subscribe("earth_odom",1000,collectOdom);
 	orientationSub = nh.subscribe("/euler",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
@@ -276,6 +279,25 @@ int main(int argc, char **argv)
 			sidemovePID_output = 0;
 			sidemovePID.clearIntegrator();
 		}
+
+		if(inForwardVelPID)
+		{
+		  forwardVelPID_output = forwardPID.computePID(ctrl.forward_vel_setpoint,ctrl.forward_vel_input);
+		}else
+                {
+                        forwardVelPID_output = 0;
+                        forwardVelPID.clearIntegrator();
+                }
+
+		if(inSidemoveVelPID)
+		{
+		  sidemoveVelPID_output = sidemoveVelPID.computePID(ctrl.sidemove_vel_setpoint,ctrl.sidemove_vel_input);
+		}else
+                {
+                        sidemoveVelPID_output = 0;
+                        sidemoveVelPID.clearIntegrator();
+                }
+
 		if(inPitchPID)
 		{
 			pidInfo.pitch.p = pitchPID.getProportional();
@@ -307,6 +329,7 @@ int main(int argc, char **argv)
 		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output,rollPID_output);
 
+		float fwd,side;
 		/*Update Action Server Positions*/
 		if(!inTopside)
 		{
@@ -314,7 +337,11 @@ int main(int argc, char **argv)
 			ctrl.sidemove_setpoint = as.getSidemove();
 			ctrl.heading_setpoint = as.getHeading();
 			ctrl.depth_setpoint = as.getDepth();
-			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.heading_input,ctrl.depth_input);
+			if(inForwardVelPID)     fwd = ctrl.forward_vel_input;
+			else fwd = ctrl.forward_input;
+			if(inSidemoveVelPID)    side = ctrl.sidemove_vel_input;
+			else side = ctrl.sidemove_input;
+			as.updateState(fwd,side,ctrl.heading_input,ctrl.depth_input);
 			as.setNavigation(inNavigation);
 		}
 
@@ -335,8 +362,6 @@ double getHeadingPIDUpdate()
 	double error = (double) ctrl.heading_setpoint - (double) ctrl.heading_input;
 	//Fix wrap around for angles
 	wrappedHeading = headingPID.wrapAngle360(error,(double) ctrl.heading_input);
-	//cout<<"yaw: "<<ctrl.heading_input<<" e: "<<error<<" hd: "<<wrappedHeading<<endl;
-	//ROS_INFO("val: %f, set: %f, err: %f",wrappedHeading, ctrl.heading_input,error);
 	return headingPID.computePID(ctrl.heading_setpoint,wrappedHeading);
 }
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output)
@@ -397,10 +422,6 @@ void collectOdom(const nav_msgs::Odometry::ConstPtr& msg)
       }
 }
 
-void collectInput(const bbauv_msgs::controller &msg)
-{
-
-}
 void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg)
 {
 	ctrl.heading_input =  msg->yaw;
@@ -463,15 +484,6 @@ void collectTeleop(const bbauv_msgs::thruster &msg)
 	}
 }
 
-void collectAutonomous(const bbauv_msgs::controller & msg)
-{
-	if(inNavigation)
-	{
-		ctrl.forward_setpoint = msg.forward_setpoint;
-		ctrl.sidemove_setpoint = msg.sidemove_setpoint;
-		ctrl.heading_setpoint = msg.heading_setpoint;
-	}
-}
 /***********Dynamic Reconfigure Callbacks*****************/
 
 void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level) {
