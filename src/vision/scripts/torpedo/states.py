@@ -36,6 +36,32 @@ class Disengage(smach.State):
         
         return 'start_complete'
 
+class FollowSonar(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['sonar_complete', 'aborted', 'killed'])
+        self.comms = comms
+        self.comms.regSonar
+    
+    def execute(self, userData):
+        while not self.comms.foundSonar:
+            if self.comms.isKilled:
+                return 'killed'
+            if self.comms.isAborted:
+                self.comms.isAborted = True
+                return 'aborted'
+            
+            self.comms.sendMovement(forward=0.2, blocking=False)    #Move forward a bit
+            rospy.sleep(rospy.Duration(0.3))
+        
+        rospy.loginfo("Following sonar")
+        # Turn to sonar bearing 
+        self.comms.sendMovement(forward=0.0, sidemove=0.0,
+                                heading=self.comms.curHeading+self.comms.sonarBearing,
+                                blocking=True)
+        # Move forward 2/3 distance
+        self.comms.sendMovement(forward=self.comms.sonarRange*(2/3), blocking=True)
+        return 'sonar_complete'        
+
 class SearchCircles(smach.State):
     timeout = 1000
     
@@ -61,7 +87,7 @@ class SearchCircles(smach.State):
 class MoveForward(smach.State):
     forward_setpoint = 0.3
     deltaXMult = 5.0
-    completeRadius = 30
+    completeRadius = 32
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -90,6 +116,7 @@ class MoveForward(smach.State):
 # Precise movements when near centroid
 class Centering (smach.State):
     deltaXMult = 3.0
+    count = 0
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
@@ -101,7 +128,13 @@ class Centering (smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
+        rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
+        
         if self.comms.deltaX < 0.005:
+            self.count = self.count + 1
+            rospy.loginfo("Count: {}".format(self.count))
+            
+        if self.count > 2000:
             return 'centering_complete'
         
         # Sidemove and center
@@ -148,7 +181,12 @@ def main():
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
                                 transitions={'start_complete': "SEARCHCIRCLES",
-                                         'killed': 'killed'})      
+                                         'killed': 'killed'})   
+        
+        smach.StateMachine.add("FOLLOWSONAR", FollowSonar(myCom),
+                               transitions={'sonar_complete': "SEARCHCIRCLES",
+                                            'killed': 'killed',
+                                            'aborted': 'aborted'})   
     
         smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
                                 transitions={'searchCircles_complete': "MOVEFORWARD",

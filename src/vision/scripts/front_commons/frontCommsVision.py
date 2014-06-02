@@ -65,8 +65,13 @@ class FrontCommsVision():
         
         midX = FrontCommsVision.screen['width']/2.0
         midY = FrontCommsVision.screen['height']/2.0
+<<<<<<< HEAD
         maxDeltaX = FrontCommsVision.screen['width']*0.15
         maxDeltaY = FrontCommsVision.screen['height']*0.15
+=======
+        maxDeltaX = FrontCommsVision.screen['width']*0.05
+        maxDeltaY = FrontCommsVision.screen['height']*0.05
+>>>>>>> e77217ccaa8c31751761f69ff755e50af4ff74c0
         if centroidX > (midX-maxDeltaX) and centroidX < (midX + maxDeltaX) and \
             centroidY > (midY-maxDeltaY) and centroidY < (midY + maxDeltaY):
             return True
