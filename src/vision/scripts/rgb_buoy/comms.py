@@ -22,11 +22,14 @@ class Comms(FrontComms):
     centroidToBump = (-1,-1)
     rectArea = None
     deltaX = 0
+    deltaY = 0
     
     isCentering = False 
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
+        #self.defaultDepth = 1.5
+        self.defaultDepth = 0.3
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
     # Handle mission services

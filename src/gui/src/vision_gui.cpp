@@ -102,8 +102,8 @@ VisionUI::VisionUI() : it(node) {
 		ui.bottomfilter->addItem(QString::fromStdString(bottom_filters[i]->getName()));
 
 	//Subscribe to ros topics
-	change_front_topic("/bumblebee/frontCam");
-	change_bottom_topic("/bumblebee/bottomCam");
+	change_front_topic("/front_camera/camera/image_raw");
+	change_bottom_topic("/bot_camera/camera/image_raw");
 
 	window->show();
 }
@@ -173,12 +173,12 @@ void VisionUI::update_filter(camera_t camera, cv::Mat image) {
 void source_selected(int index) {
 	switch(index) {
 	case 1: //Bag file must run uncompress bags
-		vision_ui->change_front_topic("/front_right");
-		vision_ui->change_bottom_topic("/bottomcam");
+		vision_ui->change_front_topic("/front_camera/camera/image_raw");
+		vision_ui->change_bottom_topic("/bot_camera/camera/image_raw");
 		break;
 	}
-	vision_ui->change_front_topic("/bumblebee/frontCam");
-	vision_ui->change_bottom_topic("/bumblebee/bottomCam");
+	vision_ui->change_front_topic("/front_camera/camera/image_raw");
+	vision_ui->change_bottom_topic("/bot_camera/camera/image_raw");
 }
 
 void openFile(bool open) {
