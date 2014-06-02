@@ -8,8 +8,8 @@ class PickupVision:
     screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
-    hsvLoThresh1 = (1, 0, 0)
-    hsvHiThresh1 = (30, 255, 255)
+    greenLoThresh = (35, 0, 0)
+    greenHiThresh = (70, 255, 255)
     hsvLoThresh2 = (165, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
     minContourArea = 5000
@@ -54,7 +54,7 @@ class PickupVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
-        binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
+        #binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
         if self.debugMode:
             outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
