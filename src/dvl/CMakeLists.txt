@@ -1,18 +1,26 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(bbauv_msgs)
+project(dvl)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  bbauv_msgs
   roscpp
-  rospy
   std_msgs
-  message_generation
-  actionlib_msgs
-  geometry_msgs
+  dynamic_reconfigure
+  nav_msgs
 )
 
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(GCC_VERSION VERSION_EQUAL 4.7)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+else()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+endif()
+
+set(CMAKE_BUILD_TYPE Debug)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -47,69 +55,35 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  TimeElapsed.msg
-  ControlData.msg
-  pid_info.msg
-  ##Old msg files start
-  acoustic_control.msg
-  circles.msg
-  compass_data.msg
-  controller.msg
-  depth.msg
-  hull_status.msg
-  imu_data.msg
-  log.msg
-  manipulator.msg
-  openups.msg
-  openups_stats.msg
-  pipe_pose.msg
-  thruster.msg
-  wheel_task_pose.msg
-  sonarData.msg
-  sonarDataVector.msg
-
-  ##Old msg files end
-  cpu_temperature.msg
-  acoustic.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  TaskStatus.srv
-  SimpleMovement.srv
-  DVL.srv
-  ##Old srv files start
-  locomotion_mode.srv
-  #mission_to_lane.srv
-  mission_to_vision.srv
-  PID.srv
-  set_controller.srv
-  vision_to_mission.srv
-  ##Old srv files end
-  #mission_linefollower.srv
-  #mission_flare.srv
-
-  #navigate2d
-  navigate2d.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
 ## Generate actions in the 'action' folder
-add_action_files(
-  FILES
-  Controller.action
-)
+# add_action_files(
+#   FILES
+#   Action1.action
+#   Action2.action
+# )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  actionlib_msgs
-  geometry_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   bbauv_msgs#   std_msgs
+# )
 
+generate_dynamic_reconfigure_options(
+    cfg/dvl.cfg    
+)
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -120,10 +94,9 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES msgs
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-   CATKIN_DEPENDS message_generation message_runtime roscpp rospy std_msgs actionlib actionlib_msgs geometry_msgs
+   INCLUDE_DIRS include
+#  LIBRARIES dvl
+#  CATKIN_DEPENDS bbauv_msgs roscpp std_msgs
 #  DEPENDS system_lib
 )
 
@@ -136,25 +109,38 @@ catkin_package(
 # include_directories(include)
 include_directories(
   include
+  dvl
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(msgs
-#   src/${PROJECT_NAME}/msgs.cpp
+# add_library(dvl
+#   src/${PROJECT_NAME}/dvl.cpp
 # )
 
 ## Declare a cpp executable
-# add_executable(msgs_node src/msgs_node.cpp)
-
+add_executable(explorer_DVL src/main.cpp src/dvl.cpp src/decoder.cpp)
+#add_executable(explorer_Sensor src/streamIMU.cpp)
+#add_executable(serialTest src/testSerial.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(msgs_node msgs_generate_messages_cpp)
+# add_dependencies(dvl_node dvl_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(msgs_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(explorer_DVL
+    serial
+   ${catkin_LIBRARIES}
+ )
+
+#target_link_libraries(explorer_Sensor
+#    serial
+#    ${catkin_LIBRARIES}
+#)
+
+#target_link_libraries(serialTest
+#    serial
+#    ${catkin_LIBRARIES}
+#)
 
 #############
 ## Install ##
@@ -171,7 +157,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS msgs msgs_node
+# install(TARGETS dvl dvl_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -196,7 +182,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_msgs.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_dvl.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

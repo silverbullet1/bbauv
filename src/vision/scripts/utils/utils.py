@@ -40,6 +40,10 @@ class Utils():
         if angle < 0: return angle + 180
         else: return angle - 180
 
+    @staticmethod
+    def angleDif(angle1, angle2):
+        return min(abs(angle1 - angle2), abs(angle2 - angle1))
+
     #Convert line equation to vector equation
     @staticmethod
     def vectorizeLine(pt, angle):

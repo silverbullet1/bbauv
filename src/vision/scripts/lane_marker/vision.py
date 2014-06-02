@@ -8,19 +8,19 @@ from utils.utils import Utils
 from bot_common.vision import Vision
 
 class LaneMarkerVision:
-    screen = { 'width': 640, 'height': 480 }
+    screen = { 'width': 840, 'height': 680 }
 
     # Vision parameters
-    hsvLoThresh1 = (7, 0, 0)
+    hsvLoThresh1 = (5, 0, 0)
     hsvHiThresh1 = (79, 255, 255)
     hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
-    minContourArea = 5000
+    minContourArea = 3000
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
-    houghThreshold = 100
-    houghMinLength = 70
+    houghThreshold = 50
+    houghMinLength = 40
     houghMaxGap = 10
 
     def __init__(self, comms=None, debugMode=True):
@@ -125,6 +125,16 @@ class LaneMarkerVision:
             if self.debugMode:
                 Vision.drawRect(outImg, points)
 
+            #Find the lane heading
+            edge1 = points[1] - points[0]
+            edge2 = points[2] - points[1]
+
+            #Choose the vertical edge
+            if cv2.norm(edge1) > cv2.norm(edge2):
+                rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
+            else:
+                rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
             lines = cv2.HoughLinesP(rectImg,
                                     self.houghDistRes, self.houghAngleRes,
                                     self.houghThreshold,
@@ -132,7 +142,6 @@ class LaneMarkerVision:
                                     self.houghMaxGap)
             # Find and fix angle
             if lines != None:
-                #print len(lines[0])
                 #for line in lines[0]:
                 #    cv2.line(outImg,
                 #            (line[0], line[1]), (line[2], line[3]),
@@ -142,7 +151,9 @@ class LaneMarkerVision:
                 gradient = np.median(gradients)
                 angle = np.rad2deg(gradient)
 
-                foundLines.append({'pos': rect[0], 'angle': angle})
+                #rospy.loginfo(rectAngle - angle)
+                foundLines.append({'pos': rect[0], 'angle': rectAngle,
+                                   'testAngle': angle})
 
         if len(foundLines) >= 2 and self.comms.expectedLanes == 2:
             # If there are 2 lines, find their intersection and adjust angle
@@ -174,12 +185,13 @@ class LaneMarkerVision:
                 cv2.putText(outImg, "left", startPt,
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
 
-        else:
+        elif len(foundLines) >= 1:
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading +
                                           Utils.toHeadingSpace(lineAngle))
-            if 90 < abs(self.comms.inputHeading - adjustAngle) < 270:
+            if 90 < abs(Utils.normAngle(self.comms.inputHeading) -
+                        Utils.normAngle(adjustAngle)) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
         if self.debugMode:
@@ -199,8 +211,8 @@ class LaneMarkerVision:
             # Draw the centering rectangle
             midX = self.screen['width']/2.0
             midY = self.screen['height']/2.0
-            maxDeltaX = self.screen['width']*0.05
-            maxDeltaY = self.screen['height']*0.05
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
             cv2.rectangle(outImg,
                           (int(midX-maxDeltaX), int(midY-maxDeltaY)),
                           (int(midX+maxDeltaX), int(midY+maxDeltaY)),
