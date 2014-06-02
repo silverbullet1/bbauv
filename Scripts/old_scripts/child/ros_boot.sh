@@ -28,8 +28,11 @@ tmux rename-window 'cameras'
 #tmux send-keys 'roslaunch vision cameras.launch' C-m
 tmux send-keys 'roslaunch vision cameraswusb.launch' C-m
 tmux new-window -tbbauv:6
-tmux rename-window 'rosbridge'
-tmux send-keys 'rosrun rosbridge rosbridge.py' C-m
+tmux rename-window 'batteries'
+tmux send-keys 'roslaunch launch battery.launch' C-m
+tmux new-window -tbbauv:7
+tmux rename-window 'dvl'
+tmux send-keys 'roslaunch launch dvl.launch' C-m
 
 tmux set-option -s mouse-resize-pane on
 tmux set-option -s mouse-select-pane on

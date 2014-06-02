@@ -807,8 +807,8 @@ class AUV_gui(QMainWindow):
        #     print "Failed to send notification"
 
     def initService(self):
-        rospy.wait_for_service('set_controller_srv')
-        rospy.loginfo("set_controller Service ready.")
+        #rospy.wait_for_service('set_controller_srv')
+        #rospy.loginfo("set_controller Service ready.")
         self.set_controller_request = rospy.ServiceProxy('set_controller_srv',set_controller)
 
         #rospy.wait_for_service('locomotion_mode_srv')

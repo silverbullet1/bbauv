@@ -1,3 +1,20 @@
 #!/bin/sh
 
-cp *.pgm *.ppm *.txt *.png $1
+LOCAL_SONAR_SRC="/Users/freax/bbauv/src/bbsonar/src/"
+REMOTE_SONAR_SRC="/home/bbauvsbc1/bbauv/src/bbsonar/src/"
+
+LOCAL_BAG_PATH="/Users/freax/ash_store/"
+REMOTE_BAG_PATH="/home/bbauvsbc1/ash_store"
+
+LOCAL_BB_PATH="/Users/freax/bbauv/"
+REMOTE_BB_PATH="/home/bbauvsbc1/bbauv/"
+
+RUSER="bbauvsbc1"
+RHOST="bbauv"
+
+#rsync -avz --exclude="*.git*" ${LOCAL_BB_PATH} ${RUSER}@${RHOST}:${REMOTE_BB_PATH}
+rsync -av ${LOCAL_SONAR_SRC} ${RUSER}@${RHOST}:${REMOTE_SONAR_SRC}
+rsync -av ${RUSER}@${RHOST}:${REMOTE_SONAR_SRC} ${LOCAL_SONAR_SRC}
+
+#rsync -av ${LOCAL_BAG_PATH} ${RUSER}@${RHOST}:${REMOTE_BAG_PATH}
+ 

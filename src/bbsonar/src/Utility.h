@@ -50,9 +50,8 @@ public:
 	BVTMagImage magImg;
 	BVTColorImage colorImg;
 	BVTColorMapper colorMap;
-
-
-	//	head params
+    
+	//	sonar head params
 	float startRange;
 	float stopRange;
 	int fluidType;
@@ -68,7 +67,9 @@ public:
     cv::Mat grayImg;        // image having the grayscale intensities on disk
 	cv::Mat matImg;         // image for saving the grayscale intensities
     cv::Mat labelledImg;    // image having the bounded objects
-    cv::Mat outImg;         // image that is to be published in ROS image format
+    cv::Mat outImg;         // raw sonar image
+    cv::Mat outLabelled;
+    cv::Mat morphCImg;
 
 	vector<vector<Point> > savedContours;
 	vector<Point> savedPoints;
@@ -88,17 +89,19 @@ public:
 
 	double getGlobalThreshold(cv::Mat gImg);
 	void myAdaptiveThreshold(cv::Mat gImg, double maxValue, int method, int type, int blockSize, double delta);
-	
-	bool getRangeBearing();
 
 	int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
-    
-    
 
+    
+//  bbsonar node related
+    bool getRangeBearing();
+    
     bbauv_msgs::sonarData singlePoint;
     bbauv_msgs::sonarDataVector sonarMsg;
+    
+    const int SONAR_PING_RATE;
 
 private:
 };
