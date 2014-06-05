@@ -116,6 +116,10 @@ class TorpedoVision:
         self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'])                                                                                                                                          
         cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+        self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
+                                  vision.screen['height'])
+        cv2.putText(scratchImgCol, str(self.comms.deltaY), (30,60), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
         
         # Draw center of screen
         scratchImgCol = vision.drawCenterRect(scratchImgCol)

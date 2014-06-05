@@ -116,6 +116,7 @@ class MoveForward(smach.State):
 # Precise movements when near centroid
 class Centering (smach.State):
     deltaXMult = 3.0
+    deltaYMult = 2.0
     count = 0
     
     def __init__(self, comms):
@@ -130,12 +131,21 @@ class Centering (smach.State):
         
         rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
         
-        if self.comms.deltaX < 0.005:
+        if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
             self.count = self.count + 1
             rospy.loginfo("Count: {}".format(self.count))
             
-        if self.count > 2000:
+        if self.count > 1000:
             return 'centering_complete'
+
+        if self.depthCount < 10:
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            # Make sure it doesnt surface
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 0.1
+            self.comms.sendMovement(depth=self.comms.defaultDepth, blocking=True)
+            self.depthCount = self.depthCount + 1
+            rospy.loginfo("Depth corrected")
         
         # Sidemove and center
         self.comms.sendMovement(forward = 0.0,

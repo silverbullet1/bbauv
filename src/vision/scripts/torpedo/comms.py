@@ -33,6 +33,7 @@ class Comms(FrontComms):
     # Movement parameters
     radius = None
     deltaX = None
+    deltaY = None
     deltaXMult = 5.0
     
     # Sonar parameters
