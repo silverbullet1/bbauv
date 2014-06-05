@@ -1,5 +1,5 @@
 import rospy
-import smach
+import smach, smach_ros
 import numpy as np
 
 from comms import Comms
@@ -316,5 +316,10 @@ def main():
                                Forward(myCom),
                                transitions={'completed':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
+
+    introServer = smach_ros.IntrospectionServer('mission_server',
+                                                sm,
+                                                '/MISSION/PICKUP')
+    introServer.start()
 
     sm.execute()

@@ -1,7 +1,7 @@
 import time
 
 import rospy
-import smach
+import smach, smach_ros
 
 from comms import Comms
 from vision import PickupVision
@@ -172,10 +172,10 @@ def main():
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 
-    #introServer = smach_ros.IntrospectionServer('mission_server',
-    #                                            sm,
-    #                                            '/MISSION/PICKUP')
-    #introServer.start()
+    introServer = smach_ros.IntrospectionServer('mission_server',
+                                                sm,
+                                                '/MISSION/PICKUP')
+    introServer.start()
 
     sm.execute()   
 

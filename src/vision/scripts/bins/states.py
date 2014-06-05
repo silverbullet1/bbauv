@@ -1,5 +1,5 @@
 import rospy
-import smach
+import smach, smach_ros
 
 from utils.utils import Utils
 from comms import Comms
@@ -332,6 +332,11 @@ def main():
                                transitions={'foundBins':'CENTERAGAIN',
                                             'lost':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
+
+    introServer = smach_ros.IntrospectionServer('mission_server',
+                                                sm,
+                                                '/MISSION/PICKUP')
+    introServer.start()
 
     sm.execute()
     rospy.signal_shutdown("lane_marker task ended")
