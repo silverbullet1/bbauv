@@ -1,7 +1,7 @@
 #!/bin/bash
 
 pkill -f 'republish.*opt'
-#cd /home/gohew/fuerte_workspace/bbauv/ros_bbauv2012/Topside/auv_gui
+cd ~/bbauv/src/gui/controlpanel/src
 ROS_NAMESPACE=/front_camera/camera rosrun image_transport republish compressed in:=image_raw raw out:=image_rect_color_opt_gew &
 ROS_NAMESPACE=/bot_camera/camera rosrun image_transport republish compressed in:=image_raw raw out:=image_rect_color_opt_gew &
 ROS_NAMESPACE=/Vision rosrun image_transport republish compressed in:=image_filter raw out:=image_filter_opt_gew &

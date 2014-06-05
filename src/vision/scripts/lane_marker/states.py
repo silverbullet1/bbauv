@@ -3,8 +3,8 @@ import smach
 import numpy as np
 
 from comms import Comms
-from vision import LaneMarkerVision
 from utils.utils import Utils
+from vision import LaneMarkerVision
 
 import time
 import math
@@ -201,7 +201,7 @@ class Align(smach.State):
 
         variance = self.angleSampler.getVariance()
         rospy.loginfo("Variance: {}".format(variance))
-        if (variance < 4.0):
+        if (variance < 5.0):
             dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
             adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
 

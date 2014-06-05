@@ -9,9 +9,7 @@ inoremap <Nul> 
 nnoremap <silent>  :CtrlP
 nnoremap ,d :YcmShowDetailedDiagnostic
 nnoremap ,rtw :%s/\s\+$//e
-nnoremap ,cd :cd %:p:h<CR>:pwd<CR>
-vnoremap <M-/> <Esc>/\%V
-nnoremap <Leader>rtw :%s/\s\+$//e<CR>
+nnoremap ,cd :cd %:p:h:pwd
 map Q gq
 nmap gx <Plug>NetrwBrowseX
 nnoremap <silent> <Plug>NetrwBrowseX :call netrw#NetrwBrowseX(expand("<cfile>"),0)
@@ -20,16 +18,13 @@ map <F3> :NERDTreeToggle
 inoremap <expr> 	 pumvisible() ? "\" : "\	"
 inoremap <NL> /[)}"'\]>]a
 inoremap  u
-inoremap <C-j> <Esc>/[)}"'\]>]<CR>a
 vnoremap ¯ /\%V
-inoremap {<CR> {<CR>}<Esc>ko
 inoremap { {}ko
 let &cpo=s:cpo_save
 unlet s:cpo_save
 set backspace=indent,eol,start
 set backup
 set backupdir=~/tmp
-set balloonexpr=eclim#util#Balloon(eclim#util#GetLineError(line('.')))
 set cinoptions=(0
 set completefunc=youcompleteme#Complete
 set completeopt=preview,menuone
@@ -42,13 +37,14 @@ set incsearch
 set mouse=a
 set omnifunc=youcompleteme#OmniComplete
 set ruler
-set runtimepath=~/.vim/bundle/vundle,~/.vim/bundle/YouCompleteMe,~/.vim/bundle/vim-scala,~/.vim/bundle/nerdtree,~/.vim/bundle/ctrlp.vim,~/.vim,/usr/share/vim/vimfiles,/usr/share/vim/vim74,/usr/share/vim/vimfiles/after,~/.vim/after,~/.vim/bundle/vundle/,~/.vim/bundle/vundle/after,~/.vim/bundle/YouCompleteMe/after,~/.vim/bundle/vim-scala/after,~/.vim/bundle/nerdtree/after,~/.vim/bundle/ctrlp.vim/after,~/.vim/eclim,~/.vim/eclim/after
+set runtimepath=~/.vim/bundle/vundle,~/.vim/bundle/YouCompleteMe,~/.vim/bundle/vim-scala,~/.vim/bundle/nerdtree,~/.vim/bundle/ctrlp.vim,~/.vim,/usr/share/vim/vimfiles,/usr/share/vim/vim74,/usr/share/vim/vimfiles/after,~/.vim/after,~/.vim/bundle/vundle/,~/.vim/bundle/vundle/after,~/.vim/bundle/YouCompleteMe/after,~/.vim/bundle/vim-scala/after,~/.vim/bundle/nerdtree/after,~/.vim/bundle/ctrlp.vim/after
 set shiftwidth=4
 set showcmd
 set softtabstop=4
-set tags=tags;/home/ndt/.vim/tags/
+set tags=tags,~/.vim/tags
 set updatetime=2000
 set wildignore=*.pyc
+set window=41
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
@@ -57,11 +53,12 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
-badd +1 vision.py
-badd +1 comms.py
-badd +1 states.py
 badd +1 ../bot_common/bot_comms.py
-silent! argdel *
+badd +1 comms.py
+badd +1 lane_vision.py
+badd +1 states.py
+badd +0 vision.py
+args ../bot_common/bot_comms.py comms.py lane_vision.py states.py
 edit ../bot_common/bot_comms.py
 set splitbelow splitright
 set nosplitbelow
@@ -173,11 +170,11 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 30 - ((0 * winheight(0) + 20) / 41)
+let s:l = 24 - ((23 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-30
+24
 normal! 0
 tabedit comms.py
 set splitbelow splitright
@@ -186,6 +183,7 @@ set nosplitright
 wincmd t
 set winheight=1 winwidth=1
 argglobal
+2argu
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
@@ -290,12 +288,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 15 - ((14 * winheight(0) + 20) / 41)
+let s:l = 22 - ((13 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-15
-normal! 023|
+22
+normal! 010|
 tabedit vision.py
 set splitbelow splitright
 set nosplitbelow
@@ -303,6 +301,8 @@ set nosplitright
 wincmd t
 set winheight=1 winwidth=1
 argglobal
+4argu
+edit vision.py
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
@@ -407,7 +407,7 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 204 - ((19 * winheight(0) + 20) / 41)
+let s:l = 204 - ((19 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -524,13 +524,13 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 7 - ((6 * winheight(0) + 20) / 41)
+let s:l = 6 - ((0 * winheight(0) + 20) / 40)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-7
+6
 normal! 0
-tabnext 1
+tabnext 3
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
 endif

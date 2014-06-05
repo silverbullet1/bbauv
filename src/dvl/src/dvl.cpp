@@ -93,8 +93,8 @@ void DVL::integrate()
 
         //e_north = vnorth * cos(yaw) + veast * sin(yaw);
         //e_east = vnorth * sin(yaw) - veast * cos(yaw);
-        e_north = veast * cos(yaw + M_PI) + vnorth * sin(yaw);
-        e_east = veast * sin(yaw + M_PI) + vnorth * cos(yaw);
+        e_east = veast * cos(yaw + M_PI) + vnorth * sin(yaw);
+        e_north = veast * sin(yaw + M_PI) + vnorth * cos(yaw);
         e_up = vup;
 
         lasttime = currtime;

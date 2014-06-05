@@ -15,7 +15,6 @@ from comms import Comms
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
 from vision import RgbBuoyVision
-from front_commons.frontCommsVision import FrontCommsVision as vision
 
 from dynamic_reconfigure.server import Server
 
@@ -38,8 +37,8 @@ class Disengage(smach.State):
             self.comms.register()
             rospy.loginfo("Starting RGB")
         
-        return 'start_complete'  
-
+        return 'start_complete'
+    
 class Search(smach.State):
     timeout = 1000
     
@@ -91,6 +90,9 @@ class Centering (smach.State):
         if self.count > 50:
             rospy.loginfo("Banging")
             self.comms.sendMovement(forward=2.0, blocking=True)   # Shoot forward
+
+        if self.comms.rectArea > 15000:
+            self.comms.sendMovement(forward=2.5, blocking=True)   # Shoot forward
             self.comms.sendMovement(forward=-1.5, blocking=True)  # Reverse a bit
             self.comms.isAborted = True
             self.comms.isKilled = True 
@@ -119,6 +121,7 @@ class Centering (smach.State):
 
         self.comms.sendMovement(sidemove=self.comms.deltaX*self.deltaXMult, 
                                 timeout=0.4, blocking=False)
+
         return 'centering'
 
 # For bump
@@ -126,7 +129,7 @@ class bangBuoy(smach.State):
     deltaXMult = 5.0
     area = 6000
     count = 0
-    
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'aborted', 'killed'])
         self.comms = comms
@@ -138,14 +141,14 @@ class bangBuoy(smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        if self.count > 10:           
+        if self.count > 100:           
             return 'bang_to_center'
         
         if self.comms.rectArea > self.area: 
             self.count = self.count + 1
   
-        # Move forward & correct sidemove 
-        self.comms.sendMovement(forward=0.2, sidemove=self.comms.deltaX*self.deltaXMult,
+        # Move forward & correct heading 
+        self.comms.sendMovement(forward=0.3, sidemove=self.comms.deltaX*self.deltaXMult,
                                 blocking=False)
         return 'banging'
 

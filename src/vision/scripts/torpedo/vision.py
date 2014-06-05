@@ -12,12 +12,12 @@ from front_commons.frontCommsVision import FrontCommsVision as vision
 class TorpedoVision:    
     # Vision parameters
     
-    thresParams = {'lo': (96, 0, 0), 'hi': (235, 255, 255), 
+    thresParams = {'lo': (103, 0, 0), 'hi': (173, 255, 255), 
                    'dilate': (13,13), 'erode': (3,3), 'open': (3,3)}
     
     circleParams = {'minRadius': 10, 'maxRadius': 100}
     
-    minContourArea = 200
+    minContourArea = 300
     
     previousCentroid = (-1, -1)
     previousRadius = 0
@@ -46,13 +46,13 @@ class TorpedoVision:
 #         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
         # Use Canny edge to threshold black
-        edges = cv2.Canny(binImg, 230, 300)
+        edges = cv2.Canny(binImg, 100, 300)
 
         scratchImgCol = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
         # Find Hough circles
         circles = cv2.HoughCircles(edges, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=5, param1=300, param2=45,
+                                   minDist=5, param1=300, param2=43,
                                    minRadius = 0,
                                    maxRadius = self.circleParams['maxRadius'])        
         if circles is None:
@@ -116,6 +116,7 @@ class TorpedoVision:
         self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'])                                                                                                                                          
         cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+
         self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
                                   vision.screen['height'])
         cv2.putText(scratchImgCol, str(self.comms.deltaY), (30,60), 

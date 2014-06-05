@@ -32,7 +32,10 @@ Utility::~Utility() {
  */
 int Utility::initSonar() {
 	son = BVTSonar_Create();
-	retVal = BVTSonar_Open(son, "NET", "192.168.1.45");
+	if((retVal = BVTSonar_Open(son, "NET", "192.168.1.45")) != 0) {
+        cout << "error opening the sonar interface: " << BVTError_GetString(retVal) << endl;
+    }
+
 //	retVal = BVTSonar_Open(son, "FILE", "data/salmon_small.son");
 
 	if((retVal = BVTSonar_GetHead(son, HEAD_NUM, &head)) != 0) {

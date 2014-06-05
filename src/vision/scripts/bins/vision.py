@@ -19,7 +19,7 @@ class BinsVision:
 
     loBlueThresh = (100, 1, 0)
     hiBlueThresh = (120, 255, 255)
-    minContourArea = 4000
+    minContourArea = 3000
 
     # Parameters for gray-scale thresholding
     upperThresh = 70
@@ -37,6 +37,13 @@ class BinsVision:
             self.aliens[alien] = np.load("{}/res/{}.npy".
                                          format(os.path.dirname(__file__),
                                                                 alien))
+
+    def updateParams(self):
+        self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
+        self.hsvHiThresh1 = self.comms.params['hsvHiThresh1']
+        self.hsvLoThresh2 = self.comms.params['hsvLoThresh2']
+        self.hsvHiThresh2 = self.comms.params['hsvHiThresh2']
+        self.minContourArea = self.comms.params['minContourArea']
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
