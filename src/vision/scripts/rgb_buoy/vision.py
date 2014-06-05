@@ -14,7 +14,6 @@ class RgbBuoyVision:
 
     # Vision parameters
     
-<<<<<<< HEAD
     redParams = {
                 'lo1': (118, 0, 0), 'hi1': (184, 255, 255),
 #                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
@@ -29,6 +28,7 @@ class RgbBuoyVision:
 
     # Hough circle parameters
     circleParams = {'minRadius':0, 'maxRadius': 0 }
+    houghParams = {'param1': 80, 'params2': 15}
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
@@ -118,7 +118,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=80, param2=15,
+                               minDist=30, param1=self.houghParams['param1'], 
+                               param2=self.houghParams['param2'],
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -198,6 +199,12 @@ class RgbBuoyVision:
         else:
             return self.blueParams
 
+    def updateParams(self):
+        self.redParams['lo1'] = self.comms.params['hsvLoThres']
+        self.redParams['hi1'] = self.comms.params['hsvHiThres']
+        self.houghParams = self.comms.params['HoughParams']
+        self.minContourArea = self.comms.params['minContourArea']
+    
 def main():
     cv2.namedWindow("RGB")
     

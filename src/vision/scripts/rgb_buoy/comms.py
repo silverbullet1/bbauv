@@ -8,6 +8,7 @@ import rospy
 
 from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
+from apport_python_hook import CONFIG
 
 class Comms(FrontComms):
     
@@ -27,11 +28,8 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
-<<<<<<< HEAD
         #self.defaultDepth = 1.5
         self.defaultDepth = 2.25
-=======
->>>>>>> 015404fae4d646688ba52d30d0681f2b28f81498
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
     # Handle mission services
@@ -54,6 +52,15 @@ class Comms(FrontComms):
             self.unregister()
             
         return mission_to_visionResponse(isStart, isAborted)
+    
+    def reconfigure(self, config, level):
+        rospy.loginfo("Received dynamic reconfigure request")
+        self.params = {'hsvLoThres': (config.loH, config.loS, config.loV),
+                       'hsvHiThres': (config.hiH, config.hiS, config.hiV),
+                       'HoughParams': (config.Hough1, config.Hough2), 
+                       'minContourArea' : config.contourMinArea}
+        self.visionFilter.updateParams()
+        return config
 
 def main():
     testCom = Comms()
