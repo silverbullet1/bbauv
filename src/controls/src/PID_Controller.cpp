@@ -68,7 +68,7 @@ double getHeadingPIDUpdate();
 //Need to change these two functions for new configuration
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output,double rollPID_output);
-
+inForwardVelPID = req.forward_vel;
 double fmap(int input, int in_min, int in_max, int out_min, int out_max);
 /**********************Publisher**********************************/
 ros::Publisher thrusterPub;
