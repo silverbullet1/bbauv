@@ -1,7 +1,7 @@
 #!/usr/bin/env/python 
 
 '''
-To test out the HSV values for different colours 
+To test out the torpedo side states
 '''
 
 import math
@@ -30,11 +30,18 @@ def main():
     screenCtr = (640/2, 480/2)
     
     edged = cv2.Canny(img, 30, 200)
+    scratchImgCol = cv2.cvtColor(edged, cv2.COLOR_GRAY2BGR)
+    
+    lines = cv2.HoughLinesP(edged, 2, math.pi/180.0, 30, 50, 10)
+    for line in lines[0]:
+        cv2.line(scratchImgCol,
+                (line[0], line[1]), (line[2], line[3]),
+                (0,255,0), 1)
+    
 #     circles = cv2.HoughCircles(edged, cv2.cv.CV_HOUGH_GRADIENT, 1,
 #                                 minDist=5, param1=300, param2=30,
 #                                 minRadius = 0, maxRadius = 100)   
 #     
-#     scratchImgCol = cv2.cvtColor(edged, cv2.COLOR_GRAY2BGR)
 #     if circles is not None:
 #         for circle in circles[0,:,:]:
 #             circleCentroid = (circle[0], circle[1])

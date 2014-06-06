@@ -34,13 +34,18 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.3))
         
         if self.comms.isAlone:
+            self.comms.inputHeading = self.comms.curHeading
             self.comms.register()
             rospy.loginfo("Starting RGB")
+        self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                heading=self.comms.inputHeading,
+                                blocking=True)
         
         return 'start_complete'
     
 class Search(smach.State):
     timeout = 1000
+    moveOnce = 0
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['search_complete', 'aborted', 'killed'])
@@ -55,8 +60,12 @@ class Search(smach.State):
                 self.comms.isAborted = True
                 return 'aborted' 
             
-            # Search in figure of 8? 
-            #self.comms.sendMovement(forward=0.2)
+            # Search pattern
+            if self.moveOnce < 10:
+                self.comms.sendMovement(forward=0.2, sidemove=0.2, blocking=False)
+            else:
+                self.comms.sendMovement(forward=0.2, sidemove=-0.2, blocking=False)        
+            
             rospy.sleep(rospy.Duration(0.3))
         
         return 'search_complete'
