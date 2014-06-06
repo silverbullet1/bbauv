@@ -8,6 +8,9 @@ import rospy
 from front_commons.frontComms import FrontComms
 from vision import PegsVision
 
+from dynamic_reconfigure.server import Server as DynServer
+from utils.config import pegsConfig as Config
+
 from bbauv_msgs.msg._manipulator import manipulator
 from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
@@ -33,7 +36,9 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, PegsVision(comms=self))
-        self.defaultDepth = 0.6
+        self.defaultDepth = 2.0
+        
+        self.dynServer = DynServer(Config, self.reconfigure)
         
         # Initialise mission planner 
         if not self.isAlone:
@@ -55,16 +60,26 @@ class Comms(FrontComms):
         
         if req.start_request:
             rospy.loginfo("Pegs starting")
-            isStart = True
-            isAborted = False
+            self.isStart = True
+            self.isAborted = False
+            self.defaultDepth = req.start_ctrl.depth_setpoint
+            self.inputHeading = req.start_ctrl.heading_setpoint
+            
+            return mission_to_visionResponse(start_response=True,
+                                             abort_response=False,
+                                             data=controller(heading_setpoint=
+                                                             self.curHeading))
         
-        if req.abort_request:
+        elif req.abort_request:
             rospy.loginfo("Pegs abort received")
-            isAbort=True
-            isStart = False
+            self.sendMovement(forward=0.0, sidemove=0.0)
+            self.isAborted=True
+            self.isStart = False
             self.unregister()
             
-        return mission_to_visionResponse(isStart, isAborted)
+            return mission_to_visionResponse(start_response=False,
+                                             abort_response=True,
+                                             data=controller(heading_setpoint=self.curHeading))
 
     def grabRedPeg(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
@@ -75,6 +90,16 @@ class Comms(FrontComms):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(1 & 4)
         rospy.sleep(rospy.Duration(0.2))
+
+    def reconfigure(self, config, level):
+        rospy.loginfo("Received dynamic reconfigure request")
+        self.params = {'loThreshold': (config.loH, config.loS, config.loV),
+                       'hiThreshold': (config.hiH, config.hiS, config.hiV),
+                       'hough': (config.Hough1, config.Hough2),
+                       'minContourArea': config.minContourArea }
+        
+        self.visionFilter.updateParams()
+        return config
 
 def main():
     testCom = Comms()

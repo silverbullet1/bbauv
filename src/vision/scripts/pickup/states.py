@@ -1,7 +1,7 @@
 import time
 
 import rospy
-import smach
+import smach, smach_ros
 
 from comms import Comms
 from vision import PickupVision
@@ -28,8 +28,8 @@ class Search(smach.State):
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundSamples',
-                                       'timeout',
-                                       'aborted'])
+                                             'timeout',
+                                             'aborted'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -89,8 +89,6 @@ class Center(smach.State):
         return 'centered'
 
 class Approach(smach.State):
-    approachDepth = 4.2
-
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
                                              'approaching',
@@ -103,7 +101,7 @@ class Approach(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(d=self.approachDepth)
+        self.comms.sendMovement(d=self.comms.sinkingDepth, blocking=True)
 
         return 'completed'
 
@@ -123,8 +121,6 @@ class Grab(smach.State):
         return 'grabbed'
 
 class Surface(smach.State):
-    surfaceDepth = 0.6
-
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
                                              'aborted'])
@@ -135,7 +131,7 @@ class Surface(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(d=self.surfaceDepth)
+        self.comms.sendMovement(d=self.comms.defaultDepth)
 
         return 'completed'
 
@@ -176,10 +172,10 @@ def main():
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 
-    #introServer = smach_ros.IntrospectionServer('mission_server',
-    #                                            sm,
-    #                                            '/MISSION/PICKUP')
-    #introServer.start()
+    introServer = smach_ros.IntrospectionServer('mission_server',
+                                                sm,
+                                                '/MISSION/PICKUP')
+    introServer.start()
 
     sm.execute()   
 

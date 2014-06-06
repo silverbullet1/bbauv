@@ -46,6 +46,14 @@ class SearchCircles(smach.State):
     def execute(self, ud):
         start = time.time()
         
+        if not self.comms.foundCircles and self.comms.foundSomething:
+            if self.comms.foundCount > 20:
+                # Search pattern 
+                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading+20,
+                                        sidemove=-0.4, blocking=True)
+                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading-20,
+                                        sidemove=0.4, blocking=True)
+
         while not self.comms.foundCircles: 
             if self.comms.isKilled:
                 return 'killed'
@@ -90,7 +98,10 @@ class MoveForward(smach.State):
 # Precise movements when near centroid
 class Centering (smach.State):
     deltaXMult = 3.0
-    
+    deltaYMult = 2.0
+    depthCount = 0
+    count = 0
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
@@ -101,8 +112,23 @@ class Centering (smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        if self.comms.deltaX < 0.005:
+        rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
+        
+        if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
+            self.count = self.count + 1
+            rospy.loginfo("Count: {}".format(self.count))
+            
+        if self.count > 1000:
             return 'centering_complete'
+
+        if self.depthCount < 10:
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            # Make sure it doesnt surface
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 0.1
+            self.comms.sendMovement(depth=self.comms.defaultDepth, blocking=True)
+            self.depthCount = self.depthCount + 1
+            rospy.loginfo("Depth corrected")
         
         # Sidemove and center
         self.comms.sendMovement(forward = 0.0,

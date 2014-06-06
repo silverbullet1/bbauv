@@ -12,10 +12,11 @@ from front_commons.frontCommsVision import FrontCommsVision as vision
 class TorpedoVision:    
     # Vision parameters
     
-    thresParams = {'lo': (103, 0, 0), 'hi': (173, 255, 255), 
+    thresParams = {'lo': (103, 0, 0), 'hi': (229, 255, 255), 
                    'dilate': (13,13), 'erode': (3,3), 'open': (3,3)}
     
     circleParams = {'minRadius': 10, 'maxRadius': 100}
+    cannyParams = {'loThres': 100, 'hiThres': 150}    
     
     minContourArea = 300
     
@@ -39,23 +40,27 @@ class TorpedoVision:
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
         hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
-                
+ 
         # Threshold out something
         binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
 #         binImg = vision.erodeAndDilateImg(binImg, self.thresParams)
 #         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
         # Use Canny edge to threshold black
-        edges = cv2.Canny(binImg, 100, 300)
+        edges = cv2.Canny(binImg, self.cannyParams['loThres'], self.cannyParams['hiThres'], 
+                          apertureSize=3, L2gradient=True)
+#         if edges is not None:
+#             self.comms.foundSomething = True 
 
         scratchImgCol = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
 
         # Find Hough circles
         circles = cv2.HoughCircles(edges, cv2.cv.CV_HOUGH_GRADIENT, 1,
                                    minDist=5, param1=300, param2=43,
-                                   minRadius = 0,
+                                   minRadius = 3,
                                    maxRadius = self.circleParams['maxRadius'])        
         if circles is None:
+            self.comms.foundCount = self.comms.foundCount + 1
             return scratchImgCol
         
         self.comms.foundCircles = True
@@ -69,23 +74,19 @@ class TorpedoVision:
             cv2.circle(scratchImgCol, circleCentroid, circle[2], (255, 255, 0), 2)
             cv2.circle(scratchImgCol, circleCentroid, 2, (255, 0, 255), 3)
         
-        if len(self.comms.medianCentroid) > 7:
-            self.comms.medianCentroid = []
-            self.comms.medianRadius = []
+#         if len(self.comms.medianCentroid) > 7:
+#             self.comms.medianCentroid = []
+#             self.comms.medianRadius = []
         
         # Centroid resetted
         if self.comms.centroidToShoot is None:
             self.comms.medianCentroid = []
             self.comms.medianRadius = []
-            # Either pick the largest circle
-            if self.comms.numShoot == 0 or len(circles) < 2:
-                self.comms.medianCentroid.append((circlesSorted[0][0], circlesSorted[0][1]))
-                self.comms.medianRadius.append(circlesSorted[0][2])
-                rospy.loginfo(self.comms.centroidToShoot)
-            # Or the 3rd circle(try for the smaller holes)
-            else:
-                self.comms.medianCentroid.append((circlesSorted[2][0], circlesSorted[2][1]))
-                self.comms.medianRadius.append(circlesSorted[2][2]) 
+            # Pick the largest circle
+            #if self.comms.numShoot == 0 or len(circles) < 2:
+            self.comms.medianCentroid.append((circlesSorted[0][0], circlesSorted[0][1]))
+            self.comms.medianRadius.append(circlesSorted[0][2])
+            rospy.loginfo(self.comms.centroidToShoot)
         else:
             # Find the centroid closest to the previous 
             if len(allCentroidList) != 0:
@@ -116,8 +117,22 @@ class TorpedoVision:
         self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'])                                                                                                                                          
         cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+
+        self.comms.deltaY = float((self.comms.centroidToShoot[1] - vision.screen['height']/2)*1.0/
+                                  vision.screen['height'])
+        cv2.putText(scratchImgCol, str(self.comms.deltaY), (30,60), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+        
+        # Draw center of screen
+        scratchImgCol = vision.drawCenterRect(scratchImgCol)
                 
         return scratchImgCol 
+    
+    def updateParams(self):
+        self.thresParams['lo'] = self.comms.params['loThreshold']
+        self.thresParams['hi'] = self.comms.params['hiThreshold']
+        self.cannyParams = self.comms.params['cannyParams']
+        self.minContourArea = self.comms.params['minContourArea']
     
 def main():
     cv2.namedWindow("Torpedo")

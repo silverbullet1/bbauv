@@ -14,8 +14,11 @@ class RgbBuoyVision:
 
     # Vision parameters
     
-    redParams = {'lo': (117, 0, 0), 'hi': (208, 255, 255),
-                 'dilate': (11,11), 'erode': (3,3), 'open': (5,5)}
+    redParams = {
+                'lo1': (118, 0, 0), 'hi1': (184, 255, 255),
+#                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
+                 'dilate': (13,13), 'erode': (3,3), 'open': (5,5)}
+
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
@@ -25,6 +28,7 @@ class RgbBuoyVision:
 
     # Hough circle parameters
     circleParams = {'minRadius':0, 'maxRadius': 0 }
+    houghParams = {'param1': 80, 'params2': 15}
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
@@ -44,7 +48,8 @@ class RgbBuoyVision:
         outImg = None
 
         # Preprocessing
-        img = vision.preprocessImg(img)    # Cut image if required 
+        #img = vision.preprocessImg(img)    # Cut image if required 
+        img = cv2.resize(img, (640, 480))
         rawImg = img
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
@@ -52,7 +57,7 @@ class RgbBuoyVision:
         hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
 
         # Find red image 
-        redImg = self.threshold(img, "RED")
+        redImg = self.threshold(hsvImg, "RED")
         outImg = redImg
         
         # Find green image
@@ -70,11 +75,22 @@ class RgbBuoyVision:
         self.allAreaList = []
         self.allRadiusList = []        
         
-        params = self.getParams(color)
+        #params = self.getParams(color)
         
         # Perform thresholding
-        binImg = cv2.inRange(img, params['lo'], params['hi'])
-        binImg = vision.erodeAndDilateImg(binImg, params)
+        binImg = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
+        #binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
+        #binImg = cv2.bitwise_or(binImg1, binImg2)
+        #binImg = self.erodeAndDilateImg(binImg, params)
+        #binImg = vision.erodeAndDilateImg(binImg1, self.redParams)
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.redParams['erode'])
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.redParams['dilate'])
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.redParams['open'])
+
+        binImg = cv2.erode(binImg, erodeEl)
+        binImg = cv2.dilate(binImg, dilateEl)
+        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
+
         
         # Find contours
         scratchImg = binImg.copy()
@@ -102,7 +118,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=80, param2=15,
+                               minDist=30, param1=self.houghParams['param1'], 
+                               param2=self.houghParams['param2'],
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -146,8 +163,14 @@ class RgbBuoyVision:
         # How far centroid is off screen center
         self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToBump[0])*1.0/
                                     vision.screen['width'])
-        cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+
+        cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+        self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
+                                  vision.screen['height'])
+        cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+
 
         return scratchImgCol
 
@@ -176,6 +199,12 @@ class RgbBuoyVision:
         else:
             return self.blueParams
 
+    def updateParams(self):
+        self.redParams['lo1'] = self.comms.params['hsvLoThres']
+        self.redParams['hi1'] = self.comms.params['hsvHiThres']
+        self.houghParams = self.comms.params['HoughParams']
+        self.minContourArea = self.comms.params['minContourArea']
+    
 def main():
     cv2.namedWindow("RGB")
     

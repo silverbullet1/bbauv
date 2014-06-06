@@ -27,6 +27,11 @@ class LaneMarkerVision:
         self.comms = comms
         self.debugMode = debugMode
 
+    def updateParams(self):
+        self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
+        self.hsvHiThresh1 = self.comms.params['hsvHiThresh1']
+        self.minContourArea = self.comms.params['minContourArea']
+
     # Convert line equation to vector equation
     def vectorizeLine(self, pt, angle):
         rad = angle / 180.0 * math.pi

@@ -13,6 +13,7 @@ class Comms(GenericComms):
     def __init__(self):
         GenericComms.__init__(self, PickupVision())
         self.defaultDepth = 3.0
+        self.sinkingDepth = 4.2
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
