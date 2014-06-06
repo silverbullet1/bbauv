@@ -46,6 +46,14 @@ class SearchCircles(smach.State):
     def execute(self, ud):
         start = time.time()
         
+        if not self.comms.foundCircles and self.comms.foundSomething:
+            if self.comms.foundCount > 20:
+                # Search pattern 
+                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading+20,
+                                        sidemove=-0.4, blocking=True)
+                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading-20,
+                                        sidemove=0.4, blocking=True)
+
         while not self.comms.foundCircles: 
             if self.comms.isKilled:
                 return 'killed'
@@ -91,8 +99,9 @@ class MoveForward(smach.State):
 class Centering (smach.State):
     deltaXMult = 3.0
     deltaYMult = 2.0
+    depthCount = 0
     count = 0
-    
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms

@@ -24,7 +24,7 @@ class PegsVision:
     blueParams = {'lo': (97, 0, 0), 'hi': (139, 255, 255),
                   'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
     
-    circleParams = {'minRadius': 0, 'maxRadius': 200}
+    circleParams = {'minRadius': 0, 'maxRadius': 200, 'param1': 350, 'param2': 13}
     
     minContourArea = 100
     
@@ -100,7 +100,8 @@ class PegsVision:
         # When not centering find a circle
         # Find Hough circles        
         circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=1, param1=350, param2=13,
+                                   minDist=1, param1=self.circleParams['param1'], 
+                                   param2=self.circleParams['param2'],
                                    minRadius = 0,
                                    maxRadius = self.circleParams['maxRadius'])
 
@@ -182,6 +183,11 @@ class PegsVision:
         
         return image
     
+    def updateParams(self):
+        self.redParams['lo1'] = self.comms.params['loThreshold']
+        self.redParams['hi1'] = self.comms.params['hiThreshold']
+        self.circleParams = self.comms.params['hough']
+        self.minContourArea = self.comms.params['minContourArea']
         
 def main():
     cv2.namedWindow("Peg Test")
