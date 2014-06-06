@@ -4,7 +4,7 @@ float32 forward_setpoint
 float32 sidemove_setpoint
 float32 depth_setpoint
 float32 forward_vel_setpoint
-float32 forward_vel_setpoint
+float32 sidemove_vel_setpoint
 ---
 #result definition
 float32 heading_final

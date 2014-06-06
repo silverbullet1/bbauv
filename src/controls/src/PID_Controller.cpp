@@ -58,7 +58,7 @@ bool isSidemove = false;
 
 /**********************Function Prototypes**********************************/
 void collectDVL(const nav_msgs::Odometry::ConstPtr& msg);
-void collectOdom(const nav_msgs::Odometry::ConstPtr& msg);
+//void collectOdom(const nav_msgs::Odometry::ConstPtr& msg);
 void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg);
 void collectPressure(const std_msgs::Int16& msg);
 void collectTeleop(const bbauv_msgs::thruster& msg);
@@ -157,7 +157,11 @@ bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
   inPitchPID = req.pitch;
   inRollPID = req.roll;
   inTopside = req.topside;
-  inForwardVelPID = req.forward_vel;
+  if(inForwardVelPID)
+  {
+    ROS_INFO("forward vel enabled");
+    inForwardVelPID = req.forward_vel;
+  }
   inSidemoveVelPID = req.sidemove_vel;
   inNavigation = req.navigation;
   res.complete = true;
@@ -183,9 +187,8 @@ int main(int argc, char **argv)
 	pid_infoPub = nh.advertise<bbauv_msgs::pid_info>("/pid_info",1000);
 
 	//Initialize Subscribers
-	autonomousSub = nh.subscribe("/cmd_position",1000,collectAutonomous);
 	velocitySub = nh.subscribe("/WH_DVL_data",1000,collectDVL);
-	earthSub = nh.subscribe("earth_odom",1000,collectOdom);
+	//earthSub = nh.subscribe("earth_odom",1000,collectOdom);
 	orientationSub = nh.subscribe("/euler",1000,collectOrientation);
 	pressureSub = nh.subscribe("/pressure_data",1000,collectPressure);
 	teleopSub = nh.subscribe("/teleop_controller",1000,collectTeleop);
@@ -342,7 +345,6 @@ int main(int argc, char **argv)
 			if(inSidemoveVelPID)    side = ctrl.sidemove_vel_input;
 			else side = ctrl.sidemove_input;
 			as.updateState(fwd,side,ctrl.heading_input,ctrl.depth_input);
-			as.setNavigation(inNavigation);
 		}
 
 		controllerPub.publish(ctrl);
@@ -413,14 +415,10 @@ void setVertThrustSpeed(double depthPID_output,double pitchPID_output, double ro
 
 /***********Subscriber Callbacks*****************/
 
-void collectOdom(const nav_msgs::Odometry::ConstPtr& msg)
-{
-      if(inNavigation)
-      {
-        ctrl.forward_input = msg->pose.pose.position.x;
-        ctrl.sidemove_input = msg->pose.pose.position.y;
-      }
-}
+//void collectOdom(const nav_msgs::Odometry::ConstPtr& msg)
+//{
+//
+//}
 
 void collectOrientation(const bbauv_msgs::compass_data::ConstPtr& msg)
 {
