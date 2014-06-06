@@ -132,8 +132,8 @@ class AUV_gui(QMainWindow):
         sidemove_l, self.sidemove_box,layout2 = self.make_data_box("Sidemove:")
         forward_l, self.forward_box,layout1 = self.make_data_box("Forward:   ")
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
-        forward_vel_l, self.forward_vel_box, layout_forward_vel = self.make_data_box("Forward Vel:  ")
-        sidemove_vel_l, self.sidemove_vel_box, layout_sidemove_vel = self.make_data_box("Sidemove Vel:  ")
+        forward_vel_l, self.forward_vel_box, layout_forward_vel = self.make_data_box("Forward Vel:")
+        sidemove_vel_l, self.sidemove_vel_box, layout_sidemove_vel = self.make_data_box("Sidemove Vel:")
 
         self.depth_rev = QPushButton("Reverse")
         #layout4.addWidget(self.depth_rev)
@@ -148,6 +148,9 @@ class AUV_gui(QMainWindow):
 
         rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:    ")
         rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:    ")
+
+        fwd_vel_chk_l, self.fwd_vel_chk,layout_fwd_chk =self.make_data_chkbox("Fwd Vel: ")
+        sm_vel_chk_l, self.sm_vel_chk, layout_sm_chk =self.make_data_chkbox("Sm Vel: ")
 
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
@@ -186,17 +189,24 @@ class AUV_gui(QMainWindow):
         goal_vel_layout = QVBoxLayout()
         goal_vel_layout.addLayout(goal_forward_vel_layout)
         goal_vel_layout.addLayout(goal_sidemove_vel_layout)
+        goal_vel_layout.addStretch()
 
         checkLayout = QVBoxLayout()
-        checkLayout.addLayout(layout5)
-        checkLayout.addLayout(layout6)
         checkLayout.addLayout(layout_roll)
         checkLayout.addLayout(layout_pitch)
+        checkLayout.addLayout(layout5)
+        checkLayout.addLayout(layout6)
+
+        checkVelLayout = QVBoxLayout()
+        checkVelLayout.addLayout(layout_fwd_chk)
+        checkVelLayout.addLayout(layout_sm_chk)
+        checkVelLayout.addStretch()
 
         bigGoalLayout = QHBoxLayout()
         bigGoalLayout.addLayout(goal_layout)
-        bigGoalLayout.addLayout(goal_vel_layout)
         bigGoalLayout.addLayout(checkLayout)
+        bigGoalLayout.addLayout(goal_vel_layout)
+        bigGoalLayout.addLayout(checkVelLayout)
 
         self.sidemove_rev.clicked.connect(self.sidemove_revHandler)
         self.depth_rev.clicked.connect(self.depth_revHandler)
@@ -1054,8 +1064,12 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
+        if self.fwd_vel_chk.checkState():
+            fwd_vel = True
+        if self.sm_vel_chk.checkState() and not fwd_vel:
+            sm_vel = True
         resp = self.set_controller_request(True, True, True, True, pitch, roll,
-                                           True, True,
+                                           fwd_vel, sm_vel,
                                            False,False)
         goal = ControllerGoal
         # Forward
