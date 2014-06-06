@@ -1,5 +1,5 @@
 import rospy
-import smach
+import smach, smach_ros
 
 from utils.utils import Utils
 from comms import Comms
@@ -23,6 +23,7 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         self.comms.register()
+        rospy.sleep(rospy.Duration(1))
         if self.comms.isAlone:
             self.comms.inputHeading = self.comms.curHeading
         self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
@@ -68,7 +69,7 @@ class Search(smach.State):
                     self.comms.abortMission()
                     return 'aborted'
 
-                self.comms.sendMovement(f=1.0, sm=1.0,
+                self.comms.sendMovement(f=0.0, sm=0.0,
                                         h=self.comms.inputHeading,
                                         blocking=False)
 
@@ -127,6 +128,7 @@ class Center(smach.State):
                                 blocking=True)
         if self.trialsPassed == self.numTrials:
             self.comms.nearest = nearest
+            self.trialsPassed = 0
             return 'centered'
         else:
             self.trialsPassed += 1
@@ -149,8 +151,11 @@ class Align(smach.State):
            len(self.comms.retVal['matches']) == 0:
             return 'lost'
 
-        self.comms.sendMovement(d=self.comms.sinkingDepth, blocking=True)
+        #self.comms.sendMovement(d=self.comms.sinkingDepth,
+        #                        f=-0.3,
+        #                        blocking=True)
 
+        # Align with the bins
         dAngle = Utils.toHeadingSpace(self.comms.nearest['angle'])
         adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
         self.comms.adjustHeading = adjustAngle
@@ -173,6 +178,8 @@ class CenterAgain(smach.State):
     numTrials = 2
     trialsPassed = 0
 
+    timeout = 5
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
                                              'centering',
@@ -185,9 +192,13 @@ class CenterAgain(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        if not self.comms.retVal or \
-           len(self.comms.retVal['matches']) == 0:
-            return 'lost'
+        self.start = time.time()
+        while not self.comms.retVal or \
+              len(self.comms.retVal['matches']) == 0:
+            if time.time() - self.start > self.timeout:
+                return 'lost'
+            rospy.sleep(rospy.Duration(0.05))
+            return 'centering'
 
         matches = self.comms.retVal['matches']
         nearest = min(matches,
@@ -212,6 +223,7 @@ class CenterAgain(smach.State):
                                 h=self.comms.adjustHeading,
                                 blocking=True)
         if self.trialsPassed == self.numTrials:
+            self.trialsPassed = 0
             return 'centered'
         else:
             self.trialsPassed += 1
@@ -241,8 +253,8 @@ class Fire(smach.State):
             return 'completed'
 
 class Search2(smach.State):
-    turnTime1 = 3
-    turnTime2 = 3
+    turnTime1 = 5
+    turnTime2 = 7
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
@@ -256,37 +268,106 @@ class Search2(smach.State):
             return 'aborted'
 
         # Turn to the left and look for another bin
-        self.comms.sendMovement(h=Utils.normAngle(self.comms.curHeading-90),
-                                d=self.comms.sinkingDepth,
+        self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
+        self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading-90),
                                 blocking=True)
-        self.comms.sendMovement(f=1.5, d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(f=1.1, d=self.comms.defaultDepth, blocking=True)
         start = time.time()
+        timeExceeded = False
         while (not self.comms.retVal or
                len(self.comms.retVal['matches']) == 0):
             if time.time() - start > self.turnTime1:
+                timeExceeded = True
                 break
-            if self.comms.retVal and len(self.comms.retVal['matches']) > 0:
-                return 'foundBins'
-            self.comms.sendMovement(f=1.5,
-                                    d=self.comms.sinkingDepth,
+            self.comms.sendMovement(f=0.3,
+                                    d=self.comms.defaultDepth,
                                     blocking=False)
 
+        if not timeExceeded:
+            self.comms.adjustHeading = self.comms.curHeading
+            return 'foundBins'
+
         # Turn to the right and look for another bin
-        self.comms.sendMovement(h=Utils.normAngle(self.comms.curHeading+180),
-                                d=self.comms.sinkingDepth,
+        self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
+                                d=self.comms.defaultDepth,
                                 blocking=True)
-        self.comms.sendMovement(f=3.5, d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(f=3.5, d=self.comms.defaultDepth, blocking=True)
         start = time.time()
         while (not self.comms.retVal or
                len(self.comms.retVal['matches']) == 0):
             if time.time() - start > self.turnTime2:
                 self.comms.abortMission()
                 return 'lost'
-            self.comms.sendMovement(f=1.5,
-                                    d=self.comms.sinkingDepth,
+            self.comms.sendMovement(f=-0.3,
+                                    d=self.comms.defaultDepth,
                                     blocking=False)
 
+        self.comms.adjustHeading = self.comms.curHeading
         return 'foundBins'
+
+class Center2(smach.State):
+    maxdx = 0.03
+    maxdy = 0.03
+
+    width = BinsVision.screen['width']
+    height = BinsVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 2
+    trialsPassed = 0
+
+    timeout = 5
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        self.start = time.time()
+        while not self.comms.retVal or \
+              len(self.comms.retVal['matches']) == 0:
+            if time.time() - self.start > self.timeout:
+                return 'lost'
+            rospy.sleep(rospy.Duration(0.05))
+            return 'centering'
+
+        matches = self.comms.retVal['matches']
+        nearest = min(matches,
+                      key=lambda m:
+                      Utils.distBetweenPoints(m['centroid'],
+                                              (self.centerX, self.centerY)))
+        closestCentroid = nearest['centroid']
+
+        dx = (closestCentroid[0] - self.centerX) / self.width
+        dy = (closestCentroid[1] - self.centerY) / self.height
+
+        if abs(dx) > self.maxdx or abs(dy) > self.maxdy:
+            self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                    h=self.comms.adjustHeading,
+                                    blocking=False)
+            return 'centering'
+
+        self.comms.sendMovement(f=0.0, sm=0.0,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
+        if self.trialsPassed == self.numTrials:
+            self.comms.nearest = nearest
+            self.trialsPassed = 0
+            return 'centered'
+        else:
+            self.trialsPassed += 1
+            return 'centering'
 
 
 def main():
@@ -329,9 +410,20 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('SEARCH2',
                                Search2(myCom),
-                               transitions={'foundBins':'CENTERAGAIN',
+                               transitions={'foundBins':'CENTER2',
                                             'lost':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTER2',
+                               Center2(myCom),
+                               transitions={'centered':'ALIGN',
+                                            'centering':'CENTER2',
+                                            'lost':'DISENGAGE',
+                                            'aborted':'DISENGAGE'})
+
+    introServer = smach_ros.IntrospectionServer('mission_server',
+                                                sm,
+                                                '/MISSION/PICKUP')
+    introServer.start()
 
     sm.execute()
     rospy.signal_shutdown("lane_marker task ended")

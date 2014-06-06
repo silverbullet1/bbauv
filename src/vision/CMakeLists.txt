@@ -80,9 +80,13 @@ find_package(OpenCV)
 
 ## Add dynamic reconfigure api
 generate_dynamic_reconfigure_options(
-    cfg/bucket.cfg
-    cfg/linefollower.cfg
-    cfg/flare.cfg
+    #cfg/bucket.cfg
+    #cfg/linefollower.cfg
+    #cfg/flare.cfg
+    cfg/lane.cfg
+    cfg/bins.cfg
+    cfg/pickup.cfg
+    cfg/rgb.cfg
 )
 
 ###################################
@@ -111,7 +115,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS} 
+  ${OpenCV_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
 
@@ -121,35 +125,35 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(linefollower_node src/linefollower.cpp src/linefollowingstates.cpp)
-add_executable(red_bucket_detection src/red_bucket_detection.cpp src/bucketstates.cpp)
-add_executable(flaredetection_node src/flaredetection.cpp src/flarestates.cpp)
+#add_executable(linefollower_node src/linefollower.cpp src/linefollowingstates.cpp)
+#add_executable(red_bucket_detection src/red_bucket_detection.cpp src/bucketstates.cpp)
+#add_executable(flaredetection_node src/flaredetection.cpp src/flarestates.cpp)
 
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
-add_dependencies(red_bucket_detection bbauv_msgs_generate_messages_cpp)
-add_dependencies(flaredetection_node bbauv_msgs_generate_messages_cpp)
+#add_dependencies(linefollower_node bbauv_msgs_generate_messages_cpp)
+#add_dependencies(red_bucket_detection bbauv_msgs_generate_messages_cpp)
+#add_dependencies(flaredetection_node bbauv_msgs_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(vision_node vision_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(linefollower_node
-   ${catkin_LIBRARIES}
-   ${OpenCV_LIBRARIES}
- )
- target_link_libraries(red_bucket_detection
-   ${catkin_LIBRARIES}
-   ${OpenCV_LIBRARIES}
- )
- 
- target_link_libraries(flaredetection_node 
-     ${catkin_LIBRARIES}
-     ${OpenCV_LIBRARIES}
- )
+# target_link_libraries(linefollower_node
+#   ${catkin_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+# )
+# target_link_libraries(red_bucket_detection
+#   ${catkin_LIBRARIES}
+#   ${OpenCV_LIBRARIES}
+# )
+
+# target_link_libraries(flaredetection_node
+#     ${catkin_LIBRARIES}
+#     ${OpenCV_LIBRARIES}
+# )
 
 #############
 ## Install ##

@@ -1,8 +1,11 @@
+import roslib; roslib.load_manifest('vision')
 import rospy
+from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
+from utils.config import laneConfig as Config
 
 from vision import LaneMarkerVision
 from bot_common.bot_comms import GenericComms
@@ -17,6 +20,8 @@ class Comms(GenericComms):
         self.chosenLane = self.RIGHT
         self.expectedLanes = 2
         self.defaultDepth = 0.6
+
+        self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
@@ -52,6 +57,14 @@ class Comms(GenericComms):
                                              abort_response=True,
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
+    def reconfigure(self, config, level):
+        #rospy.loginfo("Receive dynamic reconfigure request")
+        self.params = {'hsvLoThresh1' : (config.loH, config.loS, config.loV),
+                       'hsvHiThresh1' : (config.hiH, config.hiS, config.hiV),
+                       'minContourArea' : config.minArea}
+        self.visionFilter.updateParams()
+        #rospy.loginfo("Params: {}".format(str(self.params)))
+        return config
 
 def main():
     pass
