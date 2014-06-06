@@ -1060,6 +1060,8 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Action Client executing goal...")
         roll = False
         pitch = False
+        fwd_vel = False
+        sm_vel = False
         if self.roll_chkbox.checkState():
             roll = True
         if self.pitch_chkbox.checkState():
