@@ -4,9 +4,10 @@ sleep 4
 #cd ~/fuerte_workspace/bbauv/ros_bbauv2012/
 tmux start-server
 tmux new-session -d -s Pool
-tmux rename-window 'diagnostics'
+tmux rename-window 'terminals'
 tmux new-window -tPool:1
-tmux rename-window 
+tmux rename-window 'Control node'
+tmux send-keys 'rosrun gui Control_node' C-m 
 tmux new-window -tPool:2
 tmux rename-window 'rqt'
 tmux send-keys 'rqt' C-m
@@ -15,8 +16,9 @@ tmux rename-window 'arduino'
 tmux send-keys 'cd ~/sketchbook/uploader' C-m
 tmux split-window -h
 tmux new-window -t Pool:4
-tmux rename-window 'rqt'
-tmux send-keys 'rqt' C-m
+tmux rename-window 'eclipse'
+tmux send-keys 'roseclipse' C-m
+tmux split-window -h
 tmux new-window -t Pool:5
 tmux rename-window 'filezilla'
 tmux send-keys 'filezilla &' C-m
@@ -29,11 +31,9 @@ tmux rename-window 'scripts'
 tmux select-window -tPool:0
 tmux split-window -h
 tmux select-pane -L
-tmux split-window -h
 tmux split-window -v
-tmux select-pane -L
+tmux select-pane -t2
 tmux split-window -v
-tmux select-pane -t0
 tmux select-window -tPool:1
 tmux split-window -h
 

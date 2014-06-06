@@ -11,6 +11,8 @@ from vision import TorpedoVision
 from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
+        
+from utils.config import torpedoConfig as Config
 
 class Comms(FrontComms):
     
@@ -21,6 +23,8 @@ class Comms(FrontComms):
     
     # Circle booleans
     foundCircles = False 
+    foundSomething = False 
+    foundCount = 0  # If more than a constant, then respond lost
     
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
@@ -31,11 +35,12 @@ class Comms(FrontComms):
     # Movement parameters
     radius = None
     deltaX = None
+    deltaY = None
     deltaXMult = 5.0
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
-        self.defaultDepth = 0.6
+        self.defaultDepth = 2.0
         
         # Initialise mission planner 
         if not self.isAlone:
@@ -57,21 +62,21 @@ class Comms(FrontComms):
         
         if req.start_request:
             rospy.loginfo("Torpedo starting")
-            isStart = True
-            isAborted = False
+            self.isStart = True
+            self.isAborted = False
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
-                                             data=controller(heading_setpoing=
+                                             data=controller(heading_setpoint=
                                                              self.curHeading))
         
         elif req.abort_request:
             rospy.loginfo("Torpedo abort received")
             self.sendMovement(forward=0.0, sidemove=0.0)
-            isAbort=True
-            isStart = False
+            self.isAborted=True
+            self.isStart = False
             self.unregister()
             
             return mission_to_visionResponse(start_response=False,
@@ -89,6 +94,14 @@ class Comms(FrontComms):
         maniPub.publish(0 | 2)
         rospy.sleep(rospy.Duration(0.2))       
     
+    def reconfigure(self, config, level):
+        rospy.loginfo("Received dynamic reconfigure request")
+        self.params = {'loThreshold': (config.loH, config.loS, config.loV),
+                       'hiThreshold': (config.hiH, config.hiS, config.hiV),
+                       'cannyParams': (config.Canny1, config.Canny2),
+                       'minContourArea': config.minContourArea }
+        self.visionFilter.updateParams()
+        return config
     
 def main():
     pass
