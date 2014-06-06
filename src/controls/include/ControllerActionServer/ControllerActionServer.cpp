@@ -42,7 +42,7 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	goal_.heading_setpoint =  goal->heading_setpoint;
 	if(_inNavigation)
 	{
-      ROS_INFO("Navigation goal received!");
+	  ROS_INFO("Navigation goal received!");
 	  goal_.forward_setpoint =  goal->forward_setpoint;
 	  goal_.sidemove_setpoint =  goal->sidemove_setpoint;
 	} else
@@ -68,6 +68,8 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 			goal_.depth_setpoint = _depth_input;
 			goal_.heading_setpoint = _heading_input;
 			goal_.sidemove_setpoint = _sidemove_input;
+			goal_.forward_vel_setpoint = 0;
+			goal_.sidemove_vel_setpoint = 0;
 			success = false;
 		}
 
@@ -102,7 +104,6 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 		feedback_.heading_error = yaw_error;
  		//publish the feedback
 		as_.publishFeedback(feedback_);
-		// this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
 		r.sleep();
 	}
 
@@ -155,6 +156,16 @@ float ControllerActionServer::getSidemove()
 {
 	return goal_.sidemove_setpoint;
 }
+
+float ControllerActionServer::getForwardVel()
+{
+        return goal_.forward_vel_setpoint;
+}
+float ControllerActionServer::getSidemoveVel()
+{
+        return goal_.sidemove_vel_setpoint;
+}
+
 float ControllerActionServer::getHeading()
 {
 	return goal_.heading_setpoint;
@@ -168,6 +179,13 @@ void ControllerActionServer::setNavigation(bool nav)
 {
   _inNavigation = nav;
 }
+
+void ControllerActionServer::setDispMode(bool isVelSide,bool isVelFwd)
+{
+  _inSidemove_vel = isVelSide;
+  _inForward_vel = isVelFwd;
+}
+
 ControllerActionServer::~ControllerActionServer() {
   _inNavigation = false;
 }
