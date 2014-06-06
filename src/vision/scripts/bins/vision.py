@@ -9,7 +9,7 @@ from bot_common.vision import Vision
 from utils.utils import Utils
 
 class BinsVision:
-    screen = { 'width': 640, 'height': 480 }
+    screen = { 'width': 840, 'height': 680 }
 
     # Vision parameters
     hsvLoThresh1 = (1, 0, 0)
@@ -23,7 +23,9 @@ class BinsVision:
 
     # Parameters for gray-scale thresholding
     upperThresh = 70
-    areaThresh = 8000
+    areaThresh = 4000
+    adaptiveCoeff = 3.99
+    adaptiveOffset = 0.0
 
     # Contours of aliens for shape matching
     aliens = {'1a':None, '1b':None, '2a':None, '2b':None,
@@ -36,7 +38,10 @@ class BinsVision:
         for alien in self.aliens:
             self.aliens[alien] = np.load("{}/res/{}.npy".
                                          format(os.path.dirname(__file__),
-                                                                alien))
+                                                alien))
+            #self.templates = cv2.imread("{}/res/{}.png".
+            #                            format(os.path.dirname(__file__),
+            #                                   alien))
 
     def updateParams(self):
         self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
@@ -44,11 +49,14 @@ class BinsVision:
         self.hsvLoThresh2 = self.comms.params['hsvLoThresh2']
         self.hsvHiThresh2 = self.comms.params['hsvHiThresh2']
         self.minContourArea = self.comms.params['minContourArea']
+        self.adaptiveCoeff = self.comms.params['adaptiveCoeff']
+        self.adaptiveOffset = self.comms.params['adaptiveOffset']
+        self.areaThresh = self.comms.params['areaThresh']
 
     def morphology(self, img):
-        # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+        # Closing up gaps and remove noise with morphological ops for aliens
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (17, 17))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -85,7 +93,7 @@ class BinsVision:
     def match(self, alienContours, centroids, contours):
         """ Match a centroid with a contour if it is inside the contour
             Return dict of alien_contour, centroid, bin contour, class
-            and angle of the bin"""
+            and angle of the bin """
         ret = list()
         for centroid in enumerate(centroids):
             for contour in contours:
@@ -178,7 +186,8 @@ class BinsVision:
         grayImg = cv2.equalizeHist(grayImg)
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
-        thVal = min((lowest + mean)/3.99, self.upperThresh)
+        thVal = min((lowest + mean)/self.adaptiveCoeff + self.adaptiveOffset,
+                    self.upperThresh)
         grayImg = cv2.threshold(grayImg, thVal, 255, cv2.THRESH_BINARY_INV)[1]
         #grayImg &= cv2.bitwise_not(cv2.inRange(hsvImg,
         #                                       self.loBlueThresh,

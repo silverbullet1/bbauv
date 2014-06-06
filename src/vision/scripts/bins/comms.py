@@ -15,8 +15,8 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 3.0
-        self.sinkingDepth = 4.0
+        self.defaultDepth = 2.0
+        self.sinkingDepth = 2.5
 
         self.dynServer = DynServer(Config, self.reconfigure)
 
@@ -59,7 +59,9 @@ class Comms(GenericComms):
                        'hsvLoThresh2' : (config.loH2, config.loS2, config.loV2),
                        'hsvHiThresh2' : (config.hiH2, config.hiS2, config.hiV2),
                        'minContourArea' : config.alienMinArea,
-                      }
+                       'adaptiveCoeff' : config.adaptiveCoeff,
+                       'adaptiveOffset' : config.adaptiveOffset,
+                       'areaThresh' : config.binMinArea }
         self.visionFilter.updateParams()
         return config
 
