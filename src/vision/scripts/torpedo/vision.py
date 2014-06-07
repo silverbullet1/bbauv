@@ -1,5 +1,9 @@
 #/usr/bin/env/python 
 
+'''
+Torpedo Vision
+'''
+
 import math
 import numpy as np
 import cv2
@@ -12,7 +16,7 @@ from front_commons.frontCommsVision import FrontCommsVision as vision
 class TorpedoVision:    
     # Vision parameters
     
-    thresParams = {'lo': (103, 0, 0), 'hi': (229, 255, 255), 
+    thresParams = {'lo': (103, 100, 0), 'hi': (229, 255, 255), 
                    'dilate': (13,13), 'erode': (3,3), 'open': (3,3)}
     
     circleParams = {'minRadius': 10, 'maxRadius': 100}
@@ -48,7 +52,7 @@ class TorpedoVision:
         
         # Use Canny edge to threshold black
         edges = cv2.Canny(binImg, self.cannyParams['loThres'], self.cannyParams['hiThres'], 
-                          apertureSize=3, L2gradient=True)
+                          apertureSize=5, L2gradient=True)
 #         if edges is not None:
 #             self.comms.foundSomething = True 
 
@@ -74,18 +78,17 @@ class TorpedoVision:
             cv2.circle(scratchImgCol, circleCentroid, circle[2], (255, 255, 0), 2)
             cv2.circle(scratchImgCol, circleCentroid, 2, (255, 0, 255), 3)
         
-#         if len(self.comms.medianCentroid) > 7:
-#             self.comms.medianCentroid = []
-#             self.comms.medianRadius = []
-        
         # Centroid resetted
         if self.comms.centroidToShoot is None:
             self.comms.medianCentroid = []
             self.comms.medianRadius = []
             # Pick the largest circle
-            #if self.comms.numShoot == 0 or len(circles) < 2:
-            self.comms.medianCentroid.append((circlesSorted[0][0], circlesSorted[0][1]))
-            self.comms.medianRadius.append(circlesSorted[0][2])
+            if self.comms.numShoot == 0 or len(circles) < 2:
+                self.comms.medianCentroid.append((circlesSorted[0][0], circlesSorted[0][1]))
+                self.comms.medianRadius.append(circlesSorted[0][2])
+            elif self.comms.numShoot == 1:
+                self.comms.medianCentroid.append((circlesSorted[1][0], circlesSorted[1][1]))
+                self.comms.medianRadius.append(circlesSorted[1][2])
             rospy.loginfo(self.comms.centroidToShoot)
         else:
             # Find the centroid closest to the previous 

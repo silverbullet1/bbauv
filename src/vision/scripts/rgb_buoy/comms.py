@@ -10,7 +10,7 @@ from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server as DynServer
-from utils.config import rgbConfig as Config
+#from utils.config import rgbConfig as Config
 from bbauv_msgs.srv._vision_to_mission import vision_to_mission
 from bbauv_msgs.srv._mission_to_vision import mission_to_visionResponse
 
