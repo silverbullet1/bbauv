@@ -1,7 +1,7 @@
 import vision.cfg.laneConfig as laneConfig
 import vision.cfg.binsConfig as binsConfig
 import vision.cfg.pickupConfig as pickupConfig
-#import vision.cfg.rgbConfig as rgbConfig
+import vision.cfg.rgbConfig as rgbConfig
 
 botCamTopic = '/bot_camera/camera/image_raw'
 frontCamTopic = '/front_camera/camera/image_raw'
