@@ -164,7 +164,7 @@ class ShootTorpedo(smach.State):
         return 'shoot_again'
     
 def main():
-    rospy.init_node('torpedo_node', anonymous=False)
+    rospy.init_node('torpedo_lynnette_awesomeness', anonymous=False)
     rosRate = rospy.Rate(20)
     myCom = Comms()
 

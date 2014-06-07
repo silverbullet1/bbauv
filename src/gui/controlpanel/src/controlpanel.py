@@ -722,24 +722,24 @@ class AUV_gui(QMainWindow):
 
         mani_name = ["","","","","","",""]
         if self.data['manipulators'].mani_data & 1:
-            mani_name[0] = "OPEN"
+            mani_name[0] = "NONE"
         else:
-            mani_name[0] = "CLOSED"
+            mani_name[0] = "FIRED"
 
         if self.data['manipulators'].mani_data & 2:
-            mani_name[1] = "OPEN"
+            mani_name[1] = "NONE"
         else:
-            mani_name[1] = "CLOSED"
+            mani_name[1] = "FIRED"
 
         if self.data['manipulators'].mani_data & 4:
-            mani_name[2] = "FIRED"
+            mani_name[2] = "CLOSED"
         else:
-            mani_name[2] = "NONE"
+            mani_name[2] = "OPENED"
 
         if self.data['manipulators'].mani_data & 8:
-            mani_name[3] = "FIRED"
+            mani_name[3] = "OPENED"
         else:
-            mani_name[3] = "NONE"
+            mani_name[3] = "CLOSED"
 
         if self.data['manipulators'].mani_data & 16:
             mani_name[4] = "CLOSED"
@@ -755,17 +755,20 @@ class AUV_gui(QMainWindow):
             mani_name[6] = "TRUE"
         else:
             mani_name[6] = "FALSE"
+            
+        self.saPanel3.setText("<b>Grabber: " + mani_name[2]+"</b>")
+        self.saPanel4.setText("<b> LYNNETTE IS AWESOME</b>") 
 
-        self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
-                              "<br>Top Tor: " + mani_name[1] +
-                              "<br>Grabber: " + mani_name[2] +
-                              "<br>Dropper: " + mani_name[3] +
-                              "</b>")
-
-        self.saPanel4.setText("<b>: " + mani_name[4] +
-                              "<br>: " + mani_name[5] +
-                              "<br>: " + mani_name[6] +
-                              "</b>")
+#         self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
+#                               "<br>Top Tor: " + mani_name[1] +
+#                               "<br>Grabber: " + mani_name[2] +
+#                               "<br>Dropper: " + mani_name[3] +
+#                               "</b>")
+# 
+#         self.saPanel4.setText("<b>: " + mani_name[4] +
+#                               "<br>: " + mani_name[5] +
+#                               "<br>: " + mani_name[6] +
+#                               "</b>")
 
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB
             or self.data['hull_status'].WaterDetC) and not self.isLeak:
