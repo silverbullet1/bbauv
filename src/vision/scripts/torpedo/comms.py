@@ -31,8 +31,6 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = None
-    medianCentroid = []
-    medianRadius = []
     
     # Movement parameters
     radius = None
