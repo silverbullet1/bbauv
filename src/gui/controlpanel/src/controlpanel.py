@@ -132,6 +132,8 @@ class AUV_gui(QMainWindow):
         sidemove_l, self.sidemove_box,layout2 = self.make_data_box("Sidemove:")
         forward_l, self.forward_box,layout1 = self.make_data_box("Forward:   ")
         heading_l, self.heading_box,layout3 = self.make_data_box("Heading:   ")
+        forward_vel_l, self.forward_vel_box, layout_forward_vel = self.make_data_box("Forward Vel:")
+        sidemove_vel_l, self.sidemove_vel_box, layout_sidemove_vel = self.make_data_box("Sidemove Vel:")
 
         self.depth_rev = QPushButton("Reverse")
         #layout4.addWidget(self.depth_rev)
@@ -147,33 +149,64 @@ class AUV_gui(QMainWindow):
         rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:    ")
         rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:    ")
 
+        fwd_vel_chk_l, self.fwd_vel_chk,layout_fwd_chk =self.make_data_chkbox("Fwd Vel: ")
+        sm_vel_chk_l, self.sm_vel_chk, layout_sm_chk =self.make_data_chkbox("Sm Vel: ")
+
         goal_heading_layout = QHBoxLayout()
         goal_heading_layout.addLayout(layout3)
-        goal_heading_layout.addLayout(layout5)
+        #goal_heading_layout.addLayout(layout5)
         goal_heading_layout.addStretch()
 
         goal_depth_layout = QHBoxLayout()
         goal_depth_layout.addLayout(layout4)
-        goal_depth_layout.addLayout(layout6)
+        #goal_depth_layout.addLayout(layout6)
         goal_depth_layout.addStretch()
 
         goal_forward_layout = QHBoxLayout()
         goal_forward_layout.addLayout(layout1)
-        goal_forward_layout.addLayout(layout_roll)
+        #goal_forward_layout.addLayout(layout_roll)
         #goal_forward_layout.addWidget(self.forward_rev)
         goal_forward_layout.addStretch()
 
         goal_sidemove_layout = QHBoxLayout()
         goal_sidemove_layout.addLayout(layout2)
-        goal_sidemove_layout.addLayout(layout_pitch)
+        #goal_sidemove_layout.addLayout(layout_pitch)
         #goal_sidemove_layout.addWidget(self.sidemove_rev)
         goal_sidemove_layout.addStretch()
+
+        goal_forward_vel_layout = QHBoxLayout()
+        goal_forward_vel_layout.addLayout(layout_forward_vel)
+
+        goal_sidemove_vel_layout = QHBoxLayout()
+        goal_sidemove_vel_layout.addLayout(layout_sidemove_vel)
 
         goal_layout = QVBoxLayout()
         goal_layout.addLayout(goal_forward_layout)
         goal_layout.addLayout(goal_sidemove_layout)
         goal_layout.addLayout(goal_heading_layout)
         goal_layout.addLayout(goal_depth_layout)
+
+        goal_vel_layout = QVBoxLayout()
+        goal_vel_layout.addLayout(goal_forward_vel_layout)
+        goal_vel_layout.addLayout(goal_sidemove_vel_layout)
+        goal_vel_layout.addStretch()
+
+        checkLayout = QVBoxLayout()
+        checkLayout.addLayout(layout_roll)
+        checkLayout.addLayout(layout_pitch)
+        checkLayout.addLayout(layout5)
+        checkLayout.addLayout(layout6)
+
+        checkVelLayout = QVBoxLayout()
+        checkVelLayout.addLayout(layout_fwd_chk)
+        checkVelLayout.addLayout(layout_sm_chk)
+        checkVelLayout.addStretch()
+
+        bigGoalLayout = QHBoxLayout()
+        bigGoalLayout.addLayout(goal_layout)
+        bigGoalLayout.addLayout(checkLayout)
+        bigGoalLayout.addLayout(goal_vel_layout)
+        bigGoalLayout.addLayout(checkVelLayout)
 
         self.sidemove_rev.clicked.connect(self.sidemove_revHandler)
         self.depth_rev.clicked.connect(self.depth_revHandler)
@@ -276,7 +309,7 @@ class AUV_gui(QMainWindow):
         vbox4.addLayout(layout8)
 
         goal_gui_layout = QHBoxLayout()
-        goal_gui_layout.addLayout(goal_layout)
+        goal_gui_layout.addLayout(bigGoalLayout)
 
         goalBox_layout = QVBoxLayout()
         goalBox_layout.addLayout(goal_gui_layout)
@@ -935,7 +968,10 @@ class AUV_gui(QMainWindow):
         self.heading_box.setText(str(rev_heading))
 
     def disablePIDHandler(self):
-          resp = self.set_controller_request(False, False, False, False, False, False,False,False)
+          resp = self.set_controller_request(False, False, False,
+                                             False, False, False,
+                                             False, False,
+                                             False, False)
 
     def goToPosHandler(self):
         xpos = float(self.xpos_box.text())
@@ -974,7 +1010,10 @@ class AUV_gui(QMainWindow):
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, True, False, False, False)
+        resp = self.set_controller_request(True, True, True,
+                                           True, True, False,
+                                           True, True,
+                                           False, False)
         goal = ControllerGoal
         goal.depth_setpoint = self.data['depth']
         goal.sidemove_setpoint = 0
@@ -1021,13 +1060,21 @@ class AUV_gui(QMainWindow):
         self.status_text.setText("Action Client executing goal...")
         roll = False
         pitch = False
+        fwd_vel = False
+        sm_vel = False
         if self.roll_chkbox.checkState():
             roll = True
         if self.pitch_chkbox.checkState():
             pitch = True
-        resp = self.set_controller_request(True, True, True, True, pitch,roll, False,False)
+        if self.fwd_vel_chk.checkState():
+            fwd_vel = True
+        if self.sm_vel_chk.checkState() and not fwd_vel:
+            sm_vel = True
+        resp = self.set_controller_request(True, True, True, True, pitch, roll,
+                                           fwd_vel, sm_vel,
+                                           False,False)
         goal = ControllerGoal
-        #Forward
+        # Forward
         if self.forward_box.text() == "":
              self.forward_box.setText("0")
         try:
@@ -1059,6 +1106,24 @@ class AUV_gui(QMainWindow):
             goal.depth_setpoint = self.data['depth'] + float(self.depth_box.text())
         else:
             goal.depth_setpoint = float(self.depth_box.text())
+
+        # Forward Velocity
+        if self.forward_vel_box.text() == "":
+             self.forward_vel_box.setText("0")
+        try:
+            goal.forward_vel_setpoint = float(self.forward_vel_box.text())
+        except:
+            forward_vel_str = "" + [i for i in forward_vel_box.text if i.isdigit()]
+            goal.forward_vel_setpoint = float(forward_vel_str)
+
+        # Sidemove Velocity
+        if self.sidemove_vel_box.text() == "":
+             self.sidemove_vel_box.setText("0")
+        try:
+            goal.sidemove_vel_setpoint = float(self.sidemove_vel_box.text())
+        except:
+            sidemove_vel_str = "" + [i for i in sidemove_vel_box.text if i.isdigit()]
+            goal.sidemove_vel_setpoint = float(sidemove_vel_str)
 
         self.client.send_goal(goal, self.done_cb)
 

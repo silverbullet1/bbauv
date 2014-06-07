@@ -16,13 +16,15 @@ class ControllerActionServer {
 public:
 	ControllerActionServer(std::string name);
 	void updateState(float forward,float sidemove,float heading,float depth);
+	void setDispMode(bool isVelSide, bool isVelFwd);
 	void setNavigation(bool nav);
 	void executeCB(const bbauv_msgs::ControllerGoalConstPtr &goal);
 	float getForward();
 	float getSidemove();
 	float getHeading();
 	float getDepth();
-
+	float getForwardVel();
+	float getSidemoveVel();
 	virtual ~ControllerActionServer();
 
 private:
@@ -36,7 +38,8 @@ private:
 	float _heading_setpoint;
 	float _depth_setpoint;
 	float _inNavigation;
-
+	float _inForward_vel;
+	float _inSidemove_vel;
 	float MIN_FORWARD;
 	float MIN_SIDEMOVE;
 	float MIN_HEADING;

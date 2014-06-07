@@ -152,10 +152,14 @@ void DVL::collect(ros::Publisher *publisher, ros::Publisher *epub)
     odom.twist.twist.linear.y = veast;
     odom.twist.twist.linear.z = vup;
 
+    ros::Time stamp(currtime);
+    odom.header.stamp = stamp;
+
     nav_msgs::Odometry earth;
     earth.pose.pose.position.x = ex_n;
     earth.pose.pose.position.y = ex_e;
     earth.pose.pose.position.z = ex_u;
+    earth.header.stamp = stamp;
 
     publisher->publish(odom);
     epub->publish(earth);
