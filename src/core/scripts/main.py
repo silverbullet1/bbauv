@@ -94,6 +94,30 @@ class Interaction(object):
                                              task_complete_response=False,
                                              data=controller())
 
+    def startRGBServer(self):
+        self.headingReturned = None
+        self.headingGiven = None
+        self.RGBStatus = {'aborted' : False,
+                          'active': False,
+                          'failed':False,
+                          'done' : False}
+
+        self.RGBServer = rospy.Service("/rgb/vision_to_mission",
+                                      vision_to_mission, self.RGBCallback)
+
+    def RGBCallback(self, r):
+        if r.task_complete_request:
+            self.RGBStatus['done'] = True
+            return vision_to_missionResponse(search_response=False,
+                                            task_complete_ctrl=controller(),
+                                            task_complete_response=True)
+
+        if r.fail_request:
+            self.RGBStatus['failed'] = True
+            return vision_to_missionResponse(search_response=False,
+                                            task_complete_ctrl=controller(),
+                                            task_complete_response=False)
+
 
 
 class MissionPlanner(object):
