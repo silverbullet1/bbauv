@@ -6,7 +6,7 @@ import os
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
-import pynotify
+#import pynotify
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
@@ -514,12 +514,12 @@ class AUV_gui(QMainWindow):
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
 
-        if not pynotify.init("Basics"):
-             sys.exit(1)
+        #if not pynotify.init("Basics"):
+        #     sys.exit(1)
 
-        n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
-        if not n.show():
-             print "Failed to send notification"
+        #n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
+        #if not n.show():
+        #     print "Failed to send notification"
 
     def on_timer(self):
         yaw = None
@@ -769,9 +769,9 @@ class AUV_gui(QMainWindow):
 
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB
             or self.data['hull_status'].WaterDetC) and not self.isLeak:
-            n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
-            if not n.show():
-                print "Failed to send notification"
+            #n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
+            #if not n.show():
+            #    print "Failed to send notification"
             self.isLeak = True
         else:
             self.isLeak = False
