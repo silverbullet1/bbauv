@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package>
+  <name>sensordri</name>
+  <version>0.0.1</version>
+  <description>The sensor ROS drivers package</description>
+
+  <maintainer email="alex@nus.edu.sg">alex</maintainer>
+
+  <license>MIT</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>bbauv_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>nodelet</build_depend>
+  <build_depend>tf</build_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>bbauv_msgs</run_depend>
+  <run_depend>nav_msgs</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>nodelet</run_depend>
+
+  <export>
+
+      <nodelet plugin="${prefix}/imu_nodelet.xml" />
+
+  </export>
+</package>
