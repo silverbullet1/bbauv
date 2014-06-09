@@ -15,25 +15,27 @@ class RgbBuoyVision:
     # Vision parameters
     
     redParams = {
-                'lo1': (118, 0, 0), 'hi1': (184, 255, 255),
+                'lo1': (113, 0, 0), 'hi1': (184, 255, 255),
+                 'lo2': (0, 0, 0), 'hi2': (27, 255, 255),
+#                 'lo1': (102, 0, 0), 'hi1': (180, 255, 140),
 #                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
-                 'dilate': (13,13), 'erode': (3,3), 'open': (5,5)}
+                 'dilate': (13,13), 'erode': (5,5), 'open': (3,3)}
 
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
-                  'dilate': (13,13), 'erode': (5,5), 'open': (5,5)}
+                  'dilate': (11,11), 'erode': (5,5), 'open': (3,3)}
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':0, 'maxRadius': 0 }
-    houghParams = {'param1': 80, 'params2': 15}
+    circleParams = {'minRadius':15, 'maxRadius': 0 }
+    houghParams = {'param1': 80, 'param2': 15}
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 200
+    minContourArea = 300
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -78,14 +80,14 @@ class RgbBuoyVision:
         #params = self.getParams(color)
         
         # Perform thresholding
-        binImg = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
-        #binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
-        #binImg = cv2.bitwise_or(binImg1, binImg2)
+        binImg1 = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
+        binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
+        binImg = cv2.bitwise_or(binImg1, binImg2)
         #binImg = self.erodeAndDilateImg(binImg, params)
         #binImg = vision.erodeAndDilateImg(binImg1, self.redParams)
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.redParams['erode'])
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.redParams['dilate'])
-        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, self.redParams['open'])
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['erode'])
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['dilate'])
+        openEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['open'])
 
         binImg = cv2.erode(binImg, erodeEl)
         binImg = cv2.dilate(binImg, dilateEl)
@@ -102,7 +104,7 @@ class RgbBuoyVision:
         
         # If centering, just find the center of largest contour
         if self.comms.isCentering:
-            if contours is not None:
+            if len(contours) > 0:
                 largestContour = contours[0]
                 mu = cv2.moments(largestContour)
                 muArea = mu['m00']
@@ -118,8 +120,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=self.houghParams['param1'], 
-                               param2=self.houghParams['param2'],
+                               minDist=30, param1=80, 
+                               param2=14,
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -161,7 +163,7 @@ class RgbBuoyVision:
         rospy.loginfo("Area: {}".format(self.comms.rectArea))
             
         # How far centroid is off screen center
-        self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToBump[0])*1.0/
+        self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/
                                     vision.screen['width'])
 
         cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
@@ -171,6 +173,9 @@ class RgbBuoyVision:
         cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
 
+
+        # Draw center rect
+        scratchImgCol = vision.drawCenterRect(scratchImgCol)
 
         return scratchImgCol
 

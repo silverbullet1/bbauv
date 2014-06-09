@@ -87,6 +87,7 @@ generate_dynamic_reconfigure_options(
     cfg/bins.cfg
     cfg/pickup.cfg
     cfg/rgb.cfg
+    cfg/torpedo.cfg
 )
 
 ###################################
