@@ -73,3 +73,11 @@ class FrontCommsVision():
             return True
         else:
             return False       
+    
+    # Normalise image
+    @staticmethod
+    def normaliseImg(img):
+        channel = cv2.split(img)
+        cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
+        cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
+        return cv2.merge(channel, img)

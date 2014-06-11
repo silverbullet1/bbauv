@@ -37,12 +37,32 @@ class Disengage(smach.State):
         
         return 'start_complete'
 
+class FollowSonar(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['sonar_complete', 'following_sonar', 'aborted', 'killed'])
+        self.comms = comms
+        
+        self.comms.registerSonar()
+        rospy.sleep(duration=0.5)
+        
+    def execute(self, ud):
+        if self.comms.sonarDist > 2:
+            self.comms.sendMovement(forward=self.comms.sonarDist,
+                                    heading=self.comms.sonarBearing,
+                                    timeout=0.5, blocking=False)
+            return 'following_sonar'
+        else:
+            return 'sonar_complete'
+        
 class SearchCircles(smach.State):
     timeout = 1000
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['searchCircles_complete', 'aborted', 'killed'])
         self.comms = comms
+        
+        # Unregister sonar sub
+#         self.comms.unregisterSonar
     
     def execute(self, ud):
         start = time.time()
@@ -70,7 +90,9 @@ class SearchCircles(smach.State):
 class MoveForward(smach.State):
     forward_setpoint = 0.3
     deltaXMult = 5.0
+    deltaYMult = 0.2
     completeRadius = 30
+    lostCount = 0
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -83,15 +105,25 @@ class MoveForward(smach.State):
             self.comms.isAborted = True
             return 'aborted' 
         
-        if not self.comms.foundCircles:
+        if self.lostCount > 10:
             return 'lost'
-            
+        
+        if not self.comms.foundCircles:
+            self.lostCount = self.lostCount + 1
+                    
         if self.comms.radius > self.completeRadius:
             return 'forward_complete'
         
+        if abs(self.comms.deltaY) > 0.010:
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            # Prevent surfacing
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 2.0
+                
         # Side move and keep heading
         self.comms.sendMovement(forward=self.forward_setpoint, 
                                 sidemove=self.comms.deltaX * self.deltaXMult, 
+                                depth=self.comms.defaultDepth, timeout=0.4, 
                                 blocking=False)
         
         return 'forwarding'
@@ -99,7 +131,7 @@ class MoveForward(smach.State):
 # Precise movements when near centroid
 class Centering (smach.State):
     deltaXMult = 3.0
-    deltaYMult = 2.0
+    deltaYMult = 0.2
     depthCount = 0
     count = 0
 
@@ -119,21 +151,20 @@ class Centering (smach.State):
             self.count = self.count + 1
             rospy.loginfo("Count: {}".format(self.count))
             
-        if self.count > 1000:
+        if self.count > 50:
             return 'centering_complete'
 
-        if self.depthCount < 10:
+        if abs(self.comms.deltaY) > 0.010:
+            if self.comms.radius > 50:
+                self.deltaYMult = 0.05
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
-            # Make sure it doesnt surface
             if self.comms.defaultDepth < 0.1:
-                self.comms.defaultDepth = 0.1
-            self.comms.sendMovement(depth=self.comms.defaultDepth, blocking=True)
-            self.depthCount = self.depthCount + 1
-            rospy.loginfo("Depth corrected")
+                self.comms.defaultDepth = 2.0
         
         # Sidemove and center
         self.comms.sendMovement(forward = 0.0,
                                 sidemove = self.comms.deltaX * self.deltaXMult,
+                                depth = self.comms.defaultDepth,
                                 blocking = False)
         return 'centering'        
         
@@ -155,6 +186,7 @@ class ShootTorpedo(smach.State):
         elif self.comms.numShoot == 1:
             self.comms.shootBotTorpedo()
         else:
+            self.comms.taskComplete()
             return 'shoot_complete'
         
         # Reset parameters
@@ -176,6 +208,12 @@ def main():
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
                                 transitions={'start_complete': "SEARCHCIRCLES",
                                          'killed': 'killed'})      
+        
+        smach.StateMachine.add("FOLLOWSONAR", FollowSonar(myCom),
+                               transition={'following_sonar': "FOLLOWSONAR",
+                                           'sonar_complete': "SEARCHCIRCLES",
+                                           'aborted': 'aborted',
+                                           'killed': 'killed'})
     
         smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
                                 transitions={'searchCircles_complete': "MOVEFORWARD",

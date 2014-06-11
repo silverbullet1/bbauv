@@ -103,5 +103,17 @@ class Comms(FrontComms):
         self.visionFilter.updateParams()
         return config
     
+    def registerSonar(self):
+        self.sonarBearing = None
+        self.sonarDist = None 
+        self.sonarSub = rospy.Subscriber("/sonarData", sonarData, sonarDataCallback)
+    
+    def sonarDataCallback(self, data):
+        self.sonarBearing = data.bearing
+        self.sonarDist = data.range
+        
+    def unregisterSonar(self):
+        self.sonarSub.unregister()
+    
 def main():
     pass

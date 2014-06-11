@@ -15,11 +15,11 @@ class RgbBuoyVision:
     # Vision parameters
     
     redParams = {
-                'lo1': (113, 0, 0), 'hi1': (184, 255, 255),
-                 'lo2': (0, 0, 0), 'hi2': (27, 255, 255),
-#                 'lo1': (102, 0, 0), 'hi1': (180, 255, 140),
+                'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
+                 'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
+#                 'lo1': (108, 0, 0), 'hi1': (180, 255, 160),
 #                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
-                 'dilate': (13,13), 'erode': (5,5), 'open': (3,3)}
+                 'dilate': (15,15), 'erode': (5,5), 'open': (5,5)}
 
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
@@ -29,13 +29,13 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':15, 'maxRadius': 0 }
+    circleParams = {'minRadius':20, 'maxRadius': 0 }
     houghParams = {'param1': 80, 'param2': 15}
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 300
+    minContourArea = 500
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -53,11 +53,14 @@ class RgbBuoyVision:
         #img = vision.preprocessImg(img)    # Cut image if required 
         img = cv2.resize(img, (640, 480))
         rawImg = img
+        #rawImg = self.normalise(hsvImg)
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
     
-        hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
-
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsvImg = self.normalise(hsvImg)
+#         return cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+    
         # Find red image 
         redImg = self.threshold(hsvImg, "RED")
         outImg = redImg
@@ -83,7 +86,9 @@ class RgbBuoyVision:
         binImg1 = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
         binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
         binImg = cv2.bitwise_or(binImg1, binImg2)
-        #binImg = self.erodeAndDilateImg(binImg, params)
+#         binImg = binImg1
+#         return binImg
+          #binImg = self.erodeAndDilateImg(binImg, params)
         #binImg = vision.erodeAndDilateImg(binImg1, self.redParams)
         erodeEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['erode'])
         dilateEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['dilate'])
@@ -92,7 +97,6 @@ class RgbBuoyVision:
         binImg = cv2.erode(binImg, erodeEl)
         binImg = cv2.dilate(binImg, dilateEl)
         binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
-
         
         # Find contours
         scratchImg = binImg.copy()
@@ -178,6 +182,16 @@ class RgbBuoyVision:
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
 
         return scratchImgCol
+
+    def normalise(self, img):
+        channel = cv2.split(img)
+#         for i in channel[1]:
+#             i += 10
+#         for i in channel[2]:
+#             i -= 3
+        cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
+        cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
+        return cv2.merge(channel, img)
 
     def toBumpCol(self, redLen, blueLen, greenLen):
         if not redLen == 0:

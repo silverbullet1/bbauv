@@ -114,7 +114,9 @@ class FrontComms:
                                 heading_setpoint=self.curHeading))
         self.canPublish = False
         self.isAborted = True
+        self.unregister()
         self.sendMovement(forward=0.0, sidemove=0.0)
+        rospy.signal_shutdown("Yay bye!")
     
     def sendMovement(self, forward=0.0, sidemove=0.0,
                      heading=None, depth=None,

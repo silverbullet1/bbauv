@@ -22,7 +22,7 @@ class TorpedoVision:
     circleParams = {'minRadius': 10, 'maxRadius': 100}
     cannyParams = {'loThres': 100, 'hiThres': 150}    
     
-    minContourArea = 300
+    minContourArea = 500
     
     previousCentroid = (-1, -1)
     previousRadius = 0
@@ -40,10 +40,10 @@ class TorpedoVision:
         
         # Preprocessing 
         rawImg = vision.preprocessImg(img)
-#         rawImg = self.normalise(img)
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
         hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
+        hsvImg = vision.normalise(hsvImg)
  
         # Threshold out something
         binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
@@ -117,7 +117,7 @@ class TorpedoVision:
         rospy.loginfo("Radius: {}".format(self.comms.radius))
             
         # How far the centroid is off the screen center
-        self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToShoot[0])*1.0/vision.screen['width'])                                                                                                                                          
+        self.comms.deltaX = float((self.comms.centroidToShoot[0] - vision.screen['width']/2)*1.0/vision.screen['width'])                                                                                                                                          
         cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
 
@@ -135,14 +135,7 @@ class TorpedoVision:
         self.thresParams['lo'] = self.comms.params['loThreshold']
         self.thresParams['hi'] = self.comms.params['hiThreshold']
         self.cannyParams = self.comms.params['cannyParams']
-        self.minContourArea = self.comms.params['minContourArea']
-        
-    def normalise(self, img):
-        channel = cv2.split(img)
-        cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
-        channel[1] = cv2.pow(channel[1], 4)
-        cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
-        return cv2.merge(channel, img)        
+        self.minContourArea = self.comms.params['minContourArea']       
     
 def main():
     cv2.namedWindow("Torpedo")
