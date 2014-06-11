@@ -3,9 +3,11 @@ import numpy as np
 import cv2
 
 from utils.utils import Utils
+from bot_common.vision import Vision
+
 
 class PickupVision:
-    screen = { 'width': 640, 'height': 480 }
+    screen = {'width': 640, 'height': 480}
 
     # Vision parameters
     greenLoThresh = (35, 0, 0)
@@ -38,20 +40,15 @@ class PickupVision:
                               contours)
         return contours
 
-    def enhance(self, img):
-        enhancedImg = cv2.GaussianBlur(img, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(img, 2.5, enhancedImg, -1.5, 0)
-        return enhancedImg
-
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         outImg = None
         centroids = list()
         angles = list()
-        rval = {'centroids':centroids, 'angles': angles};
+        rval = {'centroids': centroids, 'angles': angles}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
-        img = self.enhance(img)
+        img = Vision.enhance(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
@@ -96,9 +93,9 @@ class PickupVision:
 
             # Draw the centroid and orientation of each contour
             for centroid in centroids:
-                cv2.circle(outImg, (int(centroid[0]),int(centroid[1])),
+                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
                            5, (0, 0, 255))
-                startpt = centroid 
+                startpt = centroid
                 gradient = np.deg2rad(angle)
                 endpt = (int(startpt[0] + 100 * math.cos(gradient)),
                          int(startpt[1] + 100 * math.sin(gradient)))
@@ -117,6 +114,7 @@ class PickupVision:
                           (0, 255, 0), 2)
 
         return rval, outImg
+
 
 def main():
     cv2.namedWindow("output")

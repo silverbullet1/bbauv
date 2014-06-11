@@ -85,11 +85,6 @@ class BinsVision:
                               contours)
         return contours
 
-    def enhance(self, img):
-        enhancedImg = cv2.GaussianBlur(img, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(img, 2.5, enhancedImg, -1.5, 0)
-        return enhancedImg
-
     def match(self, alienContours, centroids, contours):
         """ Match a centroid with a contour if it is inside the contour
             Return dict of alien_contour, centroid, bin contour, class
@@ -144,7 +139,7 @@ class BinsVision:
         retData = {'centroids': centroids, 'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
-        img = self.enhance(img)
+        mask = Vision.enhance(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)

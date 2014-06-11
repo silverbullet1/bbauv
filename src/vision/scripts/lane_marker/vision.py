@@ -52,7 +52,7 @@ class LaneMarkerVision:
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -69,11 +69,6 @@ class LaneMarkerVision:
                               contours)
         return contours
 
-    def enhance(self, img):
-        enhancedImg = cv2.GaussianBlur(img, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(img, 2.5, enhancedImg, -1.5, 0)
-        return enhancedImg
-
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         foundLines = []
@@ -82,10 +77,12 @@ class LaneMarkerVision:
         retData = { 'foundLines': foundLines, 'centroid': centroid }
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
-        img = self.enhance(img)
+        #mask = Vision.illuminanceMask(img, 200)
+        img = Vision.enhance(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
+        #binImg = cv2.bitwise_and(binImg, cv2.bitwise_not(mask))
         #binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
         binImg = self.morphology(binImg)

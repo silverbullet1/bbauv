@@ -144,6 +144,18 @@ class Vision():
         outImg = cv2.merge((np.uint8(outB), np.uint8(outG), np.uint8(outR)))
         return outImg
 
+    @staticmethod
+    def illuminanceMask(img, threshVal):
+        grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        grayImg = cv2.equalizeHist(grayImg)
+        return cv2.threshold(grayImg, threshVal, 255, cv2.THRESH_BINARY)[1]
+
+    @staticmethod
+    def enhance(img):
+        blurImg = cv2.GaussianBlur(img, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(img, 2.5, blurImg, -1.5, 0)
+        return enhancedImg
+
 
 def main():
     img = cv2.imread("bot_common/shapes.png")
