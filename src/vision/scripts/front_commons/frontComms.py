@@ -62,6 +62,7 @@ class FrontComms:
             self.canPublish = True       
         
     def register(self):
+        rospy.loginfo("Register")
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
         self.compassSub = rospy.Subscriber(config.compassTopic,
                                            compass_data,
@@ -78,12 +79,16 @@ class FrontComms:
     def camCallback(self, rosImg):
         outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
-            self.outPub.publish(Utils.cv2rosimg(outImg))
+            try:
+                self.outPub.publish(Utils.cv2rosimg(outImg))
+            except Exception, e:
+                pass
             
     def compassCallback(self, data):
         if not self.gotHeading:
             self.curHeading = data.yaw
             self.gotHeading = True
+            rospy.loginfo("Heading: {}".format(self.curHeading))
     
     def userQuit(self, signal, frame):
         self.unregister()
@@ -113,7 +118,7 @@ class FrontComms:
     
     def sendMovement(self, forward=0.0, sidemove=0.0,
                      heading=None, depth=None,
-                     timeout=0.2, blocking=False):
+                     timeout=0.5, blocking=False):
         
         depth = depth if depth else self.defaultDepth
         heading = heading if heading else self.curHeading

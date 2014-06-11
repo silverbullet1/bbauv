@@ -1,5 +1,9 @@
 #/usr/bin/env/python 
 
+'''
+Torpedo Vision
+'''
+
 import math
 import numpy as np
 import cv2
@@ -12,7 +16,7 @@ from front_commons.frontCommsVision import FrontCommsVision as vision
 class TorpedoVision:    
     # Vision parameters
     
-    thresParams = {'lo': (103, 0, 0), 'hi': (229, 255, 255), 
+    thresParams = {'lo': (107, 100, 0), 'hi': (229, 255, 255), 
                    'dilate': (13,13), 'erode': (3,3), 'open': (3,3)}
     
     circleParams = {'minRadius': 10, 'maxRadius': 100}
@@ -35,8 +39,8 @@ class TorpedoVision:
         allRadiusList = []
         
         # Preprocessing 
-        img = vision.preprocessImg(img)
-        rawImg = img
+        rawImg = vision.preprocessImg(img)
+#         rawImg = self.normalise(img)
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
         hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
@@ -47,16 +51,16 @@ class TorpedoVision:
 #         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
         # Use Canny edge to threshold black
-        edges = cv2.Canny(binImg, self.cannyParams['loThres'], self.cannyParams['hiThres'], 
+        edges = cv2.Canny(binImg, 80, 200, 
                           apertureSize=3, L2gradient=True)
 #         if edges is not None:
 #             self.comms.foundSomething = True 
 
         scratchImgCol = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-
+        
         # Find Hough circles
         circles = cv2.HoughCircles(edges, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=5, param1=300, param2=43,
+                                   minDist=5, param1=200, param2=40,
                                    minRadius = 3,
                                    maxRadius = self.circleParams['maxRadius'])        
         if circles is None:
@@ -74,18 +78,15 @@ class TorpedoVision:
             cv2.circle(scratchImgCol, circleCentroid, circle[2], (255, 255, 0), 2)
             cv2.circle(scratchImgCol, circleCentroid, 2, (255, 0, 255), 3)
         
-#         if len(self.comms.medianCentroid) > 7:
-#             self.comms.medianCentroid = []
-#             self.comms.medianRadius = []
-        
         # Centroid resetted
         if self.comms.centroidToShoot is None:
-            self.comms.medianCentroid = []
-            self.comms.medianRadius = []
             # Pick the largest circle
-            #if self.comms.numShoot == 0 or len(circles) < 2:
-            self.comms.medianCentroid.append((circlesSorted[0][0], circlesSorted[0][1]))
-            self.comms.medianRadius.append(circlesSorted[0][2])
+            if self.comms.numShoot == 0 or len(circles) < 2:
+                self.comms.centroidToShoot = (circlesSorted[0][0], circlesSorted[0][1])
+                self.comms.radius = circlesSorted[0][2]
+            elif self.comms.numShoot == 1:
+                self.comms.centroidToShoot = (circlesSorted[1][0], circlesSorted[1][1])
+                self.comms.radius = circlesSorted[1][2]
             rospy.loginfo(self.comms.centroidToShoot)
         else:
             # Find the centroid closest to the previous 
@@ -95,19 +96,21 @@ class TorpedoVision:
                     distDiff.append(Utils.distBetweenPoints(
                                         self.previousCentroid, centroid))
                     minIndex = distDiff.index(min(distDiff))
-                    self.comms.medianCentroid.append(allCentroidList[minIndex])
-                    self.comms.medianRadius.append(allRadiusList[minIndex])          
+                    self.comms.centroidToShoot = allCentroidList[minIndex]
+                    self.comms.radius = allRadiusList[minIndex]
+#                     self.comms.medianCentroid.append(allCentroidList[minIndex])
+#                     self.comms.medianRadius.append(allRadiusList[minIndex])          
             else:
                 # If not then just use the previous one 
-                self.comms.medianCentroid.append(self.previousCentroid)
-                self.comms.medianRadius.append(self.previousRadius)
+                self.comms.centroidToShoot = self.previousCentroid
+                self.comms.radius = self.previousRadius
                                
         # Draw centroid to shoot 
         # Find median of (x,y)
-        x = [a[0] for a in self.comms.medianCentroid]
-        y = [a[1] for a in self.comms.medianCentroid]
-        self.comms.centroidToShoot = (int(np.median(x)), int(np.median(y)))
-        self.comms.radius = np.median(self.comms.medianRadius)
+#         x = [a[0] for a in self.comms.medianCentroid]
+#         y = [a[1] for a in self.comms.medianCentroid]
+#         self.comms.centroidToShoot = (int(np.median(x)), int(np.median(y)))
+#         self.comms.radius = np.median(self.comms.medianRadius)
         self.previousCentroid = self.comms.centroidToShoot   
         self.previousRadius = self.comms.radius
         cv2.circle(scratchImgCol, self.comms.centroidToShoot, 3, (0, 255, 255), 2)
@@ -133,6 +136,13 @@ class TorpedoVision:
         self.thresParams['hi'] = self.comms.params['hiThreshold']
         self.cannyParams = self.comms.params['cannyParams']
         self.minContourArea = self.comms.params['minContourArea']
+        
+    def normalise(self, img):
+        channel = cv2.split(img)
+        cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
+        channel[1] = cv2.pow(channel[1], 4)
+        cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
+        return cv2.merge(channel, img)        
     
 def main():
     cv2.namedWindow("Torpedo")

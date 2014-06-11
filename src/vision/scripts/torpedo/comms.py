@@ -4,6 +4,7 @@
 Communication b/w ROS class and submodules
 '''
 
+import roslib; roslib.load_manifest('vision')
 import rospy
 from front_commons.frontComms import FrontComms
 from vision import TorpedoVision
@@ -12,7 +13,8 @@ from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
-from utils.config import torpedoConfig as Config
+from dynamic_reconfigure.server import Server as DynServer
+#from utils.config import torpedoConfig as Config
 
 class Comms(FrontComms):
     
@@ -29,8 +31,6 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = None
-    medianCentroid = []
-    medianRadius = []
     
     # Movement parameters
     radius = None

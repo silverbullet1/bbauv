@@ -1,5 +1,5 @@
 '''
-Smach state machine for torpedo
+Smach state machine for Torpedo
 '''
 
 import roslib; roslib.load_manifest('vision')
@@ -9,6 +9,7 @@ import smach, smach_ros
 
 from comms import Comms
 import time
+from utils.utils import Utils
 
 from bbauv_msgs.msg import *
 from bbauv_msgs.srv import *
@@ -163,7 +164,7 @@ class ShootTorpedo(smach.State):
         return 'shoot_again'
     
 def main():
-    rospy.init_node('torpedo_node', anonymous=False)
+    rospy.init_node('torpedo_lynnette_awesomeness', anonymous=False)
     rosRate = rospy.Rate(20)
     myCom = Comms()
 
