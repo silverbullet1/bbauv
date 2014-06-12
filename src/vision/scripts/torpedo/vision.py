@@ -16,13 +16,15 @@ from front_commons.frontCommsVision import FrontCommsVision as vision
 class TorpedoVision:    
     # Vision parameters
     
-    thresParams = {'lo': (107, 100, 0), 'hi': (229, 255, 255), 
-                   'dilate': (13,13), 'erode': (3,3), 'open': (3,3)}
+    thresParams = {
+                    'lo': (122, 90, 0), 'hi': (180, 255, 255), 
+#                     'lo': (95, 100, 0), 'hi': (166, 255, 255), 
+                   'dilate': (7,7), 'erode': (3,3), 'open': (3,3)}
     
-    circleParams = {'minRadius': 10, 'maxRadius': 100}
+    circleParams = {'minRadius': 5, 'maxRadius': 100}
     cannyParams = {'loThres': 100, 'hiThres': 150}    
     
-    minContourArea = 500
+    minContourArea = 100
     
     previousCentroid = (-1, -1)
     previousRadius = 0
@@ -40,27 +42,48 @@ class TorpedoVision:
         
         # Preprocessing 
         rawImg = vision.preprocessImg(img)
+#         rawImg = vision.shadesOfGray(rawImg)
+
         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
         hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
-        hsvImg = vision.normalise(hsvImg)
+#         hsvImg = vision.normaliseImg(hsvImg)
+        return hsvImg
  
         # Threshold out something
         binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
 #         binImg = vision.erodeAndDilateImg(binImg, self.thresParams)
+ 
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))        
+        binImg = cv2.dilate(binImg, dilateEl)
+
 #         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
         # Use Canny edge to threshold black
-        edges = cv2.Canny(binImg, 80, 200, 
-                          apertureSize=3, L2gradient=True)
+        edges = cv2.Canny(binImg, 80, 180, 
+                          apertureSize=5, L2gradient=True)
+
+        # Find contours 
+
+#         scratchImg = edges.copy()
+#         scratchImg = binImg.copy()
+#         contours, hierachy = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
+#                                               cv2.CHAIN_APPROX_NONE)
+#         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
+#         sorted(contours, key=cv2.contourArea, reverse=True) # Sort by contour size
+#         
+        scratchImgCol = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+#       
+#         # Draw contours 
+#         cv2.drawContours(scratchImgCol, contours, -1, (0,255,0), 3)
+#         return scratchImgCol
+        
 #         if edges is not None:
 #             self.comms.foundSomething = True 
-
-        scratchImgCol = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
         
         # Find Hough circles
         circles = cv2.HoughCircles(edges, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=5, param1=200, param2=40,
+                                   minDist=5, param1=170, param2=39,
                                    minRadius = 3,
                                    maxRadius = self.circleParams['maxRadius'])        
         if circles is None:
@@ -117,14 +140,18 @@ class TorpedoVision:
         rospy.loginfo("Radius: {}".format(self.comms.radius))
             
         # How far the centroid is off the screen center
-        self.comms.deltaX = float((self.comms.centroidToShoot[0] - vision.screen['width']/2)*1.0/vision.screen['width'])                                                                                                                                          
-        cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+        self.comms.deltaX = float((self.comms.centroidToShoot[0] - vision.screen['width']/2)*1.0/
+                                    vision.screen['width'])
 
+        cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
         self.comms.deltaY = float((self.comms.centroidToShoot[1] - vision.screen['height']/2)*1.0/
                                   vision.screen['height'])
-        cv2.putText(scratchImgCol, str(self.comms.deltaY), (30,60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+        cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+        
+        cv2.putText(scratchImgCol, "Rad " + str(self.comms.radius), (30,85),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
         
         # Draw center of screen
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
@@ -141,7 +168,6 @@ def main():
     cv2.namedWindow("Torpedo")
     
     inImg = cv2.imread("torpedo/torpedo1.png")
-    inImg = cv2.cvtColor(inImg, cv2.COLOR_RGB2BGR)
     from comms import Comms
     detector = TorpedoVision(comms = Comms())
     outImg = detector.gotFrame(inImg)

@@ -9,12 +9,12 @@ import rospy
 from front_commons.frontComms import FrontComms
 from vision import TorpedoVision
 
-from bbauv_msgs.msg import controller
+from bbauv_msgs.msg import controller, sonarData
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
 from dynamic_reconfigure.server import Server as DynServer
-#from utils.config import torpedoConfig as Config
+# from utils.config import torpedoConfig as Config
 
 class Comms(FrontComms):
     
@@ -106,7 +106,7 @@ class Comms(FrontComms):
     def registerSonar(self):
         self.sonarBearing = None
         self.sonarDist = None 
-        self.sonarSub = rospy.Subscriber("/sonarData", sonarData, sonarDataCallback)
+        self.sonarSub = rospy.Subscriber("/sonarData", sonarData, self.sonarDataCallback)
     
     def sonarDataCallback(self, data):
         self.sonarBearing = data.bearing
