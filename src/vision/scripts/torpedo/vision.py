@@ -17,9 +17,9 @@ class TorpedoVision:
     # Vision parameters
     
     thresParams = {
-                    'lo': (122, 90, 0), 'hi': (180, 255, 255), 
+                    'lo': (122, 0, 0), 'hi': (170, 255, 255), 
 #                     'lo': (95, 100, 0), 'hi': (166, 255, 255), 
-                   'dilate': (7,7), 'erode': (3,3), 'open': (3,3)}
+                   'dilate': (5,5), 'erode': (3,3), 'open': (3,3)}
     
     circleParams = {'minRadius': 5, 'maxRadius': 100}
     cannyParams = {'loThres': 100, 'hiThres': 150}    
@@ -42,13 +42,13 @@ class TorpedoVision:
         
         # Preprocessing 
         rawImg = vision.preprocessImg(img)
-#         rawImg = vision.shadesOfGray(rawImg)
+        rawImg = vision.shadesOfGray(rawImg)
 
-        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
-        hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
+#         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
+#         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
+        rawImg = cv2.GaussianBlur(rawImg, ksize=(3,3), sigmaX=2)
+        hsvImg = cv2.cvtColor(rawImg, cv2.COLOR_BGR2HSV)
 #         hsvImg = vision.normaliseImg(hsvImg)
-        return hsvImg
  
         # Threshold out something
         binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
@@ -60,7 +60,7 @@ class TorpedoVision:
 #         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
         # Use Canny edge to threshold black
-        edges = cv2.Canny(binImg, 80, 180, 
+        edges = cv2.Canny(binImg, 100, 200, 
                           apertureSize=5, L2gradient=True)
 
         # Find contours 
