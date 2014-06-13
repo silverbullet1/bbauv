@@ -33,7 +33,14 @@ class Disengage(smach.State):
         
         if self.comms.isAlone:
             self.comms.register()
+            rospy.sleep(rospy.Duration(0.8))
+            self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting Torpedo")
+
+        rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
+        self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                heading=self.comms.inputHeading,
+                                blocking=True)
         
         return 'start_complete'
 

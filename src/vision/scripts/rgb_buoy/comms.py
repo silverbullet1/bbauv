@@ -76,14 +76,16 @@ class Comms(FrontComms):
                                              abort_response=False,
                                              data=controller(heading_setpoint=self.curHeading))
 
-        if req.abort_request:
+        elif req.abort_request:
             rospy.loginfo("RGB abort received")
             self.isAborted=True
             self.isStart = False
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
             
-        return mission_to_visionResponse(isStart, isAborted)
+            return mission_to_visionResponse(start_response=False,
+                                             abort_response=True,
+                                             data=controller(heading_setpoint=self.curHeading))
     
     def reconfigure(self, config, level):
         rospy.loginfo("Received dynamic reconfigure request")

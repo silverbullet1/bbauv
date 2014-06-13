@@ -52,13 +52,13 @@ class FrontComms:
         except:
             rospy.loginfo("Locomotion server timeout!")
             self.isKilled = True
-            
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward = True, sidemove = True, heading = True, depth = True,
-                  pitch = True, roll = True, topside = False, navigation = False)
         
-        #Run if in alone mode 
+        # Run if is alone mode
         if self.isAlone:
+            setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            setServer(forward = True, sidemove = True, heading = True, depth = True,
+                      pitch = True, roll = True, topside = False, navigation = False)
+
             self.isAborted = False
             self.canPublish = True       
         
@@ -103,7 +103,10 @@ class FrontComms:
             rospy.loginfo("Heading: {}".format(self.curHeading))
     
     def userQuit(self, signal, frame):
-        self.unregister()
+        if self.isAlone:
+            self.unregister()
+        else:
+            self.unregisterMission()
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")

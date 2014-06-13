@@ -9,17 +9,18 @@ import rospy
 from utils.utils import Utils
 from front_commons.frontCommsVision import FrontCommsVision as vision
 
-class RgbBuoyVision:
+class RgbBuoyVision:  
     screen = {'width': 640, 'height': 480}
 
     # Vision parameters
     
     redParams = {
-                'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
-                 'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
+                'lo1': (100, 0, 0), 'hi1': (184, 255, 255),
+                 'lo2': (0, 0, 0), 'hi2': (23, 180, 255),
+                 'lo3': (65, 2, 2), 'hi3': (130, 100, 242), # Bottom dark colours
 #                 'lo1': (108, 0, 0), 'hi1': (180, 255, 160),
 #                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
-                 'dilate': (15,15), 'erode': (5,5), 'open': (5,5)}
+                 'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
 
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
@@ -29,7 +30,7 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':20, 'maxRadius': 0 }
+    circleParams = {'minRadius':10, 'maxRadius': 0 }
     houghParams = {'param1': 80, 'param2': 15}
     allCentroidList = []
     allAreaList = []
@@ -84,9 +85,12 @@ class RgbBuoyVision:
         # Perform thresholding
         binImg1 = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
         binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
+        binImg3 = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
         binImg = cv2.bitwise_or(binImg1, binImg2)
-#         binImg = binImg1
-#         return binImg
+        binImg = cv2.bitwise_or(binImg, binImg3)
+        
+        # binImg = binImg1
+        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
           #binImg = self.erodeAndDilateImg(binImg, params)
         #binImg = vision.erodeAndDilateImg(binImg1, self.redParams)
         erodeEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['erode'])
@@ -123,8 +127,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=76, 
-                               param2=13,
+                               minDist=30, param1=75, 
+                               param2=15,
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -165,18 +169,18 @@ class RgbBuoyVision:
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
         # rospy.loginfo("Area: {}".format(self.comms.rectArea)) # To put on the scratchImg
         cv2.putText(scratchImgCol, "Area: " + str(self.comms.rectArea), (30, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
             
         # How far centroid is off screen center
         self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/
                                     vision.screen['width'])
 
         cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
         self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
                                   vision.screen['height'])
         cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
 
 
         # Draw center rect
@@ -186,10 +190,10 @@ class RgbBuoyVision:
 
     def normalise(self, img):
         channel = cv2.split(img)
-#         for i in channel[1]:
-#             i += 10
-#         for i in channel[2]:
-#             i -= 3
+        # for i in channel[1]:
+        #     i += 10
+        for i in channel[2]:
+            i += 10
         cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
         cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
         return cv2.merge(channel, img)
