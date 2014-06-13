@@ -3,13 +3,14 @@ from sensor_msgs.msg import Image
 import actionlib
 
 from bbauv_msgs.msg import compass_data, \
-        ControllerAction, ControllerGoal, controller
+    ControllerAction, ControllerGoal, controller
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
 import utils.config as config
 
 import signal
+
 
 class GenericComms:
     """ Class to facilitate communication b/w ROS and task submodules """
