@@ -35,7 +35,7 @@ class RgbBuoyVision:
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 500
+    minContourArea = 300
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -50,7 +50,6 @@ class RgbBuoyVision:
         outImg = None
 
         # Preprocessing
-        #img = vision.preprocessImg(img)    # Cut image if required 
         img = cv2.resize(img, (640, 480))
         rawImg = vision.shadesOfGray(img)
         
@@ -59,7 +58,7 @@ class RgbBuoyVision:
     
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = self.normalise(hsvImg)
-#         return cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+        # return cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
     
         # Find red image 
         redImg = self.threshold(hsvImg, "RED")
@@ -124,8 +123,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=80, 
-                               param2=14,
+                               minDist=30, param1=76, 
+                               param2=13,
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -164,7 +163,9 @@ class RgbBuoyVision:
 
         # Draw new centroid
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
-        rospy.loginfo("Area: {}".format(self.comms.rectArea))
+        # rospy.loginfo("Area: {}".format(self.comms.rectArea)) # To put on the scratchImg
+        cv2.putText(scratchImgCol, "Area: " + str(self.comms.rectArea), (30, 80),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
             
         # How far centroid is off screen center
         self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/

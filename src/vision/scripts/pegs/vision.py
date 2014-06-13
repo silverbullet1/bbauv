@@ -94,6 +94,13 @@ class PegsVision:
             self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
             cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            self.comms.deltaY = float((self.comms.centroidToPick[1] - vision.screen['height']/2)*1.0/
+                                      vision.screen['height'])
+            cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+            
+            cv2.putText(scratchImgCol, "Area " + str(self.comms.areaRect), (30,85),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
             
             return scratchImgCol
 

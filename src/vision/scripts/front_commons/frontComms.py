@@ -10,7 +10,8 @@ import time
 import numpy as np
 
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data, ControllerAction, ControllerGoal
+from bbauv_msgs.msg import compass_data, \
+        ControllerAction, ControllerGoal, controller
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -68,6 +69,12 @@ class FrontComms:
                                            compass_data,
                                            self.compassCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
+
+    def registerMission(self):
+        rospy.loginfo("Register with mission")
+        self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
+        self.outPub = rospy.Publisher(config.visionFilterTopic, Image)     
+        rospy.loginfo("Registered finish")          
         
     def unregister(self):
         if self.camSub is not None:
@@ -76,6 +83,11 @@ class FrontComms:
             self.compassSub.unregister()
         self.canPublish = False 
     
+    def unregisterMission(self):
+        if self.camSub is not None:
+            self.camSub.unregister()
+        self.canPublish = False 
+
     def camCallback(self, rosImg):
         outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
@@ -111,7 +123,7 @@ class FrontComms:
         if not self.isAlone:
             self.toMission(fail_request=False, task_complete_request=True,
                            task_complete_ctrl=controller(
-                                heading_setpoint=self.curHeading))
+                               heading_setpoint=self.curHeading))
         self.canPublish = False
         self.isAborted = True
         self.unregister()

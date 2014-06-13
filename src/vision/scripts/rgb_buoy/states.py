@@ -33,21 +33,23 @@ class Disengage(smach.State):
             if self.comms.isKilled:
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
-        
+
         if self.comms.isAlone:
             self.comms.register()
             rospy.sleep(rospy.Duration(0.8))
             self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting RGB")
-            
+        
+        rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
         self.comms.sendMovement(depth=self.comms.defaultDepth,
                                 heading=self.comms.inputHeading,
                                 blocking=True)
         
+        rospy.loginfo("Started liao")
         return 'start_complete'
     
 class Search(smach.State):
-    timeout = 1000
+    timeout = 300
     moveOnce = 0
     
     def __init__(self, comms):
@@ -73,7 +75,45 @@ class Search(smach.State):
             rospy.sleep(rospy.Duration(0.3))
         
         return 'search_complete'
+
+# I'm just moving forward
+class bangBuoy(smach.State):
+    deltaXMult = 4.0
+    deltaYMult = 0.2
+    area = 7000
+    count = 0
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'aborted', 'killed'])
+        self.comms = comms
+        self.curHits = 0
+    
+    def execute(self, userdata):
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
         
+        if self.count > 20:           
+            return 'bang_to_center'
+        
+        if self.comms.rectArea > self.area: 
+            self.count = self.count + 1
+  
+        if abs(self.comms.deltaY) > 0.10:
+            if self.comms.rectArea > 2000:
+                self.deltaYMult = 0.05
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            # Make sure it doesnt surface
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 2.0
+  
+        # Move forward & correct heading 
+        self.comms.sendMovement(forward=0.25, sidemove=self.comms.deltaX*self.deltaXMult,
+                                depth=self.comms.defaultDepth,
+                                blocking=False)
+        return 'banging'
+
 # Precise movements when near buoy 
 class Centering (smach.State):
     deltaXMult = 3.0
@@ -97,8 +137,8 @@ class Centering (smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
-        rospy.loginfo("Delta Y: {}".format(self.comms.deltaY))
+        # rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
+        # rospy.loginfo("Delta Y: {}".format(self.comms.deltaY))
 
         if self.comms.rectArea > self.changeMultArea:
             self.deltaXMult = 1.5
@@ -150,44 +190,6 @@ class Centering (smach.State):
                                 timeout=0.4, blocking=False)
 
         return 'centering'
-
-# For bump
-class bangBuoy(smach.State):
-    deltaXMult = 4.0
-    deltaYMult = 0.2
-    area = 7000
-    count = 0
-
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'aborted', 'killed'])
-        self.comms = comms
-        self.curHits = 0
-    
-    def execute(self, userdata):
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
-        
-        if self.count > 20:           
-            return 'bang_to_center'
-        
-        if self.comms.rectArea > self.area: 
-            self.count = self.count + 1
-  
-        if abs(self.comms.deltaY) > 0.10:
-            if self.comms.rectArea > 2000:
-                self.deltaYMult = 0.05
-            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
-            # Make sure it doesnt surface
-            if self.comms.defaultDepth < 0.1:
-                self.comms.defaultDepth = 2.0
-  
-        # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.25, sidemove=self.comms.deltaX*self.deltaXMult,
-                                depth=self.comms.defaultDepth,
-                                blocking=False)
-        return 'banging'
 
 def main():
     rospy.init_node('rgb_buoy_node', anonymous=False)
