@@ -17,9 +17,14 @@ class TorpedoVision:
     # Vision parameters
     
     thresParams = {
-                    'lo': (122, 0, 0), 'hi': (170, 255, 255), 
+                    'lo': (122, 0, 0), 'hi': (170, 100, 255), 
 #                     'lo': (95, 100, 0), 'hi': (166, 255, 255), 
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)}
+
+    greenParams = {
+                   'lo': (46, 100, 0), 'hi': (85, 255, 255),
+                   'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
+                  }
     
     circleParams = {'minRadius': 5, 'maxRadius': 100}
     cannyParams = {'loThres': 100, 'hiThres': 150}    
@@ -44,47 +49,35 @@ class TorpedoVision:
         rawImg = vision.preprocessImg(img)
         rawImg = vision.shadesOfGray(rawImg)
 
-#         blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
-#         enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
-        rawImg = cv2.GaussianBlur(rawImg, ksize=(3,3), sigmaX=2)
+        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
+
         hsvImg = cv2.cvtColor(rawImg, cv2.COLOR_BGR2HSV)
-#         hsvImg = vision.normaliseImg(hsvImg)
- 
+        hsvImg = self.normaliseImg(hsvImg)
+        # return cv2.cvtColor(hsvImg, cv2.COLOR_HSV2BGR)
+
         # Threshold out something
-        binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
-#         binImg = vision.erodeAndDilateImg(binImg, self.thresParams)
+        # binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
+        binImg = cv2.inRange(hsvImg, self.greenParams['lo'], self.greenParams['hi'])
+        binImg = vision.erodeAndDilateImg(binImg, self.greenParams)
+        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
  
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))        
-        binImg = cv2.dilate(binImg, dilateEl)
+        # dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))        
+        # binImg = cv2.dilate(binImg, dilateEl)
+        if binImg is not None:
+            self.comms.foundSomething = True
 
-#         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
-        
-        # Use Canny edge to threshold black
-        edges = cv2.Canny(binImg, 100, 200, 
-                          apertureSize=5, L2gradient=True)
-
-        # Find contours 
-
-#         scratchImg = edges.copy()
-#         scratchImg = binImg.copy()
-#         contours, hierachy = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
-#                                               cv2.CHAIN_APPROX_NONE)
-#         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
-#         sorted(contours, key=cv2.contourArea, reverse=True) # Sort by contour size
-#         
-        scratchImgCol = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-#       
-#         # Draw contours 
-#         cv2.drawContours(scratchImgCol, contours, -1, (0,255,0), 3)
-#         return scratchImgCol
+        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
 #         if edges is not None:
 #             self.comms.foundSomething = True 
         
-        # Find Hough circles
-        circles = cv2.HoughCircles(edges, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=5, param1=170, param2=39,
-                                   minRadius = 3,
+        # Find Hough circles - used to be edges
+        scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+        scratchImg = binImg.copy()
+        circles = cv2.HoughCircles(scratchImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
+                                   minDist=10, param1=78, param2=16,
+                                   minRadius = 8,
                                    maxRadius = self.circleParams['maxRadius'])        
         if circles is None:
             self.comms.foundCount = self.comms.foundCount + 1
@@ -100,6 +93,7 @@ class TorpedoVision:
             # Draw Circles
             cv2.circle(scratchImgCol, circleCentroid, circle[2], (255, 255, 0), 2)
             cv2.circle(scratchImgCol, circleCentroid, 2, (255, 0, 255), 3)
+
         
         # Centroid resetted
         if self.comms.centroidToShoot is None:
@@ -162,7 +156,15 @@ class TorpedoVision:
         self.thresParams['lo'] = self.comms.params['loThreshold']
         self.thresParams['hi'] = self.comms.params['hiThreshold']
         self.cannyParams = self.comms.params['cannyParams']
-        self.minContourArea = self.comms.params['minContourArea']       
+        self.minContourArea = self.comms.params['minContourArea']     
+
+    def normaliseImg(self, img):
+        channel = cv2.split(img)
+        for i in channel[1]:
+            i += 5
+        # cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
+        cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
+        return cv2.merge(channel, img)  
     
 def main():
     cv2.namedWindow("Torpedo")
