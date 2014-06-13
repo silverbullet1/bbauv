@@ -61,9 +61,27 @@ class SearchPegs(smach.State):
 
         return 'searchPeg_complete'
 
+class FollowSonar(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['sonar_complete', 'following_sonar', 'aborted', 'killed'])
+        self.comms = comms
+        
+        self.comms.registerSonar()
+        rospy.sleep(duration=0.5)
+        
+    def execute(self, ud):
+        if self.comms.sonarDist > 2:
+            self.comms.sendMovement(forward=self.comms.sonarDist,
+                                    heading=self.comms.sonarBearing,
+                                    timeout=0.5, blocking=False)
+            return 'following_sonar'
+        else:
+            return 'sonar_complete'
+
 class MoveForward(smach.State):
     counter = 0
     deltaXMult = 5.0
+    deltaYMult = 0.2
     forward_setpoint = 0.3
     areaRectComplete = 500
     
@@ -88,8 +106,14 @@ class MoveForward(smach.State):
             return 'forward_complete'
         
         # Forward and sidemove, keep heading
+        if abs(self.comms.deltaY) > 0.010:
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 2.0
+        
         self.comms.sendMovement(forward=self.forward_setpoint,
                                 sidemove=self.comms.deltaX * self.deltaXMult,
+                                depth=self.defaultDepth, timeout=0.4,
                                 blocking=False)
         return 'forwarding'
     
@@ -193,6 +217,12 @@ def main():
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
                                 transitions={'start_complete': "SEARCHPEGS",
                                              'killed': 'killed'})
+        
+        smach.StateMachine.add("FOLLOWSONAR", FollowSonar(myCom),
+                               transition={'following_sonar': "FOLLOWSONAR",
+                                           'sonar_complete': "SEARCHPEGS",
+                                           'aborted': 'aborted',
+                                           'killed': 'killed'})        
         
         smach.StateMachine.add("SEARCHPEGS", SearchPegs(myCom),
                                 transitions={'searchPeg_complete': "MOVEFORWARD",

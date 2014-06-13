@@ -105,13 +105,16 @@ class Centering (smach.State):
 
 #         if self.count > 50:
 #             rospy.loginfo("Banging")
-#             self.comms.sendMovement(forward=2.0, tblocking=False)   # Shoot forward
+#             self.comms.sendMovement(forward=2.0, blocking=False)   # Shoot forward
 
         if self.comms.rectArea > self.bigArea:
-            self.comms.sendMovement(forward=2.5, timeout=1.5, blocking=False)   # Shoot forward
-            self.comms.sendMovement(forward=-1.5, timeout=1.5, blocking=False)  # Reverse a bit
+            self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+            rospy.loginfo("forward done")
+            self.comms.sendMovement(forward=-1.5, timeout=3, blocking=False)  # Reverse a bit
             self.comms.isAborted = True
             self.comms.isKilled = True 
+            rospy.sleep(duration=3)
+            self.comms.taskComplete()
             return 'centering_complete'
         
 #         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
@@ -150,9 +153,9 @@ class Centering (smach.State):
 
 # For bump
 class bangBuoy(smach.State):
-    deltaXMult = 5.0
+    deltaXMult = 4.0
     deltaYMult = 0.2
-    area = 6500
+    area = 7000
     count = 0
 
     def __init__(self, comms):
@@ -173,7 +176,7 @@ class bangBuoy(smach.State):
             self.count = self.count + 1
   
         if abs(self.comms.deltaY) > 0.10:
-            if self.comms.rectArea > 1500:
+            if self.comms.rectArea > 2000:
                 self.deltaYMult = 0.05
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
             # Make sure it doesnt surface
@@ -181,7 +184,7 @@ class bangBuoy(smach.State):
                 self.comms.defaultDepth = 2.0
   
         # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.3, sidemove=self.comms.deltaX*self.deltaXMult,
+        self.comms.sendMovement(forward=0.25, sidemove=self.comms.deltaX*self.deltaXMult,
                                 depth=self.comms.defaultDepth,
                                 blocking=False)
         return 'banging'

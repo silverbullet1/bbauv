@@ -86,7 +86,9 @@ generate_dynamic_reconfigure_options(
     cfg/lane.cfg
     cfg/bins.cfg
     cfg/pickup.cfg
+    
     cfg/rgb.cfg
+    cfg/pegs.cfg
     cfg/torpedo.cfg
 )
 
