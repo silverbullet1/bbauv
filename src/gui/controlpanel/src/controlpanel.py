@@ -565,10 +565,14 @@ class AUV_gui(QMainWindow):
             self.q_mode = Queue.Queue()
         except Exception,e:
             pass
+        
         try:
             openups1 = self.q_openups1.get(False,0)
-            openups2 = self.q_openups2.get(False, 0)
             self.q_openups1 = Queue.Queue()
+        except Exception, e:
+            pass
+        try:
+            openups2 = self.q_openups2.get(False, 0)
             self.q_openups2 = Queue.Queue()
         except Exception,e:
             pass
@@ -757,7 +761,17 @@ class AUV_gui(QMainWindow):
             mani_name[6] = "FALSE"
             
         self.saPanel3.setText("<b>Grabber: " + mani_name[2]+"</b>")
-        self.saPanel4.setText("<b> LYNNETTE IS AWESOME</b>") 
+        
+        battery_notification1 = ""
+        battery_notification2 = ""
+        if self.data['openups1'].battery_percentage < 22.5:
+            battery_notification1 = "BATTERY 1 DYING!"
+        if self.data['openups2'].battery_percentage < 22.5:
+            battery_notification2 = "BATTERY 2 DYING!"
+        self.saPanel4.setText("LYNNETTE IS AWESOME" + 
+                              "<b><br>" + battery_notification1 + 
+                              "<br>" + battery_notification2 + 
+                              "</b>") 
 
 #         self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
 #                               "<br>Top Tor: " + mani_name[1] +
@@ -779,28 +793,16 @@ class AUV_gui(QMainWindow):
         else:
             self.isLeak = False
 
-        battery_notification1 = ""
-        battery_notification2 = ""
-        if self.data['openups1'].battery_percentage < 15.0:
-            battery_notification1 = "BATTERY DYING!"
-        if self.data['openups2'].battery_percentage < 15.0:
-            battery_notification2 = "BATTERY DYING!"
-
-
         self.oPanel1.setText("<b>VOLT1: " + str(round(self.data['openups1'].cell6,2)) +
                               "<br>CUR1: " + str(round(self.data['openups1'].current,3)) +
                               "<br>CAP1: " + str(round(self.data['openups1'].battery_percentage,2)) +
-                              "<br> " + battery_notification1 +
-                              #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
-                              # str(self.data['openups'].current1 +
+                              "<br>USE: " + str(round(self.data['openups1'].used_mAh,2)) + 
                               "</b>")
 
         self.oPanel2.setText("<b>VOLT2: " + str(round(self.data['openups2'].cell6,2)) +
                               "<br>CUR2: " + str(round(self.data['openups2'].current,3)) +
                               "<br>CAP2: " + str(round(self.data['openups2'].battery_percentage,2)) +
-                              "<br> " + battery_notification2 +
-                              #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
-                              # str(self.data['openups'].current1 +
+                              "<br>USED: " + str(round(self.data['openups2'].used_mAh,2)) + 
                               "</b>")
 
         self.lPanel1.setText("<b>HU LEAK1: " + str(self.data['hull_status'].WaterDetA) +

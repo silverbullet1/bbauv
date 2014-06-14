@@ -19,10 +19,8 @@ class RgbBuoyVision:
     redParams = {
                 'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
-#                  'lo3': (65, 2, 2), 'hi3': (130, 100, 242), 
+                'lo3': (0, 200, 0), 'hi3': (8, 255, 255),       # Jin's values 
                  'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
-#                 'lo1': (108, 0, 0), 'hi1': (180, 255, 160),
-#                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
 
 
@@ -55,35 +53,24 @@ class RgbBuoyVision:
 
         # Preprocessing
         img = cv2.resize(img, (640, 480))
-        rawImg = vision.shadesOfGray(img)
         
-        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
-        enhancedImg = cv2.GaussianBlur(enhancedImg, ksize=(3,3), sigmaX=2)
-            
+        # White balance
+        img = self.whiteBal(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hsvImg = self.normalise(hsvImg)
+        hsvImg = np.array(hsvImg, dtype=np.uint8)
+
+        # Blur image
+        gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
+        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
+        enhancedImg = cv2.medianBlur(sum, 3)
         
-        bluredimg = cv2.GaussianBlur(enhancedImg, ksize=(5,5), sigmaX=2)
-        bluredimg = cv2.cvtColor(bluredimg, cv2.COLOR_BGR2HSV)
-        bluredimg = self.normalise(bluredimg)
-        # return cv2.cvtColor(hsvImg, cv2.COLOR_HSV2BGR)
-    
         # Find red image 
-        redImg = self.threshold(hsvImg, bluredimg, "RED")
+        redImg = self.threshold(hsvImg, "RED")
         outImg = redImg
-        
-        # Find green image
-        #greenLen, greenImg = self.threshold(img, "GREEN")
-        
-        # Find blue image
-        #blueLen, blueImg = self.threshold(img, "BLUE")
-        
-        #outImg = redImg | greenImg | blueImg 
 
         return outImg
 
-    def threshold(self, img, bluredImg, color):
+    def threshold(self, img, color):
         self.allCentroidList = []
         self.allAreaList = []
         self.allRadiusList = []        
@@ -91,27 +78,15 @@ class RgbBuoyVision:
         #params = self.getParams(color)
         
         # Perform thresholding
-        binImg1 = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
-        binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
-        binImg = cv2.bitwise_or(binImg1, binImg2)
-
-        binImg3 = cv2.inRange(bluredImg, self.redParams['lo4'], self.redParams['hi4'])
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11,11))
-        binImg = cv2.bitwise_or(binImg, binImg3)
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
+        mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kern)
+        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
+        threshImg = cv2.dilate(mask, kern2, iterations=3)
         
-#         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
-
-        # binImg = binImg1
-          #binImg = self.erodeAndDilateImg(binImg, params)
-        #binImg = vision.erodeAndDilateImg(binImg1, self.redParams)
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['erode'])
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['dilate'])
-        openEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['open'])
-
-        binImg = cv2.erode(binImg, erodeEl)
-        binImg = cv2.dilate(binImg, dilateEl)
-        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
+#         return cv2.cvtColor(threshImg, cv2.COLOR_GRAY2BGR)
         
+        binImg = threshImg
         # Find contours
         scratchImg = binImg.copy()
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
@@ -138,8 +113,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=75, 
-                               param2=15,
+                               minDist=30, param1=78, 
+                               param2=16,
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -198,6 +173,16 @@ class RgbBuoyVision:
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
 
         return scratchImgCol
+
+    def whiteBal(self, img):
+        channels = cv2.split(img)
+        channels[0] = cv2.equalizeHist(channels[0])
+        channels[1] = cv2.equalizeHist(channels[1])
+        img = cv2.merge(channels, img)
+        img = cv2.bilateralFilter(img, -1, 5, 0.1)
+        
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern)
 
     def normalise(self, img):
         channel = cv2.split(img)
