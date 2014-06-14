@@ -32,7 +32,7 @@ class FrontComms:
         
         # Flags 
         self.canPublish = False    #Flag for using non-publishing to ROS when testing with images 
-        self.isAborted = False
+        self.isAborted = True
         self.isKilled = False
         
         #Initialize vision Filter
@@ -117,9 +117,13 @@ class FrontComms:
             self.toMission(fail_request=True, task_complete_request=False,
                            task_complete_ctrl=controller(
                             heading_setpoint=self.curHeading))
+            self.unregisterMission()
+        else:
+            self.unregister()
         self.canPublish = False
         self.isAborted = True
         self.sendMovement(forward=0.0, sidemove=0.0)
+        rospy.signal_shutdown("Bye")
         
     def taskComplete(self):
         rospy.loginfo("Yay! Task Complete!")
@@ -127,11 +131,15 @@ class FrontComms:
             self.toMission(fail_request=False, task_complete_request=True,
                            task_complete_ctrl=controller(
                                heading_setpoint=self.curHeading))
+            rospy.loginfo("Sent to mission")
+            self.unregisterMission()
+        else:
+            self.unregister()
         self.canPublish = False
         self.isAborted = True
-        self.unregister()
+        self.isKilled = True
         self.sendMovement(forward=0.0, sidemove=0.0)
-        rospy.signal_shutdown("Yay bye!")
+        rospy.signal_shutdown("Bye")
     
     def sendMovement(self, forward=0.0, sidemove=0.0,
                      heading=None, depth=None,

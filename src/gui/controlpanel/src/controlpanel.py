@@ -795,14 +795,14 @@ class AUV_gui(QMainWindow):
 
         self.oPanel1.setText("<b>VOLT1: " + str(round(self.data['openups1'].cell6,2)) +
                               "<br>CUR1: " + str(round(self.data['openups1'].current,3)) +
-                              "<br>CAP1: " + str(round(self.data['openups1'].battery_percentage,2)) +
+                              "<br>%: " + str(round(self.data['openups1'].battery_percentage,2)) +
                               "<br>USE: " + str(round(self.data['openups1'].used_mAh,2)) + 
                               "</b>")
 
         self.oPanel2.setText("<b>VOLT2: " + str(round(self.data['openups2'].cell6,2)) +
                               "<br>CUR2: " + str(round(self.data['openups2'].current,3)) +
-                              "<br>CAP2: " + str(round(self.data['openups2'].battery_percentage,2)) +
-                              "<br>USED: " + str(round(self.data['openups2'].used_mAh,2)) + 
+                              "<br>%: " + str(round(self.data['openups2'].battery_percentage,2)) +
+                              "<br>USE: " + str(round(self.data['openups2'].used_mAh,2)) + 
                               "</b>")
 
         self.lPanel1.setText("<b>HU LEAK1: " + str(self.data['hull_status'].WaterDetA) +

@@ -22,7 +22,9 @@ class TorpedoVision:
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)}
 
     greenParams = {
-                   'lo': (46, 100, 0), 'hi': (85, 255, 255),
+#                    'lo': (46, 100, 0), 'hi': (85, 255, 255),
+#                    'lo': (32, 114, 0), 'hi': (88, 254, 255),
+                     'lo': (45, 230, 0), 'hi': (70, 255, 255),
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
                   }
     
@@ -46,24 +48,33 @@ class TorpedoVision:
         allRadiusList = []
         
         # Preprocessing 
-        rawImg = vision.preprocessImg(img)
-        rawImg = vision.shadesOfGray(rawImg)
+        img = cv2.resize(img, (640, 480))
+        
+        # White balance
+        illumMask = self.illuminanceMask(img)
+        illumMask = cv2.bitwise_not(illumMask)
+        img = cv2.bitwise_and(cv2.cvtColor(illumMask, cv2.COLOR_GRAY2BGR), img)
+        
+        img = vision.whiteBal(img)
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsvImg = np.array(hsvImg, dtype=np.uint8)  
+        
+        # Enhance image
+        gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
+        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
+        enhancedImg = cv2.medianBlur(sum, 3)              
 
-        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
-
-        hsvImg = cv2.cvtColor(rawImg, cv2.COLOR_BGR2HSV)
-        hsvImg = self.normaliseImg(hsvImg)
-        # return cv2.cvtColor(hsvImg, cv2.COLOR_HSV2BGR)
+        return cv2.cvtColor(enhancedImg, cv2.COLOR_HSV2BGR)
 
         # Threshold out something
-        # binImg = cv2.inRange(hsvImg, self.thresParams['lo'], self.thresParams['hi'])
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         binImg = cv2.inRange(hsvImg, self.greenParams['lo'], self.greenParams['hi'])
-        binImg = vision.erodeAndDilateImg(binImg, self.greenParams)
-        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+        binImg = cv2.morphologyEx(binImg, cv2.MORPH_CLOSE, kern)
+        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        threshImg = cv2.dilate(binImg, kern2, iterations=3)
+        
+        return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
  
-        # dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))        
-        # binImg = cv2.dilate(binImg, dilateEl)
         if binImg is not None:
             self.comms.foundSomething = True
 
@@ -165,6 +176,11 @@ class TorpedoVision:
         # cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
         cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
         return cv2.merge(channel, img)  
+    
+    def illuminanceMask(self, img):
+        grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        grayImg = cv2.equalizeHist(grayImg)
+        return cv2.threshold(grayImg, 200, 255, cv2.THRESH_BINARY)[1]
     
 def main():
     cv2.namedWindow("Torpedo")

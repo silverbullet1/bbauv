@@ -19,7 +19,7 @@ class Comms(FrontComms):
     
     isTesting = False
     isKilled = False
-    isAborted = False
+    isAborted = True
     isStart = False
     
     # Vision boolean
@@ -71,6 +71,11 @@ class Comms(FrontComms):
 
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
+
+            
+            self.sendMovement(depth=self.defaultDepth,
+                              heading=self.inputHeading,
+                              blocking=True)
 
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,

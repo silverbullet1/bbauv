@@ -40,12 +40,12 @@ class Disengage(smach.State):
             self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting RGB")
         
-        rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
-        self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                heading=self.comms.inputHeading,
-                                blocking=True)
-        
-        rospy.loginfo("Started liao")
+            rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
+            self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                    heading=self.comms.inputHeading,
+                                    blocking=True)
+        self.comms.taskComplete()
+
         return 'start_complete'
     
 class Search(smach.State):
@@ -80,7 +80,7 @@ class Search(smach.State):
 class bangBuoy(smach.State):
     deltaXMult = 4.0
     deltaYMult = 0.2
-    area = 7000
+    area = 8000
     count = 0
 
     def __init__(self, comms):
@@ -109,7 +109,7 @@ class bangBuoy(smach.State):
                 self.comms.defaultDepth = 2.0
   
         # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.25, sidemove=self.comms.deltaX*self.deltaXMult,
+        self.comms.sendMovement(forward=0.35, sidemove=self.comms.deltaX*self.deltaXMult,
                                 depth=self.comms.defaultDepth,
                                 blocking=False)
         return 'banging'
@@ -154,7 +154,8 @@ class Centering (smach.State):
             self.comms.isAborted = True
             self.comms.isKilled = True 
             rospy.sleep(duration=3)
-            self.comms.taskComplete()
+            #self.comms.taskComplete()
+            self.comms.abortMission()
             return 'centering_complete'
         
 #         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
@@ -185,7 +186,8 @@ class Centering (smach.State):
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = 2.0
 
-        self.comms.sendMovement(sidemove=self.comms.deltaX*self.deltaXMult, 
+        self.comms.sendMovement(forward=0.1,
+                                sidemove=self.comms.deltaX*self.deltaXMult, 
                                 depth=self.comms.defaultDepth, 
                                 timeout=0.4, blocking=False)
 

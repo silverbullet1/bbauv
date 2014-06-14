@@ -1,6 +1,6 @@
 #/usr/bin/env/python
 
-''' With Gaussian Blur and normalise '''
+''' With white balance and others '''
 
 import math
 import numpy as np
@@ -22,7 +22,6 @@ class RgbBuoyVision:
                 'lo3': (0, 200, 0), 'hi3': (8, 255, 255),       # Jin's values 
                  'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
-
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
@@ -114,7 +113,7 @@ class RgbBuoyVision:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
                                minDist=30, param1=78, 
-                               param2=16,
+                               param2=14,
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
