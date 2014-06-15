@@ -631,7 +631,7 @@ class AUV_gui(QMainWindow):
 
         '''If data in queue is available store it into data'''
         if temp!= None:
-            self.data['temp'] = temp.data
+            self.data['temp'] = temp
         if altitude!= None:
             self.data['altitude'] = altitude.data
         if manipulators != None:
@@ -874,7 +874,7 @@ class AUV_gui(QMainWindow):
         self.hull_status_sub.unregister()
         self.openups_sub1.unregister()
         self.openups_sub2.unregister()
-        self.temp_sub.unregister()
+        #self.temp_sub.unregister()
         self.altitude_sub.unregister()
         self.mode_sub.unregister()
 
@@ -898,7 +898,7 @@ class AUV_gui(QMainWindow):
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
         self.openups_sub1 = rospy.Subscriber("/battery1_status", Battery, self.openups_callback1)
         self.openups_sub2 = rospy.Subscriber("/battery2_status", Battery, self.openups_callback2)
-        self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
+        #self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
@@ -1298,6 +1298,7 @@ class AUV_gui(QMainWindow):
     def thruster_callback(self,thruster):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):
+        self.q_temp.put(msg.temperature)
         self.q_orientation.put(msg)
 
     def cpu_callback(self, msg):

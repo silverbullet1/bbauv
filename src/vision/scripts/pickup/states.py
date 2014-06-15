@@ -234,7 +234,7 @@ class Drop(smach.State):
 
 
 def main():
-    rospy.init_node('pickup_node')
+    rospy.init_node('pickup')
     myCom = Comms()    
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
