@@ -24,7 +24,7 @@ class TorpedoVision:
     greenParams = {
 #                    'lo': (46, 100, 0), 'hi': (85, 255, 255),
 #                    'lo': (32, 114, 0), 'hi': (88, 254, 255),
-                     'lo': (45, 230, 0), 'hi': (70, 255, 255),
+                     'lo': (43,0,0), 'hi': (75,255,150),
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
                   }
     
@@ -55,30 +55,40 @@ class TorpedoVision:
         illumMask = cv2.bitwise_not(illumMask)
         img = cv2.bitwise_and(cv2.cvtColor(illumMask, cv2.COLOR_GRAY2BGR), img)
         
-        img = vision.whiteBal(img)
+        img = self.whiteBal(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = np.array(hsvImg, dtype=np.uint8)  
         
         # Enhance image
         gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
         sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
-        enhancedImg = cv2.medianBlur(sum, 3)              
+        enhancedImg = cv2.medianBlur(sum, 3)    
+        enhancedImg = cv2.GaussianBlur(enhancedImg, ksize=(5,5), sigmaX=2)
+#         enhancedImg = self.normaliseImg(enhancedImg)  
 
-        return cv2.cvtColor(enhancedImg, cv2.COLOR_HSV2BGR)
+#         return cv2.cvtColor(enhancedImg, cv2.COLOR_HSV2BGR)
 
         # Threshold out something
         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        binImg = cv2.inRange(hsvImg, self.greenParams['lo'], self.greenParams['hi'])
-        binImg = cv2.morphologyEx(binImg, cv2.MORPH_CLOSE, kern)
-        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        threshImg = cv2.dilate(binImg, kern2, iterations=3)
+        binImg = cv2.inRange(enhancedImg, self.greenParams['lo'], self.greenParams['hi'])
+        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, kern)
+
+        erodeKern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        binImg = cv2.erode(binImg, erodeKern, iterations=2)
+        dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
+        binImg = cv2.dilate(binImg, dilateKern, iterations=3)
         
-        return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+
+        # Find contours and fill them
+        for i in range(3):
+            binImgCopy = binImg.copy()
+            contours, hierarchy = cv2.findContours(binImgCopy,cv2.RETR_CCOMP,cv2.CHAIN_APPROX_NONE)
+            cv2.drawContours(image=binImg, contours=contours, contourIdx=-1, color=(255,255,255), thickness=-1)               
+        
+#         return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
  
         if binImg is not None:
             self.comms.foundSomething = True
-
-        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
 #         if edges is not None:
 #             self.comms.foundSomething = True 
@@ -162,6 +172,17 @@ class TorpedoVision:
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
                 
         return scratchImgCol 
+    
+    def whiteBal(self, img):
+        channels = cv2.split(img)
+        channels[0] = cv2.equalizeHist(channels[0])
+        channels[1] = cv2.equalizeHist(channels[1])
+        img = cv2.merge(channels, img)
+        img = cv2.bilateralFilter(img, -1, 5, 0.1)
+        
+        # Morphological operations
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern, iterations=1)
     
     def updateParams(self):
         self.thresParams['lo'] = self.comms.params['loThreshold']

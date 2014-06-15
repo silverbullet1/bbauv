@@ -19,7 +19,7 @@ class RgbBuoyVision:
     redParams = {
                 'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
-                'lo3': (0, 200, 0), 'hi3': (8, 255, 255),       # Jin's values 
+                'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Jin's values 
                  'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
 
@@ -30,7 +30,7 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':10, 'maxRadius': 0 }
+    circleParams = {'minRadius':25, 'maxRadius': 0 }
     houghParams = {'param1': 80, 'param2': 15}
     allCentroidList = []
     allAreaList = []
@@ -62,9 +62,9 @@ class RgbBuoyVision:
         gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
         sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
         enhancedImg = cv2.medianBlur(sum, 3)
-        
+                
         # Find red image 
-        redImg = self.threshold(hsvImg, "RED")
+        redImg = self.threshold(enhancedImg, "RED")
         outImg = redImg
 
         return outImg
@@ -77,13 +77,13 @@ class RgbBuoyVision:
         #params = self.getParams(color)
         
         # Perform thresholding
-        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kern)
-        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
-        threshImg = cv2.dilate(mask, kern2, iterations=3)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kern)
+        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        threshImg = cv2.dilate(mask, kern2, iterations=2)
         
-#         return cv2.cvtColor(threshImg, cv2.COLOR_GRAY2BGR)
+#         return cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
         
         binImg = threshImg
         # Find contours

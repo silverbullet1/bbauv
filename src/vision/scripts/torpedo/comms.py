@@ -20,7 +20,7 @@ class Comms(FrontComms):
     
     isTesting = False
     isKilled = False
-    isAborted = False
+    isAborted = True
     isStart = False
     
     # Circle booleans
@@ -73,7 +73,7 @@ class Comms(FrontComms):
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
 
-            self.register()
+            self.registerMission()
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -85,7 +85,7 @@ class Comms(FrontComms):
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.isAborted=True
             self.isStart = False
-            self.unregister()
+            self.unregisterMission()
             
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,

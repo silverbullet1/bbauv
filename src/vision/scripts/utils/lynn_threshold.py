@@ -26,12 +26,12 @@ def rosimg2cv(ros_img):
 
 def onChange(data):
     global loThresh, hiThresh
-    loThresh[0] = cv2.getTrackbarPos("loH", "output")
-    hiThresh[0] = cv2.getTrackbarPos("hiH", "output")
-    loThresh[1] = cv2.getTrackbarPos("loS", "output")
-    hiThresh[1] = cv2.getTrackbarPos("hiS", "output")
-    loThresh[2] = cv2.getTrackbarPos("loV", "output")
-    hiThresh[2] = cv2.getTrackbarPos("hiV", "output")
+    loThresh[0] = cv2.getTrackbarPos("loH", "Trackbar")
+    hiThresh[0] = cv2.getTrackbarPos("hiH", "Trackbar")
+    loThresh[1] = cv2.getTrackbarPos("loS", "Trackbar")
+    hiThresh[1] = cv2.getTrackbarPos("hiS", "Trackbar")
+    loThresh[2] = cv2.getTrackbarPos("loV", "Trackbar")
+    hiThresh[2] = cv2.getTrackbarPos("hiV", "Trackbar")
 
 
 
@@ -40,6 +40,7 @@ def camCallback(rosImg):
     global loThresh, hiThresh
     rawImg = rosimg2cv(rosImg)
     rawImg = cv2.resize(rawImg, (320, 250))
+    
     threshImg = cv2.inRange(rawImg, loThresh, hiThresh)
     threshImg = cv2.cvtColor(threshImg, cv2.COLOR_GRAY2BGR)
 
@@ -53,12 +54,13 @@ def main():
         return
 
     cv2.namedWindow("output")
-    cv2.createTrackbar("loH", "output", 0, 180, onChange)
-    cv2.createTrackbar("hiH", "output", 0, 180, onChange)
-    cv2.createTrackbar("loS", "output", 0, 255, onChange)
-    cv2.createTrackbar("hiS", "output", 0, 255, onChange)
-    cv2.createTrackbar("loV", "output", 0, 255, onChange)
-    cv2.createTrackbar("hiV", "output", 0, 255, onChange)
+    cv2.namedWindow("Trackbar")
+    cv2.createTrackbar("loH", "Trackbar", 0, 180, onChange)
+    cv2.createTrackbar("hiH", "Trackbar", 0, 180, onChange)
+    cv2.createTrackbar("loS", "Trackbar", 0, 255, onChange)
+    cv2.createTrackbar("hiS", "Trackbar", 0, 255, onChange)
+    cv2.createTrackbar("loV", "Trackbar", 0, 255, onChange)
+    cv2.createTrackbar("hiV", "Trackbar", 0, 255, onChange)
 
     rospy.Subscriber(sys.argv[1], Image, camCallback)
 

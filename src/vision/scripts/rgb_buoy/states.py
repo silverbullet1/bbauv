@@ -80,7 +80,7 @@ class Search(smach.State):
 class bangBuoy(smach.State):
     deltaXMult = 4.0
     deltaYMult = 0.2
-    area = 8000
+    area = 6500
     count = 0
 
     def __init__(self, comms):
@@ -122,7 +122,7 @@ class Centering (smach.State):
     count = 0
     depthCorrected = False 
     
-    bigArea = 15000
+    bigArea = 12000
     changeMultArea = 10000
     
     def __init__(self, comms):
