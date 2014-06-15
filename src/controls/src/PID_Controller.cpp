@@ -66,6 +66,8 @@ void callback(PID_Controller::PID_ControllerConfig &config, uint32_t level);
 double getHeadingPIDUpdate();
 
 //Need to change these two functions for new configuration
+float computeVelSideOffset();
+float computeVelFwdOffset();
 void setHorizThrustSpeed(double headingPID_output,double forwardPID_output,double sidemovePID_output);
 void setVertThrustSpeed(double depthPID_output,double pitchPID_output,double rollPID_output);
 double fmap(int input, int in_min, int in_max, int out_min, int out_max);
@@ -156,12 +158,10 @@ bool controller_srv_handler(bbauv_msgs::set_controller::Request  &req,
   inPitchPID = req.pitch;
   inRollPID = req.roll;
   inTopside = req.topside;
-  if(inForwardVelPID)
-  {
-    ROS_INFO("forward vel enabled");
-    inForwardVelPID = req.forward_vel;
-  }
+  inForwardVelPID = req.forward_vel;
   inSidemoveVelPID = req.sidemove_vel;
+
+
   inNavigation = req.navigation;
   res.complete = true;
   return true;
@@ -283,7 +283,8 @@ int main(int argc, char **argv)
 
 		if(inForwardVelPID)
 		{
-		  forwardVelPID_output = forwardPID.computePID(ctrl.forward_vel_setpoint,ctrl.forward_vel_input);
+		  forwardVelPID_output = forwardVelPID.computePID(ctrl.forward_vel_setpoint,ctrl.forward_vel_input) + computeVelFwdOffset();
+                  ROS_INFO("forward PID: %3.2f",forwardVelPID_output);
 		}else
                 {
                         forwardVelPID_output = 0;
@@ -292,7 +293,7 @@ int main(int argc, char **argv)
 
 		if(inSidemoveVelPID)
 		{
-		  sidemoveVelPID_output = sidemoveVelPID.computePID(ctrl.sidemove_vel_setpoint,ctrl.sidemove_vel_input);
+		  sidemoveVelPID_output = sidemoveVelPID.computePID(ctrl.sidemove_vel_setpoint,ctrl.sidemove_vel_input) + computeVelSideOffset();
 		}else
                 {
                         sidemoveVelPID_output = 0;
@@ -325,9 +326,15 @@ int main(int argc, char **argv)
 			rollPID_output = 0;
 			rollPID.clearIntegrator();
 		}
-		
+		float fwd_output,side_output;
 		//need to modify these two lines
-		setHorizThrustSpeed(headingPID_output,forwardPIDoutput,sidemovePID_output);
+		if(inForwardVelPID) fwd_output = forwardVelPID_output;
+		else fwd_output = forwardPIDoutput;
+		
+		if(inSidemoveVelPID) side_output = sidemoveVelPID_output;
+		else side_output = sidemovePID_output;
+
+		setHorizThrustSpeed(headingPID_output,fwd_output,side_output);
 		setVertThrustSpeed(depthPID_output,pitchPID_output,rollPID_output);
 
 		float fwd,side;
@@ -338,11 +345,10 @@ int main(int argc, char **argv)
 			ctrl.sidemove_setpoint = as.getSidemove();
 			ctrl.heading_setpoint = as.getHeading();
 			ctrl.depth_setpoint = as.getDepth();
-			if(inForwardVelPID)     fwd = ctrl.forward_vel_input;
-			else fwd = ctrl.forward_input;
-			if(inSidemoveVelPID)    side = ctrl.sidemove_vel_input;
-			else side = ctrl.sidemove_input;
-			as.updateState(fwd,side,ctrl.heading_input,ctrl.depth_input);
+			ctrl.forward_vel_setpoint = as.getForwardVel();
+			ctrl.sidemove_vel_setpoint = as.getSidemoveVel();
+			as.setDispMode(inSidemoveVelPID,inForwardVelPID);
+			as.updateState(ctrl.forward_input,ctrl.sidemove_input,ctrl.forward_vel_input,ctrl.sidemove_vel_input,ctrl.heading_input,ctrl.depth_input);
 		}
 
 		controllerPub.publish(ctrl);
@@ -457,7 +463,20 @@ double fmap(int input, int in_min, int in_max, int out_min, int out_max){
   return (input- in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+float computeVelFwdOffset()
+{
+  float val;
+  val =  1731.56485*ctrl.forward_vel_setpoint - 383.26843;
 
+  if(ctrl.forward_vel_setpoint > 0 && val  < 0) return 25;
+  else return val;
+
+}
+
+float computeVelSideOffset()
+{
+  return 0;
+}
 //no longer in use
 void collectTeleop(const bbauv_msgs::thruster &msg)
 {
