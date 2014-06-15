@@ -2,6 +2,10 @@ import vision.cfg.laneConfig as laneConfig
 import vision.cfg.binsConfig as binsConfig
 import vision.cfg.pickupConfig as pickupConfig
 
+import vision.cfg.pegsConfig as pegsConfig
+import vision.cfg.rgbConfig as rgbConfig
+import vision.cfg.torpedoConfig as torpedoConfig
+
 botCamTopic = '/bot_camera/camera/image_raw'
 frontCamTopic = '/front_camera/camera/image_raw'
 botCamLocalTopic = '/bottomcam/camera/image_rect_color'

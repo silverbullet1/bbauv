@@ -37,7 +37,7 @@ class TestGate(smach.State):
         return 'pass'
 
 class State(smach.State):
-    transitions = {'pass': 'pass', 'fail': 'fail'}
+    transitions = {'pass': 'Lane', 'fail': 'fail'}
     outcomes = ['pass', 'fail']
 
     def __init__(self, world):

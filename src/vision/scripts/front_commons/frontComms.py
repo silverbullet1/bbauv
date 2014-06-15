@@ -10,7 +10,8 @@ import time
 import numpy as np
 
 from sensor_msgs.msg import Image
-from bbauv_msgs.msg import compass_data, ControllerAction, ControllerGoal
+from bbauv_msgs.msg import compass_data, \
+        ControllerAction, ControllerGoal, controller
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -31,7 +32,7 @@ class FrontComms:
         
         # Flags 
         self.canPublish = False    #Flag for using non-publishing to ROS when testing with images 
-        self.isAborted = False
+        self.isAborted = True
         self.isKilled = False
         
         #Initialize vision Filter
@@ -51,22 +52,29 @@ class FrontComms:
         except:
             rospy.loginfo("Locomotion server timeout!")
             self.isKilled = True
-            
-        setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-        setServer(forward = True, sidemove = True, heading = True, depth = True,
-                  pitch = True, roll = True, topside = False, navigation = False)
         
-        #Run if in alone mode 
+        # Run if is alone mode
         if self.isAlone:
+            setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            setServer(forward = True, sidemove = True, heading = True, depth = True,
+                      pitch = True, roll = True, topside = False, navigation = False)
+
             self.isAborted = False
             self.canPublish = True       
         
     def register(self):
+        rospy.loginfo("Register")
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
         self.compassSub = rospy.Subscriber(config.compassTopic,
                                            compass_data,
                                            self.compassCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
+
+    def registerMission(self):
+        rospy.loginfo("Register with mission")
+        self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
+        self.outPub = rospy.Publisher(config.visionFilterTopic, Image)     
+        rospy.loginfo("Registered finish")          
         
     def unregister(self):
         if self.camSub is not None:
@@ -75,18 +83,30 @@ class FrontComms:
             self.compassSub.unregister()
         self.canPublish = False 
     
+    def unregisterMission(self):
+        if self.camSub is not None:
+            self.camSub.unregister()
+        self.canPublish = False 
+
     def camCallback(self, rosImg):
         outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
-            self.outPub.publish(Utils.cv2rosimg(outImg))
+            try:
+                self.outPub.publish(Utils.cv2rosimg(outImg))
+            except Exception, e:
+                pass
             
     def compassCallback(self, data):
         if not self.gotHeading:
             self.curHeading = data.yaw
             self.gotHeading = True
+            rospy.loginfo("Heading: {}".format(self.curHeading))
     
     def userQuit(self, signal, frame):
-        self.unregister()
+        if self.isAlone:
+            self.unregister()
+        else:
+            self.unregisterMission()
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")
@@ -97,23 +117,33 @@ class FrontComms:
             self.toMission(fail_request=True, task_complete_request=False,
                            task_complete_ctrl=controller(
                             heading_setpoint=self.curHeading))
+            self.unregisterMission()
+        else:
+            self.unregister()
         self.canPublish = False
         self.isAborted = True
         self.sendMovement(forward=0.0, sidemove=0.0)
+        rospy.signal_shutdown("Bye")
         
     def taskComplete(self):
         rospy.loginfo("Yay! Task Complete!")
         if not self.isAlone:
             self.toMission(fail_request=False, task_complete_request=True,
                            task_complete_ctrl=controller(
-                                heading_setpoint=self.curHeading))
+                               heading_setpoint=self.curHeading))
+            rospy.loginfo("Sent to mission")
+            self.unregisterMission()
+        else:
+            self.unregister()
         self.canPublish = False
         self.isAborted = True
+        self.isKilled = True
         self.sendMovement(forward=0.0, sidemove=0.0)
+        rospy.signal_shutdown("Bye")
     
     def sendMovement(self, forward=0.0, sidemove=0.0,
                      heading=None, depth=None,
-                     timeout=0.2, blocking=False):
+                     timeout=0.5, blocking=False):
         
         depth = depth if depth else self.defaultDepth
         heading = heading if heading else self.curHeading

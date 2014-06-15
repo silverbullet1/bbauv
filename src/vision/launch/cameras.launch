@@ -4,7 +4,7 @@
   <arg name="camera" default="front" />
   <arg name="camera2" default="bot" />
   
-  <node pkg="camera1394" type="camera1394_node" name="bot_camera" ns="bot_camera">
+  <node pkg="camera1394" type="camera1394_node" name="bot_camera" ns="bottomcam">
     <rosparam file="$(find vision)/launch/$(arg camera2).yaml" />
 	<param name="frame_rate" value="15"/>
 	<param name="iso_speed" value="400"/>
@@ -15,7 +15,7 @@
 	
   </node>
   
-    <node pkg="camera1394" type="camera1394_node" name="front_camera" ns="front_camera">
+    <node pkg="camera1394" type="camera1394_node" name="front_camera" ns="frontcam">
     <rosparam file="$(find vision)/launch/$(arg camera).yaml" />
 	<param name="frame_rate" value="15"/>
 	<param name="iso_speed" value="400"/>
@@ -27,9 +27,9 @@
 	<param name="shutter" value="123"/>
   </node>
   
-  <node pkg="image_proc" type="image_proc" name="front_camera_image_proc" ns="front_camera/camera">
+  <node pkg="image_proc" type="image_proc" name="front_camera_image_proc" ns="bottomcam/camera">
   </node>
-  <node pkg="image_proc" type="image_proc" name="bot_camera_image_proc" ns="bot_camera/camera">
+  <node pkg="image_proc" type="image_proc" name="bot_camera_image_proc" ns="frontcam/camera">
   </node>
   
 </launch>

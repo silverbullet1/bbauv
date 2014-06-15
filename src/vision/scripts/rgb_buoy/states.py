@@ -17,6 +17,7 @@ from bbauv_msgs.srv import *
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server
+from front_commons.frontCommsVision import FrontCommsVision as vision
 
 #Globals
 locomotionGoal = None
@@ -32,19 +33,23 @@ class Disengage(smach.State):
             if self.comms.isKilled:
                 return 'killed'
             rospy.sleep(rospy.Duration(0.3))
-        
+
         if self.comms.isAlone:
-            self.comms.inputHeading = self.comms.curHeading
             self.comms.register()
+            rospy.sleep(rospy.Duration(0.8))
+            self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting RGB")
-        self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                heading=self.comms.inputHeading,
-                                blocking=True)
         
+            rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
+            self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                    heading=self.comms.inputHeading,
+                                    blocking=True)
+        self.comms.taskComplete()
+
         return 'start_complete'
     
 class Search(smach.State):
-    timeout = 1000
+    timeout = 300
     moveOnce = 0
     
     def __init__(self, comms):
@@ -61,82 +66,21 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search pattern
-            if self.moveOnce < 10:
-                self.comms.sendMovement(forward=0.2, sidemove=0.2, blocking=False)
-            else:
-                self.comms.sendMovement(forward=0.2, sidemove=-0.2, blocking=False)        
+            self.comms.sendMovement(forward=0.2)
+#             if self.moveOnce < 10:
+#                 self.comms.sendMovement(forward=0.2, sidemove=0.2, blocking=False)
+#             else:
+#                 self.comms.sendMovement(forward=0.2, sidemove=-0.2, blocking=False)        
             
             rospy.sleep(rospy.Duration(0.3))
         
         return 'search_complete'
-        
-# Precise movements when near buoy 
-class Centering (smach.State):
-    deltaXMult = 3.0
-    deltaYMult = 0.4
-    depthCount = 0
-    count = 0
-    depthCorrected = False 
-    
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
-        self.comms = comms
-    
-    def execute(self, userdata):
-        self.comms.isCentering = True
 
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
-        
-        rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
-        rospy.loginfo("Delta Y: {}".format(self.comms.deltaY))
-
-        if self.comms.rectArea > 10000:
-            self.deltaXMult = 1.5
-
-        if self.count > 50:
-            rospy.loginfo("Banging")
-            self.comms.sendMovement(forward=2.0, blocking=True)   # Shoot forward
-
-        if self.comms.rectArea > 15000:
-            self.comms.sendMovement(forward=2.5, blocking=True)   # Shoot forward
-            self.comms.sendMovement(forward=-1.5, blocking=True)  # Reverse a bit
-            self.comms.isAborted = True
-            self.comms.isKilled = True 
-            return 'centering_complete'
-        
-#         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
-#             self.count = self.count + 1
-#             rospy.loginfo("Count: {}".format(self.count))
-
-        if vision.centroidInCenterRect(self.comms.centroidToBump[0], self.comms.centroidToBump[1]):
-            self.count = self.count + 1
-            rospy.loginfo("Count: {}".format(self.count))
-        
-        # Correct for depth
-        if self.depthCount < 8 and abs(self.comms.deltaY) > 0.010:
-#         if not self.depthCorrected and abs(self.comms.deltaY) > 0.010:
-            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
-            # Make sure it doesnt surface
-            if self.comms.defaultDepth < 0.1:
-                self.comms.defaultDepth = 0.1
-            self.comms.sendMovement(depth=self.comms.defaultDepth, blocking=True)
-            self.depthCount = self.depthCount + 1
-            rospy.loginfo("Depth corrected {}".format(self.depthCount))
-            self.depthCorrected = True 
-            # pixel radius of buoy seen / screen width * 2 * real radius of bouy * dy / screen width
-
-        self.comms.sendMovement(sidemove=self.comms.deltaX*self.deltaXMult, 
-                                timeout=0.4, blocking=False)
-
-        return 'centering'
-
-# For bump
+# I'm just moving forward
 class bangBuoy(smach.State):
-    deltaXMult = 5.0
-    area = 6000
+    deltaXMult = 4.0
+    deltaYMult = 0.2
+    area = 6500
     count = 0
 
     def __init__(self, comms):
@@ -150,16 +94,104 @@ class bangBuoy(smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        if self.count > 100:           
+        if self.count > 20:           
             return 'bang_to_center'
         
         if self.comms.rectArea > self.area: 
             self.count = self.count + 1
   
+        if abs(self.comms.deltaY) > 0.10:
+            if self.comms.rectArea > 2000:
+                self.deltaYMult = 0.05
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            # Make sure it doesnt surface
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 2.0
+  
         # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.3, sidemove=self.comms.deltaX*self.deltaXMult,
+        self.comms.sendMovement(forward=0.35, sidemove=self.comms.deltaX*self.deltaXMult,
+                                depth=self.comms.defaultDepth,
                                 blocking=False)
         return 'banging'
+
+# Precise movements when near buoy 
+class Centering (smach.State):
+    deltaXMult = 3.0
+    deltaYMult = 0.2
+    depthCount = 0
+    count = 0
+    depthCorrected = False 
+    
+    bigArea = 12000
+    changeMultArea = 10000
+    
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
+        self.comms = comms
+    
+    def execute(self, userdata):
+        self.comms.isCentering = True
+
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
+        
+        # rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
+        # rospy.loginfo("Delta Y: {}".format(self.comms.deltaY))
+
+        if self.comms.rectArea > self.changeMultArea:
+            self.deltaXMult = 1.5
+
+#         if self.count > 50:
+#             rospy.loginfo("Banging")
+#             self.comms.sendMovement(forward=2.0, blocking=False)   # Shoot forward
+
+        if self.comms.rectArea > self.bigArea:
+            self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+            rospy.loginfo("forward done")
+            self.comms.sendMovement(forward=-1.5, timeout=3, blocking=False)  # Reverse a bit
+            self.comms.isAborted = True
+            self.comms.isKilled = True 
+            rospy.sleep(duration=3)
+            #self.comms.taskComplete()
+            self.comms.abortMission()
+            return 'centering_complete'
+        
+#         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
+#             self.count = self.count + 1
+#             rospy.loginfo("Count: {}".format(self.count))
+
+#         if vision.centroidInCenterRect(self.comms.centroidToBump[0], self.comms.centroidToBump[1]):
+#             self.count = self.count + 1
+#             rospy.loginfo("Count: {}".format(self.count))
+        
+        # Correct for depth
+#         if self.depthCount < 10 and abs(self.comms.deltaY) > 0.010:
+#        if not self.depthCorrected and abs(self.comms.deltaY) > 0.010:
+#             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+#             # Make sure it doesnt surface
+#             if self.comms.defaultDepth < 0.1:
+#                 self.comms.defaultDepth = 0.1
+#             self.comms.sendMovement(depth=self.comms.defaultDepth, blocking=True)
+#             self.depthCount = self.depthCount + 1
+#             rospy.loginfo("Depth corrected {}".format(self.depthCount))
+#             self.depthCorrected = True 
+            # pixel radius of buoy seen / screen width * 2 * real radius of bouy * dy / screen width
+
+        if abs(self.comms.deltaY) > 0.010:
+            if self.comms.rectArea > 9000:
+                self.deltaYMult = 0.05
+            self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = 2.0
+
+        self.comms.sendMovement(forward=0.1,
+                                sidemove=self.comms.deltaX*self.deltaXMult, 
+                                depth=self.comms.defaultDepth, 
+                                timeout=0.4, blocking=False)
+
+        return 'centering'
 
 def main():
     rospy.init_node('rgb_buoy_node', anonymous=False)

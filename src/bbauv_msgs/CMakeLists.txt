@@ -69,6 +69,7 @@ add_message_files(
   wheel_task_pose.msg
   sonarData.msg
   sonarDataVector.msg
+  pingData.msg
 
   ##Old msg files end
   cpu_temperature.msg

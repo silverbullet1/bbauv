@@ -21,6 +21,10 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         self.comms.register()
+        if self.comms.isAlone:
+            rospy.sleep(rospy.Duration(1))
+            self.comms.inputHeading = self.comms.curHeading
+        self.comms.sendMovement(d=self.comms.inputHeading)
         return 'started'
 
 class Search(smach.State):
@@ -52,8 +56,11 @@ class Center(smach.State):
 
     maxdx = 0.03
     maxdy = 0.03
-    xcoeff = 2.0
-    ycoeff = 1.5
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 2
+    trialPassed = 0
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -81,12 +88,18 @@ class Center(smach.State):
         dy = (closest[1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
-                                    blocking=False)
-            return 'centering'
+            self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
+            if self.trialPassed == self.numTrials:
+                self.trialPassed = 0
+                return 'centered'
+            else:
+                self.trialPassed += 1
+                return 'centering'
 
-        self.comms.sendMovement(f=0.0, sm=0.0)
-        return 'centered'
+
+        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                blocking=False)
+        return 'centering'
 
 class Approach(smach.State):
     def __init__(self, comms):
@@ -104,6 +117,59 @@ class Approach(smach.State):
         self.comms.sendMovement(d=self.comms.sinkingDepth, blocking=True)
 
         return 'completed'
+
+class Center2(smach.State):
+    width = PickupVision.screen['width']
+    height = PickupVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    maxdx = 0.03
+    maxdy = 0.03
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.retVal['centroids']) < 1:
+            return 'lost'
+
+        centroids = self.comms.retVal['centroids']
+        closest = min(centroids,
+                      key=lambda c:
+                      Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
+
+        dx = (closest[0] - self.centerX) / self.width
+        dy = (closest[1] - self.centerY) / self.height
+
+        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
+            self.comms.sendMovement(f=0.0, sm=0.0,
+                                    d=self.comms.sinkingDepth,
+                                    blocking=True)
+            if self.trialPassed == self.numTrials:
+                self.trialPassed = 0
+                return 'centered'
+            else:
+                self.trialPassed += 1
+                return 'centering'
+
+
+        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                d=self.comms.sinkingDepth,
+                                blocking=False)
+        return 'centering'
 
 class Grab(smach.State):
     def __init__(self, comms):
@@ -135,9 +201,40 @@ class Surface(smach.State):
 
         return 'completed'
 
+class Navigate(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        #TODO: Navigate to the collection site
+
+        return 'completed'
+
+class Drop(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        self.comms.drop()
+        self.comms.taskComplete()
+
+        return 'completed'
+
 
 def main():
-    rospy.init_node('pickup_node')
+    rospy.init_node('pickup')
     myCom = Comms()    
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
@@ -163,12 +260,26 @@ def main():
                                             'approaching':'APPROACH',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTER2',
+                               Center2(myCom),
+                               transitions={'centered':'GRAB',
+                                            'centering':'CENTER2',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
         smach.StateMachine.add('GRAB',
                                Grab(myCom),
                                transitions={'grabbed':'SURFACE',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('SURFACE',
                                Surface(myCom),
+                               transitions={'completed':'NAVIGATE',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('NAVIGATE',
+                               Navigate(myCom),
+                               transitions={'completed':'DROP',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('DROP',
+                               Drop(myCom),
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 

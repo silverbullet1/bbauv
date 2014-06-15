@@ -4,21 +4,23 @@
 Communication b/w ROS class and submodules
 '''
 
+import roslib; roslib.load_manifest('vision')
 import rospy
 from front_commons.frontComms import FrontComms
 from vision import TorpedoVision
 
-from bbauv_msgs.msg import controller
+from bbauv_msgs.msg import controller, sonarData
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
-from utils.config import torpedoConfig as Config
+from dynamic_reconfigure.server import Server as DynServer
+# from utils.config import torpedoConfig as Config
 
 class Comms(FrontComms):
     
     isTesting = False
     isKilled = False
-    isAborted = False
+    isAborted = True
     isStart = False
     
     # Circle booleans
@@ -29,8 +31,6 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = None
-    medianCentroid = []
-    medianRadius = []
     
     # Movement parameters
     radius = None
@@ -64,8 +64,16 @@ class Comms(FrontComms):
             rospy.loginfo("Torpedo starting")
             self.isStart = True
             self.isAborted = False
+            self.canPublish = True
+
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
+            self.curHeading = self.inputHeading
+
+            rospy.loginfo("Received depth: {}".format(self.defaultDepth))
+            rospy.loginfo("Received heading: {}".format(self.inputHeading))
+
+            self.registerMission()
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -77,7 +85,7 @@ class Comms(FrontComms):
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.isAborted=True
             self.isStart = False
-            self.unregister()
+            self.unregisterMission()
             
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
@@ -102,6 +110,18 @@ class Comms(FrontComms):
                        'minContourArea': config.minContourArea }
         self.visionFilter.updateParams()
         return config
+    
+    def registerSonar(self):
+        self.sonarBearing = None
+        self.sonarDist = None 
+        self.sonarSub = rospy.Subscriber("/sonarData", sonarData, self.sonarDataCallback)
+    
+    def sonarDataCallback(self, data):
+        self.sonarBearing = data.bearing
+        self.sonarDist = data.range
+        
+    def unregisterSonar(self):
+        self.sonarSub.unregister()
     
 def main():
     pass

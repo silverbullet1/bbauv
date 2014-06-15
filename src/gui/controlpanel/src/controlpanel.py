@@ -6,7 +6,7 @@ import os
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
-import pynotify
+#import pynotify
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
@@ -514,12 +514,12 @@ class AUV_gui(QMainWindow):
         self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / self.update_freq)
 
-        if not pynotify.init("Basics"):
-             sys.exit(1)
+        #if not pynotify.init("Basics"):
+        #     sys.exit(1)
 
-        n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
-        if not n.show():
-             print "Failed to send notification"
+        #n = pynotify.Notification("Welcome", "Welcome to Bumblebee AUV Systems Control Panel!")
+        #if not n.show():
+        #     print "Failed to send notification"
 
     def on_timer(self):
         yaw = None
@@ -565,10 +565,14 @@ class AUV_gui(QMainWindow):
             self.q_mode = Queue.Queue()
         except Exception,e:
             pass
+        
         try:
             openups1 = self.q_openups1.get(False,0)
-            openups2 = self.q_openups2.get(False, 0)
             self.q_openups1 = Queue.Queue()
+        except Exception, e:
+            pass
+        try:
+            openups2 = self.q_openups2.get(False, 0)
             self.q_openups2 = Queue.Queue()
         except Exception,e:
             pass
@@ -627,7 +631,7 @@ class AUV_gui(QMainWindow):
 
         '''If data in queue is available store it into data'''
         if temp!= None:
-            self.data['temp'] = temp.data
+            self.data['temp'] = temp
         if altitude!= None:
             self.data['altitude'] = altitude.data
         if manipulators != None:
@@ -722,24 +726,24 @@ class AUV_gui(QMainWindow):
 
         mani_name = ["","","","","","",""]
         if self.data['manipulators'].mani_data & 1:
-            mani_name[0] = "OPEN"
+            mani_name[0] = "NONE"
         else:
-            mani_name[0] = "CLOSED"
+            mani_name[0] = "FIRED"
 
         if self.data['manipulators'].mani_data & 2:
-            mani_name[1] = "OPEN"
+            mani_name[1] = "NONE"
         else:
-            mani_name[1] = "CLOSED"
+            mani_name[1] = "FIRED"
 
         if self.data['manipulators'].mani_data & 4:
-            mani_name[2] = "FIRED"
+            mani_name[2] = "CLOSED"
         else:
-            mani_name[2] = "NONE"
+            mani_name[2] = "OPENED"
 
         if self.data['manipulators'].mani_data & 8:
-            mani_name[3] = "FIRED"
+            mani_name[3] = "OPENED"
         else:
-            mani_name[3] = "NONE"
+            mani_name[3] = "CLOSED"
 
         if self.data['manipulators'].mani_data & 16:
             mani_name[4] = "CLOSED"
@@ -755,49 +759,50 @@ class AUV_gui(QMainWindow):
             mani_name[6] = "TRUE"
         else:
             mani_name[6] = "FALSE"
+            
+        self.saPanel3.setText("<b>Grabber: " + mani_name[2]+"</b>")
+        
+        battery_notification1 = ""
+        battery_notification2 = ""
+        if self.data['openups1'].battery_percentage < 22.5:
+            battery_notification1 = "BATTERY 1 DYING!"
+        if self.data['openups2'].battery_percentage < 22.5:
+            battery_notification2 = "BATTERY 2 DYING!"
+        self.saPanel4.setText("LYNNETTE IS AWESOME" + 
+                              "<b><br>" + battery_notification1 + 
+                              "<br>" + battery_notification2 + 
+                              "</b>") 
 
-        self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
-                              "<br>Top Tor: " + mani_name[1] +
-                              "<br>Grabber: " + mani_name[2] +
-                              "<br>Dropper: " + mani_name[3] +
-                              "</b>")
-
-        self.saPanel4.setText("<b>: " + mani_name[4] +
-                              "<br>: " + mani_name[5] +
-                              "<br>: " + mani_name[6] +
-                              "</b>")
+#         self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
+#                               "<br>Top Tor: " + mani_name[1] +
+#                               "<br>Grabber: " + mani_name[2] +
+#                               "<br>Dropper: " + mani_name[3] +
+#                               "</b>")
+# 
+#         self.saPanel4.setText("<b>: " + mani_name[4] +
+#                               "<br>: " + mani_name[5] +
+#                               "<br>: " + mani_name[6] +
+#                               "</b>")
 
         if (self.data['hull_status'].WaterDetA or self.data['hull_status'].WaterDetB
             or self.data['hull_status'].WaterDetC) and not self.isLeak:
-            n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
-            if not n.show():
-                print "Failed to send notification"
+            #n = pynotify.Notification("Leak Alert", "Water ingression in vehicle detected.\n Recover Vehicle NOW!!")
+            #if not n.show():
+            #    print "Failed to send notification"
             self.isLeak = True
         else:
             self.isLeak = False
 
-        battery_notification1 = ""
-        battery_notification2 = ""
-        if self.data['openups1'].battery_percentage < 15.0:
-            battery_notification1 = "BATTERY DYING!"
-        if self.data['openups2'].battery_percentage < 15.0:
-            battery_notification2 = "BATTERY DYING!"
-
-
         self.oPanel1.setText("<b>VOLT1: " + str(round(self.data['openups1'].cell6,2)) +
                               "<br>CUR1: " + str(round(self.data['openups1'].current,3)) +
-                              "<br>CAP1: " + str(round(self.data['openups1'].battery_percentage,2)) +
-                              "<br> " + battery_notification1 +
-                              #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
-                              # str(self.data['openups'].current1 +
+                              "<br>%: " + str(round(self.data['openups1'].battery_percentage,2)) +
+                              "<br>USE: " + str(round(self.data['openups1'].used_mAh,2)) + 
                               "</b>")
 
         self.oPanel2.setText("<b>VOLT2: " + str(round(self.data['openups2'].cell6,2)) +
                               "<br>CUR2: " + str(round(self.data['openups2'].current,3)) +
-                              "<br>CAP2: " + str(round(self.data['openups2'].battery_percentage,2)) +
-                              "<br> " + battery_notification2 +
-                              #"&nbsp;&nbsp;&nbsp;&nbsp; CURR1: " +
-                              # str(self.data['openups'].current1 +
+                              "<br>%: " + str(round(self.data['openups2'].battery_percentage,2)) +
+                              "<br>USE: " + str(round(self.data['openups2'].used_mAh,2)) + 
                               "</b>")
 
         self.lPanel1.setText("<b>HU LEAK1: " + str(self.data['hull_status'].WaterDetA) +
@@ -869,7 +874,7 @@ class AUV_gui(QMainWindow):
         self.hull_status_sub.unregister()
         self.openups_sub1.unregister()
         self.openups_sub2.unregister()
-        self.temp_sub.unregister()
+        #self.temp_sub.unregister()
         self.altitude_sub.unregister()
         self.mode_sub.unregister()
 
@@ -893,7 +898,7 @@ class AUV_gui(QMainWindow):
         self.hull_status_sub = rospy.Subscriber("/hull_status", hull_status, self.hull_status_callback)
         self.openups_sub1 = rospy.Subscriber("/battery1_status", Battery, self.openups_callback1)
         self.openups_sub2 = rospy.Subscriber("/battery2_status", Battery, self.openups_callback2)
-        self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
+        #self.temp_sub = rospy.Subscriber("/AHRS8_Temp",Float32,self.temp_callback)
         self.altitude_sub =  rospy.Subscriber("/altitude",Float32,self.altitude_callback)
         self.mode_sub = rospy.Subscriber("/locomotion_mode",Int8,self.mode_callback)
         self.cputemp_sub = rospy.Subscriber("/CPU_TEMP", cpu_temperature, self.cpu_callback)
@@ -1030,7 +1035,9 @@ class AUV_gui(QMainWindow):
         if self.pitch_chkbox.checkState():
             pitch = True
 #         resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
-        resp = self.set_controller_request(True, True, True, True, True, False, False, False)
+        resp = self.set_controller_request(True, True, True, True, 
+                                           True, False, False, False, 
+                                           False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
         goal.sidemove_setpoint = 0
@@ -1071,8 +1078,7 @@ class AUV_gui(QMainWindow):
         if self.sm_vel_chk.checkState() and not fwd_vel:
             sm_vel = True
         resp = self.set_controller_request(True, True, True, True, pitch, roll,
-                                           fwd_vel, sm_vel,
-                                           False,False)
+                                           fwd_vel, sm_vel, False,False)
         goal = ControllerGoal
         # Forward
         if self.forward_box.text() == "":
@@ -1292,6 +1298,7 @@ class AUV_gui(QMainWindow):
     def thruster_callback(self,thruster):
         self.q_thruster.put(thruster)
     def orientation_callback(self,msg):
+        self.q_temp.put(msg.temperature)
         self.q_orientation.put(msg)
 
     def cpu_callback(self, msg):

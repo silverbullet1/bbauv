@@ -51,10 +51,11 @@ class Disengage(smach.State):
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(0.5))
 
         self.comms.register()
         if self.comms.isAlone:
+            rospy.sleep(rospy.Duration(1))
             self.comms.inputHeading = self.comms.curHeading
         self.comms.sendMovement(d=self.comms.defaultDepth,
                                 h=self.comms.inputHeading,
@@ -103,12 +104,14 @@ class Search(smach.State):
                     self.comms.abortMission()
                     return 'aborted'
 
-                self.comms.sendMovement(f=2.0, sm=0.0,
-                                        h=self.comms.inputHeading,
-                                        blocking=False)
+                rospy.sleep(rospy.Duration(0.3))
+                #self.comms.sendMovement(f=2.0, sm=0.0,
+                #                        h=self.comms.inputHeading,
+                #                        blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
+        self.comms.searchComplete()
         return 'foundLanes'
 
 class Stablize(smach.State):
@@ -120,7 +123,7 @@ class Stablize(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
-    numTrials = 2
+    numTrials = 1
     trialsPassed = 0
 
     def __init__(self, comms):
@@ -168,7 +171,7 @@ class Align(smach.State):
                                              'lost',
                                              'aborted'])
         self.comms = comms
-        self.angleSampler = MedianFilter(sampleWindow=50)
+        self.angleSampler = MedianFilter(sampleWindow=30)
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
@@ -181,21 +184,18 @@ class Align(smach.State):
 
         lines = self.comms.retVal['foundLines']
         if len(lines) == 1 or self.comms.expectedLanes == 1:
-            if Utils.angleDif(lines[0]['angle'], lines[0]['testAngle']) < 5:
-                self.angleSampler.newSample(lines[0]['angle'])
-                rospy.loginfo(Utils.normAngle(
-                    Utils.toHeadingSpace(lines[0]['angle'])))
+            self.angleSampler.newSample(lines[0]['angle'])
+            rospy.loginfo(Utils.normAngle(
+                Utils.toHeadingSpace(lines[0]['angle'])))
         elif len(lines) >= 2:
             if self.comms.chosenLane == self.comms.LEFT:
-                if Utils.angleDif(lines[0]['angle'], lines[0]['testAngle']) < 5:
-                    self.angleSampler.newSample(lines[0]['angle'])
-                    rospy.loginfo(Utils.normAngle(
-                        Utils.toHeadingSpace(lines[0]['angle'])))
+                self.angleSampler.newSample(lines[0]['angle'])
+                #rospy.loginfo(Utils.normAngle(
+                #    Utils.toHeadingSpace(lines[0]['angle'])))
             elif self.comms.chosenLane == self.comms.RIGHT:
-                if Utils.angleDif(lines[1]['angle'], lines[1]['testAngle']) < 5:
-                    self.angleSampler.newSample(lines[1]['angle'])
-                    rospy.loginfo(Utils.normAngle(
-                        Utils.toHeadingSpace(lines[1]['angle'])))
+                self.angleSampler.newSample(lines[1]['angle'])
+                #rospy.loginfo(Utils.normAngle(
+                #    Utils.toHeadingSpace(lines[1]['angle'])))
             else:
                 rospy.loginfo("Something goes wrong with chosenLane")
 
@@ -222,7 +222,7 @@ class Center(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
-    numTrials = 2
+    numTrials = 1
     trialsPassed = 0
 
     def __init__(self, comms):

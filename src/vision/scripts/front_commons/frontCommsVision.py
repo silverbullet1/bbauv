@@ -73,3 +73,61 @@ class FrontCommsVision():
             return True
         else:
             return False       
+    
+    # Normalise image
+    @staticmethod
+    def normaliseImg(img):
+        channel = cv2.split(img)
+        cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
+        cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
+        return cv2.merge(channel, img)
+
+    # Capult from Jin
+    @staticmethod
+    def whiteBal(img):
+        channels = cv2.split(img)
+        channels[0] = cv2.equalizeHist(channels[0])
+        channels[1] = cv2.equalizeHist(channels[1])
+        img = cv2.merge(channels, img)
+        img = cv2.bilateralFilter(img, -1, 5, 0.1)
+        
+        # Morphological operations
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern)
+    
+    @staticmethod
+    def shadesOfGray(img):
+        """ Implementation of the Shades of Gray algorithm, which is a
+        combination of Gray World algorithm and MaxRGB algorithm, which are
+        used to normalize color images to achieve color constancy """
+
+        inB, inG, inR = cv2.split(img)
+        avgR = numpy.mean(inR)
+        avgG = numpy.mean(inG)
+        avgB = numpy.mean(inB)
+        avgGray = numpy.mean((avgB, avgG, avgR))
+
+        if avgB == 0:
+            outB = inB
+        else:
+            outB = (avgGray/avgB)*inB
+
+        if avgG == 0:
+            outG = inG
+        else:
+            outG = (avgGray/avgG)*inG
+
+        if avgR == 0:
+            outR = inR
+        else:
+            outR = (avgGray/avgR)*inR
+
+        maxRGB = (numpy.max(outR), numpy.max(outG), numpy.max(outB))
+        factor = numpy.max(maxRGB)
+        if factor > 1:
+            outR = 255*outR/factor
+            outG = 255*outG/factor
+            outB = 255*outB/factor
+
+        outImg = cv2.merge((numpy.uint8(outB), numpy.uint8(outG), numpy.uint8(outR)))
+        return outImg

@@ -1,8 +1,10 @@
 import rospy
+from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.srv import mission_to_vision, vision_to_mission, \
         mission_to_visionResponse
 from bbauv_msgs.msg import controller, manipulator
+from utils.config import pickupConfig as Config
 
 from vision import PickupVision
 from bot_common.bot_comms import GenericComms
@@ -11,9 +13,11 @@ class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
 
     def __init__(self):
-        GenericComms.__init__(self, PickupVision())
-        self.defaultDepth = 3.0
-        self.sinkingDepth = 4.2
+        GenericComms.__init__(self, PickupVision(self))
+        self.defaultDepth = 2.0
+        self.sinkingDepth = 3.0
+
+        self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
@@ -43,9 +47,38 @@ class Comms(GenericComms):
                                              abort_response=True,
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
+
+    def reconfigure(self, config, level):
+        self.params = {'greenLoThresh': (config.greenLoH,
+                                         config.greenLoS,
+                                         config.greenLoV),
+                       'greenHiThresh': (config.greenHiH,
+                                         config.greenHiS,
+                                         config.greenHiV),
+                       'redLoThresh1': (config.redLoH1,
+                                        config.redLoS1,
+                                        config.redLoV1),
+                       'redHiThresh1': (config.redHiH1,
+                                        config.redHiS1,
+                                        config.redHiV1),
+                       'redLoThresh2': (config.redLoH2,
+                                        config.redLoS2,
+                                        config.redLoV2),
+                       'redHiThresh2': (config.redHiH2,
+                                        config.redHiS2,
+                                        config.redHiV2),
+                       'minContourArea' : config.minArea}
+        self.visionFilter.updateParams()
+        return config
+
     def grab(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 4)
+
+    def drop(self):
+        maniPub = rospy.Publisher("/manipulators", manipulator)
+        maniPub.publish(0)
+
 
 def main():
     pass

@@ -48,7 +48,7 @@ class Lane(smach.State):
                 return 'fail'
 
 class State(smach.State):
-    transitions = {'pass' : 'Lane', 'fail' : 'fail'}
+    transitions = {'pass' : 'RGB', 'fail' : 'fail'}
     outcomes = ['pass', 'fail']
 
     def __init__(self, world):

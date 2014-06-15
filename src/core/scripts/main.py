@@ -4,13 +4,13 @@ import roslib; roslib.load_manifest('core')
 import rospy, smach, actionlib
 import sys
 from dynamic_reconfigure.server import Server as DynamicReconfigureServer
-#from dynamic_reconfigure.client import Client as DynamicReconfigureClient
+from dynamic_reconfigure.client import Client as DynamicReconfigureClient
 import core.cfg.mission_plannerConfig as Config
 from bbauv_msgs.srv import set_controller
 from bbauv_msgs.srv import vision_to_mission, mission_to_vision
 from bbauv_msgs.srv import vision_to_missionResponse
 from bbauv_msgs.msg import compass_data, depth, ControllerAction, controller
-#from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry
 #from std_msgs.msg import Int8
 
 class Interaction(object):
@@ -45,9 +45,19 @@ class Interaction(object):
                 rospy.sleep(0.5)
             rospy.loginfo("Init done")
 
+            rospy.Subscriber("/earth_odom", Odometry, self.DVLCallback)
+
+            rospy.loginfo("Collecting earth_odom")
+            while self.current_pos['x'] is None:
+                rospy.sleep(0.5)
+
         except rospy.ServiceException as e:
             rospy.logerr("Exception starting mission critical things: %s"
                         % str(e))
+
+    def DVLCallback(self, d):
+        self.current_pos['x'] = d.pose.pose.position.x
+        self.current_pos['y'] = d.pose.pose.position.y
 
     def enable_PID(self):
             self.initController(forward=True, sidemove=True,
@@ -84,6 +94,30 @@ class Interaction(object):
                                              task_complete_response=False,
                                              data=controller())
 
+    def startRGBServer(self):
+        self.headingReturned = None
+        self.headingGiven = None
+        self.RGBStatus = {'aborted' : False,
+                          'active': False,
+                          'failed':False,
+                          'done' : False}
+
+        self.RGBServer = rospy.Service("/rgb/vision_to_mission",
+                                      vision_to_mission, self.RGBCallback)
+
+    def RGBCallback(self, r):
+        if r.task_complete_request:
+            self.RGBStatus['done'] = True
+            return vision_to_missionResponse(search_response=False,
+                                            task_complete_ctrl=controller(),
+                                            task_complete_response=True)
+
+        if r.fail_request:
+            self.RGBStatus['failed'] = True
+            return vision_to_missionResponse(search_response=False,
+                                            task_complete_ctrl=controller(),
+                                            task_complete_response=False)
+
 
 
 class MissionPlanner(object):
@@ -96,7 +130,7 @@ class MissionPlanner(object):
         self.missions = smach.StateMachine(outcomes=['pass', 'fail'])
         self.reconfigure_server = DynamicReconfigureServer(Config,
                                                            self.cCallback)
-        #self.reconfigure_client = DynamicReconfigureClient("/earth_odom")
+        self.reconfigure_client = DynamicReconfigureClient("/DVL")
     def cCallback(self, config, level):
         rospy.loginfo("Reconfigure callback")
         self.interact.config = config
@@ -120,7 +154,7 @@ class MissionPlanner(object):
             for k in self.helper:
                 #trans = getattr(self.loadedStates[k], 'transitions')
                 if((len(self.loadedStates.keys())) == 1):
-                    trans = {'pass' : 'Lane', 'fail' : 'fail'}
+                    trans = {'pass' : 'pass', 'fail' : 'fail'}
                 else:
                     trans = getattr(self.loadedStates[k], 'transitions')
                 smach.StateMachine.add(str(k).split('.')[1],
@@ -130,7 +164,7 @@ class MissionPlanner(object):
     def run(self):
         self.add_missions()
         rospy.loginfo("Resetting earth odometer")
-        #self.reconfigure_client.update_configuration({'zero_distance' : True})
+        self.reconfigure_client.update_configuration({'zero_distance' : True})
         outcome = self.missions.execute()
         return outcome
 

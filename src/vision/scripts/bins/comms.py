@@ -34,7 +34,7 @@ class Comms(GenericComms):
         if req.start_request:
             rospy.loginfo("Received Start Request")
             self.isAborted = False
-            self.defaultDepth = req.start_ctrl.depth_setpoint
+            #self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
