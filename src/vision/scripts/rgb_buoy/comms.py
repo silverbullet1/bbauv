@@ -11,14 +11,15 @@ from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server as DynServer
 #from utils.config import rgbConfig as Config
-from bbauv_msgs.srv._vision_to_mission import vision_to_mission
-from bbauv_msgs.srv._mission_to_vision import mission_to_visionResponse
+from bbauv_msgs.msg import controller
+from bbauv_msgs.srv import mission_to_visionResponse, \
+        mission_to_vision, vision_to_mission
 
 class Comms(FrontComms):
     
     isTesting = False
     isKilled = False
-    isAborted = False
+    isAborted = True
     isStart = False
     
     # Vision boolean
@@ -42,7 +43,7 @@ class Comms(FrontComms):
             #Initialise mission planner
             rospy.loginfo("Starting /rgb/mission_to_vision")
             self.comServer = rospy.Service("/rgb/mission_to_vision",
-                                           mission_to_vission, self.handle_srv)
+                                           mission_to_vision, self.handle_srv)
             rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/rgb/vision_to_mission",
                                                 vision_to_mission)
@@ -60,22 +61,36 @@ class Comms(FrontComms):
             rospy.loginfo("RGB starting")
             self.isStart = True
             self.isAborted = False
+            self.canPublish = True
+            
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
+            self.curHeading = self.inputHeading
+
+            self.registerMission()
+
+            rospy.loginfo("Received heading: {}".format(self.inputHeading))
+            rospy.loginfo("Received depth: {}".format(self.defaultDepth))
+
             
-            from bbauv_msgs.msg._controller import controller
+            self.sendMovement(depth=self.defaultDepth,
+                              heading=self.inputHeading,
+                              blocking=True)
+
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=self.curHeading))
 
-        if req.abort_request:
+        elif req.abort_request:
             rospy.loginfo("RGB abort received")
             self.isAborted=True
             self.isStart = False
             self.sendMovement(forward=0.0, sidemove=0.0)
-            self.unregister()
+            self.unregisterMission()
             
-        return mission_to_visionResponse(isStart, isAborted)
+            return mission_to_visionResponse(start_response=False,
+                                             abort_response=True,
+                                             data=controller(heading_setpoint=self.curHeading))
     
     def reconfigure(self, config, level):
         rospy.loginfo("Received dynamic reconfigure request")

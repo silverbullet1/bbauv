@@ -81,6 +81,19 @@ class FrontCommsVision():
         cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
         cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
         return cv2.merge(channel, img)
+
+    # Capult from Jin
+    @staticmethod
+    def whiteBal(img):
+        channels = cv2.split(img)
+        channels[0] = cv2.equalizeHist(channels[0])
+        channels[1] = cv2.equalizeHist(channels[1])
+        img = cv2.merge(channels, img)
+        img = cv2.bilateralFilter(img, -1, 5, 0.1)
+        
+        # Morphological operations
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern)
     
     @staticmethod
     def shadesOfGray(img):

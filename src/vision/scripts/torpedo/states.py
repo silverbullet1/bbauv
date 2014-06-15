@@ -33,7 +33,14 @@ class Disengage(smach.State):
         
         if self.comms.isAlone:
             self.comms.register()
+            rospy.sleep(rospy.Duration(0.8))
+            self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting Torpedo")
+
+        rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
+        self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                heading=self.comms.inputHeading,
+                                blocking=True)
         
         return 'start_complete'
 
@@ -67,13 +74,13 @@ class SearchCircles(smach.State):
     def execute(self, ud):
         start = time.time()
         
-#         if not self.comms.foundCircles and self.comms.foundSomething:
-#             if self.comms.foundCount < 20:
-#                 # Search pattern 
-#                 self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading+20,
-#                                         sidemove=-0.4, blocking=True)
-#                 self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading-20,
-#                                         sidemove=0.4, blocking=True)
+        if not self.comms.foundCircles and self.comms.foundSomething:
+            if self.comms.foundCount < 20:
+                # Search pattern 
+                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading+20,
+                                        sidemove=-0.4, blocking=True)
+                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading-20,
+                                        sidemove=0.4, blocking=True)
 
         while not self.comms.foundCircles: 
             if self.comms.isKilled:
@@ -197,7 +204,7 @@ class ShootTorpedo(smach.State):
     
 def main():
     rospy.init_node('torpedo_lynnette_awesomeness', anonymous=False)
-    rosRate = rospy.Rate(20)
+    rosRate = rospy.Rate(30)
     myCom = Comms()
 
     rospy.loginfo("Torpedo Loaded")

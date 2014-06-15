@@ -1,6 +1,6 @@
 #/usr/bin/env/python
 
-''' With white balance and others '''
+''' Backup previous code '''
 
 import math
 import numpy as np
@@ -11,7 +11,7 @@ import rospy
 from utils.utils import Utils
 from front_commons.frontCommsVision import FrontCommsVision as vision
 
-class RgbBuoyVision:  
+class RgbBuoyVision:
     screen = {'width': 640, 'height': 480}
 
     # Vision parameters
@@ -19,9 +19,10 @@ class RgbBuoyVision:
     redParams = {
                 'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
-                'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Jin's values 
-                 'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
-                 'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
+#                 'lo1': (108, 0, 0), 'hi1': (180, 255, 160),
+#                  'lo1': (115, 0, 0), 'hi1': (168, 255, 255),
+                 'dilate': (15,15), 'erode': (5,5), 'open': (5,5)}
+
 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
@@ -30,13 +31,13 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':25, 'maxRadius': 0 }
+    circleParams = {'minRadius':20, 'maxRadius': 0 }
     houghParams = {'param1': 80, 'param2': 15}
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 500
+    minContourArea = 300
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -52,20 +53,26 @@ class RgbBuoyVision:
 
         # Preprocessing
         img = cv2.resize(img, (640, 480))
+        rawImg = vision.shadesOfGray(img)
         
-        # White balance
-        img = self.whiteBal(img)
+        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
+    
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hsvImg = np.array(hsvImg, dtype=np.uint8)
-
-        # Blur image
-        gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
-        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
-        enhancedImg = cv2.medianBlur(sum, 3)
-                
+        hsvImg = self.normalise(hsvImg)
+        # return cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+    
         # Find red image 
-        redImg = self.threshold(enhancedImg, "RED")
+        redImg = self.threshold(hsvImg, "RED")
         outImg = redImg
+        
+        # Find green image
+        #greenLen, greenImg = self.threshold(img, "GREEN")
+        
+        # Find blue image
+        #blueLen, blueImg = self.threshold(img, "BLUE")
+        
+        #outImg = redImg | greenImg | blueImg 
 
         return outImg
 
@@ -77,15 +84,21 @@ class RgbBuoyVision:
         #params = self.getParams(color)
         
         # Perform thresholding
-        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kern)
-        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        threshImg = cv2.dilate(mask, kern2, iterations=2)
+        binImg1 = cv2.inRange(img, self.redParams['lo1'], self.redParams['hi1'])
+        binImg2 = cv2.inRange(img, self.redParams['lo2'], self.redParams['hi2'])
+        binImg = cv2.bitwise_or(binImg1, binImg2)
+#         binImg = binImg1
+#         return binImg
+          #binImg = self.erodeAndDilateImg(binImg, params)
+        #binImg = vision.erodeAndDilateImg(binImg1, self.redParams)
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['erode'])
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['dilate'])
+        openEl = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.redParams['open'])
+
+        binImg = cv2.erode(binImg, erodeEl)
+        binImg = cv2.dilate(binImg, dilateEl)
+        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, openEl)
         
-#         return cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-        
-        binImg = threshImg
         # Find contours
         scratchImg = binImg.copy()
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
@@ -112,8 +125,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=78, 
-                               param2=14,
+                               minDist=30, param1=76, 
+                               param2=13,
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -154,18 +167,18 @@ class RgbBuoyVision:
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
         # rospy.loginfo("Area: {}".format(self.comms.rectArea)) # To put on the scratchImg
         cv2.putText(scratchImgCol, "Area: " + str(self.comms.rectArea), (30, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
             
         # How far centroid is off screen center
         self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/
                                     vision.screen['width'])
 
         cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
         self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
                                   vision.screen['height'])
         cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
 
 
         # Draw center rect
@@ -173,22 +186,12 @@ class RgbBuoyVision:
 
         return scratchImgCol
 
-    def whiteBal(self, img):
-        channels = cv2.split(img)
-        channels[0] = cv2.equalizeHist(channels[0])
-        channels[1] = cv2.equalizeHist(channels[1])
-        img = cv2.merge(channels, img)
-        img = cv2.bilateralFilter(img, -1, 5, 0.1)
-        
-        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern)
-
     def normalise(self, img):
         channel = cv2.split(img)
-        # for i in channel[1]:
-        #     i += 10
-        for i in channel[2]:
-            i += 10
+#         for i in channel[1]:
+#             i += 10
+#         for i in channel[2]:
+#             i -= 3
         cv2.normalize(channel[1], channel[1], 0, 255, cv2.NORM_MINMAX)
         cv2.normalize(channel[2], channel[2], 0, 255, cv2.NORM_MINMAX)
         return cv2.merge(channel, img)

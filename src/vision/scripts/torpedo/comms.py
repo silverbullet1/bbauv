@@ -20,7 +20,7 @@ class Comms(FrontComms):
     
     isTesting = False
     isKilled = False
-    isAborted = False
+    isAborted = True
     isStart = False
     
     # Circle booleans
@@ -64,8 +64,16 @@ class Comms(FrontComms):
             rospy.loginfo("Torpedo starting")
             self.isStart = True
             self.isAborted = False
+            self.canPublish = True
+
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
+            self.curHeading = self.inputHeading
+
+            rospy.loginfo("Received depth: {}".format(self.defaultDepth))
+            rospy.loginfo("Received heading: {}".format(self.inputHeading))
+
+            self.registerMission()
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -77,7 +85,7 @@ class Comms(FrontComms):
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.isAborted=True
             self.isStart = False
-            self.unregister()
+            self.unregisterMission()
             
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,

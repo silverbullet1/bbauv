@@ -19,6 +19,7 @@ class PegsVision:
 
     redParams = {'lo1': (113, 0, 0), 'hi1': (136, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (27, 255, 255),
+                 'lo3': (149, 134, 2), 'hi3': (186, 255, 160),  # Red white balance values 
                  'dilate': (15,15), 'erode': (5,5), 'open': (3,3)}
     
     blueParams = {'lo': (97, 0, 0), 'hi': (139, 255, 255),
@@ -44,23 +45,37 @@ class PegsVision:
         outImg = None
         
         #Preprocessing 
-        img = vision.preprocessImg(img)    # If need then cut image
+        img = cv2.resize(img, (640, 480))
         
-        # Enhance image
-        rawImg = img
-        blurImg = cv2.GaussianBlur(rawImg, ksize=(0, 0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(rawImg, 2.5, blurImg, -1.5, 0)
-    
-        hsvImg = cv2.cvtColor(enhancedImg, cv2.COLOR_BGR2HSV)
+        # White balance
+        img = vision.whiteBal(img)
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsvImg = np.array(hsvImg, dtype=np.uint8)
                 
+        # Blur image
+        gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
+        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
+        enhancedImg = cv2.medianBlur(sum, 3)
+        
+        return cv2.cvtColor(enhancedImg, cv2.COLOR_HSV2BGR)
+        
         # Threshold red 
         params = self.redParams
 
         # Perform thresholding
-        binImg1 = cv2.inRange(hsvImg, params['lo1'], params['hi1'])
-        binImg2 = cv2.inRange(hsvImg, params['lo2'], params['hi2'])
-        binImg = cv2.bitwise_or(binImg1, binImg2)
-        binImg = self.erodeAndDilateImg(binImg, params)
+#         binImg1 = cv2.inRange(hsvImg, params['lo1'], params['hi1'])
+#         binImg2 = cv2.inRange(hsvImg, params['lo2'], params['hi2'])
+#         binImg = cv2.bitwise_or(binImg1, binImg2)
+#         binImg = self.erodeAndDilateImg(binImg, params)
+
+        # Perform thresholding
+#         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
+#         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kern)
+#         kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+#         threshImg = cv2.dilate(mask, kern2, iterations=3)
+
+        return cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
         # Find contours 
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)    # To overlay with centroids
@@ -94,6 +109,13 @@ class PegsVision:
             self.comms.deltaX = float((vision.screen['width']/2 - self.comms.centroidToPick[0])*1.0/vision.screen['width'])                                                                                                                                          
             cv2.putText(scratchImgCol, str(self.comms.deltaX), (30,30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            self.comms.deltaY = float((self.comms.centroidToPick[1] - vision.screen['height']/2)*1.0/
+                                      vision.screen['height'])
+            cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
+            
+            cv2.putText(scratchImgCol, "Area " + str(self.comms.areaRect), (30,85),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255))
             
             return scratchImgCol
 

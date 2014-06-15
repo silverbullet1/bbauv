@@ -12,7 +12,7 @@ from dynamic_reconfigure.server import Server as DynServer
 from utils.config import pegsConfig as Config
 
 from bbauv_msgs.msg._manipulator import manipulator
-from bbauv_msgs.msg import controller
+from bbauv_msgs.msg import controller, sonarData
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
 
@@ -100,6 +100,18 @@ class Comms(FrontComms):
         
         self.visionFilter.updateParams()
         return config
+    
+    def registerSonar(self):
+        self.sonarBearing = None
+        self.sonarDist = None 
+        self.sonarSub = rospy.Subscriber("/sonarData", sonarData, self.sonarDataCallback)
+    
+    def sonarDataCallback(self, data):
+        self.sonarBearing = data.bearing
+        self.sonarDist = data.range
+        
+    def unregisterSonar(self):
+        self.sonarSub.unregister()    
 
 def main():
     testCom = Comms()

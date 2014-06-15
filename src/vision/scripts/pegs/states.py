@@ -219,7 +219,7 @@ def main():
                                              'killed': 'killed'})
         
         smach.StateMachine.add("FOLLOWSONAR", FollowSonar(myCom),
-                               transition={'following_sonar': "FOLLOWSONAR",
+                               transitions={'following_sonar': "FOLLOWSONAR",
                                            'sonar_complete': "SEARCHPEGS",
                                            'aborted': 'aborted',
                                            'killed': 'killed'})        
