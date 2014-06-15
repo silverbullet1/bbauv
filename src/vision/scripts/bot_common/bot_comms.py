@@ -14,6 +14,8 @@ import signal
 
 class GenericComms:
     """ Class to facilitate communication b/w ROS and task submodules """
+    processingRate = 5
+    processingCount = 0
 
     def __init__(self, visionFilter):
         signal.signal(signal.SIGINT, self.userQuit)
@@ -76,12 +78,15 @@ class GenericComms:
         self.canPublish = False
 
     def camCallback(self, rosImg):
-        self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
-        if self.canPublish and outImg is not None:
-            try:
-                self.outPub.publish(Utils.cv2rosimg(outImg))
-            except Exception as e:
-                pass
+        if self.processingCount == self.processingRate:
+            self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
+            if self.canPublish and outImg is not None:
+                try:
+                    self.outPub.publish(Utils.cv2rosimg(outImg))
+                except Exception as e:
+                    pass
+            self.processingCount = 0
+        self.processingCount += 1
 
     def compassCallback(self, data):
         self.curHeading = data.yaw
@@ -111,6 +116,13 @@ class GenericComms:
         self.canPublish = False
         self.isAborted = True
         self.sendMovement(f=0.0, sm=0.0)
+
+    def searchComplete(self):
+        if not self.isAlone:
+            rospy.loginfo("Sending Complete request to mission planner")
+            self.toMission(fail_request=False, task_complete_request=False,
+                           search_request=True,
+                           task_complete_ctrl=controller())
 
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
                      timeout=0.4, blocking=False):

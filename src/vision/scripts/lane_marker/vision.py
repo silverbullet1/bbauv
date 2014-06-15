@@ -7,6 +7,7 @@ import cv2
 from utils.utils import Utils
 from bot_common.vision import Vision
 
+
 class LaneMarkerVision:
     screen = { 'width': 840, 'height': 680 }
 
@@ -51,8 +52,8 @@ class LaneMarkerVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -79,6 +80,7 @@ class LaneMarkerVision:
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         #mask = Vision.illuminanceMask(img, 200)
         img = Vision.enhance(img)
+        img = cv2.GaussianBlur(img, (5, 5), 0)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
@@ -118,10 +120,10 @@ class LaneMarkerVision:
         # Find lines in each bounded rectangle region and find angle
         for rect in contourRects:
             # Mask for the region
-            mask = np.zeros_like(binImg, dtype=np.uint8)
+            #mask = np.zeros_like(binImg, dtype=np.uint8)
             points = np.int32(cv2.cv.BoxPoints(rect))
-            cv2.fillPoly(mask, [points], 255)
-            rectImg = np.bitwise_and(binImg, mask)
+            #cv2.fillPoly(mask, [points], 255)
+            #rectImg = np.bitwise_and(binImg, mask)
 
             # Draw bounding rect
             if self.debugMode:
@@ -137,25 +139,24 @@ class LaneMarkerVision:
             else:
                 rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
 
-            lines = cv2.HoughLinesP(rectImg,
-                                    self.houghDistRes, self.houghAngleRes,
-                                    self.houghThreshold,
-                                    self.houghMinLength,
-                                    self.houghMaxGap)
-            # Find and fix angle
-            if lines != None:
-                #for line in lines[0]:
-                #    cv2.line(outImg,
-                #            (line[0], line[1]), (line[2], line[3]),
-                #            (0,255,0), 1)
-                gradients = [math.atan2(y2 - y1, x2 - x1)
-                             for x1, y1, x2, y2 in lines[0]]
-                gradient = np.median(gradients)
-                angle = np.rad2deg(gradient)
+            #lines = cv2.HoughLinesP(rectImg,
+            #                        self.houghDistRes, self.houghAngleRes,
+            #                        self.houghThreshold,
+            #                        self.houghMinLength,
+            #                        self.houghMaxGap)
+            ## Find and fix angle
+            #if lines != None:
+            #    #for line in lines[0]:
+            #    #    cv2.line(outImg,
+            #    #            (line[0], line[1]), (line[2], line[3]),
+            #    #            (0,255,0), 1)
+            #    gradients = [math.atan2(y2 - y1, x2 - x1)
+            #                 for x1, y1, x2, y2 in lines[0]]
+            #    gradient = np.median(gradients)
+            #    angle = np.rad2deg(gradient)
 
-                #rospy.loginfo(rectAngle - angle)
-                foundLines.append({'pos': rect[0], 'angle': rectAngle,
-                                   'testAngle': angle})
+            foundLines.append({'pos': rect[0], 'angle': rectAngle})
+            #                   'testAngle': angle})
 
         if len(foundLines) >= 2 and self.comms.expectedLanes == 2:
             # If there are 2 lines, find their intersection and adjust angle

@@ -21,6 +21,10 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         self.comms.register()
+        if self.comms.isAlone:
+            rospy.sleep(rospy.Duration(1))
+            self.comms.inputHeading = self.comms.curHeading
+        self.comms.sendMovement(d=self.comms.inputHeading)
         return 'started'
 
 class Search(smach.State):
@@ -197,6 +201,37 @@ class Surface(smach.State):
 
         return 'completed'
 
+class Navigate(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        #TODO: Navigate to the collection site
+
+        return 'completed'
+
+class Drop(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['completed',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        self.comms.drop()
+        self.comms.taskComplete()
+
+        return 'completed'
+
 
 def main():
     rospy.init_node('pickup_node')
@@ -237,6 +272,14 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('SURFACE',
                                Surface(myCom),
+                               transitions={'completed':'NAVIGATE',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('NAVIGATE',
+                               Navigate(myCom),
+                               transitions={'completed':'DROP',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('DROP',
+                               Drop(myCom),
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
 

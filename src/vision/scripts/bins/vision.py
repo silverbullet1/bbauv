@@ -139,7 +139,7 @@ class BinsVision:
         retData = {'centroids': centroids, 'matches': matches}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
-        mask = Vision.enhance(img)
+        img = Vision.enhance(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)

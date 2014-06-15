@@ -20,7 +20,7 @@ class Disengage(smach.State):
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(0.5))
 
         self.comms.register()
         rospy.sleep(rospy.Duration(1))
@@ -68,14 +68,15 @@ class Search(smach.State):
                 if (time.time() - start) > self.timeout:
                     self.comms.abortMission()
                     return 'aborted'
-
-                self.comms.sendMovement(f=0.0, sm=0.0,
-                                        h=self.comms.inputHeading,
-                                        blocking=False)
+                
+                rospy.sleep(rospy.Duration(0.3))
+                #self.comms.sendMovement(f=0.0, sm=0.0,
+                #                        h=self.comms.inputHeading,
+                #                        blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
-
+        self.comms.searchComplete()
         return 'foundBins' 
 
 class Center(smach.State):
@@ -90,7 +91,7 @@ class Center(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
-    numTrials = 2
+    numTrials = 1
     trialsPassed = 0
 
     def __init__(self, comms):
@@ -175,7 +176,7 @@ class CenterAgain(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
-    numTrials = 2
+    numTrials = 1
     trialsPassed = 0
 
     timeout = 5

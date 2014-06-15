@@ -12,13 +12,24 @@ class PickupVision:
     # Vision parameters
     greenLoThresh = (35, 0, 0)
     greenHiThresh = (70, 255, 255)
-    hsvLoThresh2 = (165, 0, 0)
-    hsvHiThresh2 = (180, 255, 255)
+    redLoThresh1 = (0, 0, 0)
+    redHiThresh1 = (25, 255, 255)
+    redLoThresh2 = (160, 0, 0)
+    redHiThresh2 = (180, 255, 255)
     minContourArea = 5000
 
     def __init__(self, comms=None, debugMode=True):
         self.comms = comms
         self.debugMode = debugMode
+
+    def updateParams(self):
+        self.greenLoThresh = self.comms.params['greenLoThresh']
+        self.greenHiThresh = self.comms.params['greenHiThresh']
+        self.redLoThresh1 = self.comms.params['redLoThresh1']
+        self.redHiThresh1 = self.comms.params['redHiThresh1']
+        self.redLoThresh2 = self.comms.params['redLoThresh2']
+        self.redHiThresh2 = self.comms.params['redHiThresh2']
+        self.minContourArea =self.comms.params['minContourArea']
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
@@ -52,7 +63,10 @@ class PickupVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
-        #binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
+        binImg |= cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
+        binImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
+
+        binImg = self.morphology(binImg)
 
         if self.debugMode:
             outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)

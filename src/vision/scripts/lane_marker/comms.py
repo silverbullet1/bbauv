@@ -18,7 +18,7 @@ class Comms(GenericComms):
     def __init__(self):
         GenericComms.__init__(self, LaneMarkerVision(comms=self))
         self.chosenLane = self.RIGHT
-        self.expectedLanes = 2
+        self.expectedLanes = 1
         self.defaultDepth = 0.6
 
         self.dynServer = DynServer(Config, self.reconfigure)
