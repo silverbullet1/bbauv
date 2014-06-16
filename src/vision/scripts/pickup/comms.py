@@ -11,14 +11,11 @@ from bot_common.bot_comms import GenericComms
 
 class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
-    SITE = 0
-    SAMPLES = 1
-
     def __init__(self):
         GenericComms.__init__(self, PickupVision(self))
         self.defaultDepth = 2.0
         self.sinkingDepth = 3.0
-        self.visionMode = self.SITE
+        self.visionMode = PickupVision.SITE
 
         self.dynServer = DynServer(Config, self.reconfigure)
 
@@ -52,7 +49,13 @@ class Comms(GenericComms):
                                                              self.curHeading))
 
     def reconfigure(self, config, level):
-        self.params = {'greenLoThresh': (config.greenLoH,
+        self.params = {'yellowLoThresh': (config.yellowLoH,
+                                          config.yellowLoS,
+                                          config.yellowLoV),
+                       'yellowHiThresh': (config.yellowHiH,
+                                          config.yellowHiS,
+                                          config.yellowHiV),
+                       'greenLoThresh': (config.greenLoH,
                                          config.greenLoS,
                                          config.greenLoV),
                        'greenHiThresh': (config.greenHiH,
@@ -70,6 +73,7 @@ class Comms(GenericComms):
                        'redHiThresh2': (config.redHiH2,
                                         config.redHiS2,
                                         config.redHiV2),
+                       'minSiteArea': config.minSiteArea,
                        'minContourArea' : config.minArea}
         self.visionFilter.updateParams()
         return config

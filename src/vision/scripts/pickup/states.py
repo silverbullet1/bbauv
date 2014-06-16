@@ -24,14 +24,16 @@ class Disengage(smach.State):
         if self.comms.isAlone:
             rospy.sleep(rospy.Duration(1))
             self.comms.inputHeading = self.comms.curHeading
-        self.comms.sendMovement(d=self.comms.inputHeading)
+        self.comms.sendMovement(h=self.comms.inputHeading,
+                                d=self.comms.defaultDepth,
+                                blocking=True)
         return 'started'
 
 class SearchSite(smach.State):
     timeout = 10
 
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['aborted', 'lost', 'foundSite'])
+        smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundSite'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -47,6 +49,8 @@ class SearchSite(smach.State):
             if time.time() - start > self.timeout:
                 self.comms.abortMission()
                 return 'timeout'
+            if self.comms.isAborted:
+                return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
         return 'foundSite'
@@ -91,11 +95,13 @@ class CenterSite(smach.State):
             self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
+                self.comms.sendMovement(h=self.comms.inputHeading,
+                                        d=self.comms.defaultDepth,
+                                        blocking=True)
                 return 'centered'
             else:
                 self.trialPassed += 1
                 return 'centering'
-
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
                                 blocking=False)
@@ -124,6 +130,8 @@ class Search(smach.State):
             if time.time() - start > self.timeout:
                 self.comms.abortMission()
                 return 'timeout'
+            if self.comms.isAborted:
+                return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
         return 'foundSamples'
@@ -179,6 +187,7 @@ class Center(smach.State):
 
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                d=self.comms.sinkingDepth,
                                 blocking=False)
         return 'centering'
 
@@ -325,7 +334,7 @@ def main():
     with sm:
         smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
-                               transitions={'started':'SEARCH',
+                               transitions={'started':'SEARCHSITE',
                                             'killed':'killed'})
         smach.StateMachine.add('SEARCHSITE',
                                SearchSite(myCom),

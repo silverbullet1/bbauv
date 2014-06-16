@@ -7,6 +7,9 @@ from bot_common.vision import Vision
 
 
 class PickupVision:
+    SITE = 0
+    SAMPLES = 1
+
     screen = {'width': 640, 'height': 480}
 
     # Vision parameters
@@ -22,6 +25,7 @@ class PickupVision:
     yellowHiThresh = (50, 255, 255)
 
     minContourArea = 5000
+    minSiteArea = 10000
 
     def __init__(self, comms=None, debugMode=True):
         self.comms = comms
@@ -34,6 +38,9 @@ class PickupVision:
         self.redHiThresh1 = self.comms.params['redHiThresh1']
         self.redLoThresh2 = self.comms.params['redLoThresh2']
         self.redHiThresh2 = self.comms.params['redHiThresh2']
+        self.yellowLoThresh = self.comms.params['yellowLoThresh']
+        self.yellowHiThresh = self.comms.params['yellowHiThresh']
+        self.minSiteArea = self.comms.params['minSiteArea']
         self.minContourArea =self.comms.params['minContourArea']
 
     def morphology(self, img):
@@ -48,88 +55,119 @@ class PickupVision:
 
         return img
 
-    def findContourAndBound(self, img, bounded=True):
+    def findContourAndBound(self, img, bounded=True, bound=0):
         contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         if bounded:
-            contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
-                              contours)
+            contours = filter(lambda c: cv2.contourArea(c) > bound, contours)
+
         return contours
 
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         outImg = None
         samples = list()
-        rval = {'samples': samples, 'site': None}
+        site = dict()
+        rval = {'samples': samples, 'site': site}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
-        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
-        binImg |= cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
-        binImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
+        if self.comms.visionMode == PickupVision.SAMPLES:
+            hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        binImg = self.morphology(binImg)
+            binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
+            binImg |= cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
+            binImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
 
-        if self.debugMode:
-            outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
-            # Draw the aiming rectangle
-            midX = self.screen['width']/2.0
-            midY = self.screen['height']/2.0
-            maxDeltaX = self.screen['width']*0.03
-            maxDeltaY = self.screen['height']*0.03
-            cv2.rectangle(outImg,
-                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                          (0, 255, 0), 1)
+            binImg = self.morphology(binImg)
 
-        contours = self.findContourAndBound(binImg.copy(), bounded=True)
-        sorted(contours, key=cv2.contourArea, reverse=True)
-        for contour in contours:
-            # Find the center of each contour
-            moment = cv2.moments(contour, False)
-            centroid = (moment['m10']/moment['m00'],
-                        moment['m01']/moment['m00'])
+            if self.debugMode:
+                outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
+                # Draw the aiming rectangle
+                midX = self.screen['width']/2.0
+                midY = self.screen['height']/2.0
+                maxDeltaX = self.screen['width']*0.03
+                maxDeltaY = self.screen['height']*0.03
+                cv2.rectangle(outImg,
+                              (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                              (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                              (0, 255, 0), 1)
 
-            # Find the orientation of each contour
-            points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
-            edge1 = points[1] - points[0]
-            edge2 = points[2] - points[1]
+            contours = self.findContourAndBound(binImg.copy(), bounded=True,
+                                                bound=self.minContourArea)
+            sorted(contours, key=cv2.contourArea, reverse=True)
+            for contour in contours:
+                # Find the center of each contour
+                moment = cv2.moments(contour, False)
+                centroid = (moment['m10']/moment['m00'],
+                            moment['m01']/moment['m00'])
 
-            if cv2.norm(edge1) > cv2.norm(edge2):
-                angle = math.degrees(math.atan2(edge1[1], edge1[0]))
-            else:
-                angle = math.degrees(math.atan2(edge2[1], edge2[0]))
+                # Find the orientation of each contour
+                points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
+                edge1 = points[1] - points[0]
+                edge2 = points[2] - points[1]
 
-            if 90 < abs(Utils.normAngle(self.comms.curHeading) -
-                        Utils.normAngle(angle)) < 270:
-                angle = Utils.invertAngle(angle)
+                if cv2.norm(edge1) > cv2.norm(edge2):
+                    angle = math.degrees(math.atan2(edge1[1], edge1[0]))
+                else:
+                    angle = math.degrees(math.atan2(edge2[1], edge2[0]))
 
-            samples.append({'centroid': centroid, 'angle': angle})
+                if 90 < abs(Utils.normAngle(self.comms.curHeading) -
+                            Utils.normAngle(angle)) < 270:
+                    angle = Utils.invertAngle(angle)
 
-        if self.debugMode:
-            # Draw the centering rectangle
-            midX = self.screen['width']/2.0
-            midY = self.screen['height']/2.0
-            maxDeltaX = self.screen['width']*0.03
-            maxDeltaY = self.screen['height']*0.03
-            cv2.rectangle(outImg,
-                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                          (0, 255, 0), 2)
+                samples.append({'centroid': centroid, 'angle': angle})
 
-            # Draw the centroid and orientation of each contour
-            for sample in samples:
-                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
-                           5, (0, 0, 255))
-                startpt = centroid
-                gradient = np.deg2rad(angle)
-                endpt = (int(startpt[0] + 100 * math.cos(gradient)),
-                         int(startpt[1] + 100 * math.sin(gradient)))
-                startpt = (int(startpt[0]), int(startpt[1]))
-                cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
+            if self.debugMode:
+                # Draw the centering rectangle
+                midX = self.screen['width']/2.0
+                midY = self.screen['height']/2.0
+                maxDeltaX = self.screen['width']*0.03
+                maxDeltaY = self.screen['height']*0.03
+                cv2.rectangle(outImg,
+                              (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                              (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                              (0, 255, 0), 2)
 
+                # Draw the centroid and orientation of each contour
+                for sample in samples:
+                    cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
+                               5, (0, 0, 255))
+                    startpt = centroid
+                    gradient = np.deg2rad(angle)
+                    endpt = (int(startpt[0] + 100 * math.cos(gradient)),
+                             int(startpt[1] + 100 * math.sin(gradient)))
+                    startpt = (int(startpt[0]), int(startpt[1]))
+                    cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
+        else:
+            hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+            binImg = cv2.inRange(hsvImg,
+                                 self.yellowLoThresh, self.yellowHiThresh)
+            binImg = self.morphology(binImg)
+
+            if self.debugMode:
+                outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
+                # Draw the aiming rectangle
+                midX = self.screen['width']/2.0
+                midY = self.screen['height']/2.0
+                maxDeltaX = self.screen['width']*0.03
+                maxDeltaY = self.screen['height']*0.03
+                cv2.rectangle(outImg,
+                              (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                              (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                              (0, 255, 0), 1)
+
+            contours = self.findContourAndBound(binImg.copy(), bounded=True,
+                                                bound=self.minSiteArea)
+            if len(contours) > 0:
+                largestContour = max(contours, key=cv2.contourArea)
+                # Find the center of each contour
+                moment = cv2.moments(largestContour, False)
+                centroid = (moment['m10']/moment['m00'],
+                            moment['m01']/moment['m00'])
+                site['centroid'] = centroid
 
         return rval, outImg
 
