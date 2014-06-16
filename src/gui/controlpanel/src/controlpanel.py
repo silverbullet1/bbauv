@@ -6,7 +6,7 @@ import os
 from bbauv_msgs.srv import *
 from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
-import pynotify
+#import pynotify
 import actionlib
 #from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
@@ -774,9 +774,10 @@ class AUV_gui(QMainWindow):
         if self.data['openups1'].battery_percentage < 15.0 or \
             self.data['openups2'].battery_percentage < 15.0 and \
             not batt_not:
-            n = pynotify.Notification("BATTERY DYING BATTERY DYING!!!")
-            if not n.show():
-                print "Failed to send battery dying notification"
+            pass
+            # n = pynotify.Notification("BATTERY DYING BATTERY DYING!!!")
+            # if not n.show():
+            #     print "Failed to send battery dying notification"
             self.batt_not = True
         elif self.data['openups1'].battery_percentage > 20.0 and \
             self.data['openups2'].battery_percentage > 20.0:

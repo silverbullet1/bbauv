@@ -40,7 +40,7 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
-        self.defaultDepth = 2.0
+        self.defaultDepth = 2.00
         
         # Initialise mission planner 
         if not self.isAlone:
@@ -74,6 +74,10 @@ class Comms(FrontComms):
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
 
             self.registerMission()
+
+            self.sendMovement(depth=self.defaultDepth,
+                              heading=self.inputHeading,
+                              blocking=True)
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -106,7 +110,7 @@ class Comms(FrontComms):
         rospy.loginfo("Received dynamic reconfigure request")
         self.params = {'loThreshold': (config.loH, config.loS, config.loV),
                        'hiThreshold': (config.hiH, config.hiS, config.hiV),
-                       'cannyParams': (config.Canny1, config.Canny2),
+                       'houghParams': (config.Hough1, config.Hough2),
                        'minContourArea': config.minContourArea }
         self.visionFilter.updateParams()
         return config

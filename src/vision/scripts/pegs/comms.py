@@ -9,7 +9,7 @@ from front_commons.frontComms import FrontComms
 from vision import PegsVision
 
 from dynamic_reconfigure.server import Server as DynServer
-from utils.config import pegsConfig as Config
+#from utils.config import pegsConfig as Config
 
 from bbauv_msgs.msg._manipulator import manipulator
 from bbauv_msgs.msg import controller, sonarData
@@ -20,7 +20,7 @@ class Comms(FrontComms):
     
     isTesting = False
     isKilled = False 
-    isAborted = False 
+    isAborted = True
     isStart = False
     
     # Vision parameters     
@@ -38,7 +38,7 @@ class Comms(FrontComms):
         FrontComms.__init__(self, PegsVision(comms=self))
         self.defaultDepth = 2.0
         
-        self.dynServer = DynServer(Config, self.reconfigure)
+        # self.dynServer = DynServer(Config, self.reconfigure)
         
         # Initialise mission planner 
         if not self.isAlone:
@@ -62,9 +62,21 @@ class Comms(FrontComms):
             rospy.loginfo("Pegs starting")
             self.isStart = True
             self.isAborted = False
+            self.canPublsih = True
+
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
-            
+            self.curHeading = self.inputHeading
+
+            self.registerMission()
+
+            rospy.loginfo("Received heading: {}".format(self.inputHeading))
+            rospy.loginfo("Received depth: {}".format(self.defaultDepth))
+
+            self.sendMovement(depth=self.defaultDepth,
+                              heading=self.inputHeading,
+                              blocking=True)
+
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=
@@ -75,7 +87,9 @@ class Comms(FrontComms):
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.isAborted=True
             self.isStart = False
-            self.unregister()
+            self.canPublsih = False
+
+            self.unregisterMission()
             
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
@@ -84,12 +98,12 @@ class Comms(FrontComms):
     def grabRedPeg(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 4)
-        rospy.sleep(rospy.Duration(0.2))
+        rospy.sleep(rospy.Duration(0.3))
         
     def putPeg(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(1 & 4)
-        rospy.sleep(rospy.Duration(0.2))
+        rospy.sleep(rospy.Duration(0.3))
 
     def reconfigure(self, config, level):
         rospy.loginfo("Received dynamic reconfigure request")
