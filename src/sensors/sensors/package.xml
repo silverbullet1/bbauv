@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package>
+  <name>sensors</name>
+  <version>0.0.1</version>
+  <description>Meta package for sensors.</description>
+
+  <maintainer email="alex@nus.edu.sg">alex</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>nav_msgs</run_depend>
+  <run_depend>nodelet</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>bbauv_msgs</run_depend>
+
+
+  <export>
+
+
+  </export>
+</package>

@@ -69,10 +69,12 @@ add_message_files(
   wheel_task_pose.msg
   sonarData.msg
   sonarDataVector.msg
-
-  ##Old msg files end
+  tilt.msg
   cpu_temperature.msg
   acoustic.msg
+  raw_magnetics.msg
+  explorer_dvl_data.msg
+  dvl_vel.msg
 )
 
 ## Generate services in the 'srv' folder

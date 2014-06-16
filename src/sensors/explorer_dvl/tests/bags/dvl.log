@@ -1,0 +1,2 @@
+rosbag record /euler /AHRS8_data_q /explorer_raw_data /explorer_vel /tilt /WH_DVL_data /front_camera/camera/image_raw/compressed /bot_camera/camera/image_raw/compressed /controller_points /magnetics_raw -O $1
+
