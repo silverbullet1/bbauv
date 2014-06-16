@@ -12,10 +12,15 @@ class PickupVision:
     # Vision parameters
     greenLoThresh = (35, 0, 0)
     greenHiThresh = (70, 255, 255)
+
     redLoThresh1 = (1, 0, 0)
     redHiThresh1 = (25, 255, 255)
     redLoThresh2 = (160, 0, 0)
     redHiThresh2 = (180, 255, 255)
+
+    yellowLoThresh = (25, 0, 0)
+    yellowHiThresh = (50, 255, 255)
+
     minContourArea = 5000
 
     def __init__(self, comms=None, debugMode=True):
@@ -54,9 +59,8 @@ class PickupVision:
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         outImg = None
-        centroids = list()
-        angles = list()
-        rval = {'centroids': centroids, 'angles': angles}
+        samples = list()
+        rval = {'samples': samples, 'site': None}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
@@ -87,7 +91,6 @@ class PickupVision:
             moment = cv2.moments(contour, False)
             centroid = (moment['m10']/moment['m00'],
                         moment['m01']/moment['m00'])
-            centroids.append(centroid)
 
             # Find the orientation of each contour
             points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
@@ -103,18 +106,7 @@ class PickupVision:
                         Utils.normAngle(angle)) < 270:
                 angle = Utils.invertAngle(angle)
 
-            angles.append(angle)
-
-            # Draw the centroid and orientation of each contour
-            for centroid in centroids:
-                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
-                           5, (0, 0, 255))
-                startpt = centroid
-                gradient = np.deg2rad(angle)
-                endpt = (int(startpt[0] + 100 * math.cos(gradient)),
-                         int(startpt[1] + 100 * math.sin(gradient)))
-                startpt = (int(startpt[0]), int(startpt[1]))
-                cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
+            samples.append({'centroid': centroid, 'angle': angle})
 
         if self.debugMode:
             # Draw the centering rectangle
@@ -126,6 +118,18 @@ class PickupVision:
                           (int(midX-maxDeltaX), int(midY-maxDeltaY)),
                           (int(midX+maxDeltaX), int(midY+maxDeltaY)),
                           (0, 255, 0), 2)
+
+            # Draw the centroid and orientation of each contour
+            for sample in samples:
+                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
+                           5, (0, 0, 255))
+                startpt = centroid
+                gradient = np.deg2rad(angle)
+                endpt = (int(startpt[0] + 100 * math.cos(gradient)),
+                         int(startpt[1] + 100 * math.sin(gradient)))
+                startpt = (int(startpt[0]), int(startpt[1]))
+                cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
+
 
         return rval, outImg
 

@@ -1,0 +1,8 @@
+<library path="libexplorer_dvl">
+    <class name="explorer_dvl/DVL" type="explorer_dvl::DVL"
+            base_class_type="nodelet::Nodelet">
+        <description>
+            RDI Explorer DVL driver.
+        </description>
+    </class>
+</library>

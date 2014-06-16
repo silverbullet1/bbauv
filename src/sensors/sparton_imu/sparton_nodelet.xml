@@ -1,0 +1,8 @@
+<library path="libsparton_imu">
+    <class name="sparton_imu/Imu" type="sparton_imu::Imu"
+            base_class_type="nodelet::Nodelet">
+        <description>
+            Sparton AHRS-8 and GEDC-6 driver.
+        </description>
+    </class>
+</library>

@@ -764,11 +764,14 @@ class AUV_gui(QMainWindow):
         self.saPanel3.setText("<b>Grabber: " + mani_name[2]+"</b>")
         
         battery_notification1 = ""
-        if self.data['openups1'].cell6 < 22.5 or \
-            self.data['openups2'].cell6 < 22.5:
-            battery_notification = "CHANGE BATTERY!!"
-        self.saPanel4.setText("LYNNETTE IS AWESOME" + 
+        battery_notification2 = ""
+        if self.data['openups1'].battery_percentage < 22.5:
+            battery_notification1 = "BATTERY 1 DYING!"
+        if self.data['openups2'].battery_percentage < 22.5:
+            battery_notification2 = "BATTERY 2 DYING!"
+        self.saPanel4.setText("LYNNETTE SUCKS" + 
                               "<b><br>" + battery_notification1 + 
+                              "<b><br>" + battery_notification2 + 
                               "</b>") 
         if self.data['openups1'].battery_percentage < 15.0 or \
             self.data['openups2'].battery_percentage < 15.0 and \
@@ -1202,8 +1205,8 @@ class AUV_gui(QMainWindow):
             self.dynamic_client = dynamic_reconfigure.client.Client('/DVL')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
 
-            self.controller_client = dynamic_reconfigure.client.Client('/Controller')
-            rospy.loginfo("Controller client connected")
+        self.controller_client = dynamic_reconfigure.client.Client('/Controller')
+        rospy.loginfo("Controller client connected")
 
     def valueChanged(self,value):
         self.heading_box.setText(str(value))
