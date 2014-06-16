@@ -12,7 +12,7 @@ class PickupVision:
     # Vision parameters
     greenLoThresh = (35, 0, 0)
     greenHiThresh = (70, 255, 255)
-    redLoThresh1 = (0, 0, 0)
+    redLoThresh1 = (1, 0, 0)
     redHiThresh1 = (25, 255, 255)
     redLoThresh2 = (160, 0, 0)
     redHiThresh2 = (180, 255, 255)
@@ -131,9 +131,12 @@ class PickupVision:
 
 
 def main():
+    import rospy
+    rospy.init_node("pickup_vision")
     cv2.namedWindow("output")
     image = cv2.imread("green_cheese.png")
-    visionFilter = PickupVision()
+    from comms import Comms
+    visionFilter = PickupVision(Comms())
     _, outImg = visionFilter.gotFrame(image)
     cv2.imshow("output", outImg)
     cv2.waitKey()
