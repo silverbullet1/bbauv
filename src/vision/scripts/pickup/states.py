@@ -27,6 +27,81 @@ class Disengage(smach.State):
         self.comms.sendMovement(d=self.comms.inputHeading)
         return 'started'
 
+class SearchSite(smach.State):
+    timeout = 10
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['aborted', 'lost', 'foundSite'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        start = time.time()
+
+        while not self.comms.retVal or \
+              len (self.comms.retVal['site']) < 1:
+            if time.time() - start > self.timeout:
+                self.comms.abortMission()
+                return 'timeout'
+            rospy.sleep(rospy.Duration(0.3))
+
+        return 'foundSite'
+
+class CenterSite(smach.State):
+    width = PickupVision.screen['width']
+    height = PickupVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    maxdx = 0.03
+    maxdy = 0.03
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 1
+    trialPassed = 0
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.retVal['site']) < 1:
+            return 'lost'
+
+        site = self.comms.retVal['site']
+
+        dx = (site['centroid'][0] - self.centerX) / self.width
+        dy = (site['centroid'][1] - self.centerY) / self.height
+
+        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
+            self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
+            if self.trialPassed == self.numTrials:
+                self.trialPassed = 0
+                return 'centered'
+            else:
+                self.trialPassed += 1
+                return 'centering'
+
+
+        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                blocking=False)
+        return 'centering'
+        
+
 class Search(smach.State):
     timeout = 10
 
@@ -37,10 +112,15 @@ class Search(smach.State):
         self.comms = comms
 
     def execute(self, userdata):
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
         start = time.time()
 
         while not self.comms.retVal or \
-              len (self.comms.retVal['centroids']) < 1:
+              len (self.comms.retVal['samples']) < 1:
             if time.time() - start > self.timeout:
                 self.comms.abortMission()
                 return 'timeout'
@@ -59,7 +139,7 @@ class Center(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
-    numTrials = 2
+    numTrials = 1
     trialPassed = 0
 
     def __init__(self, comms):
@@ -79,10 +159,11 @@ class Center(smach.State):
            len(self.comms.retVal['centroids']) < 1:
             return 'lost'
 
-        centroids = self.comms.retVal['centroids']
-        closest = min(centroids,
+        samples = self.comms.retVal['centroids']
+        closest = min(samples,
                       key=lambda c:
-                      Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
+                      Utils.distBetweenPoints(c['centroid'],
+                                              (self.centerX, self.centerY)))
 
         dx = (closest[0] - self.centerX) / self.width
         dy = (closest[1] - self.centerY) / self.height
@@ -129,6 +210,9 @@ class Center2(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
+    numTrials = 1
+    trialPassed = 0
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
                                              'centering',
@@ -146,10 +230,11 @@ class Center2(smach.State):
            len(self.comms.retVal['centroids']) < 1:
             return 'lost'
 
-        centroids = self.comms.retVal['centroids']
-        closest = min(centroids,
+        samples = self.comms.retVal['samples']
+        closest = min(samples,
                       key=lambda c:
-                      Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
+                      Utils.distBetweenPoints(c['centroid'],
+                                              (self.centerX, self.centerY)))
 
         dx = (closest[0] - self.centerX) / self.width
         dy = (closest[1] - self.centerY) / self.height
@@ -164,7 +249,6 @@ class Center2(smach.State):
             else:
                 self.trialPassed += 1
                 return 'centering'
-
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
                                 d=self.comms.sinkingDepth,
@@ -243,6 +327,17 @@ def main():
                                Disengage(myCom),
                                transitions={'started':'SEARCH',
                                             'killed':'killed'})
+        smach.StateMachine.add('SEARCHSITE',
+                               SearchSite(myCom),
+                               transitions={'foundSite':'CENTERSITE',
+                                            'timeout':'DISENGAGE',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTERSITE',
+                               CenterSite(myCom),
+                               transitions={'centered':'SEARCH',
+                                            'centering':'CENTERSITE',
+                                            'lost':'SEARCHSITE',
+                                            'aborted':'DISENGAGE'})
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
                                transitions={'foundSamples':'CENTER',

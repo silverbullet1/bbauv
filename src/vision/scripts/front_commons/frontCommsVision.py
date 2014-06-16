@@ -131,3 +131,10 @@ class FrontCommsVision():
 
         outImg = cv2.merge((numpy.uint8(outB), numpy.uint8(outG), numpy.uint8(outR)))
         return outImg
+
+    @staticmethod
+    def illuminanceMask(img):
+        ''' Trying to remove illuminance '''
+        grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        grayImg = cv2.equalizeHist(grayImg)
+        return cv2.threshold(grayImg, 200, 255, cv2.THRESH_BINARY)[1]

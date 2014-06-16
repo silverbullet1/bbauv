@@ -135,6 +135,7 @@ class FrontComms:
             self.unregisterMission()
         else:
             self.unregister()
+
         self.canPublish = False
         self.isAborted = True
         self.isKilled = True
@@ -158,26 +159,4 @@ class FrontComms:
             self.motionClient.wait_for_result()
         else:
             self.motionClient.wait_for_result(timeout=rospy.Duration(timeout))
-            
-class MedianFilter:
-    staleDuration = 5.0
-
-    def __init__(self, sampleWindow=30):
-        self.samples = deque()
-        self.sampleWindow = sampleWindow
-        self.lastSampled = time.time()
-
-    def newSample(self, sample):
-        curTime = time.time()
-        # Discard previous samples if we only sampled them a long time ago
-        if (curTime - self.lastSampled) > self.staleDuration:
-            self.samples = deque()
-
-        self.lastSampled = curTime
-        if len(self.samples) >= self.sampleWindow:
-            self.samples.popleft()
-        self.samples.append(sample)
-
-    def getMedian(self):
-        return np.mean(self.samples)
             

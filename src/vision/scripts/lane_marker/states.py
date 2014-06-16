@@ -274,7 +274,7 @@ class Forward(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(f=3.0, h=self.comms.adjustHeading,
+        self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.adjustHeading,
                                 blocking=True)
         self.comms.taskComplete(heading=self.comms.adjustHeading)
         return 'completed'

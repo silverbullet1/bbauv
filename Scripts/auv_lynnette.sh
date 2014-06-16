@@ -1,6 +1,8 @@
 #!/bin/bash
 
 pkill -f 'republish.*lynnette'
+
+cd ~/Code/bbauv/src/gui/controlpanel/src
 ROS_NAMESPACE=/front_camera/camera rosrun image_transport republish compressed in:=image_raw raw out:=image_color_lynnette &
 ROS_NAMESPACE=/bot_camera/camera rosrun image_transport republish compressed in:=image_raw raw out:=image_color_lynnette &
 rosrun image_transport republish compressed in:=sonar_image raw out:=sonar_image_lynnette &

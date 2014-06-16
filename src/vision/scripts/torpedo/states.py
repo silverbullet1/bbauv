@@ -37,10 +37,10 @@ class Disengage(smach.State):
             self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting Torpedo")
 
-        rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
-        self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                heading=self.comms.inputHeading,
-                                blocking=True)
+            rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
+            self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                    heading=self.comms.inputHeading,
+                                    blocking=True)
         
         return 'start_complete'
 
@@ -62,7 +62,7 @@ class FollowSonar(smach.State):
             return 'sonar_complete'
         
 class SearchCircles(smach.State):
-    timeout = 1000
+    timeout = 300
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['searchCircles_complete', 'aborted', 'killed'])
@@ -74,32 +74,38 @@ class SearchCircles(smach.State):
     def execute(self, ud):
         start = time.time()
         
-        if not self.comms.foundCircles and self.comms.foundSomething:
-            if self.comms.foundCount < 20:
-                # Search pattern 
-                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading+20,
-                                        sidemove=-0.4, blocking=True)
-                self.comms.sendMovement(forward=0.2, heading=self.comms.curHeading-20,
-                                        sidemove=0.4, blocking=True)
-
         while not self.comms.foundCircles: 
             if self.comms.isKilled:
                 return 'killed'
             if self.comms.isAborted or (time.time() - start) > self.timeout:
                 self.comms.isAborted = True
                 return 'aborted' 
+
+            if not self.comms.foundCircles and self.comms.foundSomething:
+                if self.comms.foundCount < 20:
+                    # Search pattern 
+                    self.comms.sendMovement(forward=0.2,
+                                            sidemove=-0.4, timeout=0.5, blocking=True)
+                    self.comms.sendMovement(forward=0.2,
+                                            sidemove=0.4, timeout=0.5, blocking=True)
             
             # Search in figure of 8? 
             rospy.sleep(rospy.Duration(0.3))   
 
         return 'searchCircles_complete'
 
+# Just move forward 
 class MoveForward(smach.State):
     forward_setpoint = 0.3
-    deltaXMult = 5.0
-    deltaYMult = 0.2
-    completeRadius = 30
+    halfCompleteRadius = 70
+    completeRadius = 150
     lostCount = 0
+
+    deltaXMult = 4.0
+    deltaYMult = 0.2
+
+    deltaXMult2 = 3.0
+    deltaYMult2 = 0.05
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -122,6 +128,9 @@ class MoveForward(smach.State):
             return 'forward_complete'
         
         if abs(self.comms.deltaY) > 0.010:
+            if self.comms.radius > self.halfCompleteRadius:
+                self.deltaYMult = self.deltaYMult2
+                self.deltaXMult = self.deltaXMult2
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
             # Prevent surfacing
             if self.comms.defaultDepth < 0.1:
@@ -151,9 +160,7 @@ class Centering (smach.State):
             return 'killed'
         if self.comms.isAborted:
             return 'aborted'
-        
-        rospy.loginfo("Delta X: {}".format(self.comms.deltaX))
-        
+                
         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
             self.count = self.count + 1
             rospy.loginfo("Count: {}".format(self.count))

@@ -26,6 +26,7 @@ toBangColour = False
 class Disengage(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['start_complete', 'killed'])
+        
         self.comms = comms
     
     def execute(self, userdata):
@@ -44,7 +45,6 @@ class Disengage(smach.State):
             self.comms.sendMovement(depth=self.comms.defaultDepth,
                                     heading=self.comms.inputHeading,
                                     blocking=True)
-        self.comms.taskComplete()
 
         return 'start_complete'
     
