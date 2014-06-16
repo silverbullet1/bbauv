@@ -768,7 +768,7 @@ class AUV_gui(QMainWindow):
             battery_notification1 = "BATTERY 1 DYING!"
         if self.data['openups2'].battery_percentage < 22.5:
             battery_notification2 = "BATTERY 2 DYING!"
-        self.saPanel4.setText("LYNNETTE IS AWESOME" + 
+        self.saPanel4.setText("LYNNETTE SUCKS" + 
                               "<b><br>" + battery_notification1 + 
                               "<br>" + battery_notification2 + 
                               "</b>") 
@@ -1192,8 +1192,8 @@ class AUV_gui(QMainWindow):
             self.dynamic_client = dynamic_reconfigure.client.Client('/DVL')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
 
-            self.controller_client = dynamic_reconfigure.client.Client('/Controller')
-            rospy.loginfo("Controller client connected")
+        self.controller_client = dynamic_reconfigure.client.Client('/Controller')
+        rospy.loginfo("Controller client connected")
 
     def valueChanged(self,value):
         self.heading_box.setText(str(value))

@@ -11,11 +11,14 @@ from bot_common.bot_comms import GenericComms
 
 class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
+    SITE = 0
+    SAMPLES = 1
 
     def __init__(self):
         GenericComms.__init__(self, PickupVision(self))
         self.defaultDepth = 2.0
         self.sinkingDepth = 3.0
+        self.visionMode = self.SITE
 
         self.dynServer = DynServer(Config, self.reconfigure)
 
