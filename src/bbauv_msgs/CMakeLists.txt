@@ -70,10 +70,13 @@ add_message_files(
   sonarData.msg
   sonarDataVector.msg
   #pingData.msg
-
+  tilt.msg
   ##Old msg files end
   cpu_temperature.msg
   acoustic.msg
+  raw_magnetics.msg
+  explorer_dvl_data.msg
+  dvl_vel.msg
 )
 
 ## Generate services in the 'srv' folder

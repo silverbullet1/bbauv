@@ -1,7 +1,0 @@
-<library path="lib/libimu">
-    <class name="imu/IMU" type="imu::IMU" base_class_type="nodelet::Nodelet">
-    <description> 
-        ROS Driver for Sparton AHRS-8/GEDC-6.
-    </description>
-    </class>
-</library>

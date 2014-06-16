@@ -1,0 +1,10 @@
+<launch>
+    <node pkg="nodelet" type="nodelet" name="dvl_manager" args="manager" />
+    <node pkg="nodelet" type="nodelet" name="DVL_driver"
+        args="load explorer_dvl/DVL dvl_manager" output="screen">
+        <param name="port" value="/dev/ttyDVL" />
+    </node>
+    <node pkg="explorer_dvl" name="beamtoxyz" type="beamtoxyz.py" />
+    <node pkg="explorer_dvl" name="veltodistance" type="veltodistance.py" />
+    <node pkg="explorer_dvl" name="tilt_pub" type="tilt.py" />
+</launch>

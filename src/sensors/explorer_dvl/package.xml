@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<package>
+  <name>explorer_dvl</name>
+  <version>0.1.0</version>
+  <description>The explorer_dvl package</description>
+
+  <maintainer email="alex@nus.edu.sg">alex</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>bbauv_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>nodelet</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <run_depend>bbauv_msgs</run_depend>
+  <run_depend>nav_msgs</run_depend>
+  <run_depend>nodelet</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>tf</run_depend>
+
+  <export>
+      <nodelet plugin="${prefix}/explorer_dvl_nodelet.xml" />
+  </export>
+</package>

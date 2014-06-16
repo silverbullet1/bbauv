@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <name>cpu_mon</name>
+  <version>0.1.0</version>
+  <description>The cpu_mon package</description>
+
+  <maintainer email="alex@nus.edu.sg">alex</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>bbauv_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <run_depend>bbauv_msgs</run_depend>
+  <run_depend>roscpp</run_depend>
+  <export>
+  </export>
+</package>

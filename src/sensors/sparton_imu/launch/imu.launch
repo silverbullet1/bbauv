@@ -1,0 +1,11 @@
+<launch>
+<node pkg="nodelet" type="nodelet" name="imu_manager" args="manager" />
+<node pkg="nodelet" type="nodelet" name="AHRS8_driver"
+    args="load sparton_Imu/Imu" output="screen">
+    <param name="port" value="/dev/ttyAHRS" />
+    <param name="device" value="AHRS8" />
+    <param name="baud" value="115200" />
+    <remap from="/imu_data_e" to="/AHRS8_data_e" />
+    <remap from="/imu_data_q" to="/AHRS8_data_q" />
+</node>
+</launch>
