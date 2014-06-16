@@ -37,7 +37,6 @@ from bbauv_msgs.msg._thruster import thruster
 from std_msgs.msg._Float32 import Float32
 from std_msgs.msg._Int8 import Int8
 from filter_chain import Vision_filter
-from navigation_map import Navigation_Map
 
 class AUV_gui(QMainWindow):
     isLeak = False
