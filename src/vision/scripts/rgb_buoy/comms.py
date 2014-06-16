@@ -85,6 +85,8 @@ class Comms(FrontComms):
             rospy.loginfo("RGB abort received")
             self.isAborted=True
             self.isStart = False
+            self.canPublish = False 
+            
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
             

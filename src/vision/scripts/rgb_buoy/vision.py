@@ -22,7 +22,7 @@ class RgbBuoyVision:
                 'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Jin's values 
                  'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
-
+# 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
     blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
@@ -105,7 +105,7 @@ class RgbBuoyVision:
                 
                 self.previousCentroid = self.comms.centroidToBump
                 self.previousArea = self.comms.rectArea
-                
+                 
             else:
                 self.comms.centroidToBump = self.previousCentroid
                 self.comms.rectArea = self.previousArea

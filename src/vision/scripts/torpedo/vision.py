@@ -50,11 +50,12 @@ class TorpedoVision:
         # Preprocessing 
         img = cv2.resize(img, (640, 480))
         
-        # White balance
+        # Illuminance mask
         illumMask = self.illuminanceMask(img)
         illumMask = cv2.bitwise_not(illumMask)
         img = cv2.bitwise_and(cv2.cvtColor(illumMask, cv2.COLOR_GRAY2BGR), img)
         
+        # White balance
         img = self.whiteBal(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = np.array(hsvImg, dtype=np.uint8)  

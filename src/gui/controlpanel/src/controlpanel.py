@@ -8,13 +8,14 @@ from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
 #import pynotify
 import actionlib
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+#from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 import dynamic_reconfigure.client
 
 from bbauv_msgs.msg import openups_stats
 from bbauv_msgs.msg import openups
 from batt_msgs.msg import Battery
+#from bbauv_msgs.msg import Battery
 
 import math
 from math import pi
@@ -46,6 +47,7 @@ class AUV_gui(QMainWindow):
     depth_thermo = None
     client = None
     movebase_client = None
+    batt_not = False
     isSonar = 0
     yaw = 0
     depth = 0
@@ -770,8 +772,20 @@ class AUV_gui(QMainWindow):
             battery_notification2 = "BATTERY 2 DYING!"
         self.saPanel4.setText("LYNNETTE SUCKS" + 
                               "<b><br>" + battery_notification1 + 
-                              "<br>" + battery_notification2 + 
+                              "<b><br>" + battery_notification2 + 
                               "</b>") 
+        if self.data['openups1'].battery_percentage < 15.0 or \
+            self.data['openups2'].battery_percentage < 15.0 and \
+            not batt_not:
+            pass
+            # n = pynotify.Notification("BATTERY DYING BATTERY DYING!!!")
+            # if not n.show():
+            #     print "Failed to send battery dying notification"
+            self.batt_not = True
+        elif self.data['openups1'].battery_percentage > 20.0 and \
+            self.data['openups2'].battery_percentage > 20.0:
+            self.batt_not = False 
+
 
 #         self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
 #                               "<br>Top Tor: " + mani_name[1] +
@@ -1185,7 +1199,7 @@ class AUV_gui(QMainWindow):
         #self.client.wait_for_server()
         rospy.loginfo("Action Server connected.")
         self.status_text.setText("Action Server connected.")
-        self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        #self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         if not self.testing:

@@ -19,7 +19,7 @@ class PegsVision:
 
     redParams = {'lo1': (113, 0, 0), 'hi1': (136, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (27, 255, 255),
-                 'lo3': (149, 134, 2), 'hi3': (186, 255, 160),  # Red white balance values 
+                 'lo3': (150, 223, 0), 'hi3': (255, 255, 255),  # Red white balance values 
                  'dilate': (15,15), 'erode': (5,5), 'open': (3,3)}
     
     blueParams = {'lo': (97, 0, 0), 'hi': (139, 255, 255),
@@ -69,11 +69,11 @@ class PegsVision:
 #         binImg = self.erodeAndDilateImg(binImg, params)
 
         # Perform thresholding
-#         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
-#         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kern)
-#         kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-#         threshImg = cv2.dilate(mask, kern2, iterations=3)
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        mask = cv2.inRange(enhancedImg, self.redParams['lo3'], self.redParams['hi3'])
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSe, kern)
+        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        threshImg = cv2.dilate(mask, kern2, iterations=3)
 
         return cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
@@ -208,7 +208,7 @@ class PegsVision:
     def updateParams(self):
         self.redParams['lo1'] = self.comms.params['loThreshold']
         self.redParams['hi1'] = self.comms.params['hiThreshold']
-        self.circleParams = self.comms.params['hough']
+        self.circleParams = self.comms.params['houghParams']
         self.minContourArea = self.comms.params['minContourArea']
         
 def main():
