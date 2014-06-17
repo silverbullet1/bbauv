@@ -96,7 +96,7 @@ class CenterSite(smach.State):
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
                 self.comms.sendMovement(h=self.comms.inputHeading,
-                                        d=self.comms.defaultDepth,
+                                        d=self.comms.sinkingDepth,
                                         blocking=True)
                 return 'centered'
             else:
@@ -104,6 +104,8 @@ class CenterSite(smach.State):
                 return 'centering'
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                d=self.comms.defaultDepth,
+                                h=self.comms.inputHeading,
                                 blocking=False)
         return 'centering'
         
@@ -180,6 +182,7 @@ class Center(smach.State):
             self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
+                self.comms.selectedSample = closest
                 return 'centered'
             else:
                 self.trialPassed += 1
@@ -188,8 +191,37 @@ class Center(smach.State):
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
                                 d=self.comms.sinkingDepth,
+                                h=self.comms.inputHeading,
                                 blocking=False)
         return 'centering'
+
+class Align(smach.State):
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['aligned',
+                                             'aligning',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        if not self.comms.retVal or \
+           len(self.comms.retVal['matches']) == 0:
+            return 'lost'
+
+        # Align with the samples
+        dAngle = Utils.toHeadingSpace(self.comms.selectedSample['angle'])
+        adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
+        self.comms.adjustHeading = adjustAngle
+        self.comms.sendMovement(h=adjustAngle,
+                                d=self.comms.sinkingDepth,
+                                blocking=True)
+
+        return 'aligned'
+
 
 class Approach(smach.State):
     def __init__(self, comms):
@@ -204,7 +236,9 @@ class Approach(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(d=self.comms.sinkingDepth,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
 
         return 'completed'
 
@@ -251,6 +285,7 @@ class Center2(smach.State):
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
             self.comms.sendMovement(f=0.0, sm=0.0,
                                     d=self.comms.sinkingDepth,
+                                    h=self.comms.adjustHeading,
                                     blocking=True)
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
@@ -261,6 +296,7 @@ class Center2(smach.State):
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
                                 d=self.comms.sinkingDepth,
+                                h=self.comms.adjustHeading,
                                 blocking=False)
         return 'centering'
 
@@ -275,6 +311,9 @@ class Grab(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
+        self.comms.sendMovement(d=self.comms.grabbingDepth,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
         self.comms.grab()
 
         return 'grabbed'
@@ -290,40 +329,42 @@ class Surface(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(d=self.comms.defaultDepth)
+        self.comms.sendMovement(d=self.comms.defaultDepth,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
 
         return 'completed'
 
-class Navigate(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['completed',
-                                             'aborted'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        if self.comms.isAborted or self.comms.isKilled:
-            self.comms.abortMission()
-            return 'aborted'
-
-        #TODO: Navigate to the collection site
-
-        return 'completed'
-
-class Drop(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['completed',
-                                             'aborted'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        if self.comms.isAborted or self.comms.isKilled:
-            self.comms.abortMission()
-            return 'aborted'
-
-        self.comms.drop()
-        self.comms.taskComplete()
-
-        return 'completed'
+#class Navigate(smach.State):
+#    def __init__(self, comms):
+#        smach.State.__init__(self, outcomes=['completed',
+#                                             'aborted'])
+#        self.comms = comms
+#
+#    def execute(self, userdata):
+#        if self.comms.isAborted or self.comms.isKilled:
+#            self.comms.abortMission()
+#            return 'aborted'
+#
+#        #TODO: Navigate to the collection site
+#
+#        return 'completed'
+#
+#class Drop(smach.State):
+#    def __init__(self, comms):
+#        smach.State.__init__(self, outcomes=['completed',
+#                                             'aborted'])
+#        self.comms = comms
+#
+#    def execute(self, userdata):
+#        if self.comms.isAborted or self.comms.isKilled:
+#            self.comms.abortMission()
+#            return 'aborted'
+#
+#        self.comms.drop()
+#        self.comms.taskComplete()
+#
+#        return 'completed'
 
 
 def main():
@@ -376,16 +417,16 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('SURFACE',
                                Surface(myCom),
-                               transitions={'completed':'NAVIGATE',
-                                            'aborted':'DISENGAGE'})
-        smach.StateMachine.add('NAVIGATE',
-                               Navigate(myCom),
-                               transitions={'completed':'DROP',
-                                            'aborted':'DISENGAGE'})
-        smach.StateMachine.add('DROP',
-                               Drop(myCom),
                                transitions={'completed':'succeeded',
                                             'aborted':'DISENGAGE'})
+        #smach.StateMachine.add('NAVIGATE',
+        #                       Navigate(myCom),
+        #                       transitions={'completed':'DROP',
+        #                                    'aborted':'DISENGAGE'})
+        #smach.StateMachine.add('DROP',
+        #                       Drop(myCom),
+        #                       transitions={'completed':'succeeded',
+        #                                    'aborted':'DISENGAGE'})
 
     introServer = smach_ros.IntrospectionServer('mission_server',
                                                 sm,
