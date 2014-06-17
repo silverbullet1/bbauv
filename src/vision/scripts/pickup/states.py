@@ -98,6 +98,7 @@ class CenterSite(smach.State):
                 self.comms.sendMovement(h=self.comms.inputHeading,
                                         d=self.comms.sinkingDepth,
                                         blocking=True)
+                self.comms.visionMode = PickupVision.SAMPLES
                 return 'centered'
             else:
                 self.trialPassed += 1
@@ -166,17 +167,17 @@ class Center(smach.State):
             return 'aborted'
 
         if not self.comms.retVal or \
-           len(self.comms.retVal['centroids']) < 1:
+           len(self.comms.retVal['samples']) == 0: 
             return 'lost'
 
-        samples = self.comms.retVal['centroids']
+        samples = self.comms.retVal['samples']
         closest = min(samples,
                       key=lambda c:
                       Utils.distBetweenPoints(c['centroid'],
                                               (self.centerX, self.centerY)))
 
-        dx = (closest[0] - self.centerX) / self.width
-        dy = (closest[1] - self.centerY) / self.height
+        dx = (closest['centroid'][0] - self.centerX) / self.width
+        dy = (closest['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
             self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
@@ -209,7 +210,7 @@ class Align(smach.State):
             return 'aborted'
 
         if not self.comms.retVal or \
-           len(self.comms.retVal['matches']) == 0:
+           len(self.comms.retVal['samples']) == 0:
             return 'lost'
 
         # Align with the samples
@@ -270,7 +271,7 @@ class Center2(smach.State):
             return 'aborted'
 
         if not self.comms.retVal or \
-           len(self.comms.retVal['centroids']) < 1:
+           len(self.comms.retVal['samples']) < 1:
             return 'lost'
 
         samples = self.comms.retVal['samples']
@@ -279,8 +280,8 @@ class Center2(smach.State):
                       Utils.distBetweenPoints(c['centroid'],
                                               (self.centerX, self.centerY)))
 
-        dx = (closest[0] - self.centerX) / self.width
-        dy = (closest[1] - self.centerY) / self.height
+        dx = (closest['centroid'][0] - self.centerX) / self.width
+        dy = (closest['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
             self.comms.sendMovement(f=0.0, sm=0.0,
@@ -332,7 +333,7 @@ class Surface(smach.State):
         self.comms.sendMovement(d=self.comms.defaultDepth,
                                 h=self.comms.adjustHeading,
                                 blocking=True)
-
+        self.comms.taskComplete()
         return 'completed'
 
 #class Navigate(smach.State):
@@ -395,10 +396,16 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTER',
                                Center(myCom),
-                               transitions={'centered':'APPROACH',
+                               transitions={'centered':'ALIGN',
                                             'centering':'CENTER',
                                             'lost':'SEARCH',
                                             'aborted':'DISENGAGE'})
+        smach.StateMachine.add('ALIGN',
+                               Align(myCom),
+                               transitions={'aligned': 'APPROACH',
+                                            'aligning': 'ALIGN',
+                                            'lost': 'SEARCH',
+                                            'aborted': 'DISENGAGE'})
         smach.StateMachine.add('APPROACH',
                                Approach(myCom),
                                transitions={'completed':'GRAB',
@@ -434,4 +441,4 @@ def main():
     introServer.start()
 
     sm.execute()   
-
+    rospy.signal_shutdown('pick task quit')

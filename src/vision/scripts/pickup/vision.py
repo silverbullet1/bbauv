@@ -84,15 +84,6 @@ class PickupVision:
 
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
-                # Draw the aiming rectangle
-                midX = self.screen['width']/2.0
-                midY = self.screen['height']/2.0
-                maxDeltaX = self.screen['width']*0.03
-                maxDeltaY = self.screen['height']*0.03
-                cv2.rectangle(outImg,
-                              (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                              (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                              (0, 255, 0), 1)
 
             contours = self.findContourAndBound(binImg.copy(), bounded=True,
                                                 bound=self.minContourArea)
@@ -120,16 +111,6 @@ class PickupVision:
                 samples.append({'centroid': centroid, 'angle': angle})
 
             if self.debugMode:
-                # Draw the centering rectangle
-                midX = self.screen['width']/2.0
-                midY = self.screen['height']/2.0
-                maxDeltaX = self.screen['width']*0.03
-                maxDeltaY = self.screen['height']*0.03
-                cv2.rectangle(outImg,
-                              (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                              (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                              (0, 255, 0), 2)
-
                 # Draw the centroid and orientation of each contour
                 for sample in samples:
                     cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
@@ -146,6 +127,9 @@ class PickupVision:
             binImg = cv2.inRange(hsvImg,
                                  self.yellowLoThresh, self.yellowHiThresh)
             binImg = self.morphology(binImg)
+
+            if self.debugMode:
+                outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
 
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
@@ -168,6 +152,23 @@ class PickupVision:
                 centroid = (moment['m10']/moment['m00'],
                             moment['m01']/moment['m00'])
                 site['centroid'] = centroid
+
+                if self.debugMode:
+                    points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
+                    Vision.drawRect(outImg, points)
+                    cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
+                               5, (0, 0, 255))
+
+        if self.debugMode:
+            # Draw the aiming rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
+            cv2.rectangle(outImg,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 1)
 
         return rval, outImg
 
