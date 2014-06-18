@@ -31,12 +31,12 @@ class RgbBuoyVision:
 
     # Hough circle parameters
     circleParams = {'minRadius':25, 'maxRadius': 0 }
-    houghParams = {'param1': 80, 'param2': 15}
+    houghParams = (74, 12)
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 500
+    minContourArea = 300
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -111,8 +111,8 @@ class RgbBuoyVision:
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=78, 
-                               param2=14,
+                               minDist=30, param1=self.houghParams[0], 
+                               param2=self.houghParams[1],
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             

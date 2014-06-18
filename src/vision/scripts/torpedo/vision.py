@@ -28,8 +28,8 @@ class TorpedoVision:
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
                   }
     
-    circleParams = {'minRadius': 5, 'maxRadius': 100}
-    houghParams = (100, 150)    
+    circleParams = {'minRadius': 8, 'maxRadius': 100}
+    houghParams = (78, 16)    
     
     minContourArea = 100
     
@@ -97,8 +97,9 @@ class TorpedoVision:
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         scratchImg = binImg.copy()
         circles = cv2.HoughCircles(scratchImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                                   minDist=10, param1=78, param2=16,
-                                   minRadius = 8,
+                                   minDist=10, param1=self.houghParams[0], 
+                                   param2=self.houghParams[1],
+                                   minRadius = self.circleParams['minRadius'],
                                    maxRadius = self.circleParams['maxRadius'])        
         if circles is None:
             self.comms.foundCount = self.comms.foundCount + 1

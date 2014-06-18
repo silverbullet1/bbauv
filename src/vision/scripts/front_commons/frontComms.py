@@ -96,6 +96,7 @@ class FrontComms:
                 self.outPub.publish(Utils.cv2rosimg(outImg))
             except Exception, e:
                 pass
+        rospy.sleep(rospy.Duration(0.2))
             
     def compassCallback(self, data):
         if not self.gotHeading:
@@ -115,14 +116,16 @@ class FrontComms:
     def abortMission(self):
         rospy.loginfo("Aborted :( Sorry Mission Planner...")
         if not self.isAlone:
-            self.toMission(fail_request=True, task_complete_request=False,
-                           task_complete_ctrl=controller(
-                            heading_setpoint=self.curHeading))
+            # self.toMission(fail_request=True, task_complete_request=False,
+            #                task_complete_ctrl=controller(
+            #                 heading_setpoint=self.curHeading))
             self.unregisterMission()
         else:
             self.unregister()
         self.canPublish = False
         self.isAborted = True
+        self.isKilled = True
+        
         self.sendMovement(forward=0.0, sidemove=0.0)
         rospy.signal_shutdown("Bye")
         

@@ -18,7 +18,7 @@ class QHistogram(QLabel):
     
     windowColor = [(255,0,0),(0,255,0),(0,0,255)]
     thresColor = (100,50,200)
-    params = { 'satLow': 0, 'satHigh': 255, 'hueLow': 0, 'hueHigh':255,'valLow':0,'valHigh':255,'grayLow': 0, 'grayHigh': 255}
+    params = { 'satLow': 0, 'satHigh': 255, 'hueLow': 0, 'hueHigh':180,'valLow':0,'valHigh':255,'grayLow': 0, 'grayHigh': 255}
     
     def __init__(self):
         '''

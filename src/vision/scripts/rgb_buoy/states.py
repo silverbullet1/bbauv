@@ -42,9 +42,9 @@ class Disengage(smach.State):
             rospy.loginfo("Starting RGB")
         
             rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
-            self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                    heading=self.comms.inputHeading,
-                                    blocking=True)
+        self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                heading=self.comms.inputHeading,
+                                blocking=True)
 
         return 'start_complete'
     
@@ -66,7 +66,7 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search pattern
-            self.comms.sendMovement(forward=0.2)
+            self.comms.sendMovement(forward=0.35)
 #             if self.moveOnce < 10:
 #                 self.comms.sendMovement(forward=0.2, sidemove=0.2, blocking=False)
 #             else:
@@ -80,7 +80,7 @@ class Search(smach.State):
 class bangBuoy(smach.State):
     deltaXMult = 4.0
     deltaYMult = 0.2
-    area = 6500
+    area = 7500
     count = 0
 
     def __init__(self, comms):
@@ -109,7 +109,7 @@ class bangBuoy(smach.State):
                 self.comms.defaultDepth = 2.0
   
         # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.35, sidemove=self.comms.deltaX*self.deltaXMult,
+        self.comms.sendMovement(forward=0.45, sidemove=self.comms.deltaX*self.deltaXMult,
                                 depth=self.comms.defaultDepth,
                                 blocking=False)
         return 'banging'
@@ -154,8 +154,8 @@ class Centering (smach.State):
             self.comms.isAborted = True
             self.comms.isKilled = True 
             rospy.sleep(duration=3)
-            #self.comms.taskComplete()
-            self.comms.abortMission()
+            self.comms.taskComplete()
+            #self.comms.abortMission()
             return 'centering_complete'
         
 #         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
@@ -180,13 +180,13 @@ class Centering (smach.State):
             # pixel radius of buoy seen / screen width * 2 * real radius of bouy * dy / screen width
 
         if abs(self.comms.deltaY) > 0.010:
-            if self.comms.rectArea > 9000:
+            if self.comms.rectArea > 9500:
                 self.deltaYMult = 0.05
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = 2.0
 
-        self.comms.sendMovement(forward=0.1,
+        self.comms.sendMovement(forward=0.25,
                                 sidemove=self.comms.deltaX*self.deltaXMult, 
                                 depth=self.comms.defaultDepth, 
                                 timeout=0.4, blocking=False)

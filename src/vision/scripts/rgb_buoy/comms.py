@@ -10,7 +10,7 @@ from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server as DynServer
-from utils.config import rgbConfig as Config
+#from utils.config import rgbConfig as Config
 from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
@@ -20,7 +20,7 @@ class Comms(FrontComms):
     isTesting = False
     isKilled = False
     isAborted = True
-    isStart = False
+    isStart = False 
     
     # Vision boolean
     toBumpColor = False
@@ -37,7 +37,7 @@ class Comms(FrontComms):
         self.defaultDepth = 2.00
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
-        self.dynServer = DynServer(Config, self.reconfigure)
+        #self.dynServer = DynServer(Config, self.reconfigure)
         
         if not self.isAlone:
             #Initialise mission planner
@@ -72,24 +72,19 @@ class Comms(FrontComms):
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
 
-            
-            self.sendMovement(depth=self.defaultDepth,
-                              heading=self.inputHeading,
-                              blocking=True)
-
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=self.curHeading))
 
-        elif req.abort_request:
+        if req.abort_request:
             rospy.loginfo("RGB abort received")
             self.isAborted=True
             self.isStart = False
             self.canPublish = False 
             
-            self.sendMovement(forward=0.0, sidemove=0.0)
+            #self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
-            
+            rospy.loginfo("Aborted myself")
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=self.curHeading))

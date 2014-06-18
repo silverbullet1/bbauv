@@ -76,10 +76,6 @@ class Comms(FrontComms):
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
 
             self.registerMission()
-
-            self.sendMovement(depth=self.defaultDepth,
-                              heading=self.inputHeading,
-                              blocking=True)
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
