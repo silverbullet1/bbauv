@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+from PyQt5.QtWidgets import *
+from ac import Ui_MainWindow
+import sys
+
+class AcousticPanel(Ui_MainWindow):
+
+    heading = None
+    pos = {'x':0, 'y':0}
+    depth = None
+    isTest = False
+
+    def __init__(self):
+        super(AcousticPanel, self).__init__()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = AcousticPanel()
+    app.setMainWidget(window)
+    window.show()
+    sys.exit(app.exec_())

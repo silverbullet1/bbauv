@@ -8,7 +8,7 @@ from bbauv_msgs.msg import *
 from nav_msgs.msg import Odometry
 #import pynotify
 import actionlib
-#from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import quaternion_from_euler, quaternion_about_axis
 import dynamic_reconfigure.client
 
@@ -1198,7 +1198,7 @@ class AUV_gui(QMainWindow):
         #self.client.wait_for_server()
         rospy.loginfo("Action Server connected.")
         self.status_text.setText("Action Server connected.")
-        #self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        self.movebase_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         if not self.testing:
