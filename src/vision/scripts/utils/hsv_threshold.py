@@ -109,8 +109,10 @@ def main():
 
     rospy.Subscriber(sys.argv[1], Image, camCallback)
 
-    rospy.spin()
-
 if __name__ == "__main__":
     rospy.init_node("hsv_threshold")
     main()
+    r = rospy.Rate(10)
+    while not rospy.is_shutdown():
+        cv2.waitKey(1)
+        r.sleep()

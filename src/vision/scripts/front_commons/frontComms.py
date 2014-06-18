@@ -37,11 +37,12 @@ class FrontComms:
         
         #Initialize vision Filter
         self.visionFilter = visionFilter
-        self.medianFilter = MedianFilter(sampleWindow=100)
         
         #Get private params 
         self.imageTopic = rospy.get_param('~image', config.frontCamTopic)
         self.isAlone = rospy.get_param('~alone', True)
+        self.onBot = rospy.get_param('~bot', True)
+        self.isTest = rospy.get_param('~test', False)
         
         #Locomotion servers 
         self.motionClient = actionlib.SimpleActionClient("LocomotionServer",

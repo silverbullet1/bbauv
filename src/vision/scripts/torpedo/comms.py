@@ -14,7 +14,7 @@ from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
 from dynamic_reconfigure.server import Server as DynServer
-# from utils.config import torpedoConfig as Config
+from utils.config import torpedoConfig as Config
 
 class Comms(FrontComms):
     
@@ -42,6 +42,8 @@ class Comms(FrontComms):
         FrontComms.__init__(self, TorpedoVision(comms=self))
         self.defaultDepth = 2.00
         
+        self.dynServer = DynServer(Config, self.reconfigure)
+
         # Initialise mission planner 
         if not self.isAlone:
             self.comServer = rospy.Service("/torpedo/mission_to_vision", 
@@ -50,7 +52,7 @@ class Comms(FrontComms):
             rospy.loginfo("Waiting for mission planner")
             self.toMission = rospy.ServiceProxy("/torpedo/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()   #Indefinitely waiting for timeout
         
     # Handle mission services
     def handle_srv(self, req):
@@ -123,6 +125,9 @@ class Comms(FrontComms):
     def sonarDataCallback(self, data):
         self.sonarBearing = data.bearing
         self.sonarDist = data.range
+
+        if self.sonarDist < 2:
+            self.unregisterSonar()
         
     def unregisterSonar(self):
         self.sonarSub.unregister()
