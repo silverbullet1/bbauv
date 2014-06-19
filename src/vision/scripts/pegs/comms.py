@@ -9,7 +9,7 @@ from front_commons.frontComms import FrontComms
 from vision import PegsVision
 
 from dynamic_reconfigure.server import Server as DynServer
-#from utils.config import pegsConfig as Config
+from utils.config import pegsConfig as Config
 
 from bbauv_msgs.msg._manipulator import manipulator
 from bbauv_msgs.msg import controller, sonarData
@@ -38,7 +38,7 @@ class Comms(FrontComms):
         FrontComms.__init__(self, PegsVision(comms=self))
         self.defaultDepth = 2.0
         
-        # self.dynServer = DynServer(Config, self.reconfigure)
+        self.dynServer = DynServer(Config, self.reconfigure)
         
         # Initialise mission planner 
         if not self.isAlone:
@@ -48,7 +48,7 @@ class Comms(FrontComms):
             rospy.loginfo("Waiting for mission planner")
             self.toMission = rospy.ServiceProxy("/pegs/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()
         
     # Handle mission services
     def handle_srv(self, req):
@@ -62,7 +62,7 @@ class Comms(FrontComms):
             rospy.loginfo("Pegs starting")
             self.isStart = True
             self.isAborted = False
-            self.canPublsih = True
+            self.canPublish = True
 
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
@@ -109,7 +109,7 @@ class Comms(FrontComms):
         rospy.loginfo("Received dynamic reconfigure request")
         self.params = {'loThreshold': (config.loH, config.loS, config.loV),
                        'hiThreshold': (config.hiH, config.hiS, config.hiV),
-                       'hough': (config.Hough1, config.Hough2),
+                       'houghParams': (config.Hough1, config.Hough2),
                        'minContourArea': config.minContourArea }
         
         self.visionFilter.updateParams()

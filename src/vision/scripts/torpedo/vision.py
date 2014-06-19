@@ -29,7 +29,7 @@ class TorpedoVision:
                   }
     
     circleParams = {'minRadius': 5, 'maxRadius': 100}
-    cannyParams = {'loThres': 100, 'hiThres': 150}    
+    houghParams = (100, 150)    
     
     minContourArea = 100
     
@@ -79,7 +79,6 @@ class TorpedoVision:
         dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (7,7))
         binImg = cv2.dilate(binImg, dilateKern, iterations=3)
         
-
         # Find contours and fill them
         for i in range(3):
             binImgCopy = binImg.copy()
@@ -116,7 +115,6 @@ class TorpedoVision:
             cv2.circle(scratchImgCol, circleCentroid, circle[2], (255, 255, 0), 2)
             cv2.circle(scratchImgCol, circleCentroid, 2, (255, 0, 255), 3)
 
-        
         # Centroid resetted
         if self.comms.centroidToShoot is None:
             # Pick the largest circle
@@ -188,7 +186,7 @@ class TorpedoVision:
     def updateParams(self):
         self.thresParams['lo'] = self.comms.params['loThreshold']
         self.thresParams['hi'] = self.comms.params['hiThreshold']
-        self.cannyParams = self.comms.params['cannyParams']
+        self.houghParams = self.comms.params['houghParams']
         self.minContourArea = self.comms.params['minContourArea']     
 
     def normaliseImg(self, img):

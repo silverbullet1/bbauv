@@ -10,7 +10,7 @@ from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server as DynServer
-#from utils.config import rgbConfig as Config
+from utils.config import rgbConfig as Config
 from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
@@ -37,7 +37,7 @@ class Comms(FrontComms):
         self.defaultDepth = 2.00
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
-        #self.dynServer = DynServer(Config, self.reconfigure)
+        self.dynServer = DynServer(Config, self.reconfigure)
         
         if not self.isAlone:
             #Initialise mission planner
@@ -47,7 +47,7 @@ class Comms(FrontComms):
             rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/rgb/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()   #Indefinitely waiting for timeout
         
     # Handle mission services
     def handle_srv(self, req):

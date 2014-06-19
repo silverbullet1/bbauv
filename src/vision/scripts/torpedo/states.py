@@ -53,7 +53,7 @@ class FollowSonar(smach.State):
         rospy.sleep(duration=0.5)
         
     def execute(self, ud):
-        if self.comms.sonarDist > 2:
+        if self.comms.sonarDist > 4:
             self.comms.sendMovement(forward=self.comms.sonarDist,
                                     heading=self.comms.sonarBearing,
                                     timeout=0.5, blocking=False)

@@ -105,7 +105,6 @@ class RgbBuoyVision:
                 
                 self.previousCentroid = self.comms.centroidToBump
                 self.previousArea = self.comms.rectArea
-                 
             else:
                 self.comms.centroidToBump = self.previousCentroid
                 self.comms.rectArea = self.previousArea

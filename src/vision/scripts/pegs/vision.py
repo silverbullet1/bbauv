@@ -27,6 +27,8 @@ class PegsVision:
     
     circleParams = {'minRadius': 0, 'maxRadius': 200, 'param1': 350, 'param2': 13}
     
+    houghParams = (100, 150)
+
     minContourArea = 100
     
     prevCentroid = (-1, -1)
@@ -208,7 +210,7 @@ class PegsVision:
     def updateParams(self):
         self.redParams['lo1'] = self.comms.params['loThreshold']
         self.redParams['hi1'] = self.comms.params['hiThreshold']
-        self.circleParams = self.comms.params['houghParams']
+        self.houghParams = self.comms.params['houghParams']
         self.minContourArea = self.comms.params['minContourArea']
         
 def main():

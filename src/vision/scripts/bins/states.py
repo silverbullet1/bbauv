@@ -254,8 +254,8 @@ class Fire(smach.State):
             return 'completed'
 
 class Search2(smach.State):
-    turnTime1 = 5
-    turnTime2 = 7
+    timeout = 10
+    turnTimeout = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
@@ -263,44 +263,66 @@ class Search2(smach.State):
                                              'aborted'])
         self.comms = comms
 
+    def turnLeft(self):
+        # Turn to the left and look for another bin
+        self.comms.sendMovement(d=self.comms.sinkingDepth,
+                                h=Utils.normAngle(self.comms.adjustHeading-90),
+                                blocking=True)
+        self.comms.sendMovement(f=0.5, d=self.comms.sinkingDepth, blocking=True)
+
+    def turnRight(self):
+        # Turn to the right and look for another bin
+        self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
+                                d=self.comms.sinkingDepth,
+                                blocking=True)
+        self.comms.sendMovement(f=0.5, d=self.comms.sinkingDepth, blocking=True)
+
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
             self.comms.abortMission()
             return 'aborted'
 
-        # Turn to the left and look for another bin
+        #Go up an look for another bin
         self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
-        self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading-90),
-                                blocking=True)
-        self.comms.sendMovement(f=1.1, d=self.comms.defaultDepth, blocking=True)
         start = time.time()
-        timeExceeded = False
-        while (not self.comms.retVal or
-               len(self.comms.retVal['matches']) == 0):
-            if time.time() - start > self.turnTime1:
-                timeExceeded = True
-                break
-            self.comms.sendMovement(f=0.3,
-                                    d=self.comms.defaultDepth,
-                                    blocking=False)
 
-        if not timeExceeded:
-            self.comms.adjustHeading = self.comms.curHeading
-            return 'foundBins'
-
-        # Turn to the right and look for another bin
-        self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
-                                d=self.comms.defaultDepth,
-                                blocking=True)
-        self.comms.sendMovement(f=3.5, d=self.comms.defaultDepth, blocking=True)
-        start = time.time()
-        while (not self.comms.retVal or
-               len(self.comms.retVal['matches']) == 0):
-            if time.time() - start > self.turnTime2:
+        while not self.comms.retVal or \
+              len(self.comms.retVal['matches']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
                 self.comms.abortMission()
+                return 'aborted'
+
+            if time.time() - start > self.timeout:
                 return 'lost'
-            self.comms.sendMovement(f=-0.3,
-                                    d=self.comms.defaultDepth,
+
+            rospy.sleep(rospy.Duration(0.3))
+
+        matches = self.comms.retVal['matches']
+        closest = min(matches,
+                      key=lambda m:
+                      Utils.distBetweenPoints(m['centroid'],
+                                              (self.centerX, self.centerY)))
+        farthest = max(matches,
+                       key=lambda m:
+                       Utils.distBetweenPoints(m['centroid'],
+                                              (self.centerX, self.centerY)))
+        dx = farthest['centroid'][0] - closest['centroid'][0]
+
+        if dx < 0:
+            self.turnLeft()
+        else:
+            self.turnRight()
+
+        start = time.time()
+        while (not self.comms.retVal or
+               len(self.comms.retVal['matches']) == 0):
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
+            if time.time() - start > self.turnTimeout:
+                return 'lost'
+            self.comms.sendMovement(f=0.3,
+                                    d=self.comms.sinkingDepth,
                                     blocking=False)
 
         self.comms.adjustHeading = self.comms.curHeading
