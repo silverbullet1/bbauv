@@ -32,7 +32,7 @@ class Comms(GenericComms):
             rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/lane/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()
 
     def handleSrv(self, req):
         if req.start_request:

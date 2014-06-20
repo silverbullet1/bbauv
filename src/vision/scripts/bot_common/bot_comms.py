@@ -14,7 +14,7 @@ import signal
 
 class GenericComms:
     """ Class to facilitate communication b/w ROS and task submodules """
-    processingRate = 5
+    processingRate = 3
     processingCount = 0
 
     def __init__(self, visionFilter):
@@ -99,10 +99,10 @@ class GenericComms:
 
     def abortMission(self):
         rospy.loginfo("Sending Abort request to mission planner")
-        if not self.isAlone:
-            self.toMission(fail_request=True, task_complete_request=False,
-                           task_complete_ctrl=controller(
-                               heading_setpoint=self.curHeading))
+        #if not self.isAlone:
+        #    self.toMission(fail_request=True, task_complete_request=False,
+        #                   task_complete_ctrl=controller(
+        #                       heading_setpoint=self.curHeading))
         self.canPublish = False
         self.isAborted = True
         self.sendMovement(f=0.0, sm=0.0)
