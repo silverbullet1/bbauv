@@ -9,7 +9,7 @@
 using namespace cv;
 
 
-Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL), SONAR_PING_RATE(10) {
+Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL), SONAR_PING_RATE(10), enable(true) {
 
 	retVal = startRange = stopRange = fluidType = soundSpeed = analogGain = tvGain =
 	pingCount = imgWidth = imgHeight = imgWidthStep = rangeValCount = 0;
@@ -454,6 +454,21 @@ void Utility::delay(time_t timeout) {
 	}
 }
 
+bool Utility::enableSonar(bbauv_msgs::sonar_switch::Request &req, bbauv_msgs::sonar_switch::Response &rsp) {
+    if (req.enable) {
+        enable = true;
+        rsp.isEnabled = true;
+        ROS_INFO("bbsonar enabled");
+    }
+    else {
+        enable = false;
+        rsp.isEnabled = false;
+        ROS_INFO("bbsonar disabled");
+    }
+    
+    return rsp.isEnabled;
+}
+
 int main(int argc, char** argv)
 {
 	Utility *util = new Utility();
@@ -465,21 +480,26 @@ int main(int argc, char** argv)
     
     ros::Publisher imagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image", 1);
     ros::Publisher labelledImagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image_labelled", 1);
-    ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonarDataVector>("sonar_data", 1000);
+    ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonar_data_vector>("sonar_data", 1000);
+    
+    ros::ServiceServer sonarService = nHandle.advertiseService("sonar_switch", &Utility::enableSonar, util);
+    
     
     ros::Rate loopRate(util->SONAR_PING_RATE);
     while (ros::ok()) {
-        util->getRangeBearing();
-        sonarDataPub.publish(util->sonarMsg);
-        
-        cvImg.encoding = sensor_msgs::image_encodings::MONO8;
-        cvImg.image = util->outImg;
-        
-        cvLabelledImg.encoding = sensor_msgs::image_encodings::MONO8;
-        cvLabelledImg.image = util->labelledImg;
-        
-        imagePub.publish(cvImg.toImageMsg());
-        labelledImagePub.publish(cvLabelledImg.toImageMsg());
+        if (util->enable) {
+            util->getRangeBearing();
+            sonarDataPub.publish(util->sonarMsg);
+            
+            cvImg.encoding = sensor_msgs::image_encodings::MONO8;
+            cvImg.image = util->outImg;
+            
+            cvLabelledImg.encoding = sensor_msgs::image_encodings::MONO8;
+            cvLabelledImg.image = util->labelledImg;
+            
+            imagePub.publish(cvImg.toImageMsg());
+            labelledImagePub.publish(cvLabelledImg.toImageMsg());
+        }
 
         ros::spinOnce();
         loopRate.sleep();

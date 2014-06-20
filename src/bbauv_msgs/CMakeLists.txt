@@ -67,8 +67,8 @@ add_message_files(
   pipe_pose.msg
   thruster.msg
   wheel_task_pose.msg
-  sonarData.msg
-  sonarDataVector.msg
+  sonar_data.msg
+  sonar_data_vector.msg
   tilt.msg
   cpu_temperature.msg
   acoustic.msg
@@ -90,6 +90,7 @@ add_service_files(
   PID.srv
   set_controller.srv
   vision_to_mission.srv
+  sonar_switch.srv
   ##Old srv files end
   #mission_linefollower.srv
   #mission_flare.srv
