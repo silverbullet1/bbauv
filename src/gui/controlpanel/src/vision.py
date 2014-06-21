@@ -6,7 +6,10 @@ import roslib
 import rospy 
 import os
 import sys
+
 import signal
+import threading
+import Queue
 
 import numpy as np
 import cv2
@@ -19,20 +22,22 @@ import PyQt4.Qwt5 as Qwt5
 
 from qrangeslider import QRangeSlider 
 from histogram import QHistogram
-from thresholding import Thresholding 
 
 class Vision(QWidget):
     rate = 20
     hist = None
-    thresholder = None
-    params = {'hueLow': 0, 'hueHigh': 180,
+    params = {'hueHigh': 180, 
             'satLow':0, 'satHigh': 255,
-            'valLow':0, 'valHigh': 255}
+            'valLow':0, 'valHigh': 255,
+            'hueLow':0}
+
+    video_pixmap = Queue.Queue()
+    filter_pixmap = Queue.Queue()
 
     def __init__(self, parent=None):
         super(Vision, self).__init__(parent)
-        self.thresholder = Thresholding()
         self.bridge = CvBridge()
+        self.hist = QHistogram()
         self.initUI()
         self.initSub()
 
@@ -41,8 +46,11 @@ class Vision(QWidget):
 
         # Colour Map
         colorMap = QLabel()
-        pixmap = QPixmap("huescale.png")
-        colorMap.setPixmap((pixmap).scaled(710, pixmap.height()))
+        try:
+            pixmap = QPixmap("huescale.png")
+            colorMap.setPixmap((pixmap).scaled(970, pixmap.height()))
+        except Exception, e:
+            pass
 
         # QRange sliders 
         slider_layout = QVBoxLayout()
@@ -99,7 +107,6 @@ class Vision(QWidget):
         # Histogram layout
         hist_layout = QVBoxLayout()
         hist_l = QLabel("<b>Histogram</b>")
-        self.hist = QHistogram()
         self.hist.setParams(self.params)
         hist_layout.addWidget(hist_l)
         hist_layout.addWidget(self.hist)
@@ -126,24 +133,91 @@ class Vision(QWidget):
 
     def cam_callback(self, image):
         try: 
-            image = self.rosimg2cv(image)
-            cvImg = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            self.updateCameraImage(cvImg)
+            self.video_pixmap.put(image)
         except CvBridgeError, e:
             pass
 
     def filter_callback(self, image):
         try:
-            self.q_filter = image 
+            self.filter_pixmap.put(image) 
         except CvBridgeError, e:
             pass
 
-    def updateCameraImage(self, image):
-        qimg = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888)
-        qpm = QPixmap.fromImage(qimg)
+    def on_timer(self):
+        videoImg = None
+        filterImg = None 
+        thresImg = None 
 
-        self.hist.updateHist(image)
-        self.video_cb.setPixmap(qpm.scaledToHeight(250))
+        self.updateParams()
+
+        try:
+            videoImg = self.video_pixmap.get(False, 0)
+            self.video_pixmap = Queue.Queue()
+        except Exception, e:
+            pass
+
+        try:
+            filterImg = self.filter_pixmap.get(False, 0)
+            self.filter_pixmap = Queue.Queue()
+        except Exception, e:
+            pass
+
+        if videoImg is not None:
+            thresImg = self.createThresImage(videoImg)
+            self.thres_cb.setPixmap(thresImg.scaledToHeight(250))
+
+            videoImg = self.updateCameraImage(videoImg, isCamera=True)
+            self.video_cb.setPixmap(videoImg.scaledToHeight(250))
+
+        if filterImg is not None:
+            filterImg = self.updateCameraImage(filterImg)
+            self.filter_cb.setPixmap(filterImg.scaledToHeight(250))
+
+    def convertImg(self, image):
+        image = self.rosimg2cv(image)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    def updateCameraImage(self, image, isCamera=False):
+        bbLock = threading.Lock()
+
+        try:
+            bbLock.acquire()
+            image = self.convertImg(image)
+            qimg = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888)
+            qpm = QPixmap.fromImage(qimg)
+
+            if isCamera:
+                self.hist.updateHist(image)
+
+        finally:
+            bbLock.release()
+
+        return qpm
+
+    # Thresholding in HSV without enhancement
+    def createThresImage(self, image):
+        image = self.convertImg(image)
+
+        hsvImg = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsvImg = np.array(hsvImg, dtype=np.uint8)
+        loThres = np.array([self.params['hueLow'],self.params['satLow'],
+            self.params['valLow']], np.uint8)
+        hiThres = np.array([self.params['hueHigh'],self.params['satHigh'],
+            self.params['valHigh']],np.uint8)
+
+        thresImg = cv2.inRange(hsvImg, loThres, hiThres)
+
+        bbLock = threading.Lock()
+        thresqpm = cv2.cvtColor(thresImg, cv2.COLOR_GRAY2RGB)
+        try:
+            bbLock.acquire()
+            qimg = QImage(thresqpm.data, thresqpm.shape[1], thresqpm.shape[0],
+                QImage.Format_RGB888)
+            thresqpm = QPixmap.fromImage(qimg)
+        finally:
+            bbLock.release()
+
+        return thresqpm
 
     def rosimg2cv(self, ros_img):
         try:
@@ -155,12 +229,12 @@ class Vision(QWidget):
 
     def initTimer(self,time):
         self.timer = QTimer()
-        self.connect(self.timer, SIGNAL('timeout()'), self.updateParams)
+        self.connect(self.timer, SIGNAL('timeout()'), self.on_timer)
         self.timer.start(1000.0 / time)
 
     def updateParams(self):
         minh, maxh = self.hue_slider.getRange()
-        self.params['hueLow'] = minh,
+        self.params['hueLow'] = minh
         self.params['hueHigh'] = maxh
 
         minS, maxS = self.sat_slider.getRange()
@@ -172,7 +246,6 @@ class Vision(QWidget):
         self.params['valHigh'] = maxV
 
         self.hist.setParams(self.params)
-        self.thresholder.setParams(self.params)
         
     def make_data_box(self, name):
         label = QLabel(name)
@@ -250,7 +323,6 @@ class Vision(QWidget):
         self.params['valHigh'] = hiV
 
         self.hist.setParams(self.params)
-        self.thresholder.setParams(self.params)
 
     def signal_handler(self, signal, frame):
         sys.exit(0)

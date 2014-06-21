@@ -10,7 +10,7 @@ from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server as DynServer
-#from utils.config import rgbConfig as Config
+from utils.config import rgbConfig as Config
 from bbauv_msgs.msg import controller
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
@@ -34,10 +34,10 @@ class Comms(FrontComms):
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
         #self.defaultDepth = 1.5
-        self.defaultDepth = 2.00
+        self.defaultDepth = 1.50
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
-        #self.dynServer = DynServer(Config, self.reconfigure)
+        self.dynServer = DynServer(Config, self.reconfigure)
         
         if not self.isAlone:
             #Initialise mission planner
@@ -51,9 +51,6 @@ class Comms(FrontComms):
         
     # Handle mission services
     def handle_srv(self, req):
-        global isStart
-        global isAborted
-        global locomotionGoal
 
         rospy.loginfo("RGB Service handled")
 
@@ -79,12 +76,12 @@ class Comms(FrontComms):
         if req.abort_request:
             rospy.loginfo("RGB abort received")
             self.isAborted=True
-            self.isStart = False
-            self.canPublish = False 
+            # self.isStart = False 
+            self.canPublish = False
             
-            #self.sendMovement(forward=0.0, sidemove=0.0)
+            self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
-            rospy.loginfo("Aborted myself")
+            rospy.loginfo("Aborted complete")
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=self.curHeading))

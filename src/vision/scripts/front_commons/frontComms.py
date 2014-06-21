@@ -49,7 +49,7 @@ class FrontComms:
                                                          ControllerAction)
         try:
             rospy.loginfo("Waiting for Locomotion Server...")
-            self.motionClient.wait_for_server(timeout=rospy.Duration(5))
+            self.motionClient.wait_for_server(timeout=rospy.Duration(1))
         except:
             rospy.loginfo("Locomotion server timeout!")
             self.isKilled = True
@@ -127,6 +127,7 @@ class FrontComms:
         self.isKilled = True
         
         self.sendMovement(forward=0.0, sidemove=0.0)
+        rospy.loginfo("Aborted myself")
         rospy.signal_shutdown("Bye")
         
     def taskComplete(self):
