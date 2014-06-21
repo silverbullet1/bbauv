@@ -445,7 +445,7 @@ def main():
 
     introServer = smach_ros.IntrospectionServer('mission_server',
                                                 sm,
-                                                '/MISSION/PICKUP')
+                                                '/MISSION/BINS')
     introServer.start()
 
     sm.execute()

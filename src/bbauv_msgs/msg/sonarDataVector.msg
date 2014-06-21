@@ -1,1 +1,0 @@
-sonarData[] rangeBearingVector

@@ -53,7 +53,9 @@ class Disengage(smach.State):
                 return 'killed'
             rospy.sleep(rospy.Duration(0.5))
 
+        rospy.loginfo("Registering topics")
         self.comms.register()
+        rospy.loginfo("Topics registered")
         if self.comms.isAlone:
             rospy.sleep(rospy.Duration(1))
             self.comms.inputHeading = self.comms.curHeading
@@ -64,7 +66,7 @@ class Disengage(smach.State):
 
 class Search(smach.State):
     timeout = 35
-    defaultWaitingTime = 1
+    defaultWaitingTime = 0
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundLanes',
@@ -89,6 +91,7 @@ class Search(smach.State):
 
             rospy.sleep(rospy.Duration(0.3))
 
+        self.comms.sendMovement(f=0.5, blocking=True)
         start = time.time()
         if self.waitingTimeout < 0:
             # Waiting timeout, start searching pattern until timeout
@@ -105,9 +108,9 @@ class Search(smach.State):
                     return 'aborted'
 
                 rospy.sleep(rospy.Duration(0.3))
-                #self.comms.sendMovement(f=2.0, sm=0.0,
-                #                        h=self.comms.inputHeading,
-                #                        blocking=False)
+                self.comms.sendMovement(f=2.0, sm=0.0,
+                                        h=self.comms.inputHeading,
+                                        blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
@@ -214,7 +217,7 @@ class Align(smach.State):
             return 'aligning'
 
 class Center(smach.State):
-    maxdx = 0.03
+    maxdx = 0.04
     maxdy = 0.05
     width = LaneMarkerVision.screen['width']
     height = LaneMarkerVision.screen['height']
@@ -319,7 +322,7 @@ def main():
 
     introServer = smach_ros.IntrospectionServer('mission_server',
                                                 sm,
-                                                '/MISSION/PICKUP')
+                                                '/MISSION/LANE')
     introServer.start()
 
     sm.execute()

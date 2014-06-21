@@ -1,6 +1,7 @@
 import rospy
 
 import math
+import time
 import numpy as np
 import cv2
 
@@ -52,13 +53,13 @@ class LaneMarkerVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
         img = cv2.dilate(img, dilateEl)
-        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, openEl)
 
         return img
 
@@ -78,7 +79,7 @@ class LaneMarkerVision:
         retData = { 'foundLines': foundLines, 'centroid': centroid }
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
-        #mask = Vision.illuminanceMask(img, 200)
+        #img = cv2.pyrMeanShiftFiltering(img, 5, 15, 2)
         img = Vision.enhance(img)
         img = cv2.GaussianBlur(img, (5, 5), 0)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)

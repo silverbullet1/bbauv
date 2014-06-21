@@ -9,6 +9,7 @@ from bot_common.vision import Vision
 class PickupVision:
     SITE = 0
     SAMPLES = 1
+    BOX = 2
 
     screen = {'width': 640, 'height': 480}
 
@@ -68,14 +69,14 @@ class PickupVision:
         outImg = None
         samples = list()
         site = dict()
-        rval = {'samples': samples, 'site': site}
+        box = dict()
+        rval = {'samples': samples, 'site': site, 'box': box}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         if self.comms.visionMode == PickupVision.SAMPLES:
-            hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
             binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
             binImg |= cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
             binImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
@@ -122,8 +123,6 @@ class PickupVision:
                     startpt = (int(startpt[0]), int(startpt[1]))
                     cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
         else:
-            hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
             binImg = cv2.inRange(hsvImg,
                                  self.yellowLoThresh, self.yellowHiThresh)
             binImg = self.morphology(binImg)

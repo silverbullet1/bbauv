@@ -27,8 +27,9 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 #include "ros/ros.h"
-#include <bbauv_msgs/sonarData.h>
-#include <bbauv_msgs/sonarDataVector.h>
+#include <bbauv_msgs/sonar_data.h>
+#include <bbauv_msgs/sonar_data_vector.h>
+#include <bbauv_msgs/sonar_switch.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
@@ -97,9 +98,11 @@ public:
     
 //  bbsonar node related
     bool getRangeBearing();
+    bool enableSonar(bbauv_msgs::sonar_switch::Request &enable, bbauv_msgs::sonar_switch::Response &isEnabled);
     
-    bbauv_msgs::sonarData singlePoint;
-    bbauv_msgs::sonarDataVector sonarMsg;
+    bbauv_msgs::sonar_data singlePoint;
+    bbauv_msgs::sonar_data_vector sonarMsg;
+    bool enable;
     
     const int SONAR_PING_RATE;
 
