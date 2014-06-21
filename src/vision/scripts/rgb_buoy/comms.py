@@ -20,7 +20,7 @@ class Comms(FrontComms):
     isTesting = False
     isKilled = False
     isAborted = True
-    isStart = False
+    isStart = False 
     
     # Vision boolean
     toBumpColor = False
@@ -34,7 +34,7 @@ class Comms(FrontComms):
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
         #self.defaultDepth = 1.5
-        self.defaultDepth = 2.00
+        self.defaultDepth = 1.50
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
         self.dynServer = DynServer(Config, self.reconfigure)
@@ -51,9 +51,6 @@ class Comms(FrontComms):
         
     # Handle mission services
     def handle_srv(self, req):
-        global isStart
-        global isAborted
-        global locomotionGoal
 
         rospy.loginfo("RGB Service handled")
 
@@ -72,24 +69,19 @@ class Comms(FrontComms):
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
 
-            
-            self.sendMovement(depth=self.defaultDepth,
-                              heading=self.inputHeading,
-                              blocking=True)
-
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=self.curHeading))
 
-        elif req.abort_request:
+        if req.abort_request:
             rospy.loginfo("RGB abort received")
             self.isAborted=True
-            self.isStart = False
-            self.canPublish = False 
+            # self.isStart = False 
+            self.canPublish = False
             
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
-            
+            rospy.loginfo("Aborted complete")
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=self.curHeading))

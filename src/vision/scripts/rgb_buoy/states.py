@@ -25,7 +25,7 @@ toBangColour = False
 
 class Disengage(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['start_complete', 'killed'])
+        smach.State.__init__(self, outcomes=['start_complete', 'killed', 'start'])
         
         self.comms = comms
     
@@ -33,18 +33,16 @@ class Disengage(smach.State):
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(0.5))
 
         if self.comms.isAlone:
+            rospy.sleep(rospy.Duration(1))
             self.comms.register()
-            rospy.sleep(rospy.Duration(0.8))
             self.comms.inputHeading = self.comms.curHeading
-            rospy.loginfo("Starting RGB")
-        
-            rospy.loginfo("Heading: {}".format(self.comms.inputHeading))
-            self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                    heading=self.comms.inputHeading,
-                                    blocking=True)
+
+        self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                heading=self.comms.inputHeading,
+                                blocking=True)
 
         return 'start_complete'
     
@@ -58,7 +56,7 @@ class Search(smach.State):
     
     def execute(self, ud):
         start = time.time()
-        while not self.comms.foundBuoy:
+        while not self.comms.foundBuoy and not self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
             if self.comms.isAborted or (time.time() - start) > self.timeout:
@@ -66,7 +64,7 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search pattern
-            self.comms.sendMovement(forward=0.2)
+            self.comms.sendMovement(forward=0.35, timeout=0.6, blocking=False)
 #             if self.moveOnce < 10:
 #                 self.comms.sendMovement(forward=0.2, sidemove=0.2, blocking=False)
 #             else:
@@ -80,7 +78,7 @@ class Search(smach.State):
 class bangBuoy(smach.State):
     deltaXMult = 4.0
     deltaYMult = 0.2
-    area = 6500
+    area = 8500
     count = 0
 
     def __init__(self, comms):
@@ -101,7 +99,7 @@ class bangBuoy(smach.State):
             self.count = self.count + 1
   
         if abs(self.comms.deltaY) > 0.10:
-            if self.comms.rectArea > 2000:
+            if self.comms.rectArea > 4000:
                 self.deltaYMult = 0.05
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
             # Make sure it doesnt surface
@@ -150,12 +148,12 @@ class Centering (smach.State):
         if self.comms.rectArea > self.bigArea:
             self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
             rospy.loginfo("forward done")
-            self.comms.sendMovement(forward=-1.5, timeout=3, blocking=False)  # Reverse a bit
+            self.comms.sendMovement(forward=-0.5, timeout=3, blocking=False)  # Reverse a bit
             self.comms.isAborted = True
             self.comms.isKilled = True 
             rospy.sleep(duration=3)
-            #self.comms.taskComplete()
-            self.comms.abortMission()
+            self.comms.taskComplete()
+            #self.comms.abortMission()
             return 'centering_complete'
         
 #         if abs(self.comms.deltaX) < 0.005 and abs(self.comms.deltaY) < 0.005:
@@ -180,13 +178,13 @@ class Centering (smach.State):
             # pixel radius of buoy seen / screen width * 2 * real radius of bouy * dy / screen width
 
         if abs(self.comms.deltaY) > 0.010:
-            if self.comms.rectArea > 9000:
+            if self.comms.rectArea > 9500:
                 self.deltaYMult = 0.05
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = 2.0
 
-        self.comms.sendMovement(forward=0.1,
+        self.comms.sendMovement(forward=0.25,
                                 sidemove=self.comms.deltaX*self.deltaXMult, 
                                 depth=self.comms.defaultDepth, 
                                 timeout=0.4, blocking=False)
@@ -200,29 +198,30 @@ def main():
 
     rospy.loginfo("RGB Loaded")
     
-    sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])      
+    sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'failed'])      
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
                                 transitions={'start_complete': "SEARCH",
-                                         'killed': 'killed'})
+                                         'start': "DISENGAGE",
+                                         'killed': 'failed'})
         
         smach.StateMachine.add("SEARCH", Search(myCom),
                                transitions={'search_complete': "BANGBUOY",
                                             'aborted': 'aborted', 
-                                            'killed': 'killed'})
+                                            'killed': 'failed'})
     
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                transitions={'centering': "CENTERING",
                                             'centering_complete': 'succeeded',
                                             'aborted': 'aborted',
-                                            'killed': 'killed'})
+                                            'killed': 'failed'})
         
         smach.StateMachine.add("BANGBUOY", bangBuoy(myCom),
                                transitions={'banging': "BANGBUOY",
                                             'bang_to_center': "CENTERING",
                                             'aborted': 'aborted',
-                                            'killed': 'killed'})
+                                            'killed': 'failed'})
     
     #set up introspection Server
     introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/RGB_BUOY')
