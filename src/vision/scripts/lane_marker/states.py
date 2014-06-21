@@ -143,6 +143,7 @@ class Stablize(smach.State):
 
         if not self.comms.retVal or \
            len(self.comms.retVal['foundLines']) == 0:
+            self.trialsPassed = 0
             return 'lost'
 
         centroid = self.comms.retVal['centroid']
@@ -242,6 +243,7 @@ class Center(smach.State):
 
         if not self.comms.retVal or \
            len(self.comms.retVal['foundLines']) == 0:
+            self.trialsPassed = 0
             return 'lost'
 
         centroid = self.comms.retVal['centroid']

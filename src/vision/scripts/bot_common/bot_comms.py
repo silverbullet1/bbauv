@@ -14,7 +14,7 @@ import signal
 
 class GenericComms:
     """ Class to facilitate communication b/w ROS and task submodules """
-    processingRate = 3
+    processingRate = 2
     processingCount = 0
 
     def __init__(self, visionFilter):
@@ -126,8 +126,8 @@ class GenericComms:
 
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
                      timeout=0.4, blocking=False):
-        d = d if d else self.defaultDepth
-        h = h if h else self.curHeading
+        d = d if d != None else self.defaultDepth
+        h = h if h != None else self.curHeading
         goal = ControllerGoal(forward_setpoint=f, heading_setpoint=h,
                               sidemove_setpoint=sm, depth_setpoint=d)
         self.motionClient.send_goal(goal)

@@ -108,6 +108,7 @@ class Center(smach.State):
 
         if not self.comms.retVal or \
            len(self.comms.retVal['matches']) == 0:
+            self.trialsPassed = 0
             return 'lost'
 
         matches = self.comms.retVal['matches']
@@ -197,6 +198,7 @@ class CenterAgain(smach.State):
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
             if time.time() - self.start > self.timeout:
+                self.trialsPassed = 0
                 return 'lost'
             rospy.sleep(rospy.Duration(0.05))
             return 'centering'
@@ -361,6 +363,7 @@ class Center2(smach.State):
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
             if time.time() - self.start > self.timeout:
+                self.trialsPassed = 0
                 return 'lost'
             rospy.sleep(rospy.Duration(0.05))
             return 'centering'

@@ -3,7 +3,7 @@ from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.srv import mission_to_vision, vision_to_mission, \
         mission_to_visionResponse
-from bbauv_msgs.msg import controller, manipulator
+from bbauv_msgs.msg import controller, manipulator, depth
 from utils.config import pickupConfig as Config
 
 from vision import PickupVision
@@ -14,10 +14,13 @@ class Comms(GenericComms):
     def __init__(self):
         GenericComms.__init__(self, PickupVision(self))
         self.defaultDepth = 0.6
-        self.sinkingDepth = 2.0
-        self.grabbingDepth = 3.0
+        self.sinkingDepth = 2.3
+        self.grabbingDepth = 3.6
+        self.grabbingArea = 20000
         self.visionMode = PickupVision.SITE
 
+        self.depthSub = rospy.Subscriber("/depth", depth, self.depthCb)
+        self.maniPub = rospy.Publisher("/manipulators", manipulator)
         self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
@@ -29,6 +32,9 @@ class Comms(GenericComms):
             self.toMission = rospy.ServiceProxy("/pickup/vision_to_mission",
                                                 vision_to_mission)
             self.toMission.wait_for_service(timeout=60)
+
+    def depthCb(self, data):
+        self.curDepth = data.depth
 
     def handleSrv(self, req):
         if req.start_request:
@@ -50,6 +56,7 @@ class Comms(GenericComms):
                                                              self.curHeading))
 
     def reconfigure(self, config, level):
+        rospy.loginfo("Received reconfigure request")
         self.params = {'yellowLoThresh': (config.yellowLoH,
                                           config.yellowLoS,
                                           config.yellowLoV),
@@ -76,16 +83,15 @@ class Comms(GenericComms):
                                         config.redHiV2),
                        'minSiteArea': config.minSiteArea,
                        'minContourArea' : config.minArea}
+        self.grabbingArea = config.grabbingArea
         self.visionFilter.updateParams()
         return config
 
     def grab(self):
-        maniPub = rospy.Publisher("/manipulators", manipulator)
-        maniPub.publish(0 | 4)
+        self.maniPub.publish(0 | 4)
 
     def drop(self):
-        maniPub = rospy.Publisher("/manipulators", manipulator)
-        maniPub.publish(0)
+        self.maniPub.publish(0)
 
 
 def main():

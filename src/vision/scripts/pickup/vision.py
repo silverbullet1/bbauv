@@ -46,8 +46,20 @@ class PickupVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+
+        img = cv2.erode(img, erodeEl)
+        img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+
+        return img
+
+    def morphologySamples(self, img):
+        # Closing up gaps and remove noise with morphological ops
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -74,14 +86,15 @@ class PickupVision:
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
+        img = cv2.GaussianBlur(img, (5, 5), 0)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         if self.comms.visionMode == PickupVision.SAMPLES:
-            binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
-            binImg |= cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
+            #binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
+            binImg = cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
             binImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
 
-            binImg = self.morphology(binImg)
+            binImg = self.morphologySamples(binImg)
 
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
@@ -91,12 +104,11 @@ class PickupVision:
             sorted(contours, key=cv2.contourArea, reverse=True)
             for contour in contours:
                 # Find the center of each contour
-                moment = cv2.moments(contour, False)
-                centroid = (moment['m10']/moment['m00'],
-                            moment['m01']/moment['m00'])
+                rect = cv2.minAreaRect(contour)
+                centroid = rect[0]
 
                 # Find the orientation of each contour
-                points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(contour)))
+                points = np.int32(cv2.cv.BoxPoints(rect))
                 edge1 = points[1] - points[0]
                 edge2 = points[2] - points[1]
 
@@ -109,7 +121,8 @@ class PickupVision:
                             Utils.normAngle(angle)) < 270:
                     angle = Utils.invertAngle(angle)
 
-                samples.append({'centroid': centroid, 'angle': angle})
+                samples.append({'centroid': centroid, 'angle': angle,
+                                'area': cv2.contourArea(contour)})
 
             if self.debugMode:
                 # Draw the centroid and orientation of each contour
@@ -130,27 +143,29 @@ class PickupVision:
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
 
-            if self.debugMode:
-                outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
-                # Draw the aiming rectangle
-                midX = self.screen['width']/2.0
-                midY = self.screen['height']/2.0
-                maxDeltaX = self.screen['width']*0.03
-                maxDeltaY = self.screen['height']*0.03
-                cv2.rectangle(outImg,
-                              (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                              (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                              (0, 255, 0), 1)
-
             contours = self.findContourAndBound(binImg.copy(), bounded=True,
                                                 bound=self.minSiteArea)
             if len(contours) > 0:
                 largestContour = max(contours, key=cv2.contourArea)
-                # Find the center of each contour
-                moment = cv2.moments(largestContour, False)
-                centroid = (moment['m10']/moment['m00'],
-                            moment['m01']/moment['m00'])
+                rect = cv2.minAreaRect(largestContour)
+                centroid = rect[0]
                 site['centroid'] = centroid
+
+                # Find the orientation of each contour
+                points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(largestContour)))
+                edge1 = points[1] - points[0]
+                edge2 = points[2] - points[1]
+
+                if cv2.norm(edge1) > cv2.norm(edge2):
+                    angle = math.degrees(math.atan2(edge1[1], edge1[0]))
+                else:
+                    angle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+                if 90 < abs(Utils.normAngle(self.comms.curHeading) -
+                            Utils.normAngle(angle)) < 270:
+                    angle = Utils.invertAngle(angle)
+
+                site['angle'] = angle
 
                 if self.debugMode:
                     points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
