@@ -27,7 +27,6 @@ class Disengage(smach.State):
         self.comms.sendMovement(h=self.comms.inputHeading,
                                 d=self.comms.defaultDepth,
                                 blocking=True)
-        rospy.sleep(rospy.Duration(5))
         return 'started'
 
 class SearchSite(smach.State):
@@ -114,7 +113,7 @@ class CenterSite(smach.State):
         
 
 class Search(smach.State):
-    timeout = 10
+    timeout = 20
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundSamples',
@@ -155,6 +154,8 @@ class Center(smach.State):
     numTrials = 1
     trialPassed = 0
 
+    lostTimeout = 2
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
                                              'centering',
@@ -168,10 +169,15 @@ class Center(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        if not self.comms.retVal or \
-           len(self.comms.retVal['samples']) == 0: 
-            self.trialPassed = 0
-            return 'lost'
+        start = time.time()
+        while not self.comms.retVal or \
+           len(self.comms.retVal['samples']) < 1:
+            if time.time() - start > self.lostTimeout:
+                self.trialPassed = 0
+                return 'lost'
+            else:
+                rospy.sleep(rospy.Duration(0.1))
+                return 'centering'
 
         samples = self.comms.retVal['samples']
         closest = min(samples,
@@ -231,8 +237,8 @@ class Align(smach.State):
 class Center2(smach.State):
     width = PickupVision.screen['width']
     height = PickupVision.screen['height']
-    centerX = width / 2.0 - 60
-    centerY = height / 2.0 - 30
+    centerX = width / 2.0
+    centerY = height / 2.0
 
     maxdx = 0.03
     maxdy = 0.03
@@ -264,6 +270,7 @@ class Center2(smach.State):
                 self.trialPassed = 0
                 return 'lost'
             else:
+                rospy.sleep(rospy.Duration(0.1))
                 return 'centering'
 
         samples = self.comms.retVal['samples']
@@ -294,6 +301,14 @@ class Center2(smach.State):
         return 'centering'
     
 class Approach(smach.State):
+    width = PickupVision.screen['width']
+    height = PickupVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    xcoeff = 2.2
+    ycoeff = 1.8
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['completed',
                                              'approaching',
@@ -309,7 +324,8 @@ class Approach(smach.State):
         if not self.comms.retVal or \
            len(self.comms.retVal['samples']) == 0:
             self.comms.adjustDepth = self.comms.curDepth
-            return 'completed'
+            rospy.sleep(rospy.Duration(0.1))
+            return 'approaching'
 
         curArea = self.comms.retVal['samples'][0]['area']
         rospy.loginfo("Area: {}".format(curArea))
@@ -318,11 +334,86 @@ class Approach(smach.State):
             self.comms.adjustDepth = self.comms.curDepth
             return 'completed'
 
-        self.comms.sendMovement(d=self.comms.curDepth + 0.1,
+        samples = self.comms.retVal['samples']
+        closest = min(samples,
+                      key=lambda c:
+                      Utils.distBetweenPoints(c['centroid'],
+                                              (self.centerX, self.centerY)))
+        dx = (closest['centroid'][0] - self.centerX) / self.width
+        dy = (closest['centroid'][1] - self.centerY) / self.height
+
+        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                d=self.comms.curDepth + 0.1,
                                 h=self.comms.adjustHeading,
                                 timeout=2,
                                 blocking=False)
         return 'approaching'
+
+class Center3(smach.State):
+    width = PickupVision.screen['width']
+    height = PickupVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    maxdx = 0.03
+    maxdy = 0.03
+    xcoeff = 2.0
+    ycoeff = 0.8
+
+    numTrials = 1
+    trialPassed = 0
+
+    lostTimeout = 2
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        start = time.time()
+        while not self.comms.retVal or \
+           len(self.comms.retVal['samples']) < 1:
+            if time.time() - start > self.lostTimeout:
+                self.trialPassed = 0
+                return 'lost'
+            else:
+                rospy.sleep(rospy.Duration(0.1))
+                return 'centering'
+
+        samples = self.comms.retVal['samples']
+        closest = min(samples,
+                      key=lambda c:
+                      Utils.distBetweenPoints(c['centroid'],
+                                              (self.centerX, self.centerY)))
+
+        dx = (closest['centroid'][0] - self.centerX) / self.width
+        dy = (closest['centroid'][1] - self.centerY) / self.height
+
+        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
+            self.comms.sendMovement(f=0.0, sm=0.0,
+                                    d=self.comms.adjustDepth,
+                                    h=self.comms.adjustHeading,
+                                    blocking=True)
+            if self.trialPassed == self.numTrials:
+                self.trialPassed = 0
+                return 'centered'
+            else:
+                self.trialPassed += 1
+                return 'centering'
+
+        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                d=self.comms.adjustDepth,
+                                h=self.comms.adjustHeading,
+                                blocking=False)
+        return 'centering'
 
 
 class Grab(smach.State):
@@ -336,9 +427,11 @@ class Grab(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(d=self.comms.adjustDepth,
+        self.comms.activateVelocity()
+        self.comms.sendMovement(d=self.comms.lastDepth,
                                 h=self.comms.adjustHeading,
-                                blocking=True)
+                                timeout=8,
+                                blocking=False)
         for i in range(10):
             self.comms.grab()
             rospy.sleep(rospy.Duration(0.3))
@@ -356,12 +449,13 @@ class Surface(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
+        self.comms.deactivateVelocity()
         self.comms.sendMovement(d=self.comms.defaultDepth,
                                 h=self.comms.adjustHeading,
                                 blocking=True)
-        for i in range(10):
-            self.comms.drop()
-            rospy.sleep(rospy.Duration(0.3))
+        #for i in range(10):
+        #    self.comms.drop()
+        #    rospy.sleep(rospy.Duration(0.3))
 
         self.comms.taskComplete()
         return 'completed'
@@ -518,17 +612,23 @@ def main():
                                             'aligning': 'ALIGN',
                                             'lost': 'SEARCH',
                                             'aborted': 'DISENGAGE'})
-        smach.StateMachine.add('APPROACH',
-                               Approach(myCom),
-                               transitions={'completed':'GRAB',
-                                            'approaching':'APPROACH',
-                                            'lost':'SEARCH',
-                                            'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTER2',
                                Center2(myCom),
                                transitions={'centered':'APPROACH',
                                             'centering':'CENTER2',
                                             'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('APPROACH',
+                               Approach(myCom),
+                               transitions={'completed':'CENTER3',
+                                            'approaching':'APPROACH',
+                                            'lost':'SEARCH',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('CENTER3',
+                               Center3(myCom),
+                               transitions={'centered':'GRAB',
+                                            'centering':'CENTER3',
+                                            'lost':'GRAB',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('GRAB',
                                Grab(myCom),

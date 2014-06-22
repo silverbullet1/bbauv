@@ -26,6 +26,7 @@ class PickupVision:
     yellowHiThresh = (50, 255, 255)
 
     minContourArea = 5000
+    maxContourArea = 50000
     minSiteArea = 10000
 
     def __init__(self, comms=None, debugMode=True):
@@ -41,12 +42,14 @@ class PickupVision:
         self.redHiThresh2 = self.comms.params['redHiThresh2']
         self.yellowLoThresh = self.comms.params['yellowLoThresh']
         self.yellowHiThresh = self.comms.params['yellowHiThresh']
+
         self.minSiteArea = self.comms.params['minSiteArea']
-        self.minContourArea =self.comms.params['minContourArea']
+        self.minContourArea = self.comms.params['minContourArea']
+        self.maxContourArea = self.comms.params['maxContourArea']
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
@@ -58,21 +61,24 @@ class PickupVision:
 
     def morphologySamples(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
-        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        #dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
-        img = cv2.erode(img, erodeEl)
-        img = cv2.dilate(img, dilateEl)
-        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+        #img = cv2.erode(img, erodeEl)
+        #img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
 
         return img
 
-    def findContourAndBound(self, img, bounded=True, bound=0):
+    def findContourAndBound(self, img, bounded=True, upperbounded=False,
+                            bound=0, upperbound=75000):
         contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         if bounded:
             contours = filter(lambda c: cv2.contourArea(c) > bound, contours)
+        if upperbounded:
+            contours = filter(lambda c: cv2.contourArea(c) < upperbound, contours)
 
         return contours
 
@@ -100,7 +106,9 @@ class PickupVision:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
 
             contours = self.findContourAndBound(binImg.copy(), bounded=True,
-                                                bound=self.minContourArea)
+                                                upperbounded=True,
+                                                bound=self.minContourArea,
+                                                upperbound=self.maxContourArea)
             sorted(contours, key=cv2.contourArea, reverse=True)
             for contour in contours:
                 # Find the center of each contour
@@ -123,6 +131,9 @@ class PickupVision:
 
                 samples.append({'centroid': centroid, 'angle': angle,
                                 'area': cv2.contourArea(contour)})
+
+                if self.debugMode:
+                    Vision.drawRect(outImg, points)
 
             if self.debugMode:
                 # Draw the centroid and orientation of each contour

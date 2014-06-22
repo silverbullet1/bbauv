@@ -13,11 +13,14 @@ class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
     def __init__(self):
         GenericComms.__init__(self, PickupVision(self))
-        self.defaultDepth = 0.6
-        self.sinkingDepth = 2.3
-        self.grabbingDepth = 3.6
+        self.defaultDepth = 0.2
+        self.sinkingDepth = 2.0
+        self.grabbingDepth = 3.0
+        self.lastDepth = 3.7
+
         self.grabbingArea = 20000
-        self.visionMode = PickupVision.SITE
+
+        self.visionMode = PickupVision.SAMPLES
 
         self.depthSub = rospy.Subscriber("/depth", depth, self.depthCb)
         self.maniPub = rospy.Publisher("/manipulators", manipulator)
@@ -81,8 +84,10 @@ class Comms(GenericComms):
                        'redHiThresh2': (config.redHiH2,
                                         config.redHiS2,
                                         config.redHiV2),
+
                        'minSiteArea': config.minSiteArea,
-                       'minContourArea' : config.minArea}
+                       'minContourArea' : config.minArea,
+                       'maxContourArea' : config.maxArea}
         self.grabbingArea = config.grabbingArea
         self.visionFilter.updateParams()
         return config
