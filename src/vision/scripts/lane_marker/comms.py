@@ -58,7 +58,7 @@ class Comms(GenericComms):
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
     def reconfigure(self, config, level):
-        #rospy.loginfo("Receive dynamic reconfigure request")
+        rospy.loginfo("Receive dynamic reconfigure request")
         self.params = {'hsvLoThresh1' : (config.loH, config.loS, config.loV),
                        'hsvHiThresh1' : (config.hiH, config.hiS, config.hiV),
                        'minContourArea' : config.minArea}

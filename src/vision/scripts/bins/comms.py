@@ -15,7 +15,7 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 2.0
+        self.defaultDepth = 1.5
         self.sinkingDepth = 2.5
 
         self.dynServer = DynServer(Config, self.reconfigure)

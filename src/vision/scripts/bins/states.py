@@ -6,6 +6,7 @@ from comms import Comms
 from vision import BinsVision
 
 import time
+import numpy as np
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -300,15 +301,13 @@ class Search2(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         matches = self.comms.retVal['matches']
-        closest = min(matches,
-                      key=lambda m:
-                      Utils.distBetweenPoints(m['centroid'],
-                                              (self.centerX, self.centerY)))
-        farthest = max(matches,
-                       key=lambda m:
-                       Utils.distBetweenPoints(m['centroid'],
-                                              (self.centerX, self.centerY)))
-        dx = farthest['centroid'][0] - closest['centroid'][0]
+        centroids = map(lambda m: m['centroid'], matches)
+        centroidsX = map(lambda c: c[0], centroids)
+        closest = min(centroids,
+                      key=lambda c:
+                      Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
+        meanX = np.mean(centroidsX)
+        dx = meanX - closest['centroid'][0]
 
         if dx < 0:
             self.turnLeft()

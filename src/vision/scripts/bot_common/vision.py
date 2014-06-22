@@ -16,12 +16,12 @@ class Vision():
                   'hexa': (-0.55, -0.45)}
 
     @staticmethod
-    def drawRect(img, pts):
+    def drawRect(img, pts, color=(0, 0, 255)):
         points = np.int32(pts)
         for i in range(4):
             pt1 = (points[i][0], points[i][1])
             pt2 = (points[(i+1) % 4][0], points[(i+1) % 4][1])
-            cv2.line(img, pt1, pt2, (0, 0, 255), 2)
+            cv2.line(img, pt1, pt2, color, 2)
 
     @staticmethod
     def shapeEnum2Str(shapeEnum):
