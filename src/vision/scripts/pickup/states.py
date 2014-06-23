@@ -30,7 +30,7 @@ class Disengage(smach.State):
         return 'started'
 
 class SearchSite(smach.State):
-    timeout = 10
+    timeout = 20
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundSite'])
@@ -358,7 +358,7 @@ class Center3(smach.State):
     maxdx = 0.03
     maxdy = 0.03
     xcoeff = 2.0
-    ycoeff = 0.8
+    ycoeff = 0.5
 
     numTrials = 1
     trialPassed = 0
@@ -437,6 +437,7 @@ class Grab(smach.State):
             rospy.sleep(rospy.Duration(0.3))
 
         return 'grabbed'
+
 
 class Surface(smach.State):
     def __init__(self, comms):
@@ -636,7 +637,7 @@ def main():
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('SURFACE',
                                Surface(myCom),
-                               transitions={'completed':'succeeded',
+                               transitions={'completed':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
         #smach.StateMachine.add('NAVIGATE',
         #                       Navigate(myCom),

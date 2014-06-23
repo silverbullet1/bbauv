@@ -328,3 +328,4 @@ def main():
     introServer.start()
 
     sm.execute()
+    rospy.signal_shutdown('lane task quit')

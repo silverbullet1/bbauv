@@ -451,5 +451,5 @@ def main():
     introServer.start()
 
     sm.execute()
-    rospy.signal_shutdown("lane_marker task ended")
+    rospy.signal_shutdown("bins task ended")
 

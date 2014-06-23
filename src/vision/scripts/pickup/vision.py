@@ -82,6 +82,38 @@ class PickupVision:
 
         return contours
 
+    def findSamples(self, category, binImg, samples, outImg):
+        contours = self.findContourAndBound(binImg.copy(), bounded=True,
+                                            upperbounded=True,
+                                            bound=self.minContourArea,
+                                            upperbound=self.maxContourArea)
+        sorted(contours, key=cv2.contourArea, reverse=True)
+        for contour in contours:
+            # Find the center of each contour
+            rect = cv2.minAreaRect(contour)
+            centroid = rect[0]
+
+            # Find the orientation of each contour
+            points = np.int32(cv2.cv.BoxPoints(rect))
+            edge1 = points[1] - points[0]
+            edge2 = points[2] - points[1]
+
+            if cv2.norm(edge1) > cv2.norm(edge2):
+                angle = math.degrees(math.atan2(edge1[1], edge1[0]))
+            else:
+                angle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+            if 90 < abs(Utils.normAngle(self.comms.curHeading) -
+                        Utils.normAngle(angle)) < 270:
+                angle = Utils.invertAngle(angle)
+
+            samples.append({'centroid': centroid, 'angle': angle,
+                            'area': cv2.contourArea(contour),
+                            'category': category})
+
+            if self.debugMode:
+                Vision.drawRect(outImg, points)
+
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         outImg = None
@@ -92,52 +124,29 @@ class PickupVision:
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
-        img = cv2.GaussianBlur(img, (5, 5), 0)
+        #img = cv2.GaussianBlur(img, (5, 5), 0)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         if self.comms.visionMode == PickupVision.SAMPLES:
-            #binImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
-            binImg = cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
-            binImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
+            cheeseImg = cv2.inRange(hsvImg, self.greenLoThresh, self.greenHiThresh)
+            rockImg = cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
+            rockImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
 
-            binImg = self.morphologySamples(binImg)
+            cheeseImg = self.morphologySamples(cheeseImg)
+            rockImg = self.morphologySamples(rockImg)
+            binImg = cheeseImg | rockImg
 
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
 
-            contours = self.findContourAndBound(binImg.copy(), bounded=True,
-                                                upperbounded=True,
-                                                bound=self.minContourArea,
-                                                upperbound=self.maxContourArea)
-            sorted(contours, key=cv2.contourArea, reverse=True)
-            for contour in contours:
-                # Find the center of each contour
-                rect = cv2.minAreaRect(contour)
-                centroid = rect[0]
-
-                # Find the orientation of each contour
-                points = np.int32(cv2.cv.BoxPoints(rect))
-                edge1 = points[1] - points[0]
-                edge2 = points[2] - points[1]
-
-                if cv2.norm(edge1) > cv2.norm(edge2):
-                    angle = math.degrees(math.atan2(edge1[1], edge1[0]))
-                else:
-                    angle = math.degrees(math.atan2(edge2[1], edge2[0]))
-
-                if 90 < abs(Utils.normAngle(self.comms.curHeading) -
-                            Utils.normAngle(angle)) < 270:
-                    angle = Utils.invertAngle(angle)
-
-                samples.append({'centroid': centroid, 'angle': angle,
-                                'area': cv2.contourArea(contour)})
-
-                if self.debugMode:
-                    Vision.drawRect(outImg, points)
+            self.findSamples('cheese', cheeseImg, samples, outImg)
+            self.findSamples('rock', rockImg, samples, outImg)
 
             if self.debugMode:
                 # Draw the centroid and orientation of each contour
                 for sample in samples:
+                    centroid = sample['centroid']
+                    angle = sample['angle']
                     cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
                                5, (0, 0, 255))
                     startpt = centroid
