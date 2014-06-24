@@ -59,6 +59,7 @@ class Disengage(smach.State):
         if self.comms.isAlone:
             rospy.sleep(rospy.Duration(1))
             self.comms.inputHeading = self.comms.curHeading
+        self.comms.inputHeading = 320
         self.comms.sendMovement(d=self.comms.defaultDepth,
                                 h=self.comms.inputHeading,
                                 blocking=True)
@@ -91,7 +92,7 @@ class Search(smach.State):
 
             rospy.sleep(rospy.Duration(0.3))
 
-        self.comms.sendMovement(f=0.5, blocking=True)
+        self.comms.sendMovement(h=320, f=0.5, blocking=True)
         start = time.time()
         if self.waitingTimeout < 0:
             # Waiting timeout, start searching pattern until timeout
@@ -109,7 +110,8 @@ class Search(smach.State):
 
                 rospy.sleep(rospy.Duration(0.3))
                 self.comms.sendMovement(f=2.0, sm=0.0,
-                                        h=self.comms.inputHeading,
+                                        h=320,
+                                        #h=self.comms.inputHeading,
                                         blocking=False)
 
         # Reset waitingTimeout for next time

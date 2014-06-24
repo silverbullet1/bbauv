@@ -58,7 +58,7 @@ class BinsVision:
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops for aliens
         #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         #img = cv2.erode(img, erodeEl)

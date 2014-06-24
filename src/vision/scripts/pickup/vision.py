@@ -59,13 +59,25 @@ class PickupVision:
 
         return img
 
-    def morphologySamples(self, img):
+    def morphologyCheese(self, img):
         # Closing up gaps and remove noise with morphological ops
-        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
         #dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
-        #img = cv2.erode(img, erodeEl)
+        img = cv2.erode(img, erodeEl)
+        #img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
+
+        return img
+
+    def morphologyRock(self, img):
+        # Closing up gaps and remove noise with morphological ops
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+        #dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+        img = cv2.erode(img, erodeEl)
         #img = cv2.dilate(img, dilateEl)
         img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
 
@@ -124,7 +136,7 @@ class PickupVision:
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
-        #img = cv2.GaussianBlur(img, (5, 5), 0)
+        img = cv2.GaussianBlur(img, (5, 5), 0)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         if self.comms.visionMode == PickupVision.SAMPLES:
@@ -132,8 +144,8 @@ class PickupVision:
             rockImg = cv2.inRange(hsvImg, self.redLoThresh1, self.redHiThresh1)
             rockImg |= cv2.inRange(hsvImg, self.redLoThresh2, self.redHiThresh2)
 
-            cheeseImg = self.morphologySamples(cheeseImg)
-            rockImg = self.morphologySamples(rockImg)
+            cheeseImg = self.morphologyCheese(cheeseImg)
+            rockImg = self.morphologyRock(rockImg)
             binImg = cheeseImg | rockImg
 
             if self.debugMode:

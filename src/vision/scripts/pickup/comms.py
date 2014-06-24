@@ -16,7 +16,7 @@ class Comms(GenericComms):
         self.defaultDepth = 0.2
         self.sinkingDepth = 2.0
         self.grabbingDepth = 2.9
-        self.lastDepth = 3.7
+        self.lastDepth = 3.6
 
         self.grabbingArea = 20000
 
@@ -34,7 +34,7 @@ class Comms(GenericComms):
             rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/pickup/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()
 
     def depthCb(self, data):
         self.curDepth = data.depth

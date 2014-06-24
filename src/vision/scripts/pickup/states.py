@@ -52,6 +52,8 @@ class SearchSite(smach.State):
             if self.comms.isAborted:
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
+            self.comms.sendMovement(f=2.0, h=self.comms.inputHeading,
+                                    blocking=False)
 
         return 'foundSite'
 
@@ -357,8 +359,8 @@ class Center3(smach.State):
 
     maxdx = 0.03
     maxdy = 0.03
-    xcoeff = 2.0
-    ycoeff = 0.5
+    xcoeff = 2.5
+    ycoeff = 1.0
 
     numTrials = 1
     trialPassed = 0

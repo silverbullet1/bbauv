@@ -260,6 +260,11 @@ class Search2(smach.State):
     timeout = 10
     turnTimeout = 10
 
+    width = BinsVision.screen['width']
+    height = BinsVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundBins',
                                              'lost',
@@ -307,7 +312,7 @@ class Search2(smach.State):
                       key=lambda c:
                       Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
         meanX = np.mean(centroidsX)
-        dx = meanX - closest['centroid'][0]
+        dx = meanX - closest[0]
 
         if dx < 0:
             self.turnLeft()
