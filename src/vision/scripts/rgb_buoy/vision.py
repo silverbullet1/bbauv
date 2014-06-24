@@ -153,18 +153,18 @@ class RgbBuoyVision:
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
         # rospy.loginfo("Area: {}".format(self.comms.rectArea)) # To put on the scratchImg
         cv2.putText(scratchImgCol, "Area: " + str(self.comms.rectArea), (30, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))
             
         # How far centroid is off screen center
         self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/
                                     vision.screen['width'])
 
         cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))
         self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
                                   vision.screen['height'])
         cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))
 
 
         # Draw center rect

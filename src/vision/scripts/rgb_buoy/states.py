@@ -182,7 +182,7 @@ class Centering (smach.State):
                 self.deltaYMult = 0.05
             self.comms.defaultDepth = self.comms.defaultDepth + self.comms.deltaY*self.deltaYMult
             if self.comms.defaultDepth < 0.1:
-                self.comms.defaultDepth = 2.0
+                self.comms.defaultDepth = self.comms.depthFromMission
 
         self.comms.sendMovement(forward=0.25,
                                 sidemove=self.comms.deltaX*self.deltaXMult, 
