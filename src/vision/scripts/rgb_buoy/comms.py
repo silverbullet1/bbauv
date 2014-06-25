@@ -30,11 +30,13 @@ class Comms(FrontComms):
     deltaX = 0
     
     isCentering = False 
+    depthFromMission = 0
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
         #self.defaultDepth = 1.5
         self.defaultDepth = 1.50
+        self.depthFromMission = self.defaultDepth
         #self.colourToBump = int(rospy.get_param("~color", "0"))
         
         self.dynServer = DynServer(Config, self.reconfigure)
@@ -63,6 +65,7 @@ class Comms(FrontComms):
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.curHeading = self.inputHeading
+            self.depthFromMission = self.defaultDepth
 
             self.registerMission()
 
@@ -81,6 +84,7 @@ class Comms(FrontComms):
             
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
+            
             rospy.loginfo("Aborted complete")
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
