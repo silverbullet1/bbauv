@@ -52,8 +52,8 @@ class SearchSite(smach.State):
             if self.comms.isAborted:
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
-            self.comms.sendMovement(f=2.0, h=self.comms.inputHeading,
-                                    blocking=False)
+            #self.comms.sendMovement(f=2.0, h=self.comms.inputHeading,
+            #                        blocking=False)
 
         return 'foundSite'
 
