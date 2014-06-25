@@ -9,12 +9,15 @@ import rospy
 from front_commons.frontComms import FrontComms
 from vision_old import TorpedoVision
 
-from bbauv_msgs.msg import controller, sonarData
+from bbauv_msgs.msg import controller, manipulator
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
 from dynamic_reconfigure.server import Server as DynServer
 from utils.config import torpedoConfig as Config
+
+from sensor_msgs.msg import Image
+from utils.utils import Utils
 
 class Comms(FrontComms):
     
@@ -37,16 +40,24 @@ class Comms(FrontComms):
     boardArea = 0
     boardDeltaX = None
     boardDeltaY = None 
+
+    lockedCentroid = (-1, -1)
+    isCenteringState = False
     
     # Movement parameters
     radius = None
     deltaX = None
     deltaY = None
-    deltaXMult = 5.0
+    skew = None 
+
+    sonarDist = 10.0
+    sonarBearing = 0.0
+
+    state = None
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
-        self.defaultDepth = 2.00
+        self.defaultDepth = 2.20
         self.depthFromMission = self.defaultDepth
 
         self.dynServer = DynServer(Config, self.reconfigure)
@@ -79,6 +90,7 @@ class Comms(FrontComms):
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.curHeading = self.inputHeading
             self.depthFromMission = self.defaultDepth
+            self.sonarBearing = self.inputHeading
 
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
@@ -109,13 +121,13 @@ class Comms(FrontComms):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 1)
         rospy.loginfo("Firing top torpedo")
-        rospy.sleep(rospy.Duration(0.2)) 
+        rospy.sleep(rospy.Duration(0.3)) 
 
     def shootBotTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 2)
         rospy.loginfo("Firing bottom torpedo")
-        rospy.sleep(rospy.Duration(0.2))       
+        rospy.sleep(rospy.Duration(0.3))       
     
     def reconfigure(self, config, level):
         rospy.loginfo("Received dynamic reconfigure request")
@@ -127,17 +139,19 @@ class Comms(FrontComms):
         return config
     
     def registerSonar(self):
-        self.sonarBearing = None
-        self.sonarDist = None 
-        self.sonarSub = rospy.Subscriber("/sonarData", sonarData, self.sonarDataCallback)
+        rospy.loginfo("SONAR SONAR")
+        self.sonarSub = rospy.Subscriber("/sonar_image_jin", Image, self.sonarImageCallback)
+        self.sonarPub = rospy.Publisher("/sonar_pub", Image)
+        rospy.sleep(rospy.Duration(0.5))
     
-    def sonarDataCallback(self, data):
-        self.sonarBearing = data.bearing
-        self.sonarDist = data.range
-
-        if self.sonarDist < 2:
-            self.unregisterSonar()
-
+    def sonarImageCallback(self, rosImg):
+        outImg = self.visionFilter.sonarFrame(Utils.rosimg2cv(rosImg))
+        if self.canPublish and outImg is not None:
+            try:
+                self.sonarPub.publish(Utils.cv2rosimg(outImg))
+            except Exception, e:
+                pass
+                
         rospy.sleep(rospy.Duration(0.3))
         
     def unregisterSonar(self):
