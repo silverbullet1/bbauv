@@ -15,8 +15,9 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 1.7
-        self.sinkingDepth = 2.5
+        self.defaultDepth = 1.9
+        self.aligningDepth = 2.0
+        self.sinkingDepth = 2.7
 
         self.dynServer = DynServer(Config, self.reconfigure)
         self.maniPub = rospy.Publisher("/manipulators", manipulator)

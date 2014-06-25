@@ -95,6 +95,8 @@ class Center(smach.State):
     numTrials = 1
     trialsPassed = 0
 
+    timeout = 5
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
                                              'centering',
@@ -107,10 +109,14 @@ class Center(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        if not self.comms.retVal or \
-           len(self.comms.retVal['matches']) == 0:
-            self.trialsPassed = 0
-            return 'lost'
+        self.start = time.time()
+        while not self.comms.retVal or \
+              len(self.comms.retVal['matches']) == 0:
+            if time.time() - self.start > self.timeout:
+                self.trialsPassed = 0
+                return 'lost'
+            rospy.sleep(rospy.Duration(0.05))
+            return 'centering'
 
         matches = self.comms.retVal['matches']
         nearest = min(matches,
@@ -276,14 +282,14 @@ class Search2(smach.State):
         self.comms.sendMovement(d=self.comms.sinkingDepth,
                                 h=Utils.normAngle(self.comms.adjustHeading-90),
                                 blocking=True)
-        self.comms.sendMovement(f=0.5, d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(f=1.0, d=self.comms.sinkingDepth, blocking=True)
 
     def turnRight(self):
         # Turn to the right and look for another bin
         self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
                                 d=self.comms.sinkingDepth,
                                 blocking=True)
-        self.comms.sendMovement(f=0.5, d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(f=1.0, d=self.comms.sinkingDepth, blocking=True)
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:

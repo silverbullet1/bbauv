@@ -57,18 +57,18 @@ class BinsVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops for aliens
-        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
-        #img = cv2.erode(img, erodeEl)
+        img = cv2.erode(img, erodeEl)
         img = cv2.dilate(img, dilateEl)
         img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
 
         return img
 
     def morphology2(self, img):
-        # Closing up gaps and remove noise with morphological ops
+        # Closing up gaps and remove noise with morphological ops for bins
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
@@ -92,14 +92,17 @@ class BinsVision:
             Return dict of alien_contour, centroid, bin contour, class
             and angle of the bin """
         ret = list()
+        binCentroids = [cv2.minAreaRect(c)[0] for c in contours]
+        bins = zip(contours, binCentroids)
+
         for centroid in enumerate(centroids):
-            for contour in contours:
-                if cv2.pointPolygonTest(contour, centroid[1], False) > 0:
+            for bin in bins:
+                if cv2.pointPolygonTest(bin[0], centroid[1], False) > 0:
                     thisMatch = {'alien': alienContours[centroid[0]],
-                                 'centroid':centroid[1],
-                                 'contour': contour}
+                                 'centroid': bin[1],
+                                 'contour': bin[0]}
                     thisMatch['class'] = self.classify(thisMatch)
-                    thisMatch['angle'] = self.angleFromContour(contour)
+                    thisMatch['angle'] = self.angleFromContour(bin[0])
                     ret.append(thisMatch)
 
         return ret
