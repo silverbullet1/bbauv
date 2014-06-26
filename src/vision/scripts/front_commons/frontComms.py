@@ -96,7 +96,7 @@ class FrontComms:
                 self.outPub.publish(Utils.cv2rosimg(outImg))
             except Exception, e:
                 pass
-        rospy.sleep(rospy.Duration(0.2))
+        rospy.sleep(rospy.Duration(0.05))
             
     def compassCallback(self, data):
         if not self.gotHeading:

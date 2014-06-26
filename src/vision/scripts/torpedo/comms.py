@@ -7,9 +7,9 @@ Communication b/w ROS class and submodules
 import roslib; roslib.load_manifest('vision')
 import rospy
 from front_commons.frontComms import FrontComms
-from vision_old import TorpedoVision
+from vision import TorpedoVision
 
-from bbauv_msgs.msg import controller, manipulator
+from bbauv_msgs.msg import controller, manipulator, depth
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
@@ -34,33 +34,35 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = None
+    torpedoOffset = 0.07
 
     # Board parameters
     boardCentroid = (-1, -1)
     boardArea = 0
-    boardDeltaX = None
-    boardDeltaY = None 
+    boardDeltaX = 0
+    boardDeltaY = 0
 
     lockedCentroid = (-1, -1)
     isCenteringState = False
     
     # Movement parameters
-    radius = None
-    deltaX = None
-    deltaY = None
-    skew = None 
+    radius = 0
+    deltaX = 0
+    deltaY = 0
 
     sonarDist = 10.0
     sonarBearing = 0.0
 
     state = None
+    centerDiff = 0
     
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
         self.defaultDepth = 2.20
         self.depthFromMission = self.defaultDepth
+        self.depthSub = rospy.Subscriber("/depth", depth, self.depthCallback)
 
-        self.dynServer = DynServer(Config, self.reconfigure)
+        #self.dynServer = DynServer(Config, self.reconfigure)
 
         # Initialise mission planner 
         if not self.isAlone:
@@ -117,6 +119,10 @@ class Comms(FrontComms):
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
             
+
+    def depthCallback(self, data):
+        self.depth = data.depth
+
     def shootTopTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 1)
@@ -133,7 +139,8 @@ class Comms(FrontComms):
         rospy.loginfo("Received dynamic reconfigure request")
         self.params = {'loThreshold': (config.loH, config.loS, config.loV),
                        'hiThreshold': (config.hiH, config.hiS, config.hiV),
-                       'houghParams': (config.Hough1, config.Hough2),
+                       'sonarOffset': config.sonarOffset,
+                       'torpedoOffset': config.torpedoOffset, 
                        'minContourArea': config.minContourArea }
         self.visionFilter.updateParams()
         return config
@@ -145,7 +152,7 @@ class Comms(FrontComms):
         rospy.sleep(rospy.Duration(0.5))
     
     def sonarImageCallback(self, rosImg):
-        outImg = self.visionFilter.sonarFrame(Utils.rosimg2cv(rosImg))
+        outImg = self.visionFilter.gotSonarFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
             try:
                 self.sonarPub.publish(Utils.cv2rosimg(outImg))
