@@ -8,6 +8,7 @@ from numpy.linalg import inv
 from numpy.core import transpose
 import math
 from numpy import radians
+from std_msgs.msg import Float32
 
 roslib.load_manifest('explorer_dvl')
 
@@ -19,6 +20,7 @@ class BeamToXYZ(object):
     def __init__(self, ea):
         rospy.Subscriber('/explorer_raw_data', explorer_dvl_data, self._rawcb)
         rospy.Subscriber('/euler', compass_data, self._imucb)
+        self.altitude_out = rospy.Publisher('/altitude', Float32)
         #rospy.Subscriber('/tilt', tilt, lambda d: setattr(self, 'tilt', d))
         self.ea = np.radians(ea)
         self.beam_tilt = np.radians(30)
@@ -56,6 +58,7 @@ class BeamToXYZ(object):
                     header=msg.header,
                     velocity=Vector3(*x)
                 ))
+        self.altitude_out.publish(Float32(msg.altitude))
 
 b = BeamToXYZ(45.0)
 rospy.spin()
