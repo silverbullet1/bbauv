@@ -10,6 +10,12 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   tf
+  dynamic_reconfigure
+)
+
+
+generate_dynamic_reconfigure_options(
+    cfg/earth_odom.cfg
 )
 
 catkin_package(
@@ -19,7 +25,6 @@ catkin_package(
   DEPENDS system_lib
 )
 
-
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
@@ -28,6 +33,10 @@ include_directories(
 ## Declare a cpp library
 add_library(explorer_dvl
   src/node.cpp
+)
+
+add_dependencies(explorer_dvl
+    ${PROJECT_NAME}_gencfg
 )
 
 target_link_libraries(explorer_dvl
