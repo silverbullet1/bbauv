@@ -15,10 +15,13 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 2.0
-        self.sinkingDepth = 2.5
+        self.defaultDepth = 1.9
+        self.search2Depth = 1.2
+        self.turnDepth = 1.9
+        self.sinkingDepth = 2.7
 
         self.dynServer = DynServer(Config, self.reconfigure)
+        self.maniPub = rospy.Publisher("/manipulators", manipulator)
 
         if not self.isAlone:
             # Initialize mission planner communication server and client
@@ -50,8 +53,7 @@ class Comms(GenericComms):
                                                              self.curHeading))
 
     def drop(self):
-        maniPub = rospy.Publisher("/manipulators", manipulator)
-        maniPub.publish(0 | 8)
+        self.maniPub.publish(0 | 8)
 
     def reconfigure(self, config, level):
         self.params = {'hsvLoThresh1' : (config.loH1, config.loS1, config.loV1),

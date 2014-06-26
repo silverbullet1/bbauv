@@ -3,7 +3,7 @@ from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.srv import mission_to_vision, vision_to_mission, \
         mission_to_visionResponse
-from bbauv_msgs.msg import controller, manipulator
+from bbauv_msgs.msg import controller, manipulator, depth
 from utils.config import pickupConfig as Config
 
 from vision import PickupVision
@@ -11,15 +11,19 @@ from bot_common.bot_comms import GenericComms
 
 class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
-    SITE = 0
-    SAMPLES = 1
-
     def __init__(self):
         GenericComms.__init__(self, PickupVision(self))
-        self.defaultDepth = 2.0
-        self.sinkingDepth = 3.0
-        self.visionMode = self.SITE
+        self.defaultDepth = 0.2
+        self.sinkingDepth = 2.0
+        self.grabbingDepth = 2.9
+        self.lastDepth = 3.6
 
+        self.grabbingArea = 20000
+
+        self.visionMode = PickupVision.SITE
+
+        self.depthSub = rospy.Subscriber("/depth", depth, self.depthCb)
+        self.maniPub = rospy.Publisher("/manipulators", manipulator)
         self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
@@ -30,7 +34,10 @@ class Comms(GenericComms):
             rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/pickup/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()
+
+    def depthCb(self, data):
+        self.curDepth = data.depth
 
     def handleSrv(self, req):
         if req.start_request:
@@ -52,7 +59,14 @@ class Comms(GenericComms):
                                                              self.curHeading))
 
     def reconfigure(self, config, level):
-        self.params = {'greenLoThresh': (config.greenLoH,
+        rospy.loginfo("Received reconfigure request")
+        self.params = {'yellowLoThresh': (config.yellowLoH,
+                                          config.yellowLoS,
+                                          config.yellowLoV),
+                       'yellowHiThresh': (config.yellowHiH,
+                                          config.yellowHiS,
+                                          config.yellowHiV),
+                       'greenLoThresh': (config.greenLoH,
                                          config.greenLoS,
                                          config.greenLoV),
                        'greenHiThresh': (config.greenHiH,
@@ -70,17 +84,19 @@ class Comms(GenericComms):
                        'redHiThresh2': (config.redHiH2,
                                         config.redHiS2,
                                         config.redHiV2),
-                       'minContourArea' : config.minArea}
+
+                       'minSiteArea': config.minSiteArea,
+                       'minContourArea' : config.minArea,
+                       'maxContourArea' : config.maxArea}
+        self.grabbingArea = config.grabbingArea
         self.visionFilter.updateParams()
         return config
 
     def grab(self):
-        maniPub = rospy.Publisher("/manipulators", manipulator)
-        maniPub.publish(0 | 4)
+        self.maniPub.publish(0 | 4)
 
     def drop(self):
-        maniPub = rospy.Publisher("/manipulators", manipulator)
-        maniPub.publish(0)
+        self.maniPub.publish(0)
 
 
 def main():

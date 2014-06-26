@@ -375,6 +375,4 @@ class Vision_filter(QWidget):
         rospy.loginfo("Set vision compression to 40%")
     
     
-    
-    
         

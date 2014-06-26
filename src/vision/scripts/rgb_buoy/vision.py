@@ -25,18 +25,18 @@ class RgbBuoyVision:
 # 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
-    blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
+    blueParams = {'lo': (17, 18, 2), 'hi': (20,π 255, 255),
                   'dilate': (11,11), 'erode': (5,5), 'open': (3,3)}
     curCol = None
 
     # Hough circle parameters
     circleParams = {'minRadius':25, 'maxRadius': 0 }
-    houghParams = {'param1': 80, 'param2': 15}
+    houghParams = (74, 12)
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 500
+    minContourArea = 300
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -105,15 +105,14 @@ class RgbBuoyVision:
                 
                 self.previousCentroid = self.comms.centroidToBump
                 self.previousArea = self.comms.rectArea
-                 
             else:
                 self.comms.centroidToBump = self.previousCentroid
                 self.comms.rectArea = self.previousArea
         else:
             # Find hough circles
             circles = cv2.HoughCircles(binImg, cv2.cv.CV_HOUGH_GRADIENT, 1,
-                               minDist=30, param1=78, 
-                               param2=14,
+                               minDist=30, param1=self.houghParams[0], 
+                               param2=self.houghParams[1],
                                minRadius = self.circleParams['minRadius'],
                                maxRadius = self.circleParams['maxRadius'])
             
@@ -154,18 +153,18 @@ class RgbBuoyVision:
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
         # rospy.loginfo("Area: {}".format(self.comms.rectArea)) # To put on the scratchImg
         cv2.putText(scratchImgCol, "Area: " + str(self.comms.rectArea), (30, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))
             
         # How far centroid is off screen center
         self.comms.deltaX = float((self.comms.centroidToBump[0] - vision.screen['width']/2)*1.0/
                                     vision.screen['width'])
 
         cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))
         self.comms.deltaY = float((self.comms.centroidToBump[1] - vision.screen['height']/2)*1.0/
                                   vision.screen['height'])
         cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (204, 204, 204))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))
 
 
         # Draw center rect

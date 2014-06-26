@@ -7,14 +7,14 @@ Communication b/w ROS class and submodules
 import roslib; roslib.load_manifest('vision')
 import rospy
 from front_commons.frontComms import FrontComms
-from vision import TorpedoVision
+from vision_old import TorpedoVision
 
 from bbauv_msgs.msg import controller, sonarData
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
 from dynamic_reconfigure.server import Server as DynServer
-# from utils.config import torpedoConfig as Config
+from utils.config import torpedoConfig as Config
 
 class Comms(FrontComms):
     
@@ -31,6 +31,12 @@ class Comms(FrontComms):
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
     centroidToShoot = None
+
+    # Board parameters
+    boardCentroid = (-1, -1)
+    boardArea = 0
+    boardDeltaX = None
+    boardDeltaY = None 
     
     # Movement parameters
     radius = None
@@ -41,7 +47,10 @@ class Comms(FrontComms):
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
         self.defaultDepth = 2.00
-        
+        self.depthFromMission = self.defaultDepth
+
+        self.dynServer = DynServer(Config, self.reconfigure)
+
         # Initialise mission planner 
         if not self.isAlone:
             self.comServer = rospy.Service("/torpedo/mission_to_vision", 
@@ -50,7 +59,7 @@ class Comms(FrontComms):
             rospy.loginfo("Waiting for mission planner")
             self.toMission = rospy.ServiceProxy("/torpedo/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()   #Indefinitely waiting for timeout
         
     # Handle mission services
     def handle_srv(self, req):
@@ -69,15 +78,12 @@ class Comms(FrontComms):
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.curHeading = self.inputHeading
+            self.depthFromMission = self.defaultDepth
 
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
 
             self.registerMission()
-
-            self.sendMovement(depth=self.defaultDepth,
-                              heading=self.inputHeading,
-                              blocking=True)
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -86,10 +92,13 @@ class Comms(FrontComms):
         
         elif req.abort_request:
             rospy.loginfo("Torpedo abort received")
-            self.sendMovement(forward=0.0, sidemove=0.0)
             self.isAborted=True
             self.isStart = False
+            self.canPublish = False 
+
             self.unregisterMission()
+            self.sendMovement(forward=0.0, sidemove=0.0)
+            rospy.loginfo("Aborted complete")
             
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
@@ -99,11 +108,13 @@ class Comms(FrontComms):
     def shootTopTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 1)
+        rospy.loginfo("Firing top torpedo")
         rospy.sleep(rospy.Duration(0.2)) 
 
     def shootBotTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator)
         maniPub.publish(0 | 2)
+        rospy.loginfo("Firing bottom torpedo")
         rospy.sleep(rospy.Duration(0.2))       
     
     def reconfigure(self, config, level):
@@ -123,6 +134,11 @@ class Comms(FrontComms):
     def sonarDataCallback(self, data):
         self.sonarBearing = data.bearing
         self.sonarDist = data.range
+
+        if self.sonarDist < 2:
+            self.unregisterSonar()
+
+        rospy.sleep(rospy.Duration(0.3))
         
     def unregisterSonar(self):
         self.sonarSub.unregister()

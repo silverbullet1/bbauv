@@ -14,7 +14,7 @@ import signal
 
 class GenericComms:
     """ Class to facilitate communication b/w ROS and task submodules """
-    processingRate = 5
+    processingRate = 2
     processingCount = 0
 
     def __init__(self, visionFilter):
@@ -55,9 +55,10 @@ class GenericComms:
 
         # Run straight away if in alone mode
         if self.isAlone:
-            setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
-            setServer(forward=True, sidemove=True, heading=True, depth=True,
-                      pitch=True, roll=True, topside=False, navigation=False)
+            self.setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
+            self.setServer(forward=True, sidemove=True, heading=True, depth=True,
+                      pitch=True, roll=True, topside=False, navigation=False,
+                      forward_vel=False, sidemove_vel=False)
             self.isAborted = False
             self.canPublish = True
 
@@ -99,10 +100,10 @@ class GenericComms:
 
     def abortMission(self):
         rospy.loginfo("Sending Abort request to mission planner")
-        if not self.isAlone:
-            self.toMission(fail_request=True, task_complete_request=False,
-                           task_complete_ctrl=controller(
-                               heading_setpoint=self.curHeading))
+        #if not self.isAlone:
+        #    self.toMission(fail_request=True, task_complete_request=False,
+        #                   task_complete_ctrl=controller(
+        #                       heading_setpoint=self.curHeading))
         self.canPublish = False
         self.isAborted = True
         self.sendMovement(f=0.0, sm=0.0)
@@ -124,12 +125,24 @@ class GenericComms:
                            search_request=True,
                            task_complete_ctrl=controller())
 
+    def deactivateVelocity(self):
+        self.setServer(forward=True, sidemove=True, heading=True, depth=True,
+                       pitch=True, roll=True, topside=False, navigation=False,
+                       forward_vel=False, sidemove_vel=False)
+
+    def activateVelocity(self):
+        self.setServer(forward=False, sidemove=False, heading=True, depth=True,
+                       pitch=True, roll=True, topside=False, navigation=False,
+                       forward_vel=True, sidemove_vel=True)
+
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
+                     fv=0.0, smv=0.0,
                      timeout=0.4, blocking=False):
-        d = d if d else self.defaultDepth
-        h = h if h else self.curHeading
+        d = d if d != None else self.defaultDepth
+        h = h if h != None else self.curHeading
         goal = ControllerGoal(forward_setpoint=f, heading_setpoint=h,
-                              sidemove_setpoint=sm, depth_setpoint=d)
+                              sidemove_setpoint=sm, depth_setpoint=d,
+                              forward_vel_setpoint=fv, sidemove_vel_setpoint=smv)
         self.motionClient.send_goal(goal)
         rospy.loginfo("Moving f:%lf, sm:%lf, h:%lf, d:%lf", f, sm, h, d)
 

@@ -32,7 +32,7 @@ class Comms(GenericComms):
             rospy.loginfo("Waiting for vision to mission service")
             self.toMission = rospy.ServiceProxy("/lane/vision_to_mission",
                                                 vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.toMission.wait_for_service()
 
     def handleSrv(self, req):
         if req.start_request:
@@ -58,7 +58,7 @@ class Comms(GenericComms):
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
     def reconfigure(self, config, level):
-        #rospy.loginfo("Receive dynamic reconfigure request")
+        rospy.loginfo("Receive dynamic reconfigure request")
         self.params = {'hsvLoThresh1' : (config.loH, config.loS, config.loV),
                        'hsvHiThresh1' : (config.hiH, config.hiS, config.hiV),
                        'minContourArea' : config.minArea}

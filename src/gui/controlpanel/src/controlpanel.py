@@ -37,7 +37,6 @@ from bbauv_msgs.msg._thruster import thruster
 from std_msgs.msg._Float32 import Float32
 from std_msgs.msg._Int8 import Int8
 from filter_chain import Vision_filter
-from navigation_map import Navigation_Map
 
 class AUV_gui(QMainWindow):
     isLeak = False
@@ -776,7 +775,7 @@ class AUV_gui(QMainWindow):
                               "</b>") 
         if self.data['openups1'].battery_percentage < 15.0 or \
             self.data['openups2'].battery_percentage < 15.0 and \
-            not batt_not:
+            not self.batt_not:
             pass
             # n = pynotify.Notification("BATTERY DYING BATTERY DYING!!!")
             # if not n.show():
@@ -1188,7 +1187,7 @@ class AUV_gui(QMainWindow):
 
     def endBtnHandler(self):
         self.client.cancel_all_goals()
-        self.movebase_client.cancel_all_goals()
+        #self.movebase_client.cancel_all_goals()
         self.status_text.setText("Action Client ended goal.")
         #resp = self.set_controller_request(False, False, False, False, False, False, False, False)
 
@@ -1359,7 +1358,7 @@ class AUV_gui(QMainWindow):
         DEGREE_PIXEL_RATIO = 0.1
         H_DEGREE_PIXEL_RATIO = 0.3
         height, width, _ = origimg.shape
-        colour = (0, 0, 0)
+        colour = (25, 25, 112)
         pitch_start, pitch_end = 40, height-40
         yaw_start, yaw_end = 40, width-40
 
@@ -1368,12 +1367,12 @@ class AUV_gui(QMainWindow):
         mid_x, mid_y = width/2, height/2
 
         # Draw indicators
-        cv2.line(img, (mid_x-70, mid_y), (mid_x-50, mid_y), (0, 0, 255), 1)
-        cv2.line(img, (mid_x+50, mid_y), (mid_x+70, mid_y), (0, 0, 255), 1)
-        cv2.line(img, (mid_x, 33), (mid_x-5, 38), (0, 0, 255), 1)
-        cv2.line(img, (mid_x, 33), (mid_x+5, 38), (0, 0, 255), 1)
-        cv2.line(img, (mid_x, pitch_end+13), (mid_x-5, pitch_end+10), (0, 0, 255), 1)
-        cv2.line(img, (mid_x, pitch_end+13), (mid_x+5, pitch_end+10), (0, 0, 255), 1)
+        cv2.line(img, (mid_x-70, mid_y), (mid_x-50, mid_y), (25, 25, 112), 2)
+        cv2.line(img, (mid_x+50, mid_y), (mid_x+70, mid_y), (0, 0, 255), 2)
+        cv2.line(img, (mid_x, 33), (mid_x-5, 38), (0, 0, 255), 2)
+        cv2.line(img, (mid_x, 33), (mid_x+5, 38), (0, 0, 255), 2)
+        cv2.line(img, (mid_x, pitch_end+13), (mid_x-5, pitch_end+10), (0, 0, 255), 2)
+        cv2.line(img, (mid_x, pitch_end+13), (mid_x+5, pitch_end+10), (0, 0, 255), 2)
 
         # Multiply by 10 to work in integers
         origin_pitch = int(10 * (DEGREE_PIXEL_RATIO * (mid_y-pitch_start) + pitch))
@@ -1401,12 +1400,12 @@ class AUV_gui(QMainWindow):
 
             if current_pitch % 100 == 0:
                 txt = str(abs(current_pitch)/10)
-                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 2)
                 pt = (mid_x-offset-txt_w-2, pitch_y + txt_h/2)
-                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour, 2)
 
                 pt = (mid_x+offset+2, pitch_y + txt_h/2)
-                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour, 2)
 
             current_pitch -= BASE
             pitch_y += pitch_inc
@@ -1419,11 +1418,11 @@ class AUV_gui(QMainWindow):
             disp_angle = (i-1) * 15
             txt = str(abs(disp_angle))
             txt_angle = np.deg2rad(-roll - 90 + disp_angle)
-            (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+            (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 2)
             txt_x = int(pt[0] + 6 * math.cos(txt_angle)) - txt_w/2
             txt_y = int(pt[1] + 6 * math.sin(txt_angle))
 
-            cv2.putText(img, txt, (txt_x, txt_y), cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+            cv2.putText(img, txt, (txt_x, txt_y), cv2.FONT_HERSHEY_PLAIN, 0.8, colour, 2)
             cv2.ellipse(img, (pt[0], pt[1]), (1,1), 0, 0, 360, colour)
 
         # Draw horizontal band
@@ -1453,9 +1452,9 @@ class AUV_gui(QMainWindow):
                 disp_yaw = current_yaw if current_yaw >= 0 else current_yaw + 360
                 disp_yaw = disp_yaw if current_yaw < 360 else current_yaw - 360
                 txt = str(disp_yaw) if current_yaw % 45 else CARDINALS[disp_yaw / 45]
-                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 1)
+                (txt_w, txt_h), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_PLAIN, 0.8, 2)
                 pt = (yaw_x-txt_w/2, yaw_bottom - txt_h)
-                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour)
+                cv2.putText(img, txt, pt, cv2.FONT_HERSHEY_PLAIN, 0.8, colour, 2)
 
             current_yaw += H_BASE
             yaw_x += yaw_inc
