@@ -11,30 +11,39 @@ from bot_common.bot_comms import GenericComms
 
 class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
-    def __init__(self):
+    def __init__(self, taskMode='pickup'):
         GenericComms.__init__(self, PickupVision(self))
-        self.defaultDepth = 0.2
-        self.sinkingDepth = 2.0
-        self.grabbingDepth = 2.9
-        self.lastDepth = 3.6
 
-        self.grabbingArea = 20000
+        if taskMode == 'pickup':
+            self.defaultDepth = 0.6
+            self.sinkingDepth = 2.0
+            self.grabbingDepth = 2.9
+            self.lastDepth = 3.7
+            self.grabbingArea = 20000
 
-        self.visionMode = PickupVision.SITE
+            self.visionMode = PickupVision.SITE
+        elif taskMode == 'drop':
+            self.defaultDepth = 0.6
+            self.sinkingDepth = 2.0
+
+            self.visionMode = PickupVision.BOX
 
         self.depthSub = rospy.Subscriber("/depth", depth, self.depthCb)
         self.maniPub = rospy.Publisher("/manipulators", manipulator)
         self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
-            # Initialize mission planner communication server and client
-            self.comServer = rospy.Service("/pickup/mission_to_vision",
-                                           mission_to_vision,
-                                           self.handleSrv)
-            rospy.loginfo("Waiting for vision to mission service")
-            self.toMission = rospy.ServiceProxy("/pickup/vision_to_mission",
-                                                vision_to_mission)
-            self.toMission.wait_for_service()
+            self.initComms('taskMode')
+
+    def initComms(self, name):
+        # Initialize mission planner communication server and client
+        self.comServer = rospy.Service("/{}/mission_to_vision".format(name),
+                                       mission_to_vision,
+                                       self.handleSrv)
+        rospy.loginfo("Waiting for vision to mission service")
+        self.toMission = rospy.ServiceProxy("/{}/vision_to_mission".format(name),
+                                            vision_to_mission)
+        self.toMission.wait_for_service()
 
     def depthCb(self, data):
         self.curDepth = data.depth
@@ -43,7 +52,7 @@ class Comms(GenericComms):
         if req.start_request:
             rospy.loginfo("Received Start Request")
             self.isAborted = False
-            self.defaultDepth = req.start_ctrl.depth_setpoint
+            #self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,

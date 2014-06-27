@@ -41,9 +41,6 @@ class BinsVision:
             self.aliens[alien] = np.load("{}/res/{}.npy".
                                          format(os.path.dirname(__file__),
                                                 alien))
-            #self.templates = cv2.imread("{}/res/{}.png".
-            #                            format(os.path.dirname(__file__),
-            #                                   alien))
 
     def updateParams(self):
         self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
