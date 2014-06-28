@@ -52,10 +52,10 @@ class GenericComms:
         except:
             rospy.loginfo("LocomotionServer timeout!")
             self.isKilled = True
+        self.setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
 
         # Run straight away if in alone mode
         if self.isAlone:
-            self.setServer = rospy.ServiceProxy("/set_controller_srv", set_controller)
             self.setServer(forward=True, sidemove=True, heading=True, depth=True,
                       pitch=True, roll=True, topside=False, navigation=False,
                       forward_vel=False, sidemove_vel=False)

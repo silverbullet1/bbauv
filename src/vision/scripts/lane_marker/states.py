@@ -42,7 +42,7 @@ class MedianFilter:
 
 class Disengage(smach.State):
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['started', 'killed'])
+        smach.State.__init__(self, outcomes=['started', 'killed', 'startedBox'])
         self.comms = comms
 
     def execute(self, userdata):
@@ -62,7 +62,55 @@ class Disengage(smach.State):
         self.comms.sendMovement(d=self.comms.defaultDepth,
                                 h=self.comms.inputHeading,
                                 blocking=True)
+
+        if self.comms.detectingBox:
+            return 'startedBox'
         return 'started'
+
+class AlignBoxLane(smach.State):
+    timeout = 2
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['aligned',
+                                             'aligning',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+        self.angleSampler = MedianFilter(sampleWindow=30)
+
+    def execute(self, userdata):
+        if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
+            return 'aborted'
+
+        start = time.time()
+        while not self.comms.retVal or \
+           len(self.comms.retVal['foundLines']) == 0 or \
+           self.comms.retVal['boxCentroid'] is None:
+            if time.time() - start > self.timeout:
+                return 'lost'
+            rospy.sleep(rospy.Duration(0.1))
+
+        # Calculate angle between box and lane
+        boxCentroid = self.comms.retVal['boxCentroid']
+        laneCentroid = self.comms.retVal['foundLines'][0]['pos']
+        boxLaneAngle = math.atan2(laneCentroid[1] - boxCentroid[1],
+                                  laneCentroid[0] - boxCentroid[0])
+        self.angleSampler.newSample(boxLaneAngle)
+
+        variance = self.angleSampler.getVariance()
+        rospy.loginfo("Variance: {}".format(variance))
+        if (variance < 5.0):
+            dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
+            adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
+
+            self.comms.sendMovement(h=adjustHeading, blocking=True)
+            self.comms.inputHeading = adjustHeading
+            return 'aligned'
+        else:
+            rospy.sleep(rospy.Duration(0.05))
+            return 'aligning'
+
 
 class Search(smach.State):
     timeout = 35
@@ -91,7 +139,6 @@ class Search(smach.State):
 
             rospy.sleep(rospy.Duration(0.3))
 
-        #self.comms.sendMovement(h=320, f=0.5, blocking=True)
         start = time.time()
         if self.waitingTimeout < 0:
             # Waiting timeout, start searching pattern until timeout
@@ -107,10 +154,10 @@ class Search(smach.State):
                     self.comms.abortMission()
                     return 'aborted'
 
-                rospy.sleep(rospy.Duration(0.3))
-                #self.comms.sendMovement(f=2.0, sm=0.0,
-                #                        h=320,
-                #                        blocking=False)
+                rospy.sleep(rospy.Duration(0.1))
+                self.comms.sendMovement(f=1.0, sm=0.0,
+                                        h=self.comms.inputHeading,
+                                        blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
@@ -210,7 +257,6 @@ class Align(smach.State):
             adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
 
             self.comms.sendMovement(h=adjustHeading, blocking=True)
-            self.comms.sendMovement(h=adjustHeading, blocking=True)
             self.comms.adjustHeading = adjustHeading
             return 'aligned'
         else:
@@ -293,7 +339,14 @@ def main():
         smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
                                transitions={'started':'SEARCH',
-                                            'killed':'killed'})
+                                            'killed':'killed',
+                                            'startedBox': 'ALIGNBOXLANE'})
+        smach.StateMachine.add('ALIGNBOXLANE',
+                               AlignBoxLane(myCom),
+                               transitions={'aligned' : 'SEARCH',
+                                            'aligning': 'ALIGNBOXLANE',
+                                            'lost' : 'SEARCH',
+                                            'aborted': 'DISENGAGE'})
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
                                transitions={'foundLanes':'STABLIZE',
