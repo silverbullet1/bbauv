@@ -36,10 +36,10 @@ class Disengage(smach.State):
         
         if self.comms.isAlone:
             self.comms.register()
+            rospy.sleep(rospy.Duration(0.3))
             self.comms.inputHeading = self.comms.curHeading
             self.comms.sonarBearing = self.comms.curHeading
             rospy.loginfo("Starting Torpedo")
-            rospy.sleep(rospy.Duration(0.3))
 
         self.comms.sendMovement(depth=self.comms.defaultDepth,
                                 heading=self.comms.inputHeading,
@@ -48,7 +48,9 @@ class Disengage(smach.State):
         return 'start_complete'
 
 class FollowSonar(smach.State):
-    sonarDist = 2.0
+    completeBoardArea = 10000
+    forward_setpoint = 0.8
+    sonarDist = 3.0
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['sonar_complete', 'following_sonar', 'aborted', 'killed'])
@@ -59,64 +61,15 @@ class FollowSonar(smach.State):
     def execute(self, ud):
         self.comms.state = "SONARSONAR"
 
-        if self.comms.sonarDist > self.sonarDist:
-            rospy.loginfo("Sonar dist: {}, sonar bearing: {}".format(self.comms.sonarDist,
-                self.comms.sonarBearing))
-            self.curHeading = self.comms.sonarBearing
-            self.comms.sendMovement(forward=self.comms.sonarDist,
-                                    heading=self.comms.sonarBearing,
+        if self.comms.sonarBearing > self.sonarDist or \
+            self.comms.boardArea < self.completeBoardArea:
+            self.curHeading += self.comms.sonarBearing
+            self.comms.sendMovement(forward=self.forward_setpoint,
+                                    heading=self.curHeading,
                                     timeout=0.5, blocking=False)
             return 'following_sonar'
         else:
             return 'sonar_complete'
-
-# Align with the center of the green board 
-class AlignBoard(smach.State):
-    timeout = 300
-
-    forward_setpoint = 0.4
-    halfCompleteArea = 45000
-    completeArea = 70000
-
-    deltaXMult = 4.5
-    deltaYMult = 0.4
-
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['alignBoard_complete', 'aligning_board', 'aborted', 'killed'])
-        self.comms = comms
-
-    def execute(self, ud):
-        self.comms.state = "BOARDBOARD"
-        self.comms.isCenteringState = False
-
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
-
-        if self.comms.boardArea > self.completeArea:
-            return 'alignBoard_complete'
-
-        if abs(self.comms.boardDeltaY) > 0.010:
-            if self.comms.boardArea > self.halfCompleteArea:
-                self.deltaYMult = 0.2
-                self.deltaXMult = 3.0
-
-            self.comms.defaultDepth = self.comms.depth + self.comms.boardDeltaY*self.deltaYMult
-            # Prevent surfacing
-            if self.comms.defaultDepth < 0.1:
-                self.comms.defaultDepth = self.comms.depthFromMission
-
-        if self.comms.boardArea > self.halfCompleteArea:
-            self.forward_setpoint = 0.2
-                
-        # Side move and keep heading
-        self.comms.sendMovement(forward=self.forward_setpoint, 
-                                sidemove=self.comms.boardDeltaX * self.deltaXMult, 
-                                depth=self.comms.defaultDepth, timeout=0.4, 
-                                blocking=False)
-
-        return 'aligning_board'
 
 class SearchCircles(smach.State):
     timeout = 300
@@ -127,6 +80,7 @@ class SearchCircles(smach.State):
             
     def execute(self, ud):
         self.comms.state = "SEARCHING"
+        self.comms.isMovingState = False
 
         start = time.time()
         
@@ -153,17 +107,74 @@ class SearchCircles(smach.State):
 
         return 'searchCircles_complete'
 
+# Align with the center of the green board 
+class AlignBoard(smach.State):
+    timeout = 300
+
+    forward_setpoint = 0.4
+    halfCompleteArea = 45000
+    completeArea = 68000
+
+    deltaXMult = 4.5
+    deltaYMult = 0.4
+    headingMult = 2.0
+
+    # completeArea = self.comms.movementParams['boardArea']
+    # deltaXMult = self.comms.movementParams['alignDeltaX']
+    # deltaYMult = self.comms.movementParams['alignDeltaY']
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['alignBoard_complete', 'aligning_board', 'aborted', 'killed'])
+        self.comms = comms
+
+    def execute(self, ud):
+        self.comms.state = "BOARDBOARD"
+        self.comms.isMovingState = False
+
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
+
+        if self.comms.boardArea > self.completeArea:
+            return 'alignBoard_complete'
+
+        if abs(self.comms.boardDeltaY) > 0.010:
+            if self.comms.boardArea > self.halfCompleteArea:
+                self.deltaYMult = 0.2
+                self.deltaXMult = 3.0
+
+            self.comms.defaultDepth = self.comms.depth + self.comms.boardDeltaY*self.deltaYMult
+            # Prevent surfacing
+            if self.comms.defaultDepth < 0.1:
+                self.comms.defaultDepth = self.comms.depthFromMission
+
+        if self.comms.boardArea > self.halfCompleteArea:
+            self.forward_setpoint = 0.2
+
+        self.comms.curHeading = self.comms.curHeading + abs(self.comms.skew) * self.headingMult
+                
+        # Side move and keep heading
+        self.comms.sendMovement(forward=self.forward_setpoint, 
+                                sidemove=self.comms.boardDeltaX * self.deltaXMult, 
+                                heading=self.comms.curHeading, 
+                                depth=self.comms.defaultDepth, timeout=0.4, 
+                                blocking=False)
+
+        return 'aligning_board'
+
 # Just move forward 
 class MoveForward(smach.State):
     forward_setpoint = 0.4
-    completeRadius = 40
+    completeRadius = 38
     lostCount = 0
 
     deltaXMult = 4.0
     deltaYMult = 0.3
 
-    deltaXMult2 = 3.0
-    deltaYMult2 = 0.10
+    # completeRadius = self.comms.movementParams['forwardRadius']
+    # deltaXMult = self.comms.movementParams['forwardDeltaX']
+    # deltaYMult = self.comms.movementParams['forwardDeltaY']
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['forwarding', 'forward_complete', 'lost', 'aborted', 'killed'])
@@ -171,6 +182,7 @@ class MoveForward(smach.State):
     
     def execute(self, ud):    
         self.comms.state = "MOVING"
+        self.comms.isMovingState = True
 
         if self.comms.isKilled:
             return 'killed'
@@ -208,13 +220,16 @@ class MoveForward(smach.State):
 class Centering (smach.State):
     deltaXMult = 1.5
     deltaYMult = 1.5
-    depthCount = 0
 
     centeringCount = 0
     halfCompleteRadius = 65
-    completeRadius = 98
-    forward_half = 0.2
+    completeRadius = 86
+    forward_half = 0.25
     forward_setpoint = 0.15
+
+    # deltaXMult = self.comms.movementParams['centerDeltaX']
+    # deltaYMult = self.comms.movementParams['centerDeltaY']
+    # completeRadius = self.comms.movementParams['completeRadius']
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'lost', 'aborted', 'killed'])
@@ -222,29 +237,29 @@ class Centering (smach.State):
     
     def execute(self, userdata):
         self.comms.state = "CENTERING"
-        self.comms.isCenteringState = True
+        self.comms.isMovingState = True
 
         if self.comms.isKilled:
             return 'killed'
         if self.comms.isAborted:
             return 'aborted'
 
-        if self.comms.numShoot == 1:
-            self.completeRadius = 80
+        # if self.comms.numShoot == 1:
+        #     self.completeRadius = 84
 
         if self.comms.radius > self.completeRadius:
             sidemove_setpoint = self.comms.deltaX * 1.3
             self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*0.30
 
-            self.comms.sendMovement(forward = 0.0,
+            self.comms.sendMovement(forward = 0.0, 
                             sidemove = sidemove_setpoint,
                             depth = self.comms.defaultDepth, timeout=0.4, 
                             blocking = False)
 
-            if abs(self.comms.deltaX) < 0.05 and abs(self.comms.deltaY) < 0.05:
+            if abs(self.comms.deltaX) < 0.04 and abs(self.comms.deltaY) < 0.04:
                 self.centeringCount += 1
 
-            if self.centeringCount > 2:
+            if self.centeringCount > 5:
                 self.centeringCount = 0
                 return 'centering_complete'
         else: 
@@ -325,6 +340,7 @@ class ShootTorpedo(smach.State):
     
     def execute(self, userdata):
         self.comms.state = "SHOOT TO KILL"
+        self.comms.isMovingState = True
 
         if self.comms.isKilled:
             return 'killed'
@@ -332,10 +348,11 @@ class ShootTorpedo(smach.State):
             return 'aborted'
         
         if self.comms.numShoot == 0:
-            self.comms.sendMovement(forward = 0.0,
-                            sidemove = self.comms.torpedoOffset,
-                            depth = self.comms.defaultDepth,
-                            blocking = True)    
+            rospy.loginfo("First shoot")
+            # self.comms.sendMovement(forward = 0.0,
+            #                 sidemove = self.comms.torpedoOffset,
+            #                 depth = self.comms.defaultDepth,
+            #                 blocking = True)    
 
             self.comms.shootTopTorpedo()
 
@@ -344,10 +361,11 @@ class ShootTorpedo(smach.State):
                                     depth = self.comms.defaultDepth,
                                     blocking = True)
         elif self.comms.numShoot == 1:
-            self.comms.sendMovement(forward = 0.0,
-                    sidemove = self.comms.torpedoOffset,
-                    depth = self.comms.defaultDepth,
-                    blocking = True)  
+            rospy.loginfo("Second shoot")
+            # self.comms.sendMovement(forward = 0.0,
+            #         sidemove = self.comms.torpedoOffset,
+            #         depth = self.comms.defaultDepth,
+            #         blocking = True)  
             self.comms.shootBotTorpedo()
         
         # Reset parameters
@@ -358,10 +376,10 @@ class ShootTorpedo(smach.State):
             self.comms.taskComplete()
             return 'shoot_complete'
 
-        self.comms.state = "MOVING UP"
-        self.comms.sendMovement(forward=0.0, sidemove=0.0,
-                                depth=self.comms.defaultDepth-1.00,
-                                blocking=True)
+        # self.comms.state = "MOVING UP"
+        # self.comms.sendMovement(forward=0.0, sidemove=0.0,
+        #                         depth=self.comms.defaultDepth-1.00,
+        #                         blocking=True)
 
         # if self.comms.centerDiff < 0:
         #     self.comms.sendMovement(forward=0.0, sidemove=-1.0, depth=self.comms.defaultDepth, blocking=True)
@@ -392,7 +410,7 @@ def main():
 
         smach.StateMachine.add("ALIGNBOARD", AlignBoard(myCom),
                                 transitions={'aligning_board': "ALIGNBOARD",
-                                            'alignBoard_complete': "MOVEFORWARD",
+                                            'alignBoard_complete': "ALIGNBOARD",
                                             'aborted': 'aborted', 
                                             'killed': 'failed'
                                 })
@@ -424,7 +442,7 @@ def main():
                                          'killed': 'failed'})  
         
         smach.StateMachine.add("SHOOTING", ShootTorpedo(myCom),
-                                transitions={'shoot_again': "MOVEFORWARD",
+                                transitions={'shoot_again': "SEARCHCIRCLES",
                                              'shoot_complete': 'succeeded',
                                              'aborted': 'aborted',
                                              'killed': 'failed'})     

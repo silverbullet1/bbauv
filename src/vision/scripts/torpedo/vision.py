@@ -17,7 +17,8 @@ class TorpedoVision:
     # Vision parameters
     
     thresParams = {
-                    'lo': (0, 200, 0), 'hi': (8, 255, 0), # Jin's parameters
+                    # 'lo': (0, 200, 0), 'hi': (8, 255, 0), # Jin's parameters
+                    'lo': (21, 0, 0), 'hi': (140, 255, 255), 
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)}
 
     greenParams = {
@@ -36,6 +37,10 @@ class TorpedoVision:
     previousBoardCentroid = (-1, -1)
 
     sonarOffset = 10.0
+
+    aimingCentroid = (-1, -1)
+    skewLimit = 0.01
+    sonarThres = 150
         
     def __init__(self, comms = None, debugMode = True):
         self.debugMode = debugMode
@@ -43,9 +48,13 @@ class TorpedoVision:
         
     def gotFrame (self, img):        
         allCentroidList = []
-        allRadiusList = []
         
         img = cv2.resize(img, (640, 480))
+
+        # cv2.circle(img, (vision.screen['width']/2, vision.screen['height']/2),
+        #     97, (255, 255, 0), 2)
+        # cv2.circle(img, (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])),
+        #     97, (255, 255, 0), 2)
         
         # img = self.illumMask(img)
         
@@ -78,7 +87,7 @@ class TorpedoVision:
         # Find contours and fill them
         for i in range(4):
             binImgCopy = binImg.copy()
-            contours, hierarchy = cv2.findContours(binImgCopy,cv2.RETR_CCOMP,cv2.CHAIN_APPROX_NONE)
+            contours, hierarchy = cv2.findContours(binImgCopy,cv2.RETR_CCOMP,cv2.CHAIN_APPROX_SIMPLE)
             cv2.drawContours(image=binImg, contours=contours, contourIdx=-1, color=(255,255,255), thickness=-1)  
         
         '''
@@ -89,6 +98,9 @@ class TorpedoVision:
         # Find the largest contours and make sure its a square
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
 
+        '''
+        Board contour detection
+        '''
         binImgCopy = binImg.copy()
         contours, hierarchy = cv2.findContours(binImgCopy, 
             cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
@@ -106,35 +118,83 @@ class TorpedoVision:
         ((center_x,center_y),(width,height),angle) = cv2.minAreaRect(largestContour)
         box = cv2.cv.BoxPoints(rect)
         boxInt = np.int0(box)
-
         cv2.drawContours(scratchImgCol, [boxInt], 0, (0,0,255), 2)
 
+        '''
+        Determine skew
+        '''
+        boxpoints = np.int32(box)
+        leftEdge = cv2.norm(boxpoints[2] - boxpoints[1])
+        rightEdge = cv2.norm(boxpoints[3] - boxpoints[0])
+        self.comms.skew = rightEdge - leftEdge
+        if abs(self.comms.skew) < self.skewLimit:
+            self.comms.direction = "NONE"
+        if rightEdge > leftEdge:
+            self.comms.direction = "RIGHT"
+        else:
+            self.comms.direction = "LEFT"
+
         # Find centroid of rect returned 
-        if not self.comms.isCenteringState:
+        if not self.comms.isMovingState:
             mu = cv2.moments(largestContour)
             muArea = mu['m00']
             tempBoardCentroid = (int(mu['m10']/muArea), int(mu['m01']/muArea))
             tempBoardArea = muArea
 
-            # self.comms.skew = mu['m30']/(pow(mu['02'],1.5))
-
             self.comms.boardCentroid = tempBoardCentroid
             self.comms.boardArea = tempBoardArea
 
             # Dist where centroid of board is off 
-            self.comms.boardDeltaX = float((self.comms.boardCentroid[0] - vision.screen['width']/2)*1.0/
+            self.comms.boardDeltaX = float((self.comms.boardCentroid[0] - self.aimingCentroid[0])*1.0/
                                         vision.screen['width'])
-            self.comms.boardDeltaY = float((self.comms.boardCentroid[1] - vision.screen['height']/2)*1.0/
+            self.comms.boardDeltaY = float((self.comms.boardCentroid[1] - self.aimingCentroid[1])*1.0/
                                         vision.screen['height'])
 
-            cv2.putText(scratchImgCol, "Board Area: " + str(self.comms.boardArea), (410, 30),
-                        cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))        
-            cv2.circle(scratchImgCol, self.comms.boardCentroid, 2, (0,0,255), 2)
-            cv2.putText(scratchImgCol, "Board X: " + str(self.comms.boardDeltaX), (410, 60),
-                        cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))    
-            cv2.putText(scratchImgCol, "Board Y: " + str(self.comms.boardDeltaY), (410, 80),
-                        cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))  
+        '''
+        Detect black circles
+        '''
 
+        circleBinImg = self.morphology(cv2.inRange(labImg,
+            self.thresParams['lo'], self.thresParams['hi']))
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        circleBinImg = cv2.morphologyEx(circleBinImg, cv2.MORPH_OPEN, kern)
+        dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        circleBinImg = cv2.dilate(circleBinImg, kern)
+
+        circleCont, circleHie = cv2.findContours(circleBinImg.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        circleCont = filter(lambda c: cv2.contourArea(c) > 1000, circleCont)
+        sorted(circleCont, key=cv2.contourArea, reverse=True)
+
+        mask = np.zeros_like(binImg, dtype=np.uint8)
+        cv2.fillPoly(mask, [np.int32(largestContour)], 255)
+        binImg2 = binImg.copy()
+        binImg2 = cv2.bitwise_not(binImg2, mask=mask)
+
+        # Find contours of the binImg2
+        binCont, binhie = cv2.findContours(binImg2.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        circleBinImg = cv2.cvtColor(binImg2, cv2.COLOR_GRAY2BGR)
+        if len(binCont) > 0: 
+            for cont in binCont:
+                if cv2.contourArea(cont) > 600:
+                    (cx, cy), radius = cv2.minEnclosingCircle(cont)
+
+                    if len(circleCont) > 0:
+                        for contour in circleCont:
+                            if cv2.contourArea(contour) < 20000:
+                                (circx, circy), circrad = cv2.minEnclosingCircle(contour)
+                                # If circle radius inside contour
+                                if cx - radius < circx < cx + radius and cy - radius < circy < cy + radius:
+                                    cv2.circle(circleBinImg, (int(circx), int(circy)), int(circrad), (255, 255, 0), 2)
+                                    cv2.circle(circleBinImg, (int(circx), int(circy)), 1, (255, 0, 255), 2)
+                                    allCentroidList.append((cx, cy, radius))
+
+        if self.comms.isMovingState:
+            scratchImgCol = circleBinImg
+
+        if len(allCentroidList) > 0:
+            self.comms.foundCircles = True 
+
+        '''
         if self.comms.isCenteringState:
             mask = np.zeros_like(binImg, dtype=np.uint8)
             cv2.fillPoly(mask, [np.int32(largestContour)], 255)
@@ -167,61 +227,77 @@ class TorpedoVision:
                 cv2.circle(scratchImgCol, (int(cx), int(cy)), int(radius), (255, 255, 0), 2)
                 cv2.circle(scratchImgCol, (int(cx), int(cy)), 1, (255, 0, 255), 2)
                 allCentroidList.append((cx, cy, radius))
-
-        if contours is None:
-            self.comms.foundCount = self.comms.foundCount + 1
-            return scratchImgCol
+        '''
 
         # average = np.mean([c[0] for c in allCentroidList])
         # self.comms.centerDiff = average - (vision.screen['width']/2)
 
-        # sorted(allCentroidList, key=lambda centroid:centroid[2], reverse=True)
-        screenCenter = (vision.screen['width']/2, vision.screen['height']/2)
-        sorted(allCentroidList, key=lambda c:Utils.distBetweenPoints((c[0],c[1]), screenCenter))
+        sorted(allCentroidList, key=lambda centroid:centroid[2], reverse=True)
+        # screenCenter = (vision.screen['width']/2, vision.screen['height']/2)
+        # sorted(allCentroidList, key=lambda c:Utils.distBetweenPoints((c[0],c[1]), self.aimingCentroid))
 
         if len(allCentroidList) > 0:
             self.comms.centroidToShoot = (int(allCentroidList[0][0]), int(allCentroidList[0][1]))
             self.comms.radius = allCentroidList[0][2]
 
         cv2.circle(scratchImgCol, self.comms.centroidToShoot, 3, (0, 255, 255), 2)
+        cv2.circle(circleBinImg, self.comms.centroidToShoot, 3, (0, 255, 255), 2)
             
         # How far the centroid is off the screen center
-        self.comms.deltaX = float((self.comms.centroidToShoot[0] - vision.screen['width']/2)*1.0/
+        self.comms.deltaX = float((self.comms.centroidToShoot[0] - self.aimingCentroid[0])*1.0/
                                     vision.screen['width'])
 
-        cv2.putText(scratchImgCol, "SHOOT TO KILL", (30, 430),
-            cv2.FONT_HERSHEY_PLAIN, 2, (255, 200, 255))
+        cv2.putText(scratchImgCol, "SHOOT TO KILL", (20, 430),
+            cv2.FONT_HERSHEY_PLAIN, 2, (255,153,51))
         cv2.putText(scratchImgCol, str(self.comms.state), (20,460),  
             cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
 
-        # Draw everything
+        # Board variables
+        cv2.putText(scratchImgCol, "Board Area: " + str(self.comms.boardArea), (410, 30),
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))        
+        cv2.circle(scratchImgCol, self.comms.boardCentroid, 2, (0,0,255), 2)
+        cv2.putText(scratchImgCol, "Board X: " + str(self.comms.boardDeltaX), (410, 60),
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))    
+        cv2.putText(scratchImgCol, "Board Y: " + str(self.comms.boardDeltaY), (410, 80),
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204, 204, 204))  
+
+        # Circle variables
         cv2.putText(scratchImgCol, "X  " + str(self.comms.deltaX), (30,30), 
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255))
-        self.comms.deltaY = float((self.comms.centroidToShoot[1] - vision.screen['height']/2)*1.0/
+                    cv2.FONT_HERSHEY_PLAIN, 1, (153,76,0))
+        self.comms.deltaY = float((self.comms.centroidToShoot[1] - self.aimingCentroid[1])*1.0/
                                   vision.screen['height'])
         cv2.putText(scratchImgCol, "Y  " + str(self.comms.deltaY), (30,60), 
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255))
+                    cv2.FONT_HERSHEY_PLAIN, 1, (153,76,0))
         
         cv2.putText(scratchImgCol, "Rad " + str(self.comms.radius), (30,85),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255))           
+                    cv2.FONT_HERSHEY_PLAIN, 1, (153,76,0))    
+
+        # Skew variables
+        cv2.putText(scratchImgCol, "Skew: " + str(self.comms.direction), (430, 430),
+                    cv2.FONT_HERSHEY_PLAIN, 1, (255,51,153))
+        cv2.putText(scratchImgCol, "Skew angle: " + str(self.comms.skew), (430, 460),
+                    cv2.FONT_HERSHEY_PLAIN, 1, (255,51,153))
+
 
         # Draw center of screen
-        scratchImgCol = vision.drawCenterRect(scratchImgCol)
+        scratchImgCol = self.drawCenterRect(scratchImgCol)     
+        # scratchImgCol = vision.drawCenterRect(scratchImgCol)  
         
+        # return np.hstack((scratchImgCol, circleBinImg))
         return scratchImgCol
 
-    # Jin's implementation
     def gotSonarFrame(self, img):
-        img = cv2.resize(img, (640, 480))
+        img = cv2.resize(img, (vision.screen['width'], vision.screen['height']))
 
         binImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        mask = cv2.threshold(binImg, 200, 255, cv2.THRESH_BINARY)[1]
+        mask = cv2.threshold(binImg, self.sonarThres, 255, cv2.THRESH_BINARY)[1]
 
         scratchImgCol = img
-        cv2.putText(scratchImgCol, "BROCOLLIS", (20,460),  cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
+        cv2.putText(scratchImgCol, "SONAR PROCESSED", (20,460),  cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
 
         zerosmask = np.zeros((480,640,3), dtype=np.uint8)
         sobel = cv2.Sobel(mask, cv2.CV_8U, 0, 1, (3, 11))
+        # return cv2.cvtColor(sobel, cv2.COLOR_GRAY2BGR)
 
         contours, hierarchy = cv2.findContours(sobel, cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE)
@@ -230,9 +306,10 @@ class TorpedoVision:
         allBearingList = []
 
         for i in contours:
-            mask = np.zeros((640,480), dtype=np.uint8)
+            mask = np.zeros((vision.screen['width'], vision.screen['height']), 
+                dtype=np.uint8)
             cv2.drawContours(mask, [i], 0, 255, -1)
-            lines = cv2.HoughLinesP(mask, 1, math.pi/2, 1, None, 1, 8)
+            lines = cv2.HoughLinesP(mask, 1, math.pi/2, 1, None, 1, 0)
 
             if lines is not None:
                 line = lines[0]
@@ -241,13 +318,18 @@ class TorpedoVision:
                 x2 = [i[2] for i in line]
                 y2 = [i[3] for i in line]
 
-                pt1 = (min(min(x1), min(x2)), min(min(y1), min(y2)))
-                pt2 = (max(max(x2), max(x2)), max(max(y1), max(y2)))
+                pt1List = [(i[0], i[1]) for i in line]
+                pt2List = [(i[2],i[3]) for i in line]
+                sorted(pt1List, key=lambda x:x[0])
+                sorted(pt2List, key=lambda x:x[0])
+                pt1 = pt1List[0] if pt1List[0] < pt2List[0] else pt2List[0]
+                pt2 = pt1List[-1] if pt1List[-1] > pt2List[-1] else pt2List[-1]
 
                 length = Utils.distBetweenPoints(pt1, pt2)
 
-                if 50 < length < 100:
-                    angle = math.degrees(math.atan2((pt2[1]-pt1[1]), (pt2[0]-pt1[0])))
+                # if 45 < length < 100:
+                if 25 < length < 80:
+                    angle = math.atan2((pt2[1]-pt1[1]), (pt2[0]-pt1[0]))
                     if -30 < angle < 30:
 
                         allLinesList.append((pt1, pt2))
@@ -257,134 +339,25 @@ class TorpedoVision:
                         cv2.putText(scratchImgCol, "Ang " + str(angleStr),
                             (int(pt1[0]), int(pt1[1]-5)), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1)
 
-                        dist = (pt1[1]*1.0/vision.screen['height']) * 10.0  # 10m the FOV of sonar
+                        offset = 60
+                        point = (vision.screen['height']-offset)
+                        dist = ((point-pt1[1])*1.0/point) * 10.0  # 10m the FOV of sonar
                         distStr = "{0:.2f}".format(dist)
                         cv2.putText(scratchImgCol, "Dist " + str(distStr),
                             (int(pt1[0]), int(pt1[1]-20)), cv2.FONT_HERSHEY_PLAIN, 1, (255,255,0), 1)
 
                         allBearingList.append((angle, dist))
 
-            if len(allBearingList) > 0:
-                sorted(allBearingList, key=lambda p:p[1])
-                self.comms.sonarDist = allBearingList[0][1]
-                self.comms.sonarBearing = allBearingList[0][0]
+        if len(allBearingList) > 0:
+            sorted(allBearingList, key=lambda p:p[1])
+            self.sonarDist = allBearingList[0][1]
+            self.sonarBearing = allBearingList[0][0]
 
-                cv2.putText(scratchImgCol, "Dist " + str(self.comms.sonarDist),
-                    (int(pt1[0]), int(pt1[1]-20)), cv2.FONT_HERSHEY_PLAIN, 1, (255,255,0), 1)
+        cv2.putText(scratchImgCol, "Sonar Dist " + str(self.sonarDist),
+            (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
 
-
-        return scratchImgCol
-
-    # Processing sonar image - my implementation
-    def sonarFrame(self, img):
-        img = cv2.resize(img, (640, 480))
-
-        allLinesList = []
-
-        # img = cv2.GaussianBlur(img, (5, 5), 0)
-
-        # Gray thresholding
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        (thresh, im_bw) = cv2.threshold(img, 160, 255, cv2.THRESH_BINARY)
-        # return cv2.cvtColor(im_bw, cv2.COLOR_GRAY2BGR)
-
-        sobel = cv2.Sobel(im_bw, cv2.CV_8U, 0, 1, (3,9))
-
-        scratchImgCol = cv2.cvtColor(sobel, cv2.COLOR_GRAY2BGR)
-        cv2.putText(scratchImgCol, "BROCOLLIS", (20,460),  cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
-
-
-        '''
-        contours, hierarchy = cv2.findContours(sobel.copy(), 
-            cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-        if len(contours) == 0 :
-            return scratchImgCol
-        rects = []
-        for cont in contours:
-            rect = cv2.approxPolyDP(cont, 40, True).copy().reshape(-1, 2)
-            rects.append(rect)
-
-        cv2.drawContours(sobel, rects, -1, (255,255,255), -1)
-        cv2.drawContours(scratchImgCol, rects, -1, (0,255,0), 1)
-        '''
-
-        # Find Hough lines 
-        lines = cv2.HoughLinesP(sobel, 1, math.pi/2, 50, minLineLength=4, maxLineGap=4)
-
-        if lines is None:
-            return scratchImgCol
-
-        # Try merge close by lines 
-        lineList = []
-        gradList = []
-        for line in lines[0]:
-            pt1 = (line[0], line[1])
-            pt2 = (line[2], line[3])
-            lineList.append((pt1, pt2))
-            grad = (pt2[1]-pt1[1]) / (pt2[0]-pt1[0])
-            gradList.append(grad)
-        aveList = []
-        for i in range(len(gradList)-1):
-            if abs(gradList[i]-gradList[i+1]) <= 3:
-                ave1_x = (lineList[i][0][0] + lineList[i+1][0][0])/2
-                ave1_y = (lineList[i][0][1] + lineList[i+1][0][1])/2
-
-                ave2_x = (lineList[i][1][0] + lineList[i+1][1][0])/2
-                ave2_y = (lineList[i][1][1] + lineList[i+1][1][1])/2
-
-                aveList.append((ave1_x, ave1_y, ave2_x, ave2_y))
-                # print aveList
-
-                cv2.line(scratchImgCol, (int(ave1_x), int(ave1_y)), 
-                    (int(ave2_x), int(ave2_y)), (0, 255, 0), 2)
-
-        # average_pt1.x = (line1.pt1.x+line2.pt1.x)/2 
-        # average_pt2.x = (line1.pt2.x+line2.pt2.x)/2 
-
-        # average_pt1.y = (line1.pt1.y+line2.pt1.y)/2 
-        # average_pt2.x = (line1.pt2.y+line2.pt2.y)/2 
-
-        for line in aveList:
-            pt1 = (line[0], line[1])
-            pt2 = (line[2], line[3])
-
-            angle = math.degrees(math.atan2((pt2[1]-pt1[1]), (pt2[0]-pt1[0])))
-            if -30 < angle < 30:
-                center_x = int((pt1[0]+pt2[0])/2)
-                center_y = int((pt1[1]+pt2[1])/2)
-                center = (center_x, center_y)
-
-                # Ratio of center to whole pic 
-                dist = (center_y*1.0/vision.screen['height']) * 10.0  # 10m the FOV of sonar
-
-                allLinesList.append((center, angle, dist, pt1, pt2))
-
-                # sorted(allLinesList, key=lambda p:p[3][0])
-                # leftSide = allLinesList[0][3]
-                # sorted(allLinesList, key=lambda p:p[4][0], reverse=True)
-                # rightSide = allLinesList[0][4]
-
-                # cv2.line(scratchImgCol, leftSide, rightSide, (0, 0, 255), 2)
-
-                cv2.line(scratchImgCol, pt1, pt2, (0, 0, 255), 1)
-                cv2.circle(scratchImgCol, center, 3, (0, 255, 255), 2)
-
-                angleStr = "{0:.2f}".format(angle)
-                cv2.putText(scratchImgCol, "Angle " + angleStr, (center_x+5, center_y-5),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
-
-                distStr = "{0:.2f}".format(dist)
-                cv2.putText(scratchImgCol, "Dist " + distStr, (center_x+20, center_y-20),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
-
-        if len(allLinesList) > 0:
-            self.comms.sonarDist = max(allLinesList, key=lambda line: line[2])[2]
-            # May have to offset because sonar on the left
-            self.comms.sonarBearing = self.comms.curHeading + (-1.0)*allLinesList[0][1] - self.sonarOffset
-            cv2.putText(scratchImgCol, "Sonar Dist " + str(self.comms.sonarDist), (30, 30),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
-            cv2.putText(scratchImgCol, "Sonar Bearing " + str(self.comms.sonarBearing), (30, 60),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
+        cv2.putText(scratchImgCol, "Sonar Bearing " + str(self.sonarBearing), (30, 60),
+                cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
 
         return scratchImgCol
     
@@ -404,6 +377,8 @@ class TorpedoVision:
         self.greenParams['hi'] = self.comms.params['hiThreshold']
         self.minContourArea = self.comms.params['minContourArea'] 
         self.sonarOffset = self.comms.params['sonarOffset']    
+        self.skewLimit = self.comms.params['skewLimit']
+        self.sonarThres = self.comms.params['sonarThres']
 
     def normaliseImg(self, img):
         channel = cv2.split(img)
@@ -464,7 +439,19 @@ class TorpedoVision:
                 self.outPub.publish(Utils.cv2rosimg(outImg))
             except Exception, e:
                 pass
-        rospy.sleep(rospy.Duration(0.5))
+        rospy.sleep(rospy.Duration(0.05))
+
+    def drawCenterRect(self, img):
+        midX = vision.screen['width']/2.0 - 50.0
+        midY = vision.screen['height']/2.0 - 50.0
+        maxDeltaX = vision.screen['width']*0.05
+        maxDeltaY = vision.screen['height']*0.05
+        self.aimingCentroid = (midX, midY)
+        cv2.rectangle(img,
+                      (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                      (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                      (0, 255, 255), 2)  
+        return img 
 
 def main():
     cv2.namedWindow("Torpedo")
