@@ -41,9 +41,6 @@ class BinsVision:
             self.aliens[alien] = np.load("{}/res/{}.npy".
                                          format(os.path.dirname(__file__),
                                                 alien))
-            #self.templates = cv2.imread("{}/res/{}.png".
-            #                            format(os.path.dirname(__file__),
-            #                                   alien))
 
     def updateParams(self):
         self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
@@ -58,7 +55,7 @@ class BinsVision:
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops for aliens
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -69,7 +66,7 @@ class BinsVision:
 
     def morphology2(self, img):
         # Closing up gaps and remove noise with morphological ops for bins
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
@@ -99,7 +96,7 @@ class BinsVision:
             for bin in bins:
                 if cv2.pointPolygonTest(bin[0], centroid[1], False) > 0:
                     thisMatch = {'alien': alienContours[centroid[0]],
-                                 'centroid': bin[1],
+                                 'centroid': centroid[1],
                                  'contour': bin[0]}
                     thisMatch['class'] = self.classify(thisMatch)
                     thisMatch['angle'] = self.angleFromContour(bin[0])

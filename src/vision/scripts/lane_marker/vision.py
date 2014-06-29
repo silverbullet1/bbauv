@@ -12,11 +12,13 @@ class LaneMarkerVision:
     screen = { 'width': 840, 'height': 680 }
 
     # Vision parameters
-    hsvLoThresh1 = (5, 0, 0)
-    hsvHiThresh1 = (79, 255, 255)
-    hsvLoThresh2 = (160, 0, 0)
-    hsvHiThresh2 = (180, 255, 255)
+    hsvLoThresh1 = (10, 0, 0)
+    hsvHiThresh1 = (35, 255, 255)
     minContourArea = 3000
+
+    yellowLoThresh = (40, 0, 0)
+    yellowHiThresh = (80, 255, 255)
+    minBoxArea = 3000
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
@@ -29,9 +31,14 @@ class LaneMarkerVision:
         self.debugMode = debugMode
 
     def updateParams(self):
-        self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
-        self.hsvHiThresh1 = self.comms.params['hsvHiThresh1']
-        self.minContourArea = self.comms.params['minContourArea']
+        params = self.comms.params
+        self.hsvLoThresh1 = params['hsvLoThresh1']
+        self.hsvHiThresh1 = params['hsvHiThresh1']
+        self.minContourArea = params['minContourArea']
+
+        self.yellowLoThresh = params['yellowLoThresh']
+        self.yellowHiThresh = params['yellowHiThresh']
+        self.minBoxArea = params['minBoxArea']
 
     # Convert line equation to vector equation
     def vectorizeLine(self, pt, angle):
@@ -52,6 +59,18 @@ class LaneMarkerVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
+        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+        #img = cv2.erode(img, erodeEl)
+        img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
+
+        return img
+
+    def morphologyBox(self, img):
+        # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
@@ -62,13 +81,33 @@ class LaneMarkerVision:
 
         return img
 
-    def findContourAndBound(self, img, bounded=True):
+    def findContourAndBound(self, img, bound=3000, bounded=True):
         contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
                                        cv2.CHAIN_APPROX_NONE)
         if bounded:
-            contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
+            contours = filter(lambda c: cv2.contourArea(c) > bound,
                               contours)
         return contours
+
+    def findYellowBox(self, hsvImg, outImg):
+        centroid = None
+        binImg = cv2.inRange(hsvImg,
+                             self.yellowLoThresh, self.yellowHiThresh)
+        binImg = self.morphologyBox(binImg)
+
+        contours = self.findContourAndBound(binImg.copy(), bounded=True,
+                                            bound=self.minBoxArea)
+        if len(contours) > 0:
+            largestContour = max(contours, key=cv2.contourArea)
+            rect = cv2.minAreaRect(largestContour)
+            centroid = rect[0]
+
+            if self.debugMode:
+                points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
+                Vision.drawRect(outImg, points, color=(0, 255, 255))
+                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
+                           5, (0, 255, 255))
+        return centroid
 
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
@@ -83,9 +122,6 @@ class LaneMarkerVision:
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
-        #binImg = cv2.bitwise_and(binImg, cv2.bitwise_not(mask))
-        #binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
-
         binImg = self.morphology(binImg)
 
         if self.debugMode:
@@ -94,7 +130,8 @@ class LaneMarkerVision:
 
         # Find large enough contours and their bounding rectangles
         scratchImg = binImg.copy()
-        contours = self.findContourAndBound(scratchImg)
+        contours = self.findContourAndBound(scratchImg,
+                                            bound=self.minContourArea)
         if len(contours) < 1: return retData, outImg
         # Sort the thresholded areas from largest to smallest
         sorted(contours, key=cv2.contourArea, reverse=True)
@@ -195,6 +232,9 @@ class LaneMarkerVision:
             if 90 < abs(Utils.normAngle(self.comms.inputHeading) -
                         Utils.normAngle(adjustAngle)) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
+
+        if self.comms.detectingBox:
+            retData['boxCentroid'] = self.findYellowBox(hsvImg, outImg)
 
         if self.debugMode:
             # Draw vector line and angle

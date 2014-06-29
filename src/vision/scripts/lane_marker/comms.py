@@ -21,6 +21,8 @@ class Comms(GenericComms):
         self.expectedLanes = 1
         self.defaultDepth = 0.6
 
+        self.detectingBox = False
+
         self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
@@ -61,7 +63,15 @@ class Comms(GenericComms):
         rospy.loginfo("Receive dynamic reconfigure request")
         self.params = {'hsvLoThresh1' : (config.loH, config.loS, config.loV),
                        'hsvHiThresh1' : (config.hiH, config.hiS, config.hiV),
-                       'minContourArea' : config.minArea}
+                       'minContourArea' : config.minArea,
+
+                       'yellowLoThresh': (config.yellowLoH,
+                                          config.yellowLoS,
+                                          config.yellowLoV),
+                       'yellowHiThresh': (config.yellowHiH,
+                                          config.yellowHiS,
+                                          config.yellowHiV),
+                       'minBoxArea': config.minBoxArea}
         self.visionFilter.updateParams()
         #rospy.loginfo("Params: {}".format(str(self.params)))
         return config

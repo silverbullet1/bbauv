@@ -30,7 +30,7 @@ class Disengage(smach.State):
         return 'started'
 
 class SearchSite(smach.State):
-    timeout = 20
+    timeout = 70
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundSite'])
@@ -51,8 +51,8 @@ class SearchSite(smach.State):
                 return 'timeout'
             if self.comms.isAborted:
                 return 'aborted'
-            rospy.sleep(rospy.Duration(0.3))
-            #self.comms.sendMovement(f=2.0, h=self.comms.inputHeading,
+            rospy.sleep(rospy.Duration(0.1))
+            #self.comms.sendMovement(f=1.0, h=self.comms.inputHeading,
             #                        blocking=False)
 
         return 'foundSite'
@@ -456,124 +456,8 @@ class Surface(smach.State):
         self.comms.sendMovement(d=self.comms.defaultDepth,
                                 h=self.comms.adjustHeading,
                                 blocking=True)
-        #for i in range(10):
-        #    self.comms.drop()
-        #    rospy.sleep(rospy.Duration(0.3))
 
         self.comms.taskComplete()
-        return 'completed'
-
-#class Navigate(smach.State):
-#    def __init__(self, comms):
-#        smach.State.__init__(self, outcomes=['completed',
-#                                             'aborted'])
-#        self.comms = comms
-#
-#    def execute(self, userdata):
-#        if self.comms.isAborted or self.comms.isKilled:
-#            self.comms.abortMission()
-#            return 'aborted'
-#
-#        #TODO: Navigate to the collection site
-#
-#        return 'completed'
-#
-
-""" States for finding the yellow box and dropping the samples """
-class SearchBox(smach.State):
-    timeout = 10
-
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundBox'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        if self.comms.isAborted or \
-           self.comms.isKilled:
-            self.comms.abortMission()
-            return 'aborted'
-
-        start = time.time()
-
-        while not self.comms.retVal or \
-              len (self.comms.retVal['box']) < 1:
-            if time.time() - start > self.timeout:
-                self.comms.abortMission()
-                return 'timeout'
-            if self.comms.isAborted:
-                return 'aborted'
-            rospy.sleep(rospy.Duration(0.3))
-
-        return 'foundSite'
-
-class CenterBox(smach.State):
-    width = PickupVision.screen['width']
-    height = PickupVision.screen['height']
-    centerX = width / 2.0
-    centerY = height / 2.0
-
-    maxdx = 0.03
-    maxdy = 0.03
-    xcoeff = 3.0
-    ycoeff = 2.5
-
-    numTrials = 1
-    trialPassed = 0
-
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['centered',
-                                             'centering',
-                                             'lost',
-                                             'aborted'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        if self.comms.isAborted or \
-           self.comms.isKilled:
-            self.comms.abortMission()
-            return 'aborted'
-
-        if not self.comms.retVal or \
-           len(self.comms.retVal['box']) == 0:
-            return 'lost'
-
-        box = self.comms.retVal['box']
-
-        dx = (box['centroid'][0] - self.centerX) / self.width
-        dy = (box['centroid'][1] - self.centerY) / self.height
-
-        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
-            if self.trialPassed == self.numTrials:
-                self.trialPassed = 0
-                self.comms.sendMovement(h=self.comms.inputHeading,
-                                        d=self.comms.sinkingDepth,
-                                        blocking=True)
-                return 'centered'
-            else:
-                self.trialPassed += 1
-                return 'centering'
-
-        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
-                                d=self.comms.defaultDepth,
-                                h=self.comms.inputHeading,
-                                blocking=False)
-        return 'centering'
-
-class Drop(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['completed',
-                                             'aborted'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        if self.comms.isAborted or self.comms.isKilled:
-            self.comms.abortMission()
-            return 'aborted'
-
-        self.comms.drop()
-        self.comms.taskComplete()
-
         return 'completed'
 
 
@@ -641,14 +525,6 @@ def main():
                                Surface(myCom),
                                transitions={'completed':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
-        #smach.StateMachine.add('NAVIGATE',
-        #                       Navigate(myCom),
-        #                       transitions={'completed':'DROP',
-        #                                    'aborted':'DISENGAGE'})
-        #smach.StateMachine.add('DROP',
-        #                       Drop(myCom),
-        #                       transitions={'completed':'succeeded',
-        #                                    'aborted':'DISENGAGE'})
 
     introServer = smach_ros.IntrospectionServer('mission_server',
                                                 sm,

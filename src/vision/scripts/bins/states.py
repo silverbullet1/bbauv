@@ -278,18 +278,20 @@ class Search2(smach.State):
         self.comms = comms
 
     def turnLeft(self):
+        rospy.loginfo("Turning left...")
         # Turn to the left and look for another bin
-        self.comms.sendMovement(d=self.comms.sinkingDepth,
+        self.comms.sendMovement(d=self.comms.turnDepth,
                                 h=Utils.normAngle(self.comms.adjustHeading-90),
                                 blocking=True)
-        self.comms.sendMovement(f=1.0, d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(f=1.2, d=self.comms.turnDepth, blocking=True)
 
     def turnRight(self):
+        rospy.loginfo("Turning right...")
         # Turn to the right and look for another bin
         self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
-                                d=self.comms.sinkingDepth,
+                                d=self.comms.turnDepth,
                                 blocking=True)
-        self.comms.sendMovement(f=1.0, d=self.comms.sinkingDepth, blocking=True)
+        self.comms.sendMovement(f=1.2, d=self.comms.turnDepth, blocking=True)
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
@@ -297,7 +299,7 @@ class Search2(smach.State):
             return 'aborted'
 
         #Go up an look for another bin
-        self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
+        self.comms.sendMovement(d=self.comms.search2Depth, blocking=True)
         start = time.time()
 
         while not self.comms.retVal or \
@@ -334,7 +336,7 @@ class Search2(smach.State):
             if time.time() - start > self.turnTimeout:
                 return 'lost'
             self.comms.sendMovement(f=0.3,
-                                    d=self.comms.sinkingDepth,
+                                    d=self.comms.turnDepth,
                                     blocking=False)
 
         self.comms.adjustHeading = self.comms.curHeading
@@ -352,7 +354,7 @@ class Center2(smach.State):
     xcoeff = 3.0
     ycoeff = 2.5
 
-    numTrials = 2
+    numTrials = 1
     trialsPassed = 0
 
     timeout = 5
@@ -390,12 +392,14 @@ class Center2(smach.State):
 
         if abs(dx) > self.maxdx or abs(dy) > self.maxdy:
             self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                    d=self.comms.turnDepth,
                                     h=self.comms.adjustHeading,
                                     blocking=False)
             return 'centering'
 
         self.comms.sendMovement(f=0.0, sm=0.0,
                                 h=self.comms.adjustHeading,
+                                d=self.comms.turnDepth,
                                 blocking=True)
         if self.trialsPassed == self.numTrials:
             self.comms.nearest = nearest

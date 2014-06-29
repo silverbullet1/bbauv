@@ -23,6 +23,7 @@ class Integrator(object):
         self.x = 0
         self.y = 0;
         self.z = 0
+        self.start = 0
 
     def _velcb(self, msg):
         if self.oldtime == 0:
@@ -43,6 +44,10 @@ class Integrator(object):
         o.header.frame_id = 'dvl_position_measured'
         o.header.stamp = msg.header.stamp
         self.odom_pub.publish(o)
+        self.start += delta
+        print "%f,%f,%f,%f,%f" % (self.start,
+                                  msg.velocity.x, self.x, msg.velocity.y,
+                                  self.y)
 
 
 

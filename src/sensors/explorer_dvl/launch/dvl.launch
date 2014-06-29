@@ -7,4 +7,5 @@
     <node pkg="explorer_dvl" name="beamtoxyz" type="beamtoxyz.py" />
     <node pkg="explorer_dvl" name="veltodistance" type="veltodistance.py" />
     <node pkg="explorer_dvl" name="tilt_pub" type="tilt.py" />
+    <node pkg="explorer_dvl" name="earth_odom" type="earth_odom.py" />
 </launch>

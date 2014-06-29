@@ -22,8 +22,8 @@ class PickupVision:
     redLoThresh2 = (160, 0, 0)
     redHiThresh2 = (180, 255, 255)
 
-    yellowLoThresh = (25, 0, 0)
-    yellowHiThresh = (50, 255, 255)
+    yellowLoThresh = (40, 0, 0)
+    yellowHiThresh = (80, 255, 255)
 
     minContourArea = 5000
     maxContourArea = 50000
@@ -182,6 +182,7 @@ class PickupVision:
                 rect = cv2.minAreaRect(largestContour)
                 centroid = rect[0]
                 site['centroid'] = centroid
+                box['centroid'] = centroid
 
                 # Find the orientation of each contour
                 points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(largestContour)))
@@ -198,6 +199,7 @@ class PickupVision:
                     angle = Utils.invertAngle(angle)
 
                 site['angle'] = angle
+                box['angle'] = angle
 
                 if self.debugMode:
                     points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
