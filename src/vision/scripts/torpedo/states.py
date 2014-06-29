@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''
 Smach state machine for Torpedo
 '''

@@ -91,6 +91,7 @@ generate_dynamic_reconfigure_options(
     cfg/rgb.cfg
     cfg/pegs.cfg
     cfg/torpedo.cfg
+    cfg/sonar.cfg
 )
 
 ###################################

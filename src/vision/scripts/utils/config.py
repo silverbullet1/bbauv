@@ -5,6 +5,7 @@ import vision.cfg.pickupConfig as pickupConfig
 import vision.cfg.pegsConfig as pegsConfig
 import vision.cfg.rgbConfig as rgbConfig
 import vision.cfg.torpedoConfig as torpedoConfig
+import vision.cfg.sonarConfig as sonarConfig
 
 botCamTopic = '/bot_camera/camera/image_raw'
 frontCamTopic = '/front_camera/camera/image_raw'

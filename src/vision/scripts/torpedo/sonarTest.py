@@ -4,31 +4,44 @@ import roslib
 import rospy
 
 from sensor_msgs.msg import Image
+from bbauv_msgs.srv import sonar_point
+
 from utils.utils import Utils
 from front_commons.frontCommsVision import FrontCommsVision as vision
+
+from dynamic_reconfigure.server import Server as DynServer
+from utils.config import sonarConfig as Config
 
 import math
 import numpy as np
 import cv2
 
 class Sonar():
+    self.threshold = 160
+    self.sobelKern = (5, 11)
+    self.lenLowerBound = 45
+    self.lenUpperBound = 100
+
     def __init__(self):
         self.sonarDist = 0.0
         self.sonarBearing = 0.0
-        self.sonarPoint = (-1, -1)
         self.registerSonar()
+
+        self.dynServer = DynServer(Config, self.reconfigure)
+
+        self.sonarSrv = rospy.ServiceProxy('sonar_point', sonar_point, persistent=True)
 
     def gotSonarFrame(self, img):
         img = cv2.resize(img, (vision.screen['width'], vision.screen['height']))
 
         binImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        mask = cv2.threshold(binImg, 160, 255, cv2.THRESH_BINARY)[1]
+        mask = cv2.threshold(binImg, self.threshold, 255, cv2.THRESH_BINARY)[1]
 
         scratchImgCol = img
         cv2.putText(scratchImgCol, "SONAR PROCESSED", (20,460),  cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
 
         zerosmask = np.zeros((480,640,3), dtype=np.uint8)
-        sobel = cv2.Sobel(mask, cv2.CV_8U, 0, 1, (5, 11))
+        sobel = cv2.Sobel(mask, cv2.CV_8U, 0, 1, self.sobelKern)
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
         # sobel = cv2.dilate(sobel, dilateEl, iterations=2)
         # return cv2.cvtColor(sobel, cv2.COLOR_GRAY2BGR)
@@ -60,8 +73,7 @@ class Sonar():
 
                 length = Utils.distBetweenPoints(pt1, pt2)
 
-                # if 45 < length < 100:
-                if 45 < length < 100:
+                if self.lenLowerBound < length < self.lenUpperBound:
                     centerPoint = ((pt1[0]+pt2[0])/2, (pt2[1]+pt2[1])/2 )
                     angle = math.atan2((pt2[1]-pt1[1]), (pt2[0]-pt1[0]))
                     if -30 < angle < 30:
@@ -87,8 +99,11 @@ class Sonar():
             self.sonarDist = allBearingList[0][1]
             self.sonarBearing = allBearingList[0][0]
             point = (int(allBearingList[0][2][0]), int(allBearingList[0][2][1]))
-            self.sonarPoint = point
+
             cv2.circle(scratchImgCol, point, 5, (20, 255, 255), 2)
+
+            # Send the center point over to sonar to get range and bearing
+            # self.getSonarPoint(point)
 
         cv2.putText(scratchImgCol, "Sonar Dist " + str(self.sonarDist),
             (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
@@ -97,6 +112,14 @@ class Sonar():
                 cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
 
         return scratchImgCol
+
+    def getSonarPoint(self, point){
+        resp = self.sonarSrv(point[0], point[1])
+        self.sonarBearing = resp.bearing
+        self.sonarDist = resp.range
+        rospy.loginfo("Bearing {} Range {}".format(self.sonarBearing, self.sonarDist))
+    }
+
 
     def registerSonar(self):
         rospy.loginfo("SONAR SONAR")
@@ -113,6 +136,13 @@ class Sonar():
                 pass
 
         # rospy.sleep(rospy.Duration(0.05))
+
+    def self.reconfigure(self, config, level){
+        self.threshold = config.binThres
+        self.sobelKern = (config.sobel1, config.sobel2)
+        self.lenLowerBound = config.length1
+        self.lenUpperBound = config.length2
+    }
 
 def main():
     rospy.init_node('SonarRanger')

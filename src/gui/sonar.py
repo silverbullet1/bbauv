@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+'''
+Outputs /sonar_image and /sonar_image_labelled for visualisation
+'''
+
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image 
@@ -52,7 +56,10 @@ def main():
     rospy.Subscriber("/sonar_image", Image, sonar_callback)
     rospy.Subscriber("/sonar_image_labelled", Image, sonar_labelled_callback)
     
-    rospy.spin()
+    r = rospy.Rate(10)
+    while not rospy.is_shutdown():
+        cv2.waitKey(1)
+        r.sleep()
 
 if __name__ == "__main__":
     rospy.init_node("sonar_gui")

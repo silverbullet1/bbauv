@@ -30,6 +30,7 @@ class Vision(QWidget):
             'satLow':0, 'satHigh': 255,
             'valLow':0, 'valHigh': 255,
             'hueLow':0}
+    colour = "HSV"
 
     video_pixmap = Queue.Queue()
     filter_pixmap = Queue.Queue()
@@ -42,7 +43,7 @@ class Vision(QWidget):
         self.initSub()
 
     def initUI(self):
-        main_layout = QHBoxLayout()
+        self.main_layout = QHBoxLayout()
 
         # Colour Map
         colorMap = QLabel()
@@ -52,9 +53,21 @@ class Vision(QWidget):
         except Exception, e:
             pass
 
+        # Select colour space
+        colour_layout = QHBoxLayout()
+        colour_dropdown = QComboBox()
+        colour_dropdown.addItem("HSV")
+        colour_dropdown.addItem("Lab")
+        colour_dropdown.activated[int].connect(self.onColourCB)
+        colour_layout.addWidget(colour_dropdown)
+        colour_layout.addStretch()
+
         # QRange sliders 
         slider_layout = QVBoxLayout()
-        hue_layout, self.hue_slider = self.make_slider_box(" Hue", 0, 180)
+        if self.colour == "HSV":
+            hue_layout, self.hue_slider = self.make_slider_box(" Hue", 0, 255)
+        else:
+            hue_layout, self.hue_slider = self.make_slider_box(" Hue", 0, 255)
         sat_layout, self.sat_slider = self.make_slider_box("Sat", 0, 255)
         val_layout, self.val_slider = self.make_slider_box("Val", 0, 255)
         slider_layout.addLayout(hue_layout)
@@ -114,15 +127,16 @@ class Vision(QWidget):
         # Main frame layout
         frame_layout = QVBoxLayout()
         frame_layout.addWidget(colorMap)
+        frame_layout.addLayout(colour_layout)
         frame_layout.addLayout(slider_layout)
         frame_layout.addLayout(params_layout)
         frame_layout.addLayout(image_layout)
         
-        main_layout.addLayout(frame_layout)
-        main_layout.addLayout(hist_layout)
+        self.main_layout.addLayout(frame_layout)
+        self.main_layout.addLayout(hist_layout)
 
         self.initTimer(self.rate)        
-        self.setLayout(main_layout)
+        self.setLayout(self.main_layout)
         self.show()
 
     def initSub(self):
@@ -163,7 +177,10 @@ class Vision(QWidget):
             pass
 
         if videoImg is not None:
-            thresImg = self.createThresImage(videoImg)
+            if self.colour == "HSV":
+                thresImg = self.createThresImage(videoImg)
+            elif self.colour == "LAB":
+                thresImg = self.createLabThesImage(videoImg)
             self.thres_cb.setPixmap(thresImg.scaledToHeight(250))
 
             videoImg = self.updateCameraImage(videoImg, isCamera=True)
@@ -193,6 +210,29 @@ class Vision(QWidget):
             bbLock.release()
 
         return qpm
+
+    # Threshold in LAB
+    def createLabThesImage(self, image):
+        img = self.convertImg(image)
+        labImg = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        loThres = np.array([self.params['hueLow'],self.params['satLow'],
+            self.params['valLow']], np.uint8)
+        hiThres = np.array([self.params['hueHigh'],self.params['satHigh'],
+            self.params['valHigh']],np.uint8)
+
+        thresImg = cv2.inRange(labImg, loThres, hiThres)
+
+        bbLock = threading.Lock()
+        thresqpm = cv2.cvtColor(thresImg, cv2.COLOR_GRAY2RGB)
+        try:
+            bbLock.acquire()
+            qimg = QImage(thresqpm.data, thresqpm.shape[1], thresqpm.shape[0],
+                QImage.Format_RGB888)
+            thresqpm = QPixmap.fromImage(qimg)
+        finally:
+            bbLock.release()
+
+        return thresqpm
 
     # Thresholding in HSV without enhancement
     def createThresImage(self, image):
@@ -269,6 +309,16 @@ class Vision(QWidget):
         qse.setEnd(max)
 
         return (layout, qse)
+
+    def onColourCB(self, index):
+        if index == 1:
+            self.colour = "HSV"
+            self.hue_slider.setMax(180)
+            self.hue_slider.setEnd(180)
+        elif index == 2:
+            self.colour = "LAB"
+            self.hue_slider.setMax(255)
+            self.hue_slider.setEnd(255)
 
     def changeParamsBtnHandler(self):
         if self.lo_h_box.text() == "":
