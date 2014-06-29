@@ -4,6 +4,7 @@ import actionlib
 
 from bbauv_msgs.msg import compass_data, \
     ControllerAction, ControllerGoal, controller
+from bbauv_msgs.srv import mission_to_vision, vision_to_mission
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -62,6 +63,16 @@ class GenericComms:
             self.isAborted = False
             self.canPublish = True
 
+    def initComms(self, taskName):
+        # Initialize mission planner communication server and client
+        rospy.loginfo("Starting /{}/mission_to_vision".format(taskName))
+        self.comServer = rospy.Service("/{}/mission_to_vision".format(taskName),
+                                       mission_to_vision,
+                                       self.handleSrv)
+        rospy.loginfo("Waiting for vision to mission service")
+        self.toMission = rospy.ServiceProxy("/{}/vision_to_mission".format(taskName),
+                                            vision_to_mission)
+        self.toMission.wait_for_service()
 
     def register(self):
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
@@ -77,6 +88,7 @@ class GenericComms:
         if self.compassSub is not None:
             self.compassSub.unregister()
         self.canPublish = False
+        self.retVal = None
 
     def camCallback(self, rosImg):
         if self.processingCount == self.processingRate:

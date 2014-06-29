@@ -3,8 +3,7 @@ import rospy
 from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.msg import controller
-from bbauv_msgs.srv import mission_to_visionResponse, \
-        mission_to_vision, vision_to_mission
+from bbauv_msgs.srv import mission_to_visionResponse
 from utils.config import laneConfig as Config
 
 from vision import LaneMarkerVision
@@ -15,26 +14,26 @@ class Comms(GenericComms):
     LEFT = 0
     RIGHT = 1
 
-    def __init__(self):
+    def __init__(self, isAcoustic):
         GenericComms.__init__(self, LaneMarkerVision(comms=self))
         self.chosenLane = self.RIGHT
         self.expectedLanes = 1
-        self.defaultDepth = 0.6
-
-        self.detectingBox = False
 
         self.dynServer = DynServer(Config, self.reconfigure)
+        self.isAcoustic = isAcoustic
+
+        if self.isAcoustic:
+            self.detectingBox = True
+            self.defaultDepth = 0.2
+        else:
+            self.detectingBox = False
+            self.defaultDepth = 0.6
 
         if not self.isAlone:
-            # Initialize mission planner communication server and client
-            rospy.loginfo("Starting /lane/mission_to_vision")
-            self.comServer = rospy.Service("/lane/mission_to_vision",
-                                           mission_to_vision,
-                                           self.handleSrv)
-            rospy.loginfo("Waiting for vision to mission service")
-            self.toMission = rospy.ServiceProxy("/lane/vision_to_mission",
-                                                vision_to_mission)
-            self.toMission.wait_for_service()
+            if self.isAcoustic:
+                self.initComms("laneAcoustic")
+            else:
+                self.initComms("lane")
 
     def handleSrv(self, req):
         if req.start_request:
@@ -64,16 +63,15 @@ class Comms(GenericComms):
         self.params = {'hsvLoThresh1' : (config.loH, config.loS, config.loV),
                        'hsvHiThresh1' : (config.hiH, config.hiS, config.hiV),
                        'minContourArea' : config.minArea,
-
                        'yellowLoThresh': (config.yellowLoH,
                                           config.yellowLoS,
                                           config.yellowLoV),
                        'yellowHiThresh': (config.yellowHiH,
                                           config.yellowHiS,
                                           config.yellowHiV),
-                       'minBoxArea': config.minBoxArea}
+                       'minBoxArea': config.minBoxArea,
+                       'ratioBound': config.ratioBound}
         self.visionFilter.updateParams()
-        #rospy.loginfo("Params: {}".format(str(self.params)))
         return config
 
 def main():

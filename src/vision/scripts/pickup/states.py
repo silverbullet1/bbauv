@@ -15,6 +15,9 @@ class Disengage(smach.State):
         self.comms = comms
 
     def execute(self, userdata):
+        self.comms.unregister()
+        self.comms.visionMode = PickupVision.SITE
+
         while self.comms.isAborted:
             if self.comms.isKilled:
                 return 'killed'
@@ -27,6 +30,7 @@ class Disengage(smach.State):
         self.comms.sendMovement(h=self.comms.inputHeading,
                                 d=self.comms.defaultDepth,
                                 blocking=True)
+        self.comms.retVal = None
         return 'started'
 
 class SearchSite(smach.State):
@@ -225,13 +229,15 @@ class Align(smach.State):
            len(self.comms.retVal['samples']) == 0:
             return 'lost'
 
+        self.comms.adjustHeading = self.comms.inputHeading
+
         # Align with the samples
-        dAngle = Utils.toHeadingSpace(self.comms.selectedSample['angle'])
-        adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
-        self.comms.adjustHeading = adjustAngle
-        self.comms.sendMovement(h=adjustAngle,
-                                d=self.comms.sinkingDepth,
-                                blocking=False)
+        #dAngle = Utils.toHeadingSpace(self.comms.selectedSample['angle'])
+        #adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
+        #self.comms.adjustHeading = adjustAngle
+        #self.comms.sendMovement(h=adjustAngle,
+        #                        d=self.comms.sinkingDepth,
+        #                        blocking=False)
 
         return 'aligned'
 

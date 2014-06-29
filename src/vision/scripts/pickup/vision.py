@@ -29,6 +29,8 @@ class PickupVision:
     maxContourArea = 50000
     minSiteArea = 10000
 
+    minBoxArea = 3000
+
     def __init__(self, comms=None, debugMode=True):
         self.comms = comms
         self.debugMode = debugMode
@@ -175,8 +177,12 @@ class PickupVision:
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
 
-            contours = self.findContourAndBound(binImg.copy(), bounded=True,
-                                                bound=self.minSiteArea)
+            if self.comms.visionMode == self.SITE:
+                contours = self.findContourAndBound(binImg.copy(), bounded=True,
+                                                    bound=self.minSiteArea)
+            elif self.comms.visionMode == self.BOX:
+                contours = self.findContourAndBound(binImg.copy(), bounded=True,
+                                                    bound=self.minBoxArea)
             if len(contours) > 0:
                 largestContour = max(contours, key=cv2.contourArea)
                 rect = cv2.minAreaRect(largestContour)
