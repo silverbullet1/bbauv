@@ -32,7 +32,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 200
+    timeout = 20
     defaultWaitingTime = 2
 
     def __init__(self, comms):
@@ -66,15 +66,10 @@ class Search(smach.State):
                 if self.comms.isKilled or self.comms.isAborted:
                     self.comms.abortMission()
                     return 'aborted'
-
                 if (time.time() - start) > self.timeout:
                     self.comms.abortMission()
                     return 'aborted'
-                
                 rospy.sleep(rospy.Duration(0.3))
-                #self.comms.sendMovement(f=0.0, sm=0.0,
-                #                        h=self.comms.inputHeading,
-                #                        blocking=False)
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
@@ -96,7 +91,7 @@ class Center(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 5
+    timeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -117,7 +112,6 @@ class Center(smach.State):
                 self.trialsPassed = 0
                 return 'lost'
             rospy.sleep(rospy.Duration(0.05))
-            return 'centering'
 
         matches = self.comms.retVal['matches']
         nearest = min(matches,
@@ -187,7 +181,7 @@ class CenterAgain(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 5
+    timeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -208,7 +202,6 @@ class CenterAgain(smach.State):
                 self.trialsPassed = 0
                 return 'lost'
             rospy.sleep(rospy.Duration(0.05))
-            return 'centering'
 
         matches = self.comms.retVal['matches']
         nearest = min(matches,
@@ -308,7 +301,7 @@ class Search2(smach.State):
                 return 'aborted'
             if time.time() - start > self.timeout:
                 return 'lost'
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(0.1))
 
         matches = self.comms.retVal['matches']
         centroids = map(lambda m: m['centroid'], matches)
@@ -358,7 +351,7 @@ class Center2(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 5
+    timeout = 2
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -379,7 +372,6 @@ class Center2(smach.State):
                 self.trialsPassed = 0
                 return 'lost'
             rospy.sleep(rospy.Duration(0.05))
-            return 'centering'
 
         matches = self.comms.retVal['matches']
         nearest = min(matches,

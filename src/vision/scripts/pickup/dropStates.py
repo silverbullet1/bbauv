@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'started'
 
 class SearchBox(smach.State):
-    timeout = 50
+    timeout = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundBox'])
@@ -72,7 +72,7 @@ class CenterBox(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 2
+    lostTimeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -95,7 +95,6 @@ class CenterBox(smach.State):
                 return 'lost'
             else:
                 rospy.sleep(rospy.Duration(0.1))
-                return 'centering'
 
         box = self.comms.retVal['box']
 
@@ -103,12 +102,9 @@ class CenterBox(smach.State):
         dy = (box['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
-                self.comms.sendMovement(h=self.comms.inputHeading,
-                                        d=self.comms.sinkingDepth,
-                                        blocking=True)
                 return 'centered'
             else:
                 self.trialPassed += 1
@@ -130,6 +126,10 @@ class Drop(smach.State):
         if self.comms.isAborted or self.comms.isKilled:
             self.comms.abortMission()
             return 'aborted'
+
+        self.comms.sendMovement(h=self.comms.inputHeading,
+                                d=self.comms.sinkingDepth,
+                                blocking=True)
 
         for i in range(10):
             self.comms.drop()

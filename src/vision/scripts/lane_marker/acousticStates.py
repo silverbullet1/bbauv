@@ -77,7 +77,7 @@ class CenterBox(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 50
+    timeout = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -98,16 +98,13 @@ class CenterBox(smach.State):
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
 
-        self.comms.searchComplete()
-
         centroid = self.comms.retVal['box']['centroid']
         dX = (centroid[0] - self.width/2) / self.width
         dY = (centroid[1] - self.height/2) / self.height
         rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
 
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0,
-                                    h=self.comms.adjustHeading, blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialsPassed == self.numTrials:
                 self.trialsPassed = 0
                 self.comms.detectingBox = False
@@ -119,7 +116,7 @@ class CenterBox(smach.State):
         f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
         sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
         self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint,
-                                h=self.comms.adjustHeading, blocking=False)
+                                h=self.comms.inputHeading, blocking=False)
         return 'centering'
 
 class AlignBoxLane(smach.State):
@@ -163,7 +160,7 @@ class AlignBoxLane(smach.State):
             dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
             adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
 
-            self.comms.sendMovement(f=0.2, h=adjustHeading, blocking=True)
+            self.comms.sendMovement(f=0.5, h=adjustHeading, blocking=True)
             self.comms.inputHeading = adjustHeading
             return 'aligned'
         else:

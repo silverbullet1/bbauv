@@ -85,11 +85,9 @@ class Search(smach.State):
             if self.comms.isKilled or self.comms.isAborted:
                 self.comms.abortMission()
                 return 'aborted'
-
             if (time.time() - start) > self.waitingTimeout:
                 self.waitingTimeout = -1
                 break
-
             rospy.sleep(rospy.Duration(0.3))
 
         start = time.time()
@@ -190,12 +188,8 @@ class Align(smach.State):
         elif len(lines) >= 2:
             if self.comms.chosenLane == self.comms.LEFT:
                 self.angleSampler.newSample(lines[0]['angle'])
-                #rospy.loginfo(Utils.normAngle(
-                #    Utils.toHeadingSpace(lines[0]['angle'])))
             elif self.comms.chosenLane == self.comms.RIGHT:
                 self.angleSampler.newSample(lines[1]['angle'])
-                #rospy.loginfo(Utils.normAngle(
-                #    Utils.toHeadingSpace(lines[1]['angle'])))
             else:
                 rospy.loginfo("Something goes wrong with chosenLane")
 
@@ -223,6 +217,8 @@ class Center(smach.State):
 
     numTrials = 1
     trialsPassed = 0
+    
+    timeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -236,10 +232,13 @@ class Center(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        if not self.comms.retVal or \
-           len(self.comms.retVal['foundLines']) == 0:
-            self.trialsPassed = 0
-            return 'lost'
+        self.start = time.time()
+        while not self.comms.retVal or \
+              len(self.comms.retVal['centroid']) == 0:
+            if time.time() - self.start > self.timeout:
+                self.trialsPassed = 0
+                return 'lost'
+            rospy.sleep(rospy.Duration(0.05))
 
         centroid = self.comms.retVal['centroid']
         dX = (centroid[0] - self.width/2) / self.width

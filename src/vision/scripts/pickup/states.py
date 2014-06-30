@@ -34,7 +34,7 @@ class Disengage(smach.State):
         return 'started'
 
 class SearchSite(smach.State):
-    timeout = 70
+    timeout = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundSite'])
@@ -56,8 +56,6 @@ class SearchSite(smach.State):
             if self.comms.isAborted:
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
-            #self.comms.sendMovement(f=1.0, h=self.comms.inputHeading,
-            #                        blocking=False)
 
         return 'foundSite'
 
@@ -99,12 +97,9 @@ class CenterSite(smach.State):
         dy = (site['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0, blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
-                self.comms.sendMovement(h=self.comms.inputHeading,
-                                        d=self.comms.sinkingDepth,
-                                        blocking=True)
                 self.comms.visionMode = PickupVision.SAMPLES
                 return 'centered'
             else:
@@ -119,7 +114,7 @@ class CenterSite(smach.State):
         
 
 class Search(smach.State):
-    timeout = 20
+    timeout = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundSamples',
@@ -133,8 +128,11 @@ class Search(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        start = time.time()
+        self.comms.sendMovement(h=self.comms.inputHeading,
+                                d=self.comms.sinkingDepth,
+                                blocking=True)
 
+        start = time.time()
         while not self.comms.retVal or \
               len (self.comms.retVal['samples']) < 1:
             if time.time() - start > self.timeout:
@@ -160,7 +158,7 @@ class Center(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 2
+    lostTimeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -183,7 +181,6 @@ class Center(smach.State):
                 return 'lost'
             else:
                 rospy.sleep(rospy.Duration(0.1))
-                return 'centering'
 
         samples = self.comms.retVal['samples']
         closest = min(samples,
@@ -195,9 +192,7 @@ class Center(smach.State):
         dy = (closest['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0,
-                                    d=self.comms.sinkingDepth,
-                                    blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
                 self.comms.selectedSample = closest
@@ -253,10 +248,10 @@ class Center2(smach.State):
     xcoeff = 2.5
     ycoeff = 2.0
 
-    numTrials = 2
+    numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 2
+    lostTimeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -279,7 +274,6 @@ class Center2(smach.State):
                 return 'lost'
             else:
                 rospy.sleep(rospy.Duration(0.1))
-                return 'centering'
 
         samples = self.comms.retVal['samples']
         closest = min(samples,
@@ -291,10 +285,7 @@ class Center2(smach.State):
         dy = (closest['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0,
-                                    d=self.comms.sinkingDepth,
-                                    h=self.comms.adjustHeading,
-                                    blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
                 return 'centered'
@@ -351,7 +342,7 @@ class Approach(smach.State):
         dy = (closest['centroid'][1] - self.centerY) / self.height
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
-                                d=self.comms.curDepth + 0.1,
+                                d=self.comms.curDepth + 0.2,
                                 h=self.comms.adjustHeading,
                                 timeout=2,
                                 blocking=False)
@@ -371,7 +362,7 @@ class Center3(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 2
+    lostTimeout = 3
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -394,7 +385,6 @@ class Center3(smach.State):
                 return 'lost'
             else:
                 rospy.sleep(rospy.Duration(0.1))
-                return 'centering'
 
         samples = self.comms.retVal['samples']
         closest = min(samples,
@@ -406,10 +396,7 @@ class Center3(smach.State):
         dy = (closest['centroid'][1] - self.centerY) / self.height
 
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0,
-                                    d=self.comms.adjustDepth,
-                                    h=self.comms.adjustHeading,
-                                    blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
                 return 'centered'
