@@ -234,7 +234,7 @@ class Center(smach.State):
 
         self.start = time.time()
         while not self.comms.retVal or \
-              len(self.comms.retVal['centroid']) == 0:
+              len(self.comms.retVal['foundLines']) == 0:
             if time.time() - self.start > self.timeout:
                 self.trialsPassed = 0
                 return 'lost'

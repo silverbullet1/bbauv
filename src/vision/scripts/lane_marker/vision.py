@@ -129,7 +129,7 @@ class LaneMarkerVision:
 
     def findLane(self, img):
         foundLines = []
-        centroid = [-1, -1]
+        centroid = [0, 0]
         outImg = None
         retData = { 'foundLines': foundLines, 'centroid': centroid }
 

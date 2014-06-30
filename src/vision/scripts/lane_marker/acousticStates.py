@@ -93,7 +93,7 @@ class CenterBox(smach.State):
 
         start = time.time()
         while not self.comms.retVal or \
-              len(self.comms.retVal['foundLines']) == 0:
+              len(self.comms.retVal['box']) == 0:
             if time.time() - start > self.timeout:
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
