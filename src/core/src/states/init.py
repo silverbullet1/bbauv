@@ -2,6 +2,7 @@ import smach
 from utils.common import TimeoutState
 import smach_ros
 from bbauv_msgs.srv import set_controllerRequest, set_controller
+import rospy
 
 class State(smach.State):
     def __init__(self, shared):
@@ -26,4 +27,7 @@ class State(smach.State):
         self.sm0.request_preempt()
 
     def execute(self, userdata):
-        return self.sm0.execute()
+        res = self.sm0.execute()
+        rospy.loginfo('time taken to init: %s' % str((rospy.Time.now() -
+                                                  self._shared.start_time).to_sec()))
+        return res

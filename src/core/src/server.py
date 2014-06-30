@@ -60,26 +60,26 @@ class MissionPlanner(object):
         taskset = [p.name for p in self.mission.plan]
         if _task.has_fallback:
             if _task.fallback in taskset:
-                transitions['failed'] = '%s_STATE' % _task.fallback
+                transitions['failed'] = '%s_TASK' % _task.fallback
             else:
                 rospy.logerr('task %s wants %s as fallback but it is not loaded' % 
                              (_task.name, _task.fallback))
         if taskset.index(_task.name) == len(taskset) - 1:
             return transitions
         else:
-            n = '%s_STATE' % taskset[taskset.index(_task.name) + 1]
+            n = '%s_TASK' % taskset[taskset.index(_task.name) + 1].upper()
             transitions['succeeded'] = n
             return transitions
 
     def make_sm(self):
         self.sm0 = smach.StateMachine(outcomes=['succeeded', 'preempted',
                                                 'failed'])
-        for m in self.mission.plan:
-            sm = self._make_individual_sm(m)
-            with self.sm0:
+        with self.sm0:
+            for m in self.mission.plan:
+                sm = self._make_individual_sm(m)
                 smach.StateMachine.add('%s_TASK' % m.name.upper(),
-                                       sm,
-                                       transitions=self._make_transitions(m))
+                                        sm,
+                                        transitions=self._make_transitions(m))
         if self.mission.master_timeout > 0:
             smcc = smach.Concurrence(outcomes=['succeeded', 'preempted',
                                                'failed'],
@@ -121,6 +121,7 @@ if __name__ == '__main__':
     robosub = plan()
     robosub.master_timeout = 60
     robosub.plan.append(task('init', 10, False, ''))
+    robosub.plan.append(task('gate', 45, False, ''))
 
     m = MissionPlanner(robosub, Shared())
     m.make_sm()
