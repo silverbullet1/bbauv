@@ -28,6 +28,7 @@ class Disengage(smach.State):
         if self.comms.isAlone:
             self.comms.inputHeading = self.comms.curHeading
         self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
+        self.comms.retVal = None
         return 'started'
 
 class Search(smach.State):
@@ -77,7 +78,7 @@ class Search(smach.State):
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
-        self.comms.searchComplete()
+        #self.comms.searchComplete()
         return 'foundBins' 
 
 class Center(smach.State):
@@ -133,8 +134,7 @@ class Center(smach.State):
                                     blocking=False)
             return 'centering'
 
-        self.comms.sendMovement(f=0.0, sm=0.0, h=self.comms.inputHeading,
-                                blocking=True)
+        self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
             self.comms.nearest = nearest
             self.trialsPassed = 0
@@ -228,10 +228,11 @@ class CenterAgain(smach.State):
                                     blocking=False)
             return 'centering'
 
-        self.comms.sendMovement(f=0.0, sm=0.0,
-                                d=self.comms.sinkingDepth,
-                                h=self.comms.adjustHeading,
-                                blocking=True)
+        #self.comms.sendMovement(f=0.0, sm=0.0,
+        #                        d=self.comms.sinkingDepth,
+        #                        h=self.comms.adjustHeading,
+        #                        blocking=True)
+        self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
             self.trialsPassed = 0
             return 'centered'
@@ -253,8 +254,6 @@ class Fire(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(h=self.comms.adjustHeading,
-                                d=self.comms.sinkingDepth, blocking=True)
         self.comms.drop()
         if self.fireTimes == 0:
             self.fireTimes += 1
@@ -307,10 +306,8 @@ class Search2(smach.State):
             if self.comms.isKilled or self.comms.isAborted:
                 self.comms.abortMission()
                 return 'aborted'
-
             if time.time() - start > self.timeout:
                 return 'lost'
-
             rospy.sleep(rospy.Duration(0.3))
 
         matches = self.comms.retVal['matches']
@@ -322,7 +319,10 @@ class Search2(smach.State):
         meanX = np.mean(centroidsX)
         dx = meanX - closest[0]
 
-        if dx < 0:
+        rospy.loginfo("closest: {}, mean: {}, dx: {}".format(str(closest),
+                                                             str(meanX),
+                                                             dx))
+        if dx <= 0:
             self.turnLeft()
         else:
             self.turnRight()
@@ -335,9 +335,10 @@ class Search2(smach.State):
                 return 'aborted'
             if time.time() - start > self.turnTimeout:
                 return 'lost'
-            self.comms.sendMovement(f=0.3,
-                                    d=self.comms.turnDepth,
-                                    blocking=False)
+            rospy.sleep(rospy.Duration(0.1))
+            #self.comms.sendMovement(f=0.0,
+            #                        d=self.comms.turnDepth,
+            #                        blocking=False)
 
         self.comms.adjustHeading = self.comms.curHeading
         return 'foundBins'
@@ -397,10 +398,11 @@ class Center2(smach.State):
                                     blocking=False)
             return 'centering'
 
-        self.comms.sendMovement(f=0.0, sm=0.0,
-                                h=self.comms.adjustHeading,
-                                d=self.comms.turnDepth,
-                                blocking=True)
+        #self.comms.sendMovement(f=0.0, sm=0.0,
+        #                        h=self.comms.adjustHeading,
+        #                        d=self.comms.turnDepth,
+        #                        blocking=True)
+        self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
             self.comms.nearest = nearest
             self.trialsPassed = 0

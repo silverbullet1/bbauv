@@ -149,8 +149,7 @@ class Stablize(smach.State):
         rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
 
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0,
-                                    h=self.comms.inputHeading, blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialsPassed == self.numTrials:
                 self.trialsPassed = 0
                 return 'stablized'
@@ -248,8 +247,7 @@ class Center(smach.State):
         rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
 
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
-            self.comms.sendMovement(f=0.0, sm=0.0,
-                                    h=self.comms.adjustHeading, blocking=True)
+            self.comms.motionClient.cancel_all_goals()
             if self.trialsPassed == self.numTrials:
                 self.trialsPassed = 0
                 return 'centered'

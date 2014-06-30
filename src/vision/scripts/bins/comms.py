@@ -2,8 +2,7 @@ import rospy
 from dynamic_reconfigure.server import Server as DynServer
 
 from bbauv_msgs.msg import manipulator, controller
-from bbauv_msgs.srv import mission_to_visionResponse, \
-        mission_to_vision, vision_to_mission
+from bbauv_msgs.srv import mission_to_visionResponse
 
 from utils.config import binsConfig as Config
 
@@ -24,14 +23,7 @@ class Comms(GenericComms):
         self.maniPub = rospy.Publisher("/manipulators", manipulator)
 
         if not self.isAlone:
-            # Initialize mission planner communication server and client
-            self.comServer = rospy.Service("/bins/mission_to_vision",
-                                           mission_to_vision,
-                                           self.handleSrv)
-            rospy.loginfo("Waiting for vision to mission service")
-            self.toMission = rospy.ServiceProxy("/bins/vision_to_mission",
-                                                vision_to_mission)
-            self.toMission.wait_for_service(timeout=60)
+            self.initComms("bins")
 
     def handleSrv(self, req):
         if req.start_request:
@@ -56,10 +48,11 @@ class Comms(GenericComms):
         self.maniPub.publish(0 | 8)
 
     def reconfigure(self, config, level):
+        rospy.loginfo("Received dynamic_reconfigure")
         self.params = {'hsvLoThresh1' : (config.loH1, config.loS1, config.loV1),
                        'hsvHiThresh1' : (config.hiH1, config.hiS1, config.hiV1),
-                       'hsvLoThresh2' : (config.loH2, config.loS2, config.loV2),
-                       'hsvHiThresh2' : (config.hiH2, config.hiS2, config.hiV2),
+                       'hsvLoThresh2' : (config.loH2, config.loS1, config.loV1),
+                       'hsvHiThresh2' : (config.hiH2, config.hiS1, config.hiV1),
                        'minContourArea' : config.alienMinArea,
                        'adaptiveCoeff' : config.adaptiveCoeff,
                        'adaptiveOffset' : config.adaptiveOffset,
