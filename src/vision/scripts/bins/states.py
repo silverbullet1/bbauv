@@ -108,6 +108,9 @@ class Center(smach.State):
         self.start = time.time()
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - self.start > self.timeout:
                 self.trialsPassed = 0
                 return 'lost'
@@ -198,6 +201,9 @@ class CenterAgain(smach.State):
         self.start = time.time()
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - self.start > self.timeout:
                 self.trialsPassed = 0
                 return 'lost'
@@ -252,6 +258,7 @@ class Fire(smach.State):
             self.fireTimes += 1
             return 'next'
         else:
+            self.comms.taskComplete()
             return 'completed'
 
 class Search2(smach.State):
@@ -327,6 +334,7 @@ class Search2(smach.State):
                 self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.turnTimeout:
+                self.comms.taskComplete()
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
             #self.comms.sendMovement(f=0.0,
@@ -368,6 +376,9 @@ class Center2(smach.State):
         self.start = time.time()
         while not self.comms.retVal or \
               len(self.comms.retVal['matches']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - self.start > self.timeout:
                 self.trialsPassed = 0
                 return 'lost'

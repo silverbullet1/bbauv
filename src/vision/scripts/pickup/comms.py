@@ -13,6 +13,7 @@ class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
     def __init__(self, taskMode='pickup'):
         GenericComms.__init__(self, PickupVision(self))
+        self.curDepth = 0.0
 
         if taskMode == 'pickup':
             self.defaultDepth = 0.6

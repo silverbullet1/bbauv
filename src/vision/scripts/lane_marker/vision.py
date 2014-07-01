@@ -124,6 +124,15 @@ class LaneMarkerVision:
                        5, (0, 0, 255))
             Vision.drawRect(outImg,
                             cv2.cv.BoxPoints(boxRect), color=(0, 255, 255))
+            # Draw the centering rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
+            cv2.rectangle(outImg,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 2)
 
         return retData, outImg
 
@@ -252,8 +261,7 @@ class LaneMarkerVision:
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading +
                                           Utils.toHeadingSpace(lineAngle))
-            if 90 < abs(Utils.normAngle(self.comms.inputHeading) -
-                        Utils.normAngle(adjustAngle)) < 270:
+            if 90 < abs(Utils.normAngle(self.comms.inputHeading) - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
         if self.debugMode:

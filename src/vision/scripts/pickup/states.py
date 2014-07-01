@@ -176,6 +176,9 @@ class Center(smach.State):
         start = time.time()
         while not self.comms.retVal or \
            len(self.comms.retVal['samples']) < 1:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - start > self.lostTimeout:
                 self.trialPassed = 0
                 return 'lost'
@@ -269,6 +272,9 @@ class Center2(smach.State):
         start = time.time()
         while not self.comms.retVal or \
            len(self.comms.retVal['samples']) < 1:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - start > self.lostTimeout:
                 self.trialPassed = 0
                 return 'lost'
@@ -380,6 +386,9 @@ class Center3(smach.State):
         start = time.time()
         while not self.comms.retVal or \
            len(self.comms.retVal['samples']) < 1:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - start > self.lostTimeout:
                 self.trialPassed = 0
                 return 'lost'

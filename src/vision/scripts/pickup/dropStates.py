@@ -90,6 +90,9 @@ class CenterBox(smach.State):
         start = time.time()
         while not self.comms.retVal or \
            len(self.comms.retVal['box']) < 1:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - start > self.lostTimeout:
                 self.trialPassed = 0
                 return 'lost'

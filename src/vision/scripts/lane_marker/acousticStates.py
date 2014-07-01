@@ -77,7 +77,7 @@ class CenterBox(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 10
+    timeout = 20
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -94,7 +94,11 @@ class CenterBox(smach.State):
         start = time.time()
         while not self.comms.retVal or \
               len(self.comms.retVal['box']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - start > self.timeout:
+                self.comms.detectingBox = False
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
 
@@ -104,7 +108,7 @@ class CenterBox(smach.State):
         rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
 
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
-            self.comms.motionClient.cancel_all_goals()
+            self.comms.sendMovement(d=self.comms.laneSearchDepth, blocking=True)
             if self.trialsPassed == self.numTrials:
                 self.trialsPassed = 0
                 self.comms.detectingBox = False
@@ -125,7 +129,7 @@ class AlignBoxLane(smach.State):
     centerX = width / 2.0
     centerY = height / 2.0
 
-    timeout = 3
+    timeout = 30
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aligned',
@@ -142,9 +146,16 @@ class AlignBoxLane(smach.State):
 
         start = time.time()
         while not self.comms.retVal or \
+              self.comms.retVal.get('foundLines', None) is None or \
               len(self.comms.retVal['foundLines']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
             if time.time() - start > self.timeout:
                 return 'lost'
+            self.comms.sendMovement(h=self.comms.curHeading+10,
+                                    d=self.comms.laneSearchDepth,
+                                    blocking=False)
             rospy.sleep(rospy.Duration(0.1))
 
         # Calculate angle between box and lane
@@ -159,9 +170,14 @@ class AlignBoxLane(smach.State):
         if (variance < 5.0):
             dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
             adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
-
-            self.comms.sendMovement(f=0.5, h=adjustHeading, blocking=True)
             self.comms.inputHeading = adjustHeading
+            rospy.loginfo("box-lane aligned angle: {}".format(self.comms.inputHeading))
+            self.comms.sendMovement(h=adjustHeading,
+                                    d=self.comms.laneSearchDepth,
+                                    blocking=True)
+            self.comms.sendMovement(f=2.0, h=adjustHeading,
+                                    d=self.comms.laneSearchDepth,
+                                    blocking=True)
             return 'aligned'
         else:
             rospy.sleep(rospy.Duration(0.05))
@@ -169,20 +185,20 @@ class AlignBoxLane(smach.State):
 
 
 def main():
-    rospy.init_node('lane')
+    rospy.init_node('lane_acoustic')
     myCom = Comms(True)
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
         smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
-                               transitions={'started':'CENTER',
+                               transitions={'started':'CENTERBOX',
                                             'killed':'killed'})
         smach.StateMachine.add('CENTERBOX',
-                               Center(myCom),
+                               CenterBox(myCom),
                                transitions={'centered':'ALIGNBOXLANE',
                                             'centering':'CENTERBOX',
-                                            'lost':'SEARCH',
+                                            'lost':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('ALIGNBOXLANE',
                                AlignBoxLane(myCom),

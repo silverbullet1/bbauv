@@ -118,7 +118,7 @@ class GenericComms:
         #                       heading_setpoint=self.curHeading))
         self.canPublish = False
         self.isAborted = True
-        self.sendMovement(f=0.0, sm=0.0)
+        self.motionClient.cancel_all_goals()
 
     def taskComplete(self, heading=0.0):
         rospy.loginfo("Sending Complete request to mission planner")
@@ -128,7 +128,7 @@ class GenericComms:
                                heading_setpoint=heading))
         self.canPublish = False
         self.isAborted = True
-        self.sendMovement(f=0.0, sm=0.0)
+        self.motionClient.cancel_all_goals()
 
     def searchComplete(self):
         if not self.isAlone:
@@ -149,7 +149,7 @@ class GenericComms:
 
     def sendMovement(self, f=0.0, sm=0.0, h=None, d=None,
                      fv=0.0, smv=0.0,
-                     timeout=0.4, blocking=False):
+                     timeout=0.5, blocking=False):
         d = d if d != None else self.defaultDepth
         h = h if h != None else self.curHeading
         goal = ControllerGoal(forward_setpoint=f, heading_setpoint=h,

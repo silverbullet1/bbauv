@@ -109,7 +109,8 @@ class Search(smach.State):
 
         # Reset waitingTimeout for next time
         self.waitingTimeout = self.defaultWaitingTime
-        self.comms.searchComplete()
+        if not self.comms.isAcoustic:
+            self.comms.searchComplete()
         return 'foundLanes'
 
 class Stablize(smach.State):
@@ -183,8 +184,6 @@ class Align(smach.State):
         lines = self.comms.retVal['foundLines']
         if len(lines) == 1 or self.comms.expectedLanes == 1:
             self.angleSampler.newSample(lines[0]['angle'])
-            rospy.loginfo(Utils.normAngle(
-                Utils.toHeadingSpace(lines[0]['angle'])))
         elif len(lines) >= 2:
             if self.comms.chosenLane == self.comms.LEFT:
                 self.angleSampler.newSample(lines[0]['angle'])
@@ -235,6 +234,8 @@ class Center(smach.State):
         self.start = time.time()
         while not self.comms.retVal or \
               len(self.comms.retVal['foundLines']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                return 'aborted'
             if time.time() - self.start > self.timeout:
                 self.trialsPassed = 0
                 return 'lost'
