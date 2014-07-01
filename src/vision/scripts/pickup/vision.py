@@ -200,8 +200,7 @@ class PickupVision:
                 else:
                     angle = math.degrees(math.atan2(edge2[1], edge2[0]))
 
-                if 90 < abs(Utils.normAngle(self.comms.curHeading) -
-                            Utils.normAngle(angle)) < 270:
+                if 90 <  Utils.normAngle(angle) < 270:
                     angle = Utils.invertAngle(angle)
 
                 site['angle'] = angle

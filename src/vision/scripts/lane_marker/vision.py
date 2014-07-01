@@ -173,11 +173,6 @@ class LaneMarkerVision:
         centroid[0] /= len(contours)
         centroid[1] /= len(contours)
 
-        # Draw the centroid
-        if self.debugMode:
-            cv2.circle(outImg,
-                       (int(centroid[0]), int(centroid[1])),
-                       3, (0, 0, 255))
 
         # Find lines in each bounded rectangle region and find angle
         for rect in contourRects:
@@ -186,10 +181,6 @@ class LaneMarkerVision:
             points = np.int32(cv2.cv.BoxPoints(rect))
             #cv2.fillPoly(mask, [points], 255)
             #rectImg = np.bitwise_and(binImg, mask)
-
-            # Draw bounding rect
-            if self.debugMode:
-                Vision.drawRect(outImg, points)
 
             #Find the lane heading
             edge1 = points[1] - points[0]
@@ -206,6 +197,10 @@ class LaneMarkerVision:
                 rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
             else:
                 rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+            # Draw bounding rect
+            if self.debugMode:
+                Vision.drawRect(outImg, points)
 
             #lines = cv2.HoughLinesP(rectImg,
             #                        self.houghDistRes, self.houghAngleRes,
@@ -257,6 +252,7 @@ class LaneMarkerVision:
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
 
         elif len(foundLines) >= 1:
+            centroid = foundLines[0]['pos']
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading +
@@ -265,6 +261,10 @@ class LaneMarkerVision:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
         if self.debugMode:
+            # Draw the centroid
+            cv2.circle(outImg,
+                       (int(centroid[0]), int(centroid[1])),
+                       3, (0, 0, 255))
             # Draw vector line and angle
             for line in foundLines:
                 startpt = line['pos']
