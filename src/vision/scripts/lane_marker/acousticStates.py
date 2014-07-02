@@ -3,6 +3,7 @@ import smach, smach_ros
 import numpy as np
 
 from comms import Comms
+from states import Search, Stablize, Align, Center, Forward
 from utils.utils import Utils
 from vision import LaneMarkerVision
 
@@ -47,6 +48,7 @@ class Disengage(smach.State):
 
     def execute(self, userdata):
         self.comms.unregister()
+        self.comms.detectingBox = True
 
         while self.comms.isAborted:
             if self.comms.isKilled:
@@ -60,60 +62,10 @@ class Disengage(smach.State):
             self.comms.sendMovement(d=self.comms.defaultDepth,
                                     h=self.comms.inputHeading,
                                     blocking=True)
-
         self.comms.retVal = None
         return 'started'
 
-class Search(smach.State):
-    timeout = 35
-    defaultWaitingTime = 0
-
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['foundLanes',
-                                             'timeout',
-                                             'aborted'])
-        self.comms = comms
-        self.waitingTimeout = self.defaultWaitingTime
-
-    def execute(self, userdata):
-        rospy.loginfo(str(self.comms.retVal))
-        start = time.time()
-
-        while (not self.comms.retVal or
-               len(self.comms.retVal['foundLines']) == 0):
-            # Waiting to see if lanes found until waitingTimeout
-            if self.comms.isKilled or self.comms.isAborted:
-                self.comms.abortMission()
-                return 'aborted'
-            if (time.time() - start) > self.waitingTimeout:
-                self.waitingTimeout = -1
-                break
-            rospy.sleep(rospy.Duration(0.3))
-
-        start = time.time()
-        if self.waitingTimeout < 0:
-            # Waiting timeout, start searching pattern until timeout
-            rospy.loginfo("Idling timeout, start searching")
-
-            while (not self.comms.retVal or
-                   len(self.comms.retVal['foundLines']) == 0):
-                if self.comms.isKilled or self.comms.isAborted:
-                    self.comms.abortMission()
-                    return 'aborted'
-
-                if (time.time() - start) > self.timeout:
-                    self.comms.abortMission()
-                    return 'aborted'
-
-                rospy.sleep(rospy.Duration(0.1))
-
-        # Reset waitingTimeout for next time
-        self.waitingTimeout = self.defaultWaitingTime
-        if not self.comms.isAcoustic:
-            self.comms.searchComplete()
-        return 'foundLanes'
-
-class Stablize(smach.State):
+class CenterBox(smach.State):
     maxdx = 0.05
     maxdy = 0.05
     width = LaneMarkerVision.screen['width']
@@ -125,99 +77,7 @@ class Stablize(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['stablized',
-                                             'stablizing',
-                                             'lost',
-                                             'aborted'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        if self.comms.isKilled or self.comms.isAborted:
-            self.comms.abortMission()
-            return 'aborted'
-
-        if not self.comms.retVal or \
-           len(self.comms.retVal['foundLines']) == 0:
-            self.trialsPassed = 0
-            return 'lost'
-
-        centroid = self.comms.retVal['centroid']
-        dX = (centroid[0] - self.width/2) / self.width
-        dY = (centroid[1] - self.height/2) / self.height
-        rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
-
-        if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
-            self.comms.motionClient.cancel_all_goals()
-            if self.trialsPassed == self.numTrials:
-                self.trialsPassed = 0
-                return 'stablized'
-            else:
-                self.trialsPassed += 1
-                return 'stablizing'
-
-        f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
-        sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
-        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint,
-                                h=self.comms.inputHeading, blocking=False)
-        return 'stablizing'
-
-
-class Align(smach.State):
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['aligned',
-                                             'aligning',
-                                             'lost',
-                                             'aborted'])
-        self.comms = comms
-        self.angleSampler = MedianFilter(sampleWindow=30)
-
-    def execute(self, userdata):
-        if self.comms.isKilled or self.comms.isAborted:
-            self.comms.abortMission()
-            return 'aborted'
-
-        if not self.comms.retVal or \
-           len(self.comms.retVal['foundLines']) == 0:
-               return 'lost'
-
-        lines = self.comms.retVal['foundLines']
-        if len(lines) == 1 or self.comms.expectedLanes == 1:
-            self.angleSampler.newSample(lines[0]['angle'])
-        elif len(lines) >= 2:
-            if self.comms.chosenLane == self.comms.LEFT:
-                self.angleSampler.newSample(lines[0]['angle'])
-            elif self.comms.chosenLane == self.comms.RIGHT:
-                self.angleSampler.newSample(lines[1]['angle'])
-            else:
-                rospy.loginfo("Something goes wrong with chosenLane")
-
-        variance = self.angleSampler.getVariance()
-        rospy.loginfo("Variance: {}".format(variance))
-        if (variance < 5.0):
-            dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
-            adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
-
-            self.comms.sendMovement(h=adjustHeading, blocking=True)
-            self.comms.adjustHeading = adjustHeading
-            return 'aligned'
-        else:
-            rospy.sleep(rospy.Duration(0.05))
-            return 'aligning'
-
-class Center(smach.State):
-    maxdx = 0.05
-    maxdy = 0.05
-    width = LaneMarkerVision.screen['width']
-    height = LaneMarkerVision.screen['height']
-
-    xcoeff = 3.0
-    ycoeff = 2.5
-
-    numTrials = 1
-    trialsPassed = 0
-    
-    timeout = 3
+    timeout = 20
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -231,25 +91,27 @@ class Center(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.start = time.time()
+        start = time.time()
         while not self.comms.retVal or \
-              len(self.comms.retVal['foundLines']) == 0:
+              len(self.comms.retVal['box']) == 0:
             if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
                 return 'aborted'
-            if time.time() - self.start > self.timeout:
-                self.trialsPassed = 0
+            if time.time() - start > self.timeout:
+                self.comms.detectingBox = False
                 return 'lost'
-            rospy.sleep(rospy.Duration(0.05))
+            rospy.sleep(rospy.Duration(0.1))
 
-        centroid = self.comms.retVal['centroid']
+        centroid = self.comms.retVal['box']['centroid']
         dX = (centroid[0] - self.width/2) / self.width
         dY = (centroid[1] - self.height/2) / self.height
         rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
 
         if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
-            self.comms.motionClient.cancel_all_goals()
+            self.comms.sendMovement(d=self.comms.laneSearchDepth, blocking=True)
             if self.trialsPassed == self.numTrials:
                 self.trialsPassed = 0
+                self.comms.detectingBox = False
                 return 'centered'
             else:
                 self.trialsPassed += 1
@@ -258,34 +120,92 @@ class Center(smach.State):
         f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
         sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
         self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint,
-                                h=self.comms.adjustHeading, blocking=False)
+                                h=self.comms.inputHeading, blocking=False)
         return 'centering'
 
+class AlignBoxLane(smach.State):
+    width = LaneMarkerVision.screen['width']
+    height = LaneMarkerVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
 
-class Forward(smach.State):
+    timeout = 30
+
     def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['completed',
+        smach.State.__init__(self, outcomes=['aligned',
+                                             'aligning',
+                                             'lost',
                                              'aborted'])
         self.comms = comms
+        self.angleSampler = MedianFilter(sampleWindow=30)
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.taskComplete(heading=self.comms.adjustHeading)
-        return 'completed'
+        start = time.time()
+        while not self.comms.retVal or \
+              self.comms.retVal.get('foundLines', None) is None or \
+              len(self.comms.retVal['foundLines']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
+            if time.time() - start > self.timeout:
+                return 'lost'
+            self.comms.sendMovement(h=self.comms.curHeading+10,
+                                    d=self.comms.laneSearchDepth,
+                                    blocking=False)
+            rospy.sleep(rospy.Duration(0.1))
+
+        # Calculate angle between box and lane
+        boxCentroid = (self.centerX, self.centerY)
+        laneCentroid = self.comms.retVal['foundLines'][0]['pos']
+        boxLaneAngle = math.atan2(laneCentroid[1] - boxCentroid[1],
+                                  laneCentroid[0] - boxCentroid[0])
+        self.angleSampler.newSample(math.degrees(boxLaneAngle))
+
+        variance = self.angleSampler.getVariance()
+        rospy.loginfo("Variance: {}".format(variance))
+        if (variance < 5.0):
+            dAngle = Utils.toHeadingSpace(self.angleSampler.getMedian())
+            adjustHeading = Utils.normAngle(self.comms.curHeading + dAngle)
+            self.comms.inputHeading = adjustHeading
+            rospy.loginfo("box-lane aligned angle: {}".format(self.comms.inputHeading))
+            self.comms.sendMovement(h=adjustHeading,
+                                    d=self.comms.laneSearchDepth,
+                                    blocking=True)
+            self.comms.sendMovement(f=2.0, h=adjustHeading,
+                                    d=self.comms.laneSearchDepth,
+                                    blocking=True)
+            return 'aligned'
+        else:
+            rospy.sleep(rospy.Duration(0.05))
+            return 'aligning'
+
 
 def main():
-    rospy.init_node('lane')
-    myCom = Comms(False)
+    rospy.init_node('lane_acoustic')
+    myCom = Comms(True)
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
         smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
-                               transitions={'started':'SEARCH',
+                               transitions={'started':'CENTERBOX',
                                             'killed':'killed'})
+        smach.StateMachine.add('CENTERBOX',
+                               CenterBox(myCom),
+                               transitions={'centered':'ALIGNBOXLANE',
+                                            'centering':'CENTERBOX',
+                                            'lost':'DISENGAGE',
+                                            'aborted':'DISENGAGE'})
+        smach.StateMachine.add('ALIGNBOXLANE',
+                               AlignBoxLane(myCom),
+                               transitions={'aligned' : 'SEARCH',
+                                            'aligning': 'ALIGNBOXLANE',
+                                            'lost' : 'SEARCH',
+                                            'aborted': 'DISENGAGE'})
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
                                transitions={'foundLanes':'STABLIZE',

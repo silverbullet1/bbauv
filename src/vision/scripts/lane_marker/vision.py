@@ -7,9 +7,8 @@ import cv2
 from utils.utils import Utils
 from bot_common.vision import Vision
 
-
 class LaneMarkerVision:
-    screen = { 'width': 840, 'height': 680 }
+    screen = { 'width': 640, 'height': 480 }
 
     # Vision parameters
     hsvLoThresh1 = (10, 0, 0)
@@ -19,6 +18,8 @@ class LaneMarkerVision:
     yellowLoThresh = (40, 0, 0)
     yellowHiThresh = (80, 255, 255)
     minBoxArea = 3000
+
+    ratioBound = 1.1
 
     houghDistRes = 2
     houghAngleRes = math.pi/180.0
@@ -40,6 +41,8 @@ class LaneMarkerVision:
         self.yellowHiThresh = params['yellowHiThresh']
         self.minBoxArea = params['minBoxArea']
 
+        self.ratioBound = params['ratioBound']
+
     # Convert line equation to vector equation
     def vectorizeLine(self, pt, angle):
         rad = angle / 180.0 * math.pi
@@ -59,11 +62,11 @@ class LaneMarkerVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        #erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
-        #img = cv2.erode(img, erodeEl)
+        img = cv2.erode(img, erodeEl)
         img = cv2.dilate(img, dilateEl)
         img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
 
@@ -71,7 +74,7 @@ class LaneMarkerVision:
 
     def morphologyBox(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
@@ -89,30 +92,53 @@ class LaneMarkerVision:
                               contours)
         return contours
 
-    def findYellowBox(self, hsvImg, outImg):
-        centroid = None
-        binImg = cv2.inRange(hsvImg,
-                             self.yellowLoThresh, self.yellowHiThresh)
+    def findYellowBox(self, img):
+        box = dict()
+        retData = {'box': box}
+        outImg = None
+
+        img = cv2.resize(img, (self.screen['width'], self.screen['height']))
+        img = Vision.enhance(img)
+        img = cv2.GaussianBlur(img, (5, 5), 0)
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        binImg = cv2.inRange(hsvImg, self.yellowLoThresh, self.yellowHiThresh)
         binImg = self.morphologyBox(binImg)
 
-        contours = self.findContourAndBound(binImg.copy(), bounded=True,
+        if self.debugMode:
+            outImg = binImg.copy()
+            outImg = cv2.cvtColor(outImg, cv2.COLOR_GRAY2BGR)
+
+        # Find large enough contours and their bounding rectangles
+        scratchImg = binImg.copy()
+        contours = self.findContourAndBound(scratchImg,
                                             bound=self.minBoxArea)
-        if len(contours) > 0:
-            largestContour = max(contours, key=cv2.contourArea)
-            rect = cv2.minAreaRect(largestContour)
-            centroid = rect[0]
+        if len(contours) < 1: return retData, outImg
 
-            if self.debugMode:
-                points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
-                Vision.drawRect(outImg, points, color=(0, 255, 255))
-                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
-                           5, (0, 255, 255))
-        return centroid
+        # Sort the thresholded areas from largest to smallest
+        largestContour = max(contours, key=cv2.contourArea)
+        boxRect = cv2.minAreaRect(largestContour)
+        box['centroid'] = boxRect[0]
 
-    # Main processing function, should return (retData, outputImg)
-    def gotFrame(self, img):
+        if self.debugMode:
+            cv2.circle(outImg, (int(boxRect[0][0]), int(boxRect[0][1])),
+                       5, (0, 0, 255))
+            Vision.drawRect(outImg,
+                            cv2.cv.BoxPoints(boxRect), color=(0, 255, 255))
+            # Draw the centering rectangle
+            midX = self.screen['width']/2.0
+            midY = self.screen['height']/2.0
+            maxDeltaX = self.screen['width']*0.03
+            maxDeltaY = self.screen['height']*0.03
+            cv2.rectangle(outImg,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 0), 2)
+
+        return retData, outImg
+
+    def findLane(self, img):
         foundLines = []
-        centroid = [-1, -1]
+        centroid = [0, 0]
         outImg = None
         retData = { 'foundLines': foundLines, 'centroid': centroid }
 
@@ -147,11 +173,6 @@ class LaneMarkerVision:
         centroid[0] /= len(contours)
         centroid[1] /= len(contours)
 
-        # Draw the centroid
-        if self.debugMode:
-            cv2.circle(outImg,
-                       (int(centroid[0]), int(centroid[1])),
-                       3, (0, 0, 255))
 
         # Find lines in each bounded rectangle region and find angle
         for rect in contourRects:
@@ -161,19 +182,25 @@ class LaneMarkerVision:
             #cv2.fillPoly(mask, [points], 255)
             #rectImg = np.bitwise_and(binImg, mask)
 
-            # Draw bounding rect
-            if self.debugMode:
-                Vision.drawRect(outImg, points)
-
             #Find the lane heading
             edge1 = points[1] - points[0]
             edge2 = points[2] - points[1]
 
+            edge1Len = cv2.norm(edge1)
+            edge2Len = cv2.norm(edge2)
+            ratio = edge1Len/edge2Len if edge1Len > edge2Len else edge2Len/edge1Len
+            if ratio < self.ratioBound:
+                continue
+
             #Choose the vertical edge
-            if cv2.norm(edge1) > cv2.norm(edge2):
+            if edge1Len > edge2Len:
                 rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
             else:
                 rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
+
+            # Draw bounding rect
+            if self.debugMode:
+                Vision.drawRect(outImg, points)
 
             #lines = cv2.HoughLinesP(rectImg,
             #                        self.houghDistRes, self.houghAngleRes,
@@ -225,18 +252,19 @@ class LaneMarkerVision:
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
 
         elif len(foundLines) >= 1:
+            centroid = foundLines[0]['pos']
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading +
                                           Utils.toHeadingSpace(lineAngle))
-            if 90 < abs(Utils.normAngle(self.comms.inputHeading) -
-                        Utils.normAngle(adjustAngle)) < 270:
+            if 90 < abs(Utils.normAngle(self.comms.inputHeading) - adjustAngle) < 270:
                 foundLines[0]['angle'] = Utils.invertAngle(lineAngle)
 
-        if self.comms.detectingBox:
-            retData['boxCentroid'] = self.findYellowBox(hsvImg, outImg)
-
         if self.debugMode:
+            # Draw the centroid
+            cv2.circle(outImg,
+                       (int(centroid[0]), int(centroid[1])),
+                       3, (0, 0, 255))
             # Draw vector line and angle
             for line in foundLines:
                 startpt = line['pos']
@@ -261,6 +289,13 @@ class LaneMarkerVision:
                           (0, 255, 0), 2)
 
         return retData, outImg
+
+    # Main processing function, should return (retData, outputImg)
+    def gotFrame(self, img):
+        if self.comms.detectingBox:
+            return self.findYellowBox(img)
+        else:
+            return self.findLane(img)
 
 def main():
     rospy.init_node("lane_marker_vision")

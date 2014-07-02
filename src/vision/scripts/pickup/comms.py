@@ -13,18 +13,19 @@ class Comms(GenericComms):
     """ Class to facilitate communication b/w ROS and task submodules """
     def __init__(self, taskMode='pickup'):
         GenericComms.__init__(self, PickupVision(self))
+        self.curDepth = 0.0
 
         if taskMode == 'pickup':
             self.defaultDepth = 0.6
             self.sinkingDepth = 2.0
             self.grabbingDepth = 2.9
-            self.lastDepth = 3.7
+            self.lastDepth = 3.80
             self.grabbingArea = 20000
 
             self.visionMode = PickupVision.SITE
         elif taskMode == 'drop':
-            self.defaultDepth = 0.6
-            self.sinkingDepth = 2.0
+            self.defaultDepth = 1.2
+            self.sinkingDepth = 2.5
 
             self.visionMode = PickupVision.BOX
 
@@ -33,7 +34,7 @@ class Comms(GenericComms):
         self.dynServer = DynServer(Config, self.reconfigure)
 
         if not self.isAlone:
-            self.initComms('taskMode')
+            self.initComms(taskMode)
 
     def initComms(self, name):
         # Initialize mission planner communication server and client
@@ -88,11 +89,11 @@ class Comms(GenericComms):
                                         config.redHiS1,
                                         config.redHiV1),
                        'redLoThresh2': (config.redLoH2,
-                                        config.redLoS2,
-                                        config.redLoV2),
+                                        config.redLoS1,
+                                        config.redLoV1),
                        'redHiThresh2': (config.redHiH2,
-                                        config.redHiS2,
-                                        config.redHiV2),
+                                        config.redHiS1,
+                                        config.redHiV1),
 
                        'minSiteArea': config.minSiteArea,
                        'minContourArea' : config.minArea,
