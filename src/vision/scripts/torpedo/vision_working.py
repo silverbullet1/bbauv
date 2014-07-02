@@ -45,11 +45,26 @@ class TorpedoVision:
         
     def __init__(self, comms = None):
         self.comms = comms
-
+        
     def gotFrame (self, img):        
         allCentroidList = []
         
         img = cv2.resize(img, (640, 480))
+
+        # cv2.circle(img, (vision.screen['width']/2, vision.screen['height']/2),
+        #     97, (255, 255, 0), 2)
+        # cv2.circle(img, (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])),
+        #     97, (255, 255, 0), 2)
+        
+        # img = self.illumMask(img)
+        
+        # img = self.whiteBal(img)
+
+        # img = self.illuminanceRemoval(img)
+
+        # blurImg = cv2.GaussianBlur(img, ksize=(0, 0), sigmaX=10)
+        # enhancedImg = cv2.addWeighted(img, 2.5, blurImg, -1.5, 0)
+        # hsvImg = self.toHSV(enhancedImg)
         
         labImg = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
         # channels = cv2.split(labImg)
@@ -60,6 +75,12 @@ class TorpedoVision:
         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, kern)
 
+        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+
+        # binImg = self.morphology(cv2.inRange(enhancedImg,
+        #     self.greenParams['lo'], self.greenParams['hi']))
+        # erodeKern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        # binImg = cv2.erode(binImg, erodeKern, iterations=2)
         dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
         binImg = cv2.dilate(binImg, dilateKern, iterations=3)
 
@@ -117,19 +138,10 @@ class TorpedoVision:
         if not self.comms.isMovingState:
             mu = cv2.moments(largestContour)
             muArea = mu['m00']
-            # tempBoardCentroid = (int(mu['m10']/muArea), int(mu['m01']/muArea))
-            tempBoardCentroidx = int(mu['m10']/muArea)
-            tempBoardCentroidy = int(mu['m01']/muArea)
+            tempBoardCentroid = (int(mu['m10']/muArea), int(mu['m01']/muArea))
             tempBoardArea = muArea
 
-            # Find the lower half of the board to center for the large holes
-            # boardHeight = abs(int(boxInt[3][1]-box[0][1]))
-            # if self.comms.numShoot == 0:
-            #     tempBoardCentroidy = tempBoardCentroidy + int((boardHeight*1.0/8))
-            # elif self.comms.numShoot == 1:
-            #     tempBoardCentroidy -= int((boardHeight*1.0)/8)
-
-            self.comms.boardCentroid = (tempBoardCentroidx, tempBoardCentroidy)
+            self.comms.boardCentroid = tempBoardCentroid
             self.comms.boardArea = tempBoardArea
 
             # Dist where centroid of board is off 
@@ -182,7 +194,48 @@ class TorpedoVision:
         if len(allCentroidList) > 0:
             self.comms.foundCircles = True 
 
+        '''
+        if self.comms.isCenteringState:
+            mask = np.zeros_like(binImg, dtype=np.uint8)
+            cv2.fillPoly(mask, [np.int32(largestContour)], 255)
+            binImg = cv2.bitwise_not(binImg, mask=mask)
+
+            scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+
+        binImgCopy = binImg.copy()
+        contours, hierarchy = cv2.findContours(binImgCopy, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours) > 0:
+            self.comms.foundCircles = True
+
+        if not self.comms.isCenteringState:
+            contours = filter(lambda c: cv2.contourArea(c) < 5000, contours)
+
+        for contour in contours:
+            # if cv2.contourArea(contour) < 10000 and cv2.contourArea(contour) > self.minContourArea:
+            if cv2.contourArea(contour) > self.minContourArea:
+                # (cx, cy), radius = cv2.minEnclosingCircle(contour)
+                rect = cv2.minAreaRect(contour)
+                box = np.int32(cv2.cv.BoxPoints(rect))
+                
+                edge1 = cv2.norm(box[1] - box[0])
+                edge2 = cv2.norm(box[2] - box[1])
+                radius = edge1/2.0 if edge1 < edge2 else edge2/2.0
+                (cx, cy) = rect[0]
+
+                # cv2.drawContours(scratchImgCol, [box], 0,  (255, 0, 255), 2)
+                cv2.circle(scratchImgCol, (int(cx), int(cy)), int(radius), (255, 255, 0), 2)
+                cv2.circle(scratchImgCol, (int(cx), int(cy)), 1, (255, 0, 255), 2)
+                allCentroidList.append((cx, cy, radius))
+        '''
+
+        # average = np.mean([c[0] for c in allCentroidList])
+        # self.comms.centerDiff = average - (vision.screen['width']/2)
+
         sorted(allCentroidList, key=lambda centroid:centroid[2], reverse=True)
+        # screenCenter = (vision.screen['width']/2, vision.screen['height']/2)
+        # sorted(allCentroidList, key=lambda c:Utils.distBetweenPoints((c[0],c[1]), self.aimingCentroid))
+
         if len(allCentroidList) > 0:
             self.comms.centroidToShoot = (int(allCentroidList[0][0]), int(allCentroidList[0][1]))
             self.comms.radius = allCentroidList[0][2]
@@ -195,19 +248,19 @@ class TorpedoVision:
                                     vision.screen['width'])
         self.comms.deltaY = float((self.comms.centroidToShoot[1] - self.aimingCentroid[1])*1.0/
                               vision.screen['height'])
-
-        '''
-        Draw Everything
-        '''
-        if self.comms.centroidToShoot[0]== -1 and self.comms.centroidToShoot[1]== -1:
-            self.comms.centroidToShoot = self.getAimingCentroid()
         angleFromCenter = self.calculateAngle(self.comms.centroidToShoot, self.aimingCentroid)
-        cv2.line(scratchImgCol, (int(self.comms.centroidToShoot[0]),int(self.comms.centroidToShoot[1])), 
-            (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])), (0,255,0), 2)
-        centerx = int((self.comms.centroidToShoot[0]+self.aimingCentroid[0])/2)
-        centery = int((self.comms.centroidToShoot[1]+self.aimingCentroid[1])/2)
-        cv2.putText(scratchImgCol, "{0:.2f}".format(angleFromCenter), (centerx+20, centery-20),
-            cv2.FONT_HERSHEY_PLAIN, 1, (255,150,50), 1)
+        cv2.line(scratchImgCol, self.comms.centroidToShoot, self.aimingCentroid,
+            (0,255,0), 2)
+        center = ((self.comms.centroidToShoot[0]+self.aimingCentroid[0])/2 , 
+            (self.comms.centroidToShoot[1],self.aimingCentroid[1])/2)
+        cv2.putText(scratchImgCol, "("+str("{0:.2f}".format(center[0]))+","+
+                str("{0:.2f}".format(center[1])+")" ,(center[0], center[1]-20),
+            cv2.FONT_HERSHEY_PLAIN, (0,204,255), 1)
+
+        cv2.putText(scratchImgCol, "SHOOT TO KILL", (20, 430),
+            cv2.FONT_HERSHEY_PLAIN, 2, (255,153,51))
+        cv2.putText(scratchImgCol, str(self.comms.state), (20,460),  
+            cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
 
         # Board variables
         cv2.putText(scratchImgCol, "Board Area: " + str(self.comms.boardArea), (410, 30),
@@ -234,15 +287,9 @@ class TorpedoVision:
                     cv2.FONT_HERSHEY_PLAIN, 1, (255,51,153))
 
 
-        # Draw stuff in case return things
         # Draw center of screen
         scratchImgCol = self.drawCenterRect(scratchImgCol)     
-        # scratchImgCol = vision.drawCenterRect(scratchImgCol) 
-        cv2.putText(scratchImgCol, "SHOOT TO KILL", (20, 430),
-            cv2.FONT_HERSHEY_PLAIN, 2, (255,153,51))
-        cv2.putText(scratchImgCol, str(self.comms.state), (20,460),  
-            cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148)) 
-
+        # scratchImgCol = vision.drawCenterRect(scratchImgCol)  
         
         # return np.hstack((scratchImgCol, circleBinImg))
         return scratchImgCol
@@ -413,13 +460,8 @@ class TorpedoVision:
                       (0, 255, 255), 2)  
         return img 
 
-    def getAimingCentroid(self):
-        midX = int(vision.screen['width']/2.0 - 50.0)
-        midY = int(vision.screen['height']/2.0 - 50.0)
-        return (midX, midY)
-
     def calculateAngle(self, pt1, pt2):
-        # grad = (pt1[1]-pt2[1])*1.0 / (pt1[0]-pt2[0])
+        grad = (pt1[1]-pt2[1])*1.0 / (pt1[0]-pt2[0])
         angle = self.radToDeg(math.atan2((pt2[1]-pt1[1]), (pt2[0]-pt1[0])))
         return angle*(-1.0)
 

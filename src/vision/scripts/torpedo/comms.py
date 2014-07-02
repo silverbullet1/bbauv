@@ -8,8 +8,9 @@ import roslib; roslib.load_manifest('vision')
 import rospy
 from front_commons.frontComms import FrontComms
 from vision import TorpedoVision
+from sonarTest import Sonar
 
-from bbauv_msgs.msg import controller, manipulator, depth
+from bbauv_msgs.msg import controller, manipulator, compass_data, depth
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
         
@@ -51,20 +52,25 @@ class Comms(FrontComms):
     deltaY = 0
     skew = 0
     direction = None
+    heading = 0.0
 
     sonarDist = 0.0
     sonarBearing = 0.0
 
     state = None
-    centerDiff = 0
-    
+
+    missionStart = None
+    curTime = None
+
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
         self.defaultDepth = 2.00
         self.depthFromMission = self.defaultDepth
-        self.depthSub = rospy.Subscriber("/depth", depth, self.depthCallback)
+
+        self.sonarFilter = Sonar(comms=self) 
 
         self.dynServer = DynServer(Config, self.reconfigure)
+        self.depthSub = rospy.Subscriber('/depth', depth, self.depthCallback)
 
         # Initialise mission planner 
         if not self.isAlone:
@@ -94,12 +100,13 @@ class Comms(FrontComms):
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.curHeading = self.inputHeading
             self.depthFromMission = self.defaultDepth
-            self.sonarBearing = self.inputHeading
 
             rospy.loginfo("Received depth: {}".format(self.defaultDepth))
             rospy.loginfo("Received heading: {}".format(self.inputHeading))
 
             self.registerMission()
+            self.regCompass()
+            # self.registerSonar()
             
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -113,27 +120,41 @@ class Comms(FrontComms):
             self.canPublish = False 
 
             self.unregisterMission()
+
+            # self.shootTopTorpedo()
+            # self.shootBotTorpedo()
+
             self.sendMovement(forward=0.0, sidemove=0.0)
             rospy.loginfo("Aborted complete")
-            
+
+            # Also pass self.isMovingState. 
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
             
 
-    def depthCallback(self, data):
-        self.depth = data.depth
+    def regCompass(self):
+        self.torCompass = rospy.Subscriber('/euler',
+                                           compass_data,
+                                           self.torCompassCallback)
+    def torCompassCallback(self, data):
+        self.heading = data.yaw
+
+    def unRegCompass(self):
+        self.torCompass.unregister()
 
     def shootTopTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator, latch=True)
         maniPub.publish(1)
+        # maniPub.publish(1)
         rospy.loginfo("Firing top torpedo")
         rospy.sleep(rospy.Duration(0.3)) 
 
     def shootBotTorpedo(self):
         maniPub = rospy.Publisher("/manipulators", manipulator, latch=True)
         maniPub.publish(0 | 2)
+        # maniPub.publish(0 | 2)
         rospy.loginfo("Firing bottom torpedo")
         rospy.sleep(rospy.Duration(0.3))       
     
@@ -144,7 +165,7 @@ class Comms(FrontComms):
                        # 'sonarOffset': config.sonarOffset,
                        'torpedoOffset': config.torpedoOffset, 
                        'minContourArea': config.minContourArea,
-                       'skewLimit': config.skewLimit
+                       'skewLimit': config.skewLimit, 
                        'sonarThres': config.sonarThres
                        }
         self.movementParams = {
@@ -159,16 +180,29 @@ class Comms(FrontComms):
                        'centerDeltaX': config.centerDeltaX,
                        'centerDeltaY': config.centerDeltaY
         }
+
+        # self.sonarParams = {'threshold': config.groups.sonar.binThres,
+        #             'lenLowerBound': config.groups.sonar.length1,
+        #             'lenUpperBound': config.groups.sonar.length2,
+        #             'dyMult': config.groups.sonar.dyMult
+        #             }
+
+        # 'threshold': config.groups.sonar.binThres
+
         self.visionFilter.updateParams()
+        # self.sonarFilter.reconfigure()
+
         return config
     
     def registerSonar(self):
+        rospy.loginfo("SONAR SONAR")
         self.sonarSub = rospy.Subscriber("/sonar_image", Image, self.sonarImageCallback)
         self.sonarPub = rospy.Publisher("/sonar_pub", Image)
-        rospy.sleep(rospy.Duration(0.1))
+        rospy.sleep(rospy.Duration(0.05))
     
     def sonarImageCallback(self, rosImg):
-        outImg = self.visionFilter.gotSonarFrame(Utils.rosimg2cv(rosImg))
+        # outImg = self.visionFilter.gotSonarFrame(Utils.rosimg2cv(rosImg))
+        outImg = self.sonarFilter.gotSonarFrame(Utils.rosimg2cv(rosImg))
         if self.canPublish and outImg is not None:
             try:
                 self.sonarPub.publish(Utils.cv2rosimg(outImg))
@@ -176,6 +210,9 @@ class Comms(FrontComms):
                 pass
                 
         rospy.sleep(rospy.Duration(0.1))
+
+    def depthCallback(self, data):
+        self.depth = data.depth
         
     def unregisterSonar(self):
         self.sonarSub.unregister()
