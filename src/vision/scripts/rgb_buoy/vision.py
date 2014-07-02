@@ -25,7 +25,8 @@ class RgbBuoyVision:
 # 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
-    blueParams = {'lo': (17, 18, 2), 'hi': (20,π 255, 255),
+
+    blueParams = {'lo': (17, 18, 2), 'hi': (20, 255, 255),
                   'dilate': (11,11), 'erode': (5,5), 'open': (3,3)}
     curCol = None
 
@@ -36,7 +37,7 @@ class RgbBuoyVision:
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 300
+    minContourArea = 250
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)

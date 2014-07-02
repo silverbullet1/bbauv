@@ -26,7 +26,7 @@ from histogram import QHistogram
 class Vision(QWidget):
     rate = 20
     hist = None
-    params = {'hueHigh': 180, 
+    params = {'hueHigh': 255, 
             'satLow':0, 'satHigh': 255,
             'valLow':0, 'valHigh': 255,
             'hueLow':0}
@@ -177,10 +177,10 @@ class Vision(QWidget):
             pass
 
         if videoImg is not None:
-            if self.colour == "HSV":
-                thresImg = self.createThresImage(videoImg)
-            elif self.colour == "LAB":
-                thresImg = self.createLabThesImage(videoImg)
+            # if self.colour == "HSV":
+            #     thresImg = self.createThresImage(videoImg)
+            # elif self.colour == "LAB":
+            thresImg = self.createLabThesImage(videoImg)
             self.thres_cb.setPixmap(thresImg.scaledToHeight(250))
 
             videoImg = self.updateCameraImage(videoImg, isCamera=True)
@@ -313,11 +313,9 @@ class Vision(QWidget):
     def onColourCB(self, index):
         if index == 1:
             self.colour = "HSV"
-            self.hue_slider.setMax(180)
             self.hue_slider.setEnd(180)
         elif index == 2:
             self.colour = "LAB"
-            self.hue_slider.setMax(255)
             self.hue_slider.setEnd(255)
 
     def changeParamsBtnHandler(self):

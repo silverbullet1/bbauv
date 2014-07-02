@@ -1252,6 +1252,28 @@ class AUV_gui(QMainWindow):
         try:
             bbLock.acquire()
             cvRGBImg_front = cv2.cvtColor(cvBGRImg_front, cv2.COLOR_BGR2RGB)
+
+            midX = 640/2.0 - 50.0
+            midY = 480/2.0 - 50.0
+            maxDeltaX = 640*0.05
+            maxDeltaY = 480*0.05
+            self.aimingCentroid = (midX, midY)
+            cv2.rectangle(cvRGBImg_front,
+                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
+                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
+                          (0, 255, 255), 2)  
+
+            cv2.circle(cvRGBImg_front, (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])),
+                97, (255, 255, 0), 2)
+
+            camX = 640/2.0
+            camY = 480/2.0
+            cv2.rectangle(cvRGBImg_front,
+                          (int(camX-maxDeltaX), int(camY-maxDeltaY)),
+                          (int(camX+maxDeltaX), int(camY+maxDeltaY)),
+                          (255, 0, 0), 2)  
+
+
             qimg = QImage(cvRGBImg_front.data,cvRGBImg_front.shape[1], cvRGBImg_front.shape[0], QImage.Format_RGB888)
         finally:
             bbLock.release()

@@ -11,7 +11,7 @@ import numpy as np
 
 from sensor_msgs.msg import Image
 from bbauv_msgs.msg import compass_data, \
-        ControllerAction, ControllerGoal, controller
+        ControllerAction, ControllerGoal, controller, depth
 from bbauv_msgs.srv import set_controller
 
 from utils.utils import Utils
@@ -28,7 +28,8 @@ class FrontComms:
         self.curHeading = 0
         self.gotHeading = False 
         self.retVal = 0
-        self.defaultDepth = 0.4
+        self.defaultDepth = 2.0
+        self.depth = self.defaultDepth
         
         # Flags 
         self.canPublish = False    #Flag for using non-publishing to ROS when testing with images 
@@ -70,6 +71,7 @@ class FrontComms:
                                            compass_data,
                                            self.compassCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
+        self.depthSub = rospy.Subscriber("/depth", depth, self.depthCallback)
 
     def registerMission(self):
         rospy.loginfo("Register with mission")
@@ -97,6 +99,9 @@ class FrontComms:
             except Exception, e:
                 pass
         rospy.sleep(rospy.Duration(0.05))
+
+    def depthCallback(self, data):
+        self.depth = data.depth
             
     def compassCallback(self, data):
         if not self.gotHeading:
