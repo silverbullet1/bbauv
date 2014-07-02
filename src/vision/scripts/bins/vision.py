@@ -138,7 +138,7 @@ class BinsVision:
         centroids = list()
         outImg = None
         matches = list()
-        retData = {'centroids': centroids, 'matches': matches}
+        retData = {'centroids': centroids, 'matches': matches, 'meanX': -1}
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
@@ -222,6 +222,7 @@ class BinsVision:
             if len(matches) > 0:
                 meanX = np.mean(map(lambda c: c[0], centroids))
                 meanY = np.mean(map(lambda c: c[1], centroids))
+                retData['meanX'] = meanX
                 closest = min(matches,
                               key=lambda m:
                               Utils.distBetweenPoints(m['centroid'],
@@ -232,6 +233,8 @@ class BinsVision:
                 cv2.putText(outImg1,
                             "X", (int(meanX), int(meanY)),
                             cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), 2)
+            else:
+                retData['meanX'] = -1
 
         outImg = np.hstack((outImg1, outImg2))
         return retData, outImg

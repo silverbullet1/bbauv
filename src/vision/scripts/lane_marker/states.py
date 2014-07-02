@@ -65,7 +65,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 35
+    timeout = 45
     defaultWaitingTime = 0
 
     def __init__(self, comms):

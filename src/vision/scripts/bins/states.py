@@ -32,7 +32,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 20
+    timeout = 30
     defaultWaitingTime = 2
 
     def __init__(self, comms):
@@ -312,12 +312,11 @@ class Search2(smach.State):
 
         matches = self.comms.retVal['matches']
         centroids = map(lambda m: m['centroid'], matches)
-        centroidsX = map(lambda c: c[0], centroids)
+        meanX = self.comms.retVal['meanX']
         closest = min(centroids,
                       key=lambda c:
                       Utils.distBetweenPoints(c, (self.centerX, self.centerY)))
-        meanX = np.mean(centroidsX)
-        dx = meanX - closest[0]
+        dx = self.comms.retVal['meanX'] - closest[0]
 
         rospy.loginfo("closest: {}, mean: {}, dx: {}".format(str(closest),
                                                              str(meanX),
@@ -337,9 +336,6 @@ class Search2(smach.State):
                 self.comms.taskComplete()
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
-            #self.comms.sendMovement(f=0.0,
-            #                        d=self.comms.turnDepth,
-            #                        blocking=False)
 
         self.comms.adjustHeading = self.comms.curHeading
         return 'foundBins'
