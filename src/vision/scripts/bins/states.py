@@ -6,7 +6,6 @@ from comms import Comms
 from vision import BinsVision
 
 import time
-import numpy as np
 
 """ The entry script and smach StateMachine for the task"""
 
@@ -91,7 +90,7 @@ class Center(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 3
+    timeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -184,7 +183,7 @@ class CenterAgain(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 3
+    timeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -258,6 +257,7 @@ class Fire(smach.State):
             self.fireTimes += 1
             return 'next'
         else:
+            self.fireTimes = 0
             self.comms.taskComplete()
             return 'completed'
 
@@ -355,7 +355,7 @@ class Center2(smach.State):
     numTrials = 1
     trialsPassed = 0
 
-    timeout = 2
+    timeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',

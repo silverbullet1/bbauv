@@ -72,7 +72,7 @@ class CenterBox(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 3
+    lostTimeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
