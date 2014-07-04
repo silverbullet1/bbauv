@@ -30,7 +30,7 @@ class Comms(FrontComms):
     # Circle booleans
     foundCircles = False 
     foundSomething = False 
-    foundCount = 0  # If more than a constant, then respond lost
+    lostCount = 0
     
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
@@ -53,6 +53,7 @@ class Comms(FrontComms):
     skew = 0
     direction = None
     heading = 0.0
+    angleFromCenter = 0.0
 
     sonarDist = 0.0
     sonarBearing = 0.0
@@ -69,7 +70,7 @@ class Comms(FrontComms):
 
         self.sonarFilter = Sonar(comms=self) 
 
-        self.dynServer = DynServer(Config, self.reconfigure)
+        # self.dynServer = DynServer(Config, self.reconfigure)
         self.depthSub = rospy.Subscriber('/depth', depth, self.depthCallback)
 
         # Initialise mission planner 
@@ -108,6 +109,10 @@ class Comms(FrontComms):
             self.regCompass()
             # self.registerSonar()
             
+            # self.curHeading = self.curHeading - 10.0
+            self.sendMovement(forward=0.0, sidemove=0.0,
+                                heading=self.curHeading, blocking=True)
+
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=

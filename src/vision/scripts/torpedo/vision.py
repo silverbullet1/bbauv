@@ -28,7 +28,7 @@ class TorpedoVision:
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
                   }
         
-    minContourArea = 300
+    minContourArea = 200
     
     # For circles 
     previousCentroid = (-1, -1)
@@ -201,12 +201,12 @@ class TorpedoVision:
         '''
         if self.comms.centroidToShoot[0]== -1 and self.comms.centroidToShoot[1]== -1:
             self.comms.centroidToShoot = self.getAimingCentroid()
-        angleFromCenter = self.calculateAngle(self.comms.centroidToShoot, self.aimingCentroid)
+        self.comms.angleFromCenter = self.calculateAngle(self.comms.centroidToShoot, self.aimingCentroid)
         cv2.line(scratchImgCol, (int(self.comms.centroidToShoot[0]),int(self.comms.centroidToShoot[1])), 
             (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])), (0,255,0), 2)
         centerx = int((self.comms.centroidToShoot[0]+self.aimingCentroid[0])/2)
         centery = int((self.comms.centroidToShoot[1]+self.aimingCentroid[1])/2)
-        cv2.putText(scratchImgCol, "{0:.2f}".format(angleFromCenter), (centerx+20, centery-20),
+        cv2.putText(scratchImgCol, "{0:.2f}".format(self.comms.angleFromCenter), (centerx+20, centery-20),
             cv2.FONT_HERSHEY_PLAIN, 1, (255,150,50), 1)
 
         # Board variables

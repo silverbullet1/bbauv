@@ -91,7 +91,8 @@ class FollowSonar(smach.State):
 
 class SearchCircles(smach.State):
     timeout = 300
-    
+    lostCount = 0
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['searchCircles_complete', 'lost', 'aborted', 'killed'])
         self.comms = comms
@@ -110,15 +111,10 @@ class SearchCircles(smach.State):
                 self.comms.isAborted = True
                 return 'aborted' 
 
-            # if not self.comms.foundCircles and self.comms.foundSomething:
-            #     if self.comms.foundCount < 50:
-            #         # Search pattern 
-            # self.comms.sendMovement(forward=0.2,
-            #                         sidemove=-0.4, timeout=0.5, blocking=False)
-            # self.comms.sendMovement(forward=0.2,
-            #                         sidemove=0.4, timeout=0.5, blocking=False)
-            #     else:
-            #         return 'lost'
+            if not self.comms.foundCircles and not self.comms.foundSomething:
+                self.lostCount += 1
+            if self.lostCount > 10:
+                return 'lost'
 
             self.comms.sendMovement(forward=0.2, timeout=0.6, blocking=False)
 
@@ -142,6 +138,8 @@ class AlignBoard(smach.State):
 
     skew = 1.00
 
+    lostCount = 0
+
     # completeArea = self.comms.movementParams['boardArea']
     # deltaXMult = self.comms.movementParams['alignDeltaX']
     # deltaYMult = self.comms.movementParams['alignDeltaY']
@@ -158,6 +156,11 @@ class AlignBoard(smach.State):
         if self.comms.isKilled:
             return 'killed'
         if self.comms.isAborted:
+            return 'aborted'
+
+        if not self.comms.foundCircles or not self.comms.foundSomething:
+            self.lostCount += 1
+        if self.lostCount > 10:
             return 'aborted'
 
         if self.comms.boardArea > self.completeArea and self.comms.skew < 0.35:
@@ -220,7 +223,9 @@ class MoveForward(smach.State):
         if self.comms.isAborted:
             return 'aborted' 
         
-        if self.lostCount > 40:
+        if not self.comms.foundCircles or not self.comms.foundSomething:
+            self.lostCount += 1
+        if self.lostCount > 10:
             return 'lost'
         
         if not self.comms.foundCircles:
@@ -257,7 +262,8 @@ class Centering (smach.State):
 
     centeringCount = 0
     halfCompleteRadius = 65
-    completeRadius = 91
+    # completeRadius = 91
+    completeRadius = 85
     forward_half = 0.23
     forward_setpoint = 0.22
 
@@ -282,7 +288,8 @@ class Centering (smach.State):
             return 'aborted'
 
         if self.comms.numShoot == 1:
-            self.completeRadius = 86
+            # self.completeRadius = 86
+            self.completeRadius = 80
 
         if self.comms.radius > self.completeRadius:
             sidemove_setpoint = self.comms.deltaX * 1.3
@@ -305,6 +312,10 @@ class Centering (smach.State):
                 self.comms.curTime = time.time()
                 return 'centering_complete'
         else: 
+            # heading = 0.0
+            # if abs(self.comms.angleFromCenter) < 30:
+            #     heading = self.heading + self.comms.angleFromCenter * self.headingMult
+
             if abs(self.comms.deltaY) > 0.040:
                 self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
                 if self.comms.defaultDepth < 0.1:
@@ -320,59 +331,6 @@ class Centering (smach.State):
                                     depth = self.comms.defaultDepth, timeout=0.4,
                                     blocking = False)
         return 'centering'        
-        
-# Go to the point 
-class LockedPoint(smach.State):
-    deltaXLockMult = 4.0
-    deltaYLockMult = 0.3
-    correctionDone = False 
-
-    deltaXMult = 2.0
-    deltaYMult = 0.1
-
-    def __init__(self, comms):
-        smach.State.__init__(self, outcomes=['locking', 'locking_complete', 'aborted', 'killed'])
-        self.comms = comms
-
-    def execute(self, userdata):
-        self.comms.state = "LOCKING"
-
-        if self.comms.isKilled:
-            return 'killed'
-        if self.comms.isAborted:
-            return 'aborted'
-
-        # One time move towards the centroid 
-        if not self.correctionDone:
-            deltaX = float((self.comms.lockedCentroid[0] - vision.screen['width']/2)*1.0/
-                                        vision.screen['width'])
-            deltaY = float((self.comms.lockedCentroid[1] - vision.screen['height']/2)*1.0/
-                                vision.screen['height'])
-            rospy.loginfo(deltaX)
-            rospy.loginfo(deltaY)
-
-            self.comms.defaultDepth = self.comms.defaultDepth * self.deltaYLockMult
-            self.comms.sendMovement(forward = 0.0,
-                                sidemove = self.comms.deltaX * self.deltaXLockMult,
-                                depth = self.comms.defaultDepth,
-                                blocking = True)
-            rospy.sleep(rospy.Duration(0.3))
-            self.correctionDone = True
-        else: 
-            if self.comms.radius > 90:
-                return 'locking_complete'
-            else:
-                self.comms.defaultDepth = self.comms.deltaY * self.deltaYMult
-                if self.comms.defaultDepth < 0.1:
-                    self.comms.defaultDepth = self.comms.depthFromMission
-            
-                self.comms.sendMovement(forward = 0.20,
-                                        sidemove = self.comms.deltaX * self.deltaXMult,
-                                        depth = self.comms.defaultDepth,
-                                        blocking = False)
-
-
-        return 'locking'
 
 # Shoot torpedo forward
 class ShootTorpedo(smach.State):
@@ -400,7 +358,8 @@ class ShootTorpedo(smach.State):
             self.comms.shootTopTorpedo()
             rospy.loginfo("Big circle {}".format(time.time()-self.comms.missionStart))
             # self.comms.shootBotTorpedo()
-            # self.comms.taskComplete()
+            self.comms.taskComplete()
+            return 'shoot_complete'
             # return 'shoot_again'
 
             # self.comms.sendMovement(forward = -1.5,
@@ -468,22 +427,16 @@ def main():
         smach.StateMachine.add("MOVEFORWARD", MoveForward(myCom),
                                 transitions={'forwarding': "MOVEFORWARD",
                                              'forward_complete': "CENTERING",
-                                             'lost': "SEARCHCIRCLES",
+                                             'lost': 'failed',
                                              'aborted': 'killed',
                                              'killed': 'failed'})       
         
         smach.StateMachine.add("CENTERING", Centering(myCom),
                                 transitions={'centering': "CENTERING",
                                              'centering_complete': "SHOOTING",
-                                             'lost': "SEARCHCIRCLES",
+                                             'lost': 'failed',
                                              'aborted': 'killed',
                                              'killed': 'failed'})  
-
-        smach.StateMachine.add("LOCKING", LockedPoint(myCom),
-                            transitions={'locking': "LOCKING",
-                                         'locking_complete': "SHOOTING",
-                                         'aborted': 'killed',
-                                         'killed': 'failed'})  
         
         smach.StateMachine.add("SHOOTING", ShootTorpedo(myCom),
                                 transitions={'shoot_again': "SEARCHCIRCLES",

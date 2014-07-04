@@ -5,13 +5,14 @@ Communication b/w ROS class and submodules
 '''
 
 import rospy
+import time
 
 from front_commons.frontComms import FrontComms
 from vision import RgbBuoyVision
 
 from dynamic_reconfigure.server import Server as DynServer
 from utils.config import rgbConfig as Config
-from bbauv_msgs.msg import controller
+from bbauv_msgs.msg import controller, compass_data
 from bbauv_msgs.srv import mission_to_visionResponse, \
         mission_to_vision, vision_to_mission
 
@@ -34,13 +35,19 @@ class Comms(FrontComms):
 
     missionStart = None
     curTime = None
+
+    grad = None
+
+    heading = None
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
         self.defaultDepth = 2.00
         self.depthFromMission = self.defaultDepth
         
-        self.dynServer = DynServer(Config, self.reconfigure)
+        # self.dynServer = DynServer(Config, self.reconfigure)
+
+        self.regCompass()
         
         if not self.isAlone:
             #Initialise mission planner
@@ -63,6 +70,8 @@ class Comms(FrontComms):
             self.isAborted = False
             self.canPublish = True
             
+            self.missionStart = time.time()
+
             self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.curHeading = self.inputHeading
@@ -75,7 +84,7 @@ class Comms(FrontComms):
 
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
-                                             data=controller(heading_setpoint=self.curHeading))
+                                             data=controller(heading_setpoint=self.inputHeading))
 
         if req.abort_request:
             rospy.loginfo("RGB abort received")
@@ -86,6 +95,8 @@ class Comms(FrontComms):
             self.sendMovement(forward=0.0, sidemove=0.0)
             self.unregisterMission()
             
+            rospy.loginfo("Time taken: {}".format(time.time()-self.missionStart))
+
             rospy.loginfo("Aborted complete")
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
@@ -99,6 +110,13 @@ class Comms(FrontComms):
                        'minContourArea' : config.contourMinArea}
         self.visionFilter.updateParams()
         return config
+
+    def regCompass(self):
+        self.rgbCompass = rospy.Subscriber('/euler', compass_data,
+                                            self.rgbCompassCallback)
+
+    def rgbCompassCallback(self, data):
+        self.heading = data.yaw
 
 def main():
     testCom = Comms()

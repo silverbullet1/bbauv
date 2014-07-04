@@ -39,7 +39,7 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.8))
             self.comms.inputHeading = self.comms.curHeading
 
-        self.comms.missionStart = time.time()
+            self.comms.missionStart = time.time()
         self.comms.sendMovement(depth=self.comms.defaultDepth,
                                 heading=self.comms.inputHeading,
                                 blocking=True)
@@ -64,7 +64,7 @@ class Search(smach.State):
                 return 'aborted' 
             
             # Search pattern
-            self.comms.sendMovement(forward=0.35, timeout=0.6, blocking=False)
+            self.comms.sendMovement(forward=0.40, timeout=0.6, blocking=False)
 #             if self.moveOnce < 10:
 #                 self.comms.sendMovement(forward=0.2, sidemove=0.2, blocking=False)
 #             else:
@@ -76,10 +76,13 @@ class Search(smach.State):
 
 # I'm just moving forward
 class bangBuoy(smach.State):
-    deltaXMult = 4.5
-    deltaYMult = 0.4
-    area = 8500
+    deltaXMult = 4.0
+    deltaYMult = 2.3
+    area = 8800
     count = 0
+    forward_setpoint = 0.50
+
+    gradMult = 2.0
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['banging', 'bang_to_center', 'aborted', 'killed'])
@@ -92,35 +95,44 @@ class bangBuoy(smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-        if self.count > 10:           
+        if self.count > 3:           
             return 'bang_to_center'
         
         if self.comms.rectArea > self.area: 
             self.count = self.count + 1
   
-        if abs(self.comms.deltaY) > 0.10:
-            if self.comms.rectArea > 5000:
-                self.deltaYMult = 0.20
+        # if abs(self.comms.grad) > 30:
+        #     self.comms.curHeading = self.comms.heading + self.comms.grad*self.gradMult
+
+        if abs(self.comms.deltaY) > 0.40:
+            # if self.comms.rectArea > 5000:
+            #     self.deltaYMult = 1.00
             self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
             # Make sure it doesnt surface
             if self.comms.defaultDepth < 0.1:
-                self.comms.defaultDepth = 2.0
+                self.comms.defaultDepth = self.comms.depthFromMission
   
+        if self.comms.rectArea < 4000:
+            self.forward_setpoint = 0.7
+        else:
+            self.forward_setpoint = 0.5
+
         # Move forward & correct heading 
-        self.comms.sendMovement(forward=0.42, sidemove=self.comms.deltaX*self.deltaXMult,
+        self.comms.sendMovement(forward=self.forward_setpoint, sidemove=self.comms.deltaX*self.deltaXMult,
                                 depth=self.comms.defaultDepth,
+                                # heading=self.comms.curHeading,
                                 blocking=False)
         return 'banging'
 
 # Precise movements when near buoy 
 class Centering (smach.State):
-    deltaXMult = 3.0
-    deltaYMult = 0.8
+    deltaXMult = 3.1
+    deltaYMult = 2.2
     depthCount = 0
     count = 0
     depthCorrected = False 
     
-    bigArea = 12000
+    bigArea = 11500
     changeMultArea = 10000
     
     def __init__(self, comms):
@@ -135,7 +147,6 @@ class Centering (smach.State):
         if self.comms.isAborted:
             return 'aborted'
         
-
         if self.comms.rectArea > self.changeMultArea:
             self.deltaXMult = 1.8
 
@@ -143,24 +154,23 @@ class Centering (smach.State):
             if self.comms.deltaX < 0.06 and self.comms.deltaY < 0.06:
                 self.count += 1
 
-            if self.count > 4:
-                self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+            if self.count > 3:
+                self.comms.sendMovement(forward=2.3, timeout=4, blocking=False)   # Shoot forward
                 rospy.loginfo("forward done")
                 
-                self.comms.sendMovement(forward=-0.5, depth=self.comms.defaultDepth-0.5,
-                            timeout=3, blocking=False)  # Reverse a bit
+                # self.comms.sendMovement(forward=-0.5, depth=self.comms.defaultDepth-0.5,
+                #             timeout=3, blocking=False)  # Reverse a bit
                 self.comms.isAborted = True
                 self.comms.isKilled = True 
 
                 rospy.loginfo("Time taken: {}".format(time.time()-self.comms.missionStart))
 
-                # rospy.sleep(duration=2)
-                # self.comms.taskComplete()
+                self.comms.taskComplete()
                 return 'centering_complete'
         
         if abs(self.comms.deltaY) > 0.030:
             if self.comms.rectArea > 9500:
-                self.deltaYMult = 0.24
+                self.deltaYMult = 1.9
             self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = self.comms.depthFromMission
