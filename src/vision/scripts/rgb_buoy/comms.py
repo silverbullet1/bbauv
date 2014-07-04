@@ -37,10 +37,8 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
-        #self.defaultDepth = 1.5
         self.defaultDepth = 2.00
         self.depthFromMission = self.defaultDepth
-        #self.colourToBump = int(rospy.get_param("~color", "0"))
         
         self.dynServer = DynServer(Config, self.reconfigure)
         

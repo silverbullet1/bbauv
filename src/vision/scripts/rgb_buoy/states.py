@@ -154,8 +154,8 @@ class Centering (smach.State):
 
                 rospy.loginfo("Time taken: {}".format(time.time()-self.comms.missionStart))
 
-                rospy.sleep(duration=2)
-                self.comms.taskComplete()
+                # rospy.sleep(duration=2)
+                # self.comms.taskComplete()
                 return 'centering_complete'
         
         if abs(self.comms.deltaY) > 0.030:
