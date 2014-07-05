@@ -217,7 +217,7 @@ class Center(smach.State):
     numTrials = 1
     trialsPassed = 0
     
-    timeout = 3
+    timeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',

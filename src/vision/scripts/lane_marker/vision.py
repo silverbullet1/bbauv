@@ -9,6 +9,14 @@ from bot_common.vision import Vision
 
 class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
+    screenOffset = (200, 150)
+    center = (screen['width']/2, screen['height']/2)
+    corner1 = (center[0]-screenOffset[0], center[1]-screenOffset[1])
+    corner2 = (center[0]+screenOffset[0], center[1]-screenOffset[1])
+    corner3 = (center[0]+screenOffset[0], center[1]+screenOffset[1])
+    corner4 = (center[0]-screenOffset[0], center[1]+screenOffset[1])
+    corners = (None, corner1, corner2, corner3, corner4)
+    curCorner = 0
 
     # Vision parameters
     hsvLoThresh1 = (10, 0, 0)
@@ -124,16 +132,6 @@ class LaneMarkerVision:
                        5, (0, 0, 255))
             Vision.drawRect(outImg,
                             cv2.cv.BoxPoints(boxRect), color=(0, 255, 255))
-            # Draw the centering rectangle
-            midX = self.screen['width']/2.0
-            midY = self.screen['height']/2.0
-            maxDeltaX = self.screen['width']*0.03
-            maxDeltaY = self.screen['height']*0.03
-            cv2.rectangle(outImg,
-                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                          (0, 255, 0), 2)
-
         return retData, outImg
 
     def findLane(self, img):
@@ -162,20 +160,10 @@ class LaneMarkerVision:
         # Sort the thresholded areas from largest to smallest
         sorted(contours, key=cv2.contourArea, reverse=True)
 
-        contourRects = [cv2.minAreaRect(contour) for contour in contours]
-        # Find the centroid from averaging all the contours
-        for contour in contours:
-            mu = cv2.moments(contour, False)
-            muArea = mu['m00']
-            centroid[0] += mu['m10'] / muArea
-            centroid[1] += mu['m01'] / muArea
-
-        centroid[0] /= len(contours)
-        centroid[1] /= len(contours)
-
-
         # Find lines in each bounded rectangle region and find angle
-        for rect in contourRects:
+        for contour in contours:
+            rect = cv2.minAreaRect(contour)
+
             # Mask for the region
             #mask = np.zeros_like(binImg, dtype=np.uint8)
             points = np.int32(cv2.cv.BoxPoints(rect))
@@ -186,14 +174,21 @@ class LaneMarkerVision:
             edge1 = points[1] - points[0]
             edge2 = points[2] - points[1]
 
-            edge1Len = cv2.norm(edge1)
-            edge2Len = cv2.norm(edge2)
-            ratio = edge1Len/edge2Len if edge1Len > edge2Len else edge2Len/edge1Len
+            len1 = cv2.norm(edge1)
+            len2 = cv2.norm(edge2)
+
+            # Make sure not to detectin the yellow box i.e false positive
+            ratio = len1/len2 if len1 > len2 else len2/len1
             if ratio < self.ratioBound:
                 continue
+            if self.curCorner > 0:
+                dX = (rect[0][0] - self.corners[self.curCorner][0])/self.width
+                dY = (rect[0][1] - self.corners[self.curCorner][1])/self.height
+                if dX < 0.05 and dY < 0.05:
+                    continue
 
             #Choose the vertical edge
-            if edge1Len > edge2Len:
+            if len1 > len2:
                 rectAngle = math.degrees(math.atan2(edge1[1], edge1[0]))
             else:
                 rectAngle = math.degrees(math.atan2(edge2[1], edge2[0]))
@@ -202,55 +197,38 @@ class LaneMarkerVision:
             if self.debugMode:
                 Vision.drawRect(outImg, points)
 
-            #lines = cv2.HoughLinesP(rectImg,
-            #                        self.houghDistRes, self.houghAngleRes,
-            #                        self.houghThreshold,
-            #                        self.houghMinLength,
-            #                        self.houghMaxGap)
-            ## Find and fix angle
-            #if lines != None:
-            #    #for line in lines[0]:
-            #    #    cv2.line(outImg,
-            #    #            (line[0], line[1]), (line[2], line[3]),
-            #    #            (0,255,0), 1)
-            #    gradients = [math.atan2(y2 - y1, x2 - x1)
-            #                 for x1, y1, x2, y2 in lines[0]]
-            #    gradient = np.median(gradients)
-            #    angle = np.rad2deg(gradient)
-
             foundLines.append({'pos': rect[0], 'angle': rectAngle})
-            #                   'testAngle': angle})
 
         if len(foundLines) >= 2 and self.comms.expectedLanes == 2:
+            line1 = foundLines[0]
+            line2 = foundLines[1]
             # If there are 2 lines, find their intersection and adjust angle
-            l1 = self.vectorizeLine(foundLines[0]['pos'],
-                                    foundLines[0]['angle'])
-            l2 = self.vectorizeLine(foundLines[1]['pos'],
-                                    foundLines[1]['angle'])
+            l1 = self.vectorizeLine(line1['pos'], line1['angle'])
+            l2 = self.vectorizeLine(line2['pos'], line2['angle'])
             crossPt = self.findIntersection(l1, l2) # intersection b/w l1 & l2
 
             if self.debugMode:
                 cv2.circle(outImg, (int(crossPt[0]), int(crossPt[1])),
                            3, (0, 255, 0))
-            foundLines[0]['angle'] = np.rad2deg(math.atan2(l1[0][1]-crossPt[1],
-                                                           l1[0][0]-crossPt[0]))
-            foundLines[1]['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
-                                                           l2[0][0]-crossPt[0]))
+            line1['angle'] = np.rad2deg(math.atan2(l1[0][1]-crossPt[1],
+                                                   l1[0][0]-crossPt[0]))
+            line2['angle'] = np.rad2deg(math.atan2(l2[0][1]-crossPt[1],
+                                                   l2[0][0]-crossPt[0]))
             retData['crossPoint'] = crossPt
 
             # Figure out which lane marker is left or right
-            left = Utils.normAngle(foundLines[0]['angle'])
-            right = Utils.normAngle(foundLines[1]['angle'])
+            left = Utils.normAngle(line1['angle'])
+            right = Utils.normAngle(line2['angle'])
             if (not ((right-left > 0 and abs(right-left) < 180) or
                      (right-left < 0 and abs(right-left) > 180))):
-                foundLines[0], foundLines[1] = foundLines[1], foundLines[0]
+                line1, line2 = line2, line1
+            centroid = ((line1['pos'][0]+line2['pos'][0])/2,
+                        (line1['pos'][1]+line2['pos'][1])/2)
 
             if self.debugMode:
-                startPt = (int(foundLines[0]['pos'][0])-70,
-                           int(foundLines[0]['pos'][1]))
+                startPt = (int(line1['pos'][0])-70, int(line1['pos'][1]))
                 cv2.putText(outImg, "left", startPt,
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
-
         elif len(foundLines) >= 1:
             centroid = foundLines[0]['pos']
             # Otherwise adjust to the angle closest to input heading
@@ -278,24 +256,38 @@ class LaneMarkerVision:
                 cv2.circle(outImg, startpt, 3, (0, 0, 255), 1)
                 cv2.putText(outImg, angleStr, startpt,
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-            # Draw the centering rectangle
-            midX = self.screen['width']/2.0
-            midY = self.screen['height']/2.0
-            maxDeltaX = self.screen['width']*0.03
-            maxDeltaY = self.screen['height']*0.03
-            cv2.rectangle(outImg,
-                          (int(midX-maxDeltaX), int(midY-maxDeltaY)),
-                          (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                          (0, 255, 0), 2)
 
         return retData, outImg
 
     # Main processing function, should return (retData, outputImg)
     def gotFrame(self, img):
         if self.comms.detectingBox:
-            return self.findYellowBox(img)
+            retData, outImg = self.findYellowBox(img)
         else:
-            return self.findLane(img)
+            retData, outImg = self.findLane(img)
+
+        if self.debugMode:
+            # Draw the centering rectangle
+            maxDeltaX = self.screen['width']*0.05
+            maxDeltaY = self.screen['height']*0.05
+            cv2.rectangle(outImg,
+                          (int(self.center[0]-maxDeltaX),
+                           int(self.center[1]-maxDeltaY)),
+                          (int(self.center[0]+maxDeltaX),
+                           int(self.center[1]+maxDeltaY)),
+                          (0, 255, 0), 2)
+            if self.curCorner > 0:
+                for i in range(1,5):
+                    color = (0, 255, 255) if i == self.curCorner else (0, 255, 0)
+                    cv2.rectangle(outImg,
+                                  (int(self.corners[i][0]-maxDeltaX),
+                                   int(self.corners[i][1]-maxDeltaY)),
+                                  (int(self.corners[i][0]+maxDeltaX),
+                                   int(self.corners[i][1]+maxDeltaY)),
+                                  color, 2)
+
+        return retData, outImg
+
 
 def main():
     rospy.init_node("lane_marker_vision")

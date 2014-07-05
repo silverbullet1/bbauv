@@ -70,7 +70,7 @@ class CenterSite(smach.State):
     xcoeff = 2.5
     ycoeff = 3.0
 
-    numTrials = 2
+    numTrials = 1
     trialPassed = 0
 
     def __init__(self, comms):
@@ -158,7 +158,7 @@ class Center(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 3
+    lostTimeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -254,7 +254,7 @@ class Center2(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 3
+    lostTimeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
@@ -368,7 +368,7 @@ class Center3(smach.State):
     numTrials = 1
     trialPassed = 0
 
-    lostTimeout = 3
+    lostTimeout = 5
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centered',
