@@ -45,7 +45,7 @@ class Comms(FrontComms):
         self.defaultDepth = 2.00
         self.depthFromMission = self.defaultDepth
         
-        # self.dynServer = DynServer(Config, self.reconfigure)
+        self.dynServer = DynServer(Config, self.reconfigure)
 
         self.regCompass()
         
@@ -107,7 +107,8 @@ class Comms(FrontComms):
         self.params = {'hsvLoThres': (config.loH, config.loS, config.loV),
                        'hsvHiThres': (config.hiH, config.hiS, config.hiV),
                        'HoughParams': (config.Hough1, config.Hough2), 
-                       'minContourArea' : config.contourMinArea}
+                       'minContourArea' : config.contourMinArea,
+                       'minRadius': config.MinRadius}
         self.visionFilter.updateParams()
         return config
 

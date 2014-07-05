@@ -79,6 +79,15 @@ class FrontComms:
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)     
         rospy.loginfo("Registered finish")          
         
+
+    def searchComplete(self):
+        rospy.loginfo("Sending search complete request to mission planner")
+        if not self.isAlone:
+            self.toMission(fail_request=False, task_complete_request=False,
+                            search_request=True,
+                            task_complete_ctrl=controller(heading_setpoint=
+                                                self.curHeading))
+
     def unregister(self):
         if self.camSub is not None:
             self.camSub.unregister()
@@ -149,7 +158,7 @@ class FrontComms:
         self.canPublish = False
         self.isAborted = True
         self.isKilled = True
-        self.sendMovement(forward=0.0, sidemove=0.0)
+        # self.sendMovement(forward=0.0, sidemove=0.0)
         rospy.signal_shutdown("Bye")
     
     def sendMovement(self, forward=0.0, sidemove=0.0,

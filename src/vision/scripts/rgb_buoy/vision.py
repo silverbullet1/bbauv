@@ -31,13 +31,13 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':25, 'maxRadius': 0 }
+    circleParams = {'minRadius':15, 'maxRadius': 0 }
     houghParams = (74, 12)
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 150
+    minContourArea = 600
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -236,6 +236,7 @@ class RgbBuoyVision:
         self.redParams['hi1'] = self.comms.params['hsvHiThres']
         self.houghParams = self.comms.params['HoughParams']
         self.minContourArea = self.comms.params['minContourArea']
+        self.circleParams['minRadius'] = self.comms.params['minRadius']
     
 def main():
     cv2.namedWindow("RGB")
