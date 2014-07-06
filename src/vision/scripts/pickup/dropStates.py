@@ -50,7 +50,7 @@ class SearchBox(smach.State):
         while not self.comms.retVal or \
               len (self.comms.retVal['box']) < 1:
             if time.time() - start > self.timeout:
-                self.comms.abortMission()
+                self.comms.failTask()
                 return 'timeout'
             if self.comms.isAborted:
                 return 'aborted'
@@ -107,7 +107,11 @@ class CenterBox(smach.State):
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
             self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
+                self.comms.sendMovement(d=self.comms.sinkingDepth,
+                                        h=self.comms.inputHeading,
+                                        blocking=True)
                 self.trialPassed = 0
+                self.comms.notifyCentered()
                 return 'centered'
             else:
                 self.trialPassed += 1
@@ -115,6 +119,67 @@ class CenterBox(smach.State):
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
                                 d=self.comms.defaultDepth,
+                                h=self.comms.inputHeading,
+                                blocking=False)
+        return 'centering'
+
+class CenterBox2(smach.State):
+    width = PickupVision.screen['width']
+    height = PickupVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    maxdx = 0.03
+    maxdy = 0.03
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 1
+    trialPassed = 0
+
+    lostTimeout = 5
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isAborted or \
+           self.comms.isKilled:
+            self.comms.abortMission()
+            return 'aborted'
+
+        start = time.time()
+        while not self.comms.retVal or \
+           len(self.comms.retVal['box']) < 1:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
+            if time.time() - start > self.lostTimeout:
+                self.trialPassed = 0
+                return 'lost'
+            else:
+                rospy.sleep(rospy.Duration(0.1))
+
+        box = self.comms.retVal['box']
+
+        dx = (box['centroid'][0] - self.centerX) / self.width
+        dy = (box['centroid'][1] - self.centerY) / self.height
+
+        if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
+            self.comms.motionClient.cancel_all_goals()
+            if self.trialPassed == self.numTrials:
+                self.trialPassed = 0
+                return 'centered'
+            else:
+                self.trialPassed += 1
+                return 'centering'
+
+        self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
+                                d=self.comms.sinkingDepth,
                                 h=self.comms.inputHeading,
                                 blocking=False)
         return 'centering'
@@ -159,9 +224,15 @@ def main():
                                             'foundBox': 'CENTERBOX'})
         smach.StateMachine.add('CENTERBOX',
                                CenterBox(myCom),
-                               transitions={'centered': 'DROP',
+                               transitions={'centered': 'CENTERBOX2',
                                             'centering': 'CENTERBOX',
                                             'lost': 'SEARCHBOX',
+                                            'aborted': 'DISENGAGE'})
+        smach.StateMachine.add('CENTERBOX2',
+                               CenterBox2(myCom),
+                               transitions={'centered': 'DROP',
+                                            'centering': 'CENTERBOX2',
+                                            'lost': 'DROP',
                                             'aborted': 'DISENGAGE'})
         smach.StateMachine.add('DROP',
                                Drop(myCom),

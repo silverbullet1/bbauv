@@ -14,7 +14,8 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 1.9
+        self.defaultDepth = 0.2
+        self.aligningDepth = 1.9
         self.sinkingDepth = 2.7
         self.search2Depth = 1.2
         self.turnDepth = 1.9
@@ -29,7 +30,7 @@ class Comms(GenericComms):
         if req.start_request:
             rospy.loginfo("Received Start Request")
             self.isAborted = False
-            #self.defaultDepth = req.start_ctrl.depth_setpoint
+            self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -56,7 +57,10 @@ class Comms(GenericComms):
                        'minContourArea' : config.alienMinArea,
                        'adaptiveCoeff' : config.adaptiveCoeff,
                        'adaptiveOffset' : config.adaptiveOffset,
-                       'areaThresh' : config.binMinArea }
+                       'areaThresh' : config.binMinArea,
+                       'matchBound': config.matchBound,
+                       'ratioBound' : config.ratioBound,
+                       'blackThresh' : config.blackThresh}
         self.visionFilter.updateParams()
         return config
 

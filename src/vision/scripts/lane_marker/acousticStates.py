@@ -125,7 +125,8 @@ class CenterBox(smach.State):
         f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
         sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
         self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint,
-                                h=self.comms.inputHeading, blocking=False)
+                                h=self.comms.inputHeading,
+                                timeout=0.6, blocking=False)
         return 'centering'
 
 class AlignBoxLane(smach.State):
@@ -162,6 +163,7 @@ class AlignBoxLane(smach.State):
                     return 'lost'
                 else:
                     self.comms.visionFilter.curCorner += 1
+                    self.comms.detectingBox = True
                     return 'next_corner'
             rospy.sleep(rospy.Duration(0.1))
 

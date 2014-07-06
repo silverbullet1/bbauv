@@ -120,6 +120,27 @@ class GenericComms:
         self.isAborted = True
         self.motionClient.cancel_all_goals()
 
+    def failTask(self):
+        rospy.loginfo("Sending fail request to mission planner")
+        if not self.isAlone:
+            self.toMission(fail_request=True, task_complete_request=False,
+                           task_complete_ctrl=controller(
+                               heading_setpoint=self.curHeading))
+        self.canPublish = False
+        self.isAborted = True
+        self.motionClient.cancel_all_goals()
+
+    def notifyCentered(self):
+        rospy.loginfo("Sending fail request to mission planner")
+        if not self.isAlone:
+            self.toMission(fail_request=False, task_complete_request=False,
+                           centered=True,
+                           task_complete_ctrl=controller(
+                               heading_setpoint=self.curHeading))
+        self.canPublish = False
+        self.isAborted = True
+        self.motionClient.cancel_all_goals()
+
     def taskComplete(self, heading=0.0):
         rospy.loginfo("Sending Complete request to mission planner")
         if not self.isAlone:

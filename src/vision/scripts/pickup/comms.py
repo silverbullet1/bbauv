@@ -18,8 +18,8 @@ class Comms(GenericComms):
         if taskMode == 'pickup':
             self.defaultDepth = 0.6
             self.sinkingDepth = 2.0
-            self.grabbingDepth = 2.9
-            self.lastDepth = 3.80
+            self.grabbingDepth = 3.0
+            self.lastDepth = 3.70
             self.grabbingArea = 20000
 
             self.visionMode = PickupVision.SITE

@@ -26,7 +26,7 @@ class Disengage(smach.State):
         rospy.sleep(rospy.Duration(1))
         if self.comms.isAlone:
             self.comms.inputHeading = self.comms.curHeading
-        self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
+            self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
         self.comms.retVal = None
         return 'started'
 
@@ -156,15 +156,15 @@ class Align(smach.State):
            len(self.comms.retVal['matches']) == 0:
             return 'lost'
 
-        #self.comms.sendMovement(d=self.comms.sinkingDepth,
-        #                        f=-0.3,
-        #                        blocking=True)
-
+        self.comms.sendMovement(d=self.comms.aligningDepth,
+                                blocking=True)
         # Align with the bins
         dAngle = Utils.toHeadingSpace(self.comms.nearest['angle'])
         adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
         self.comms.adjustHeading = adjustAngle
         self.comms.sendMovement(h=adjustAngle, blocking=True)
+        self.comms.sendMovement(d=self.comms.sinkingDepth,
+                                blocking=True)
 
         return 'aligned'
 
@@ -226,11 +226,11 @@ class CenterAgain(smach.State):
                                     blocking=False)
             return 'centering'
 
-        #self.comms.sendMovement(f=0.0, sm=0.0,
-        #                        d=self.comms.sinkingDepth,
-        #                        h=self.comms.adjustHeading,
-        #                        blocking=True)
-        self.comms.motionClient.cancel_all_goals()
+        self.comms.sendMovement(f=0.0, sm=0.0,
+                                d=self.comms.sinkingDepth,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
+        #self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
             self.trialsPassed = 0
             return 'centered'

@@ -55,6 +55,8 @@ class SearchSite(smach.State):
                 return 'timeout'
             if self.comms.isAborted:
                 return 'aborted'
+            self.comms.sendMovement(f=1.0, d=self.comms.defaultDepth,
+                                    blocking=False)
             rospy.sleep(rospy.Duration(0.1))
 
         return 'foundSite'
@@ -101,6 +103,7 @@ class CenterSite(smach.State):
             if self.trialPassed == self.numTrials:
                 self.trialPassed = 0
                 self.comms.visionMode = PickupVision.SAMPLES
+                self.comms.notifyCentered()
                 return 'centered'
             else:
                 self.trialPassed += 1
@@ -348,7 +351,7 @@ class Approach(smach.State):
         dy = (closest['centroid'][1] - self.centerY) / self.height
 
         self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
-                                d=self.comms.curDepth + 0.2,
+                                d=self.comms.curDepth + 0.1,
                                 h=self.comms.adjustHeading,
                                 timeout=2,
                                 blocking=False)
