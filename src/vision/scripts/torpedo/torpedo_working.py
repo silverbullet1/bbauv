@@ -90,7 +90,7 @@ class FollowSonar(smach.State):
             return 'sonar_complete'
 
 class SearchCircles(smach.State):
-    timeout = 30
+    timeout = 300
     lostCount = 0
 
     def __init__(self, comms):
@@ -130,7 +130,7 @@ class AlignBoard(smach.State):
 
     forward_setpoint = 0.50
     halfCompleteArea = 45000
-    completeArea = 68000
+    completeArea = 65000
 
     deltaXMult = 4.9
     deltaYMult = 1.6
@@ -170,7 +170,7 @@ class AlignBoard(smach.State):
             self.comms.curTime = time.time()
             return 'alignBoard_complete'
 
-        if self.comms.boardArea < self.halfCompleteArea:
+        if self.comms.boardArea < 40000:
             self.forward_setpoint = 0.7
 
         if abs(self.comms.boardDeltaY) > 0.035:
@@ -203,11 +203,12 @@ class MoveForward(smach.State):
 
     # forward_setpoint = 0.43
     forward_setpoint = 0.30
-    completeRadius = 59
+    # completeRadius = 55
+    completeRadius = 52
     lostCount = 0
 
     deltaXMult = 4.5
-    deltaYMult = 2.0
+    deltaYMult = 1.8
 
     # completeRadius = self.comms.movementParams['forwardRadius']
     # deltaXMult = self.comms.movementParams['forwardDeltaX']
@@ -237,7 +238,7 @@ class MoveForward(smach.State):
                     
         if self.comms.numShoot == 1:
             # self.completeRadius = 43
-            self.completeRadius = 43
+            self.completeRadius = 38
             self.forward_setpoint = 0.24
             # self.deltaXMult = 0.8
 
@@ -272,7 +273,7 @@ class Centering (smach.State):
     centeringCount = 0
     halfCompleteRadius = 65
     # completeRadius = 91
-    completeRadius = 78
+    completeRadius = 84
     forward_half = 0.23
     forward_setpoint = 0.22
 
@@ -298,24 +299,24 @@ class Centering (smach.State):
 
         if self.comms.numShoot == 1:
             # self.completeRadius = 86
-            self.completeRadius = 65
+            self.completeRadius = 70
             self.forward_setpoint = 0.13
             self.deltaYMult = 1.7
 
         if self.comms.radius > self.completeRadius:
-            sidemove_setpoint = self.comms.deltaX * 2.0
-            self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.3
+            sidemove_setpoint = self.comms.deltaX * 1.3
+            self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*0.46
 
             self.comms.sendMovement(forward = 0.0, 
                             sidemove = sidemove_setpoint,
                             depth = self.comms.defaultDepth, timeout=0.4, 
                             blocking = False)
 
-            if abs(self.comms.deltaX) < 0.07 and abs(self.comms.deltaY) < 0.07:
+            if abs(self.comms.deltaX) < 0.06 and abs(self.comms.deltaY) < 0.06:
                 self.centeringCount += 1
 
-            # if self.comms.numShoot == 1:
-            #     self.centering = 5
+            if self.comms.numShoot == 1:
+                self.centering = 5
             if self.centeringCount > self.centering:
                 self.centeringCount = 0
 

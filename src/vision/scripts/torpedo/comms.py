@@ -19,6 +19,7 @@ from utils.config import torpedoConfig as Config
 
 from sensor_msgs.msg import Image
 from utils.utils import Utils
+import time
 
 class Comms(FrontComms):
     
@@ -30,7 +31,7 @@ class Comms(FrontComms):
     # Circle booleans
     foundCircles = False 
     foundSomething = False 
-    foundCount = 0  # If more than a constant, then respond lost
+    lostCount = 0
     
     # Shooting parameters
     numShoot = 0    # Only given 2 shoots 
@@ -53,6 +54,7 @@ class Comms(FrontComms):
     skew = 0
     direction = None
     heading = 0.0
+    angleFromCenter = 0.0
 
     sonarDist = 0.0
     sonarBearing = 0.0
@@ -108,6 +110,10 @@ class Comms(FrontComms):
             self.regCompass()
             # self.registerSonar()
             
+            # self.curHeading = self.curHeading - 10.0
+            # self.sendMovement(forward=0.0, sidemove=0.0,
+            #                     heading=self.curHeading, blocking=True)
+
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=
@@ -121,18 +127,29 @@ class Comms(FrontComms):
 
             self.unregisterMission()
 
-            # self.shootTopTorpedo()
-            # self.shootBotTorpedo()
+            # Randomly shoot stuff
+            if self.numShoot == 0:
+                self.shootTopTorpedo()
+            else:
+                self.shootBotTorpedo()
 
             self.sendMovement(forward=0.0, sidemove=0.0)
             rospy.loginfo("Aborted complete")
 
-            # Also pass self.isMovingState. 
+            rospy.loginfo("Time taken: {}".format(time.time()-self.missionStart))
+
+            # if self.isMovingState:
+            #     return mission_to_visionResponse(start_response=False,
+            #                                     abort_response=True,
+            #                                     search_request=True,
+            #                                     data=controller(heading_setpoint=
+            #                                                     self.curHeading))
+            # else:
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
-            
+        
 
     def regCompass(self):
         self.torCompass = rospy.Subscriber('/euler',

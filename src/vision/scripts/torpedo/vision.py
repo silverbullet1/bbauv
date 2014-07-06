@@ -28,7 +28,7 @@ class TorpedoVision:
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
                   }
         
-    minContourArea = 300
+    minContourArea = 200
     
     # For circles 
     previousCentroid = (-1, -1)
@@ -83,6 +83,8 @@ class TorpedoVision:
         binImgCopy = binImg.copy()
         contours, hierarchy = cv2.findContours(binImgCopy, 
             cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        # contours, hierarchy = cv2.findContours(binImgCopy,
+        #     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea,
             contours)
         if len(contours) == 0 :
@@ -98,6 +100,10 @@ class TorpedoVision:
         box = cv2.cv.BoxPoints(rect)
         boxInt = np.int0(box)
         cv2.drawContours(scratchImgCol, [boxInt], 0, (0,0,255), 2)
+
+        epislon = cv2.arcLength(largestContour, True)*0.01
+        approxCurve = cv2.approxPolyDP(largestContour, epislon, False)
+        cv2.drawContours(scratchImgCol, [approxCurve], 0, (255,0,0), 2)
 
         '''
         Determine skew
@@ -168,7 +174,7 @@ class TorpedoVision:
 
                     if len(circleCont) > 0:
                         for contour in circleCont:
-                            if cv2.contourArea(contour) < 20000:
+                            if cv2.contourArea(contour) < 30000:
                                 (circx, circy), circrad = cv2.minEnclosingCircle(contour)
                                 # If circle radius inside contour
                                 if cx - radius < circx < cx + radius and cy - radius < circy < cy + radius:
@@ -201,12 +207,12 @@ class TorpedoVision:
         '''
         if self.comms.centroidToShoot[0]== -1 and self.comms.centroidToShoot[1]== -1:
             self.comms.centroidToShoot = self.getAimingCentroid()
-        angleFromCenter = self.calculateAngle(self.comms.centroidToShoot, self.aimingCentroid)
+        self.comms.angleFromCenter = self.calculateAngle(self.comms.centroidToShoot, self.aimingCentroid)
         cv2.line(scratchImgCol, (int(self.comms.centroidToShoot[0]),int(self.comms.centroidToShoot[1])), 
             (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])), (0,255,0), 2)
         centerx = int((self.comms.centroidToShoot[0]+self.aimingCentroid[0])/2)
         centery = int((self.comms.centroidToShoot[1]+self.aimingCentroid[1])/2)
-        cv2.putText(scratchImgCol, "{0:.2f}".format(angleFromCenter), (centerx+20, centery-20),
+        cv2.putText(scratchImgCol, "{0:.2f}".format(self.comms.angleFromCenter), (centerx+20, centery-20),
             cv2.FONT_HERSHEY_PLAIN, 1, (255,150,50), 1)
 
         # Board variables
@@ -404,8 +410,8 @@ class TorpedoVision:
     def drawCenterRect(self, img):
         midX = vision.screen['width']/2.0 - 50.0
         midY = vision.screen['height']/2.0 - 50.0
-        maxDeltaX = vision.screen['width']*0.06
-        maxDeltaY = vision.screen['height']*0.06
+        maxDeltaX = vision.screen['width']*0.07
+        maxDeltaY = vision.screen['height']*0.07
         self.aimingCentroid = (midX, midY)
         cv2.rectangle(img,
                       (int(midX-maxDeltaX), int(midY-maxDeltaY)),

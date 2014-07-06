@@ -31,13 +31,13 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':25, 'maxRadius': 0 }
+    circleParams = {'minRadius':15, 'maxRadius': 0 }
     houghParams = (74, 12)
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 250
+    minContourArea = 600
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -146,9 +146,14 @@ class RgbBuoyVision:
                 
                 self.previousCentroid = self.comms.centroidToBump
                 self.previousArea = self.comms.rectArea
+
+                self.comms.grad = self.getGradient()
             else:
                 self.comms.centroidToBump = self.previousCentroid
                 self.comms.rectArea = self.previousArea
+
+        cv2.putText(scratchImgCol, "Ang: " + str(self.comms.grad), (30, 100),
+                    cv2.FONT_HERSHEY_PLAIN, 1, (204,204,204))
 
         # Draw new centroid
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
@@ -172,6 +177,14 @@ class RgbBuoyVision:
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
 
         return scratchImgCol
+
+    def getGradient(self):
+        angle = self.radToDeg(math.atan2(self.comms.centroidToBump[1]-vision.screen['height'],
+                self.comms.centroidToBump[0]-vision.screen['width']))
+        return angle*(-1.0) 
+
+    def radToDeg(self, angle):
+        return angle*180.0/math.pi
 
     def whiteBal(self, img):
         channels = cv2.split(img)
@@ -223,6 +236,7 @@ class RgbBuoyVision:
         self.redParams['hi1'] = self.comms.params['hsvHiThres']
         self.houghParams = self.comms.params['HoughParams']
         self.minContourArea = self.comms.params['minContourArea']
+        self.circleParams['minRadius'] = self.comms.params['minRadius']
     
 def main():
     cv2.namedWindow("RGB")

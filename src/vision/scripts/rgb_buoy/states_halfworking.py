@@ -47,7 +47,7 @@ class Disengage(smach.State):
         return 'start_complete'
     
 class Search(smach.State):
-    timeout = 30
+    timeout = 300
     moveOnce = 0
     
     def __init__(self, comms):
@@ -77,7 +77,7 @@ class Search(smach.State):
 # I'm just moving forward
 class bangBuoy(smach.State):
     deltaXMult = 4.0
-    deltaYMult = 1.3
+    deltaYMult = 2.3
     area = 8800
     count = 0
     forward_setpoint = 0.50
@@ -104,7 +104,7 @@ class bangBuoy(smach.State):
         # if abs(self.comms.grad) > 30:
         #     self.comms.curHeading = self.comms.heading + self.comms.grad*self.gradMult
 
-        if abs(self.comms.deltaY) > 0.10:
+        if abs(self.comms.deltaY) > 0.40:
             # if self.comms.rectArea > 5000:
             #     self.deltaYMult = 1.00
             self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
@@ -126,14 +126,14 @@ class bangBuoy(smach.State):
 
 # Precise movements when near buoy 
 class Centering (smach.State):
-    deltaXMult = 2.3
-    deltaYMult = 1.0
+    deltaXMult = 3.1
+    deltaYMult = 2.2
     depthCount = 0
     count = 0
     depthCorrected = False 
     
-    bigArea = 12000
-    changeMultArea = 95000
+    bigArea = 11500
+    changeMultArea = 10000
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
@@ -148,8 +148,7 @@ class Centering (smach.State):
             return 'aborted'
         
         if self.comms.rectArea > self.changeMultArea:
-            self.deltaXMult = 1.6
-            self.deltaYMult = 0.5
+            self.deltaXMult = 1.8
 
         if self.comms.rectArea > self.bigArea:
             if self.comms.deltaX < 0.06 and self.comms.deltaY < 0.06:
@@ -169,7 +168,9 @@ class Centering (smach.State):
                 self.comms.taskComplete()
                 return 'centering_complete'
         
-        if abs(self.comms.deltaY) > 0.050:           
+        if abs(self.comms.deltaY) > 0.030:
+            if self.comms.rectArea > 9500:
+                self.deltaYMult = 1.9
             self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = self.comms.depthFromMission

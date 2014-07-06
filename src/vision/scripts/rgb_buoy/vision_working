@@ -47,7 +47,7 @@ class Disengage(smach.State):
         return 'start_complete'
     
 class Search(smach.State):
-    timeout = 30
+    timeout = 300
     moveOnce = 0
     
     def __init__(self, comms):
