@@ -24,8 +24,6 @@ class Sonar():
         imgCol = cv2.equalizeHist(imgCol)
         imgCol = cv2.GaussianBlur(imgCol, (7,7), 0)
 
-        return cv2.cvtColor(imgCol, cv2.COLOR_GRAY2BGR)
-    
         maxIntensity = np.max(imgCol)
         _, thresImg = cv2.threshold(imgCol, maxIntensity-10, 255, cv2.THRESH_BINARY)
         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))

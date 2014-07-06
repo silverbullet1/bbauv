@@ -40,9 +40,9 @@ class Disengage(smach.State):
             self.comms.inputHeading = self.comms.curHeading
 
             self.comms.missionStart = time.time()
-        self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                heading=self.comms.inputHeading,
-                                blocking=True)
+            self.comms.sendMovement(depth=self.comms.defaultDepth,
+                                    heading=self.comms.inputHeading,
+                                    blocking=True)
 
         return 'start_complete'
     
@@ -156,7 +156,7 @@ class Centering (smach.State):
                 self.count += 1
 
             if self.count > 3:
-                self.comms.sendMovement(forward=2.3, timeout=4, blocking=False)   # Shoot forward
+                self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
                 rospy.loginfo("forward done")
                 
                 # self.comms.sendMovement(forward=-0.5, depth=self.comms.defaultDepth-0.5,
