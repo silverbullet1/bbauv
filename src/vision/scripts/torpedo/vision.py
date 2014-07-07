@@ -101,9 +101,9 @@ class TorpedoVision:
         boxInt = np.int0(box)
         cv2.drawContours(scratchImgCol, [boxInt], 0, (0,0,255), 2)
 
-        epislon = cv2.arcLength(largestContour, True)*0.01
-        approxCurve = cv2.approxPolyDP(largestContour, epislon, False)
-        cv2.drawContours(scratchImgCol, [approxCurve], 0, (255,0,0), 2)
+        # epislon = cv2.arcLength(largestContour, True)*0.01
+        # approxCurve = cv2.approxPolyDP(largestContour, epislon, False)
+        # cv2.drawContours(scratchImgCol, [approxCurve], 0, (255,0,0), 2)
 
         '''
         Determine skew
@@ -174,7 +174,7 @@ class TorpedoVision:
 
                     if len(circleCont) > 0:
                         for contour in circleCont:
-                            if cv2.contourArea(contour) < 30000:
+                            if cv2.contourArea(contour) < 25000:
                                 (circx, circy), circrad = cv2.minEnclosingCircle(contour)
                                 # If circle radius inside contour
                                 if cx - radius < circx < cx + radius and cy - radius < circy < cy + radius:
