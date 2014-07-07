@@ -29,6 +29,7 @@ class GenericComms:
 
         # Initialize flags
         self.isAborted = True
+        self.abortedDone = False
         self.isKilled = False
         self.canPublish = False
 
@@ -111,7 +112,7 @@ class GenericComms:
         rospy.signal_shutdown("Task manually killed")
 
     def abortMission(self):
-        rospy.loginfo("Sending Abort request to mission planner")
+        rospy.loginfo("Stopping task")
         #if not self.isAlone:
         #    self.toMission(fail_request=True, task_complete_request=False,
         #                   task_complete_ctrl=controller(
@@ -119,6 +120,7 @@ class GenericComms:
         self.canPublish = False
         self.isAborted = True
         self.motionClient.cancel_all_goals()
+        self.abortedDone = True
 
     def failTask(self):
         rospy.loginfo("Sending fail request to mission planner")
@@ -131,15 +133,12 @@ class GenericComms:
         self.motionClient.cancel_all_goals()
 
     def notifyCentered(self):
-        rospy.loginfo("Sending fail request to mission planner")
+        rospy.loginfo("Sending centered request to mission planner")
         if not self.isAlone:
             self.toMission(fail_request=False, task_complete_request=False,
                            centered=True,
                            task_complete_ctrl=controller(
                                heading_setpoint=self.curHeading))
-        self.canPublish = False
-        self.isAborted = True
-        self.motionClient.cancel_all_goals()
 
     def taskComplete(self, heading=0.0):
         rospy.loginfo("Sending Complete request to mission planner")

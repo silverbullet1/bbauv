@@ -26,14 +26,14 @@ class Disengage(smach.State):
         if self.comms.isAlone:
             rospy.sleep(rospy.Duration(1))
             self.comms.inputHeading = self.comms.curHeading
-        self.comms.sendMovement(h=self.comms.inputHeading,
-                                d=self.comms.defaultDepth,
-                                blocking=True)
+            self.comms.sendMovement(h=self.comms.inputHeading,
+                                    d=self.comms.defaultDepth,
+                                    blocking=True)
         self.comms.retVal = None
         return 'started'
 
 class SearchBox(smach.State):
-    timeout = 10
+    timeout = 30
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundBox'])
@@ -56,6 +56,9 @@ class SearchBox(smach.State):
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
 
+        self.comms.sendMovement(h=self.comms.inputHeading,
+                                d=self.comms.defaultDepth,
+                                blocking=True)
         return 'foundBox'
 
 class CenterBox(smach.State):

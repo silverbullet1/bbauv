@@ -67,6 +67,69 @@ class Disengage(smach.State):
         self.comms.visionFilter.curCorner = 1
         return 'started'
 
+class MainCenterBox(smach.State):
+    maxdx = 0.05
+    maxdy = 0.05
+    width = LaneMarkerVision.screen['width']
+    height = LaneMarkerVision.screen['height']
+
+    xcoeff = 3.0
+    ycoeff = 2.5
+
+    numTrials = 1
+    trialsPassed = 0
+
+    timeout = 10
+
+    def __init__(self, comms):
+        smach.State.__init__(self, outcomes=['centered',
+                                             'centering',
+                                             'lost',
+                                             'aborted'])
+        self.comms = comms
+
+    def execute(self, userdata):
+        if self.comms.isKilled or self.comms.isAborted:
+            self.comms.abortMission()
+            return 'aborted'
+
+        start = time.time()
+        while not self.comms.retVal or \
+              self.comms.retVal.get('box', None) is None or \
+              len(self.comms.retVal['box']) == 0:
+            if self.comms.isKilled or self.comms.isAborted:
+                self.comms.abortMission()
+                return 'aborted'
+            if time.time() - start > self.timeout:
+                self.comms.abortMission()
+                return 'lost'
+            rospy.sleep(rospy.Duration(0.1))
+
+        centroid = self.comms.retVal['box']['centroid']
+        dX = (centroid[0] - self.width/2) / self.width
+        dY = (centroid[1] - self.height/2) / self.height
+        rospy.loginfo("x-off: %lf, y-off: %lf", dX, dY)
+
+        if abs(dX) < self.maxdx and abs(dY) < self.maxdy:
+            if self.trialsPassed == self.numTrials:
+                self.trialsPassed = 0
+                self.comms.notifyCentered()
+                self.comms.sendMovement(h=self.comms.inputHeading,
+                                        d=-0.5,
+                                        timeout=5,
+                                        blocking=False)
+                return 'centered'
+            else:
+                self.trialsPassed += 1
+                return 'centering'
+
+        f_setpoint = math.copysign(self.ycoeff * abs(dY), -dY)
+        sm_setpoint = math.copysign(self.xcoeff * abs(dX), dX)
+        self.comms.sendMovement(f=f_setpoint, sm=sm_setpoint,
+                                h=self.comms.inputHeading,
+                                timeout=0.6, blocking=False)
+        return 'centering'
+
 class CenterBox(smach.State):
     maxdx = 0.05
     maxdy = 0.05
@@ -202,8 +265,14 @@ def main():
     with sm:
         smach.StateMachine.add('DISENGAGE',
                                Disengage(myCom),
-                               transitions={'started':'CENTERBOX',
+                               transitions={'started':'MAINCENTERBOX',
                                             'killed':'killed'})
+        smach.StateMachine.add('MAINCENTERBOX',
+                               MainCenterBox(myCom),
+                               transitions={'centered':'CENTERBOX',
+                                            'centering':'MAINCENTERBOX',
+                                            'lost':'DISENGAGE',
+                                            'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTERBOX',
                                CenterBox(myCom),
                                transitions={'centered':'ALIGNBOXLANE',

@@ -27,14 +27,14 @@ class Disengage(smach.State):
         if self.comms.isAlone:
             rospy.sleep(rospy.Duration(1))
             self.comms.inputHeading = self.comms.curHeading
-        self.comms.sendMovement(h=self.comms.inputHeading,
-                                d=self.comms.defaultDepth,
-                                blocking=True)
+            self.comms.sendMovement(h=self.comms.inputHeading,
+                                    d=self.comms.defaultDepth,
+                                    blocking=True)
         self.comms.retVal = None
         return 'started'
 
 class SearchSite(smach.State):
-    timeout = 10
+    timeout = 200
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundSite'])
@@ -55,8 +55,8 @@ class SearchSite(smach.State):
                 return 'timeout'
             if self.comms.isAborted:
                 return 'aborted'
-            self.comms.sendMovement(f=1.0, d=self.comms.defaultDepth,
-                                    blocking=False)
+            #self.comms.sendMovement(f=1.0, d=self.comms.defaultDepth,
+            #                        blocking=False)
             rospy.sleep(rospy.Duration(0.1))
 
         return 'foundSite'
@@ -361,7 +361,7 @@ class Center3(smach.State):
     width = PickupVision.screen['width']
     height = PickupVision.screen['height']
     centerX = width / 2.0
-    centerY = height / 2.0
+    centerY = height / 2.0 + 60
 
     maxdx = 0.03
     maxdy = 0.03

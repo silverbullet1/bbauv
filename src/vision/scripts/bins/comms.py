@@ -40,6 +40,9 @@ class Comms(GenericComms):
             rospy.loginfo("Received Abort Request!!!")
             self.sendMovement(f=0.0, sm=0.0)
             self.isAborted = True
+            while not self.abortedDone:
+                rospy.sleep(rospy.Duration(0.3))
+            self.abortedDone = False
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=
