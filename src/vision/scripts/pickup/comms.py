@@ -18,7 +18,7 @@ class Comms(GenericComms):
         if taskMode == 'pickup':
             self.defaultDepth = 0.6
             self.sinkingDepth = 2.0
-            self.grabbingDepth = 2.9
+            self.grabbingDepth = 3.2
             self.lastDepth = 3.80
             self.grabbingArea = 20000
 
@@ -53,7 +53,7 @@ class Comms(GenericComms):
         if req.start_request:
             rospy.loginfo("Received Start Request")
             self.isAborted = False
-            #self.defaultDepth = req.start_ctrl.depth_setpoint
+            self.defaultDepth = req.start_ctrl.depth_setpoint
             self.inputHeading = req.start_ctrl.heading_setpoint
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
@@ -63,6 +63,9 @@ class Comms(GenericComms):
             rospy.loginfo("Received Abort Request")
             self.sendMovement(f=0.0, sm=0.0)
             self.isAborted = True
+            while not self.abortedDone:
+                rospy.sleep(rospy.Duration(0.3))
+            self.abortedDone = False
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=

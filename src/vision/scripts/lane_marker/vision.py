@@ -9,6 +9,8 @@ from bot_common.vision import Vision
 
 class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
+    width = screen['width']
+    height = screen['height']
     screenOffset = (200, 150)
     center = (screen['width']/2, screen['height']/2)
     corner1 = (center[0]-screenOffset[0], center[1]-screenOffset[1])
@@ -224,6 +226,7 @@ class LaneMarkerVision:
                 line1, line2 = line2, line1
             centroid = ((line1['pos'][0]+line2['pos'][0])/2,
                         (line1['pos'][1]+line2['pos'][1])/2)
+            retData['centroid'] = centroid
 
             if self.debugMode:
                 startPt = (int(line1['pos'][0])-70, int(line1['pos'][1]))
@@ -231,6 +234,7 @@ class LaneMarkerVision:
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
         elif len(foundLines) >= 1:
             centroid = foundLines[0]['pos']
+            retData['centroid'] = centroid
             # Otherwise adjust to the angle closest to input heading
             lineAngle = foundLines[0]['angle']
             adjustAngle = Utils.normAngle(self.comms.curHeading +

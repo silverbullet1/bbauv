@@ -24,8 +24,8 @@ class Comms(GenericComms):
 
         if self.isAcoustic:
             self.detectingBox = True
-            self.defaultDepth = 0.6
-            self.laneSearchDepth = 0.1
+            self.defaultDepth = 0.2
+            self.laneSearchDepth = 0.2
         else:
             self.detectingBox = False
             self.defaultDepth = 0.6
@@ -41,6 +41,7 @@ class Comms(GenericComms):
             rospy.loginfo("Received Start Request")
             self.isAborted = False
             self.defaultDepth = req.start_ctrl.depth_setpoint
+            self.laneSearchDepth = self.defaultDepth
             self.inputHeading = req.start_ctrl.heading_setpoint
             self.expectedLanes = req.numLanes
             self.chosenLane = self.LEFT if req.chosenLane == 0 else self.RIGHT
@@ -55,6 +56,9 @@ class Comms(GenericComms):
             rospy.loginfo("Received Abort Request")
             self.sendMovement(f=0.0, sm=0.0)
             self.isAborted = True
+            while not self.abortedDone:
+                rospy.sleep(rospy.Duration(0.3))
+            self.abortedDone = False
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=

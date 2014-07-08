@@ -9,7 +9,7 @@ from bot_common.vision import Vision
 from utils.utils import Utils
 
 class BinsVision:
-    screen = { 'width': 840, 'height': 680 }
+    screen = { 'width': 640, 'height': 480 }
     centerX = screen['width'] / 2
     centerY = screen['height'] / 2
 
@@ -18,14 +18,15 @@ class BinsVision:
     hsvHiThresh1 = (25, 255, 255)
     hsvLoThresh2 = (160, 0, 0)
     hsvHiThresh2 = (180, 255, 255)
-
     loBlueThresh = (100, 1, 0)
     hiBlueThresh = (120, 255, 255)
     minContourArea = 3000
 
     # Parameters for gray-scale thresholding
-    upperThresh = 70
     areaThresh = 4000
+    matchBound = 0.5
+    ratioBound = 2.1
+    blackThresh = 55
     adaptiveCoeff = 3.99
     adaptiveOffset = 0.0
 
@@ -37,10 +38,12 @@ class BinsVision:
         self.comms = comms
         self.debugMode = debugMode
 
+        resPath = os.path.dirname(__file__)
         for alien in self.aliens:
             self.aliens[alien] = np.load("{}/res/{}.npy".
-                                         format(os.path.dirname(__file__),
-                                                alien))
+                                         format(resPath, alien))
+        self.binContour = np.load("{}/res/{}.npy".
+                                     format(resPath, "binContour"))
 
     def updateParams(self):
         self.hsvLoThresh1 = self.comms.params['hsvLoThresh1']
@@ -51,6 +54,9 @@ class BinsVision:
         self.adaptiveCoeff = self.comms.params['adaptiveCoeff']
         self.adaptiveOffset = self.comms.params['adaptiveOffset']
         self.areaThresh = self.comms.params['areaThresh']
+        self.matchBound = self.comms.params['matchBound']
+        self.ratioBound = self.comms.params['ratioBound']
+        self.blackThresh = self.comms.params['blackThresh']
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops for aliens
@@ -118,7 +124,6 @@ class BinsVision:
 
         return rectAngle
 
-
     def classify(self, match):
         """ Classify a match -> {alienContour, centroid, contour}
             into an alien category """
@@ -133,6 +138,36 @@ class BinsVision:
 
         return rval
 
+    def findBins(self, grayImg):
+        """ Find and return contours of bins """
+        contours = self.findContourAndBound(grayImg.copy(),
+                                            minArea=self.areaThresh)
+        sorted(contours, key=cv2.contourArea, reverse=True)
+        #if len(contours) > 4: contours = contours[:4]
+
+        retVal = list()
+        for c in contours:
+            matchVal = cv2.matchShapes(self.binContour, c,
+                                       cv2.cv.CV_CONTOURS_MATCH_I1, 0)
+            if matchVal < self.matchBound:
+                rect = cv2.minAreaRect(c)
+                points = np.array(cv2.cv.BoxPoints(rect))
+                edge1 = points[1] - points[0]
+                edge2 = points[2] - points[1]
+                edge1L = cv2.norm(edge1)
+                edge2L = cv2.norm(edge2)
+                ratio = edge1L/edge2L if edge1L > edge2L else edge2L/edge1L
+                if ratio < self.ratioBound:
+                    #Choose the vertical edge
+                    if cv2.norm(edge1) > cv2.norm(edge2):
+                        angle = math.degrees(math.atan2(edge1[1], edge1[0]))
+                    else:
+                        angle = math.degrees(math.atan2(edge2[1], edge2[0]))
+                    retVal.append({'centroid': rect[0],
+                                   'angle': angle,
+                                   'contour': c})
+        return retVal
+
     def gotFrame(self, img):
         """ Main processing function, should return (retData, outputImg) """
         centroids = list()
@@ -142,8 +177,9 @@ class BinsVision:
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
-        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
+        ### Detecting Aliens ###
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
         binImg |= cv2.inRange(hsvImg, self.hsvLoThresh2, self.hsvHiThresh2)
 
@@ -178,65 +214,58 @@ class BinsVision:
                 cv2.circle(outImg1, (int(centroid[0]), int(centroid[1])), 5,
                            (0, 0, 255))
 
+        ### Detecting bins ###
         # Threshold and find contours that represent the black bins
         grayImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         grayImg = cv2.equalizeHist(grayImg)
         mean = cv2.mean(grayImg)[0]
         lowest = cv2.minMaxLoc(grayImg)[0]
         thVal = min((lowest + mean)/self.adaptiveCoeff + self.adaptiveOffset,
-                    self.upperThresh)
+                    self.blackThresh)
         grayImg = cv2.threshold(grayImg, thVal, 255, cv2.THRESH_BINARY_INV)[1]
         grayImg = self.morphology2(grayImg)
         if self.debugMode == True:
             outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
-
-        contours = self.findContourAndBound(grayImg, minArea=self.areaThresh)
-        sorted(contours, key=cv2.contourArea, reverse=True)
-
-        # Match each alien centroid to a bin
-        matches = self.match(alienContours, centroids, contours)
+        matches = self.findBins(grayImg)
         retData['matches'] = matches
 
         if self.debugMode:
             for match in matches:
                 center = match['centroid']
-                cv2.putText(outImg1,
-                            match['class'], (int(center[0]), int(center[1])),
-                            cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-
-                angle = match['angle'] 
+                angle = match['angle']
                 endPt = (int(center[0] + 100*math.cos(math.radians(angle))),
                          int(center[1] + 100*math.sin(math.radians(angle))))
                 center = (int(center[0]), int(center[1]))
 
                 #rospy.loginfo("Alien Area: {}".format(cv2.contourArea(match['alien'])))
-                Vision.drawRect(outImg1,
-                                cv2.cv.BoxPoints(cv2.minAreaRect(match['alien'])))
+                #Vision.drawRect(outImg1,
+                #                cv2.cv.BoxPoints(cv2.minAreaRect(match['alien'])))
                 Vision.drawRect(outImg2,
                                 cv2.cv.BoxPoints(cv2.minAreaRect(match['contour'])))
                 cv2.line(outImg2, center, endPt, (0, 255, 0), 2)
                 cv2.putText(outImg2,
-                            str(Utils.toHeadingSpace(angle)),
+                            "{0:.2f}".format(Utils.toHeadingSpace(angle)),
                             (int(center[0]), int(center[1])),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             if len(matches) > 0:
-                meanX = np.mean(map(lambda c: c[0], centroids))
-                meanY = np.mean(map(lambda c: c[1], centroids))
+                meanX = np.mean(map(lambda c: c['centroid'][0], matches))
+                meanY = np.mean(map(lambda c: c['centroid'][1], matches))
                 retData['meanX'] = meanX
-                closest = min(matches,
-                              key=lambda m:
-                              Utils.distBetweenPoints(m['centroid'],
-                                                      (self.centerX, self.centerY)))
-                Vision.drawRect(outImg1,
-                                cv2.cv.BoxPoints(cv2.minAreaRect(closest['alien'])),
-                                color=(0, 255, 255))
-                cv2.putText(outImg1,
+                #closest = min(matches,
+                #              key=lambda m:
+                #              Utils.distBetweenPoints(m['centroid'],
+                #                                      (self.centerX, self.centerY)))
+                #Vision.drawRect(outImg1,
+                #                cv2.cv.BoxPoints(cv2.minAreaRect(closest['alien'])),
+                #                color=(0, 255, 255))
+                cv2.putText(outImg2,
                             "X", (int(meanX), int(meanY)),
                             cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), 2)
             else:
                 retData['meanX'] = -1
 
-        outImg = np.hstack((outImg1, outImg2))
+        #outImg = np.hstack((outImg1, outImg2))
+        outImg = outImg2
         return retData, outImg
 
 def main():
