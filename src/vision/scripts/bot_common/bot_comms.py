@@ -82,6 +82,7 @@ class GenericComms:
                                            self.compassCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)
         self.canPublish = True
+        self.abortedDone = False
 
     def unregister(self):
         if self.camSub is not None:
@@ -90,6 +91,7 @@ class GenericComms:
             self.compassSub.unregister()
         self.canPublish = False
         self.retVal = None
+        self.abortedDone = True
 
     def camCallback(self, rosImg):
         if self.processingCount == self.processingRate:
@@ -113,14 +115,9 @@ class GenericComms:
 
     def abortMission(self):
         rospy.loginfo("Stopping task")
-        #if not self.isAlone:
-        #    self.toMission(fail_request=True, task_complete_request=False,
-        #                   task_complete_ctrl=controller(
-        #                       heading_setpoint=self.curHeading))
         self.canPublish = False
         self.isAborted = True
         self.motionClient.cancel_all_goals()
-        self.abortedDone = True
 
     def failTask(self):
         rospy.loginfo("Sending fail request to mission planner")

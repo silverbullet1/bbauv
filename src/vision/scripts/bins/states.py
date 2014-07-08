@@ -49,7 +49,6 @@ class Search(smach.State):
             if self.comms.isKilled or self.comms.isAborted:
                 self.comms.abortMission()
                 return 'aborted'
-
             if time.time() - start > self.waitingTimeout:
                 self.waitingTimeout = -1
                 break
@@ -66,7 +65,7 @@ class Search(smach.State):
                     self.comms.abortMission()
                     return 'aborted'
                 if (time.time() - start) > self.timeout:
-                    self.comms.abortMission()
+                    self.comms.failTask()
                     return 'aborted'
                 rospy.sleep(rospy.Duration(0.3))
 
@@ -377,6 +376,7 @@ class Center2(smach.State):
                 return 'aborted'
             if time.time() - self.start > self.timeout:
                 self.trialsPassed = 0
+                self.comms.taskComplete()
                 return 'lost'
             rospy.sleep(rospy.Duration(0.05))
 

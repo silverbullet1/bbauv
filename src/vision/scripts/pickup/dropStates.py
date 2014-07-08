@@ -52,7 +52,7 @@ class SearchBox(smach.State):
             if time.time() - start > self.timeout:
                 self.comms.failTask()
                 return 'timeout'
-            if self.comms.isAborted:
+            if self.comms.isAborted or self.comms.isKilled:
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.1))
 

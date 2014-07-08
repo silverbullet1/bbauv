@@ -54,11 +54,11 @@ class Comms(GenericComms):
                                                              self.curHeading))
         elif req.abort_request:
             rospy.loginfo("Received Abort Request")
-            self.sendMovement(f=0.0, sm=0.0)
+            self.motionClient.cancel_all_goals()
             self.isAborted = True
             while not self.abortedDone:
                 rospy.sleep(rospy.Duration(0.3))
-            self.abortedDone = False
+                self.motionClient.cancel_all_goals()
             return mission_to_visionResponse(start_response=False,
                                              abort_response=True,
                                              data=controller(heading_setpoint=

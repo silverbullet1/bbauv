@@ -101,7 +101,7 @@ class MainCenterBox(smach.State):
                 self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.timeout:
-                self.comms.abortMission()
+                self.comms.failTask()
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
 
@@ -164,7 +164,7 @@ class CenterBox(smach.State):
                 self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.timeout:
-                self.comms.abortMission()
+                self.comms.failTask()
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
 
@@ -223,6 +223,7 @@ class AlignBoxLane(smach.State):
                 return 'aborted'
             if time.time() - start > self.timeout:
                 if self.comms.visionFilter.curCorner == 4: 
+                    self.comms.failTask()
                     return 'lost'
                 else:
                     self.comms.visionFilter.curCorner += 1

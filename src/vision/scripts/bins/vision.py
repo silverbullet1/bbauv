@@ -29,6 +29,7 @@ class BinsVision:
     blackThresh = 55
     adaptiveCoeff = 3.99
     adaptiveOffset = 0.0
+    epsilon = 15
 
     # Contours of aliens for shape matching
     aliens = {'1a':None, '1b':None, '2a':None, '2b':None,
@@ -57,6 +58,7 @@ class BinsVision:
         self.matchBound = self.comms.params['matchBound']
         self.ratioBound = self.comms.params['ratioBound']
         self.blackThresh = self.comms.params['blackThresh']
+        self.epsilon = self.comms.params['epsilon']
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops for aliens
@@ -149,7 +151,8 @@ class BinsVision:
         for c in contours:
             matchVal = cv2.matchShapes(self.binContour, c,
                                        cv2.cv.CV_CONTOURS_MATCH_I1, 0)
-            if matchVal < self.matchBound:
+            if matchVal < self.matchBound and \
+               Vision.isRectangle(c, epsilon=self.epsilon):
                 rect = cv2.minAreaRect(c)
                 points = np.array(cv2.cv.BoxPoints(rect))
                 edge1 = points[1] - points[0]

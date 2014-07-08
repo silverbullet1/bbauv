@@ -12,7 +12,7 @@ class Vision():
     SHAPE_CONCAVE = 5
     SHAPE_CIR = 6
 
-    _cosBounds = {'rect': (-0.1, 0.3), 'penta': (-0.34, -0.27),
+    _angleBounds = {'rect': (88, 92), 'penta': (-0.34, -0.27),
                   'hexa': (-0.55, -0.45)}
 
     @staticmethod
@@ -53,59 +53,34 @@ class Vision():
         dy1 = pt1[1] - pt0[1]
         dx2 = pt2[0] - pt0[0]
         dy2 = pt2[1] - pt0[1]
-        return float(dx1*dx2 + dy1*dy2)/math.sqrt((dx1*dx1 + dy1*dy1) *
-                                                  (dx2*dx2 + dy2*dy2) + 1e-10)
+        cosine = float(dx1*dx2 + dy1*dy2)/(math.sqrt(dx1*dx1 + dy1*dy1) *
+                                           math.sqrt(dx2*dx2 + dy2*dy2) + 1e-4)
+        return math.degrees(math.acos(abs(cosine)))
 
     @staticmethod
-    def detectShape(contour, multiplier=0.02):
-        if not cv2.isContourConvex(contour):
-            return Vision.SHAPE_CONCAVE
+    def isRectangle(contour, epsilon=15):
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        if len(approx) != 4:
+            return False
 
-        approx = cv2.approxPolyDP(contour,
-                                  cv2.arcLength(contour, True)*multiplier,
-                                  True)
-        if len(approx) == 3:
-            return Vision.SHAPE_TRI
-        elif len(approx) >= 4 and len(approx) <= 6:
-            vtc = len(approx)
+        vtc = len(approx)
+        # Find the cosine for angles of the polygon
+        angles = list()
+        for i in range(2, vtc+1):
+            angles.append(Vision.angle(approx[i % vtc][0],
+                                       approx[i-2][0],
+                                       approx[i-1][0]))
+        # Sort the angles cosine from smallest to largest
+        sorted(angles)
 
-            # Find the cosine for angles of the polygon
-            cos = list()
-            for i in range(2, vtc+1):
-                cos.append(Vision.angle(approx[i % vtc][0],
-                                        approx[i-2][0],
-                                        approx[i-1][0]))
-            # Sort the angles cosine from smallest to largest
-            sorted(cos)
+        # Get the smallest and largest angle cosine
+        minAngle = angles[0]
+        maxAngle = angles[-1]
 
-            # Get the smallest and largest angle cosine
-            mincos = cos[0]
-            maxcos = cos[-1]
-
-            if vtc == 4 and \
-               mincos >= Vision._cosBounds['rect'][0] and \
-               maxcos <= Vision._cosBounds['rect'][1]:
-                r = cv2.boundingRect(contour)
-                ratio = abs(1 - float(r[2])/r[3])
-                return Vision.SHAPE_SQU if ratio <= 0.02 else Vision.SHAPE_RECT
-            elif vtc == 5 and \
-                    mincos >= Vision._cosBounds['penta'][0] and \
-                    maxcos <= Vision._cosBounds['penta'][1]:
-                return Vision.SHAPE_PENTA
-            elif vtc == 6 and \
-                    mincos >= Vision._cosBounds['hexa'][0] and \
-                    maxcos <= Vision._cosBounds['hexa'][1]:
-                return Vision.SHAPE_HEXA
-        else:
-            area = cv2.contourArea(contour)
-            r = cv2.boundingRect(contour)
-            radius = r[2]/2.0
-
-            if abs(1 - float(r[2]) / r[3]) <= 0.2 and \
-               abs(1 - (area / (math.pi * radius**2))) <= 0.2:
-                return Vision.SHAPE_CIR
-
-        return None
+        if minAngle >= Vision._angleBounds['rect'][0] and \
+           maxAngle <= Vision._angleBounds['rect'][1]:
+            return True
+        return False
 
     @staticmethod
     def shadesOfGray(img):
