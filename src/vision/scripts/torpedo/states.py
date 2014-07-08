@@ -47,12 +47,13 @@ class Disengage(smach.State):
             self.comms.inputHeading = self.comms.curHeading
             rospy.loginfo("Starting Torpedo")
 
+            self.comms.sendMovement(depth=self.comms.defaultDepth,
+                        heading=self.comms.curHeading,
+                        blocking=True)
+
 
         self.comms.missionStart = time.time()
         self.comms.curTime = time.time()
-        self.comms.sendMovement(depth=self.comms.defaultDepth,
-                                heading=self.comms.curHeading+5,
-                                blocking=True)
         
         return 'start_complete'
 
@@ -113,7 +114,8 @@ class SearchCircles(smach.State):
 
             if not self.comms.foundCircles and not self.comms.foundSomething:
                 self.lostCount += 1
-            if self.lostCount > 100:
+            if self.lostCount > 90:
+                self.comms.abortMission()
                 return 'lost'
 
             self.comms.sendMovement(forward=0.3, timeout=0.6, blocking=False)
@@ -160,7 +162,8 @@ class AlignBoard(smach.State):
 
         if not self.comms.foundCircles or not self.comms.foundSomething:
             self.lostCount += 1
-        if self.lostCount > 100:
+        if self.lostCount > 90:
+            self.comms.abortMission()
             return 'aborted'
 
         if self.comms.boardArea > self.completeArea and self.comms.skew < 0.35:
@@ -203,7 +206,7 @@ class MoveForward(smach.State):
 
     # forward_setpoint = 0.43
     forward_setpoint = 0.30
-    completeRadius = 59
+    completeRadius = 62
     lostCount = 0
 
     deltaXMult = 4.5
@@ -229,7 +232,8 @@ class MoveForward(smach.State):
         
         if not self.comms.foundCircles or not self.comms.foundSomething:
             self.lostCount += 1
-        if self.lostCount > 100:
+        if self.lostCount > 90:
+            self.comms.abortMission()
             return 'lost'
         
         if not self.comms.foundCircles:
@@ -237,7 +241,7 @@ class MoveForward(smach.State):
                     
         if self.comms.numShoot == 1:
             # self.completeRadius = 43
-            self.completeRadius = 43
+            self.completeRadius = 45
             self.forward_setpoint = 0.24
             # self.deltaXMult = 0.8
 
@@ -247,6 +251,7 @@ class MoveForward(smach.State):
 
             if not self.comms.isAlone:
                 self.comms.searchComplete()
+                rospy.loginfo("Sent to mission")
             return 'forward_complete'
         
         if abs(self.comms.deltaY) > 0.040:
@@ -271,12 +276,12 @@ class Centering (smach.State):
 
     centeringCount = 0
     halfCompleteRadius = 65
-    # completeRadius = 91
-    completeRadius = 78
+    completeRadius = 91
+    # completeRadius = 78
     forward_half = 0.23
     forward_setpoint = 0.22
 
-    centering = 3
+    centering = 5
 
     # deltaXMult = self.comms.movementParams['centerDeltaX']
     # deltaYMult = self.comms.movementParams['centerDeltaY']
@@ -298,13 +303,18 @@ class Centering (smach.State):
 
         if self.comms.numShoot == 1:
             # self.completeRadius = 86
-            self.completeRadius = 65
+            # self.completeRadius = 65
+            self.completeRadius = 78
             self.forward_setpoint = 0.13
             self.deltaYMult = 1.7
+            self.centering = 7
 
         if self.comms.radius > self.completeRadius:
-            sidemove_setpoint = self.comms.deltaX * 2.0
-            self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.3
+            sidemove_setpoint = self.comms.deltaX * 1.7
+            if self.comms.numShoot == 1:
+                self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.3
+            elif self.comms.numShoot == 0:
+                self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.0
 
             self.comms.sendMovement(forward = 0.0, 
                             sidemove = sidemove_setpoint,
@@ -365,8 +375,8 @@ class ShootTorpedo(smach.State):
             self.comms.shootTopTorpedo()
             rospy.loginfo("Big circle {}".format(time.time()-self.comms.missionStart))
 
-            if not self.comms.isAlone:
-                self.comms.searchComplete()
+            # if not self.comms.isAlone:
+            #     self.comms.searchComplete()
 
             # self.comms.shootBotTorpedo()
             # self.comms.taskComplete()
