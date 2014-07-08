@@ -81,10 +81,10 @@ class FrontComms:
         
 
     def searchComplete(self):
-        rospy.loginfo("Sending search complete request to mission planner")
+        rospy.loginfo("Sending centered request to mission planner")
         if not self.isAlone:
             self.toMission(fail_request=False, task_complete_request=False,
-                            search_request=True,
+                            centered=True,
                             task_complete_ctrl=controller(heading_setpoint=
                                                 self.curHeading))
 
@@ -130,9 +130,9 @@ class FrontComms:
     def abortMission(self):
         rospy.loginfo("Aborted :( Sorry Mission Planner...")
         if not self.isAlone:
-            # self.toMission(fail_request=True, task_complete_request=False,
-            #                task_complete_ctrl=controller(
-            #                 heading_setpoint=self.curHeading))
+            self.toMission(fail_request=True, task_complete_request=False,
+                           task_complete_ctrl=controller(
+                            heading_setpoint=self.curHeading))
             self.unregisterMission()
         else:
             self.unregister()
@@ -140,7 +140,6 @@ class FrontComms:
         self.isAborted = True
         self.isKilled = True
         
-        self.sendMovement(forward=0.0, sidemove=0.0)
         rospy.loginfo("Aborted myself")
         rospy.signal_shutdown("Bye")
         

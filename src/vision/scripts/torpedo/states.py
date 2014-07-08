@@ -114,7 +114,8 @@ class SearchCircles(smach.State):
 
             if not self.comms.foundCircles and not self.comms.foundSomething:
                 self.lostCount += 1
-            if self.lostCount > 100:
+            if self.lostCount > 90:
+                self.comms.abortMission()
                 return 'lost'
 
             self.comms.sendMovement(forward=0.3, timeout=0.6, blocking=False)
@@ -161,7 +162,8 @@ class AlignBoard(smach.State):
 
         if not self.comms.foundCircles or not self.comms.foundSomething:
             self.lostCount += 1
-        if self.lostCount > 100:
+        if self.lostCount > 90:
+            self.comms.abortMission()
             return 'aborted'
 
         if self.comms.boardArea > self.completeArea and self.comms.skew < 0.35:
@@ -230,7 +232,8 @@ class MoveForward(smach.State):
         
         if not self.comms.foundCircles or not self.comms.foundSomething:
             self.lostCount += 1
-        if self.lostCount > 100:
+        if self.lostCount > 90:
+            self.comms.abortMission()
             return 'lost'
         
         if not self.comms.foundCircles:
@@ -248,6 +251,7 @@ class MoveForward(smach.State):
 
             if not self.comms.isAlone:
                 self.comms.searchComplete()
+                rospy.loginfo("Sent to mission")
             return 'forward_complete'
         
         if abs(self.comms.deltaY) > 0.040:
@@ -307,7 +311,10 @@ class Centering (smach.State):
 
         if self.comms.radius > self.completeRadius:
             sidemove_setpoint = self.comms.deltaX * 1.7
-            self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.3
+            if self.comms.numShoot == 1:
+                self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.3
+            elif self.comms.numShoot == 0:
+                self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.0
 
             self.comms.sendMovement(forward = 0.0, 
                             sidemove = sidemove_setpoint,
