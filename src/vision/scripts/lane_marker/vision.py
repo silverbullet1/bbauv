@@ -160,7 +160,7 @@ class LaneMarkerVision:
                                             bound=self.minContourArea)
         if len(contours) < 1: return retData, outImg
         # Sort the thresholded areas from largest to smallest
-        sorted(contours, key=cv2.contourArea, reverse=True)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
         # Find lines in each bounded rectangle region and find angle
         for contour in contours:

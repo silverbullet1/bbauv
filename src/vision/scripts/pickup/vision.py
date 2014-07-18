@@ -101,7 +101,7 @@ class PickupVision:
                                             upperbounded=True,
                                             bound=self.minContourArea,
                                             upperbound=self.maxContourArea)
-        sorted(contours, key=cv2.contourArea, reverse=True)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         for contour in contours:
             # Find the center of each contour
             rect = cv2.minAreaRect(contour)
