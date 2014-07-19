@@ -32,8 +32,8 @@ class Sonar():
         self.sonarBearing = 0.0
         self.registerSonar()
 
-        if self.comms is None:
-            self.dynServer = DynServer(Config, self.dynReconfigure)
+        # if self.comms is None:
+        #     self.dynServer = DynServer(Config, self.dynReconfigure)
 
         # self.sonarSrv = rospy.ServiceProxy('/sonar_pixel', sonar_pixel, persistent=True)
 

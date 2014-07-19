@@ -127,7 +127,7 @@ class bangBuoy(smach.State):
 # Precise movements when near buoy 
 class Centering (smach.State):
     deltaXMult = 2.3
-    deltaYMult = 1.0
+    deltaYMult = 0.8
     depthCount = 0
     count = 0
     depthCorrected = False 
@@ -156,7 +156,9 @@ class Centering (smach.State):
                 self.count += 1
 
             if self.count > 3:
-                self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+                # self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+                self.comms.sendMovement(forward=0.5, timeout=4, blocking=False)   # Shoot forward for US house pool
+                
                 rospy.loginfo("forward done")
                 
                 # self.comms.sendMovement(forward=-0.5, depth=self.comms.defaultDepth-0.5,

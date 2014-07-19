@@ -19,7 +19,8 @@ class RgbBuoyVision:
     redParams = {
                 'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
-                'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Jin's values 
+                 'lo3': (0,34,0), 'hi3':(22,255,255),
+                # 'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Jin's values 
                  'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
 # 
@@ -37,7 +38,7 @@ class RgbBuoyVision:
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 600
+    minContourArea = 1000
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -55,17 +56,19 @@ class RgbBuoyVision:
         img = cv2.resize(img, (640, 480))
         
         # White balance
-        img = self.whiteBal(img)
+        # img = self.whiteBal(img)
+        img = self.enhance(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = np.array(hsvImg, dtype=np.uint8)
 
         # Blur image
-        gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
-        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
-        enhancedImg = cv2.medianBlur(sum, 3)
+        # gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
+        # sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
+        # enhancedImg = cv2.medianBlur(sum, 3)
                 
         # Find red image 
-        redImg = self.threshold(enhancedImg, "RED")
+        # redImg = self.threshold(enhancedImg, "RED")
+        redImg = self.threshold(hsvImg, "RED")
         outImg = redImg
 
         return outImg
@@ -78,13 +81,15 @@ class RgbBuoyVision:
         #params = self.getParams(color)
         
         # Perform thresholding
+        mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
+
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kern)
         kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         threshImg = cv2.dilate(mask, kern2, iterations=2)
         
-#         return cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+        # return cv2.cvtColor(threshImg, cv2.COLOR_GRAY2BGR)
         
         binImg = threshImg
         # Find contours
@@ -177,6 +182,11 @@ class RgbBuoyVision:
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
 
         return scratchImgCol
+
+    def enhance(self, img):
+        blurImg = cv2.GaussianBlur(img, ksize=(0,0), sigmaX=10)
+        enhancedImg = cv2.addWeighted(img, 1.5, blurImg, -0.6, 0)
+        return enhancedImg
 
     def getGradient(self):
         angle = self.radToDeg(math.atan2(self.comms.centroidToBump[1]-vision.screen['height'],

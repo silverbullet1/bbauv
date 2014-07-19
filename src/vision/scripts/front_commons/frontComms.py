@@ -107,7 +107,7 @@ class FrontComms:
                 self.outPub.publish(Utils.cv2rosimg(outImg))
             except Exception, e:
                 pass
-        rospy.sleep(rospy.Duration(0.05))
+        rospy.sleep(rospy.Duration(0.02))
 
     def depthCallback(self, data):
         self.depth = data.depth

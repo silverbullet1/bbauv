@@ -136,7 +136,7 @@ class AlignBoard(smach.State):
 
     deltaXMult = 4.9
     deltaYMult = 1.6
-    headingMult = 1.5
+    headingMult = 2.0
 
     skew = 1.00
 
@@ -397,7 +397,7 @@ class ShootTorpedo(smach.State):
             return 'shoot_complete'
 
         self.comms.state = "MOVING UP"
-        self.comms.defaultDepth = 1.30
+        self.comms.defaultDepth = self.comms.defaultDepth-0.70
         self.comms.sendMovement(forward=-1.0, sidemove=0.0,
                                 depth=self.comms.defaultDepth,
                                 blocking=True)

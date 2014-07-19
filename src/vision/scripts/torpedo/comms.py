@@ -7,7 +7,7 @@ Communication b/w ROS class and submodules
 import roslib; roslib.load_manifest('vision')
 import rospy
 from front_commons.frontComms import FrontComms
-from vision import TorpedoVision
+from vision import TorpedoVision 
 from sonarTest import Sonar
 
 from bbauv_msgs.msg import controller, manipulator, compass_data, depth
@@ -46,6 +46,7 @@ class Comms(FrontComms):
 
     lockedCentroid = (-1, -1)
     isMovingState = False
+    # isMovingState = True
     
     # Movement parameters
     radius = 0
@@ -66,12 +67,12 @@ class Comms(FrontComms):
 
     def __init__(self):
         FrontComms.__init__(self, TorpedoVision(comms=self))
-        self.defaultDepth = 2.00
+        self.defaultDepth = 0.50
         self.depthFromMission = self.defaultDepth
 
         self.sonarFilter = Sonar(comms=self) 
 
-        self.dynServer = DynServer(Config, self.reconfigure)
+        # self.dynServer = DynServer(Config, self.reconfigure)
         self.depthSub = rospy.Subscriber('/depth', depth, self.depthCallback)
 
         # Initialise mission planner 
@@ -177,8 +178,22 @@ class Comms(FrontComms):
     
     def reconfigure(self, config, level):
         rospy.loginfo("Received dynamic reconfigure request")
-        self.params = {'loThreshold': (config.loH, config.loS, config.loV),
-                       'hiThreshold': (config.hiH, config.hiS, config.hiV),
+        self.params = {'loV': config.loV,
+                       'hiV': config.hiV,
+                       'loS': config.loS,
+                       'hiS': config.hiS,
+                       'loH': config.loH,
+                       'hiH': config.hiH,
+
+                       'loV_b': config.loV_b,                       
+                       'hiV_b': config.hiV_b,
+                       'loS_b': config.loS_b,
+                       'hiS_b': config.hiS_b,
+                       'loH_b': config.loH_b,
+                       'hiH_b': config.hiH_b,
+                       # 'hiThreshold': (config.hiH, config.hiS, config.hiV),
+                       # 'blackLoThreshold': [config.loH_b, config.loS_b, config.loV_b],
+                       # 'blackHiThreshold': [config.hiH_b, config.hiS_b, config.hiV_b],
                        # 'sonarOffset': config.sonarOffset,
                        'torpedoOffset': config.torpedoOffset, 
                        'minContourArea': config.minContourArea,

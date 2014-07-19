@@ -17,18 +17,21 @@ class TorpedoVision:
     # Vision parameters
     
     thresParams = {
-                    # 'lo': (0, 200, 0), 'hi': (8, 255, 0), # Jin's parameters
-                    'lo': (21, 0, 0), 'hi': (140, 255, 255), 
+                    # 'lo': (21, 0, 0), 'hi': (140, 255, 255), # Lab Params Queenstown
+                    # 'lo': (0, 110, 0), 'hi': (180, 255, 255),    # HSV US Params
+                    'lo': (0,64,206), 'hi':(180,255,255),   #Maybe dont detect black circles US
+                    # 'lo': (21, 0, 0), 'hi': (169, 100, 255), # Lab Params US House
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)}
 
     greenParams = {
                     # 'lo': (100, 0, 125), 'hi': (230, 85, 255), # Lab params
-                    'lo': (100, 0, 125), 'hi': (230, 103, 255), # Lab params to try
+                    # 'lo': (100, 0, 125), 'hi': (230, 103, 255), # Lab params for Queenstown
+                    'lo': (34, 0, 210), 'hi': (115, 137, 255), # HSV params for US house
                     # 'lo': (75,0,0), 'hi': (85,255,255),    # Enhanced params
                    'dilate': (5,5), 'erode': (3,3), 'open': (3,3)
                   }
         
-    minContourArea = 200
+    minContourArea = 300
     
     # For circles 
     previousCentroid = (-1, -1)
@@ -46,22 +49,33 @@ class TorpedoVision:
     def __init__(self, comms = None):
         self.comms = comms
 
-    def gotFrame (self, img):        
+    def gotFrame (self, img):       
         allCentroidList = []
         
         img = cv2.resize(img, (640, 480))
-        
+        img = self.enhance(img)
+
+        hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsvImg = np.array(hsvImg, dtype=np.uint8)
+        # hsvImg = self.gammaCorrection(hsvImg)
+        # return cv2.cvtColor(hsvImg, cv2.COLOR_HSV2BGR)
+
         labImg = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
         # channels = cv2.split(labImg)
         # return cv2.cvtColor(channels[2], cv2.COLOR_GRAY2BGR)
 
-        binImg = self.morphology(cv2.inRange(labImg, 
-            self.greenParams['lo'], self.greenParams['hi']))
-        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, kern)
+        # binImg = self.morphology(cv2.inRange(hsvImg, 
+        #     self.greenParams['lo'], self.greenParams['hi']))
+        binImg = cv2.inRange(hsvImg, np.array(self.greenParams['lo'],np.uint8), 
+            np.array(self.greenParams['hi'],np.uint8))
+        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+        # kern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        # binImg = cv2.morphologyEx(binImg, cv2.MORPH_OPEN, kern)
 
-        dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
-        binImg = cv2.dilate(binImg, dilateKern, iterations=3)
+        # dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        # binImg = cv2.dilate(binImg, dilateKern, iterations=2)
+
+        # labImg = hsvImg # Just a quick hack
 
         # Find contours and fill them
         for i in range(4):
@@ -145,15 +159,57 @@ class TorpedoVision:
                                         vision.screen['height'])
 
         '''
+        Find circle in the board
+        '''
+        mask = np.zeros_like(binImg, dtype=np.uint8)
+        cv2.fillPoly(mask, [np.int32(largestContour)], 255)
+        binImg2 = binImg.copy()
+        binImg2 = cv2.bitwise_not(binImg2, mask=mask)
+
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        binImg2 = cv2.erode(binImg2, erodeEl, iterations=2)
+
+        # return cv2.cvtColor(binImg2, cv2.COLOR_GRAY2BGR)
+
+        circleCont, circleHie = cv2.findContours(binImg2.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        circleCont = filter(lambda c: cv2.contourArea(c) > 1000, circleCont)
+        sorted(circleCont, key=cv2.contourArea, reverse=True)
+
+        circleBinImg = cv2.cvtColor(binImg2, cv2.COLOR_GRAY2BGR)
+
+        cv2.circle(circleBinImg, (int(boxpoints[1][0]), int(boxpoints[1][1])), 5, (255,0,255), 5)
+        cv2.circle(circleBinImg, (int(boxpoints[3][0]), int(boxpoints[3][1])), 5, (255,0,255), 5)
+
+        if len(circleCont) > 0:
+            for cont in circleCont:
+                if cv2.contourArea(cont) > 600:
+                    (cx, cy), radius = cv2.minEnclosingCircle(cont)
+
+                    # circle radius inside board
+                    if  boxpoints[1][0]< cx < boxpoints[3][0] and boxpoints[1][1] < cy < boxpoints[3][1]:
+                        cv2.circle(circleBinImg, (int(cx), int(cy)), int(radius), (255,255,0), 2)
+                        cv2.circle(circleBinImg, (int(cx), int(cy)), 1, (255,0,255), 2)
+
+                        # Dist to the center
+                        dist = Utils.distBetweenPoints((cx,cy), self.aimingCentroid)
+
+                        allCentroidList.append((cx,cy,radius,dist))
+        # return circleBinImg
+
+        '''
         Detect black circles
         '''
 
-        circleBinImg = self.morphology(cv2.inRange(labImg,
+        '''
+        # circleBinImg = self.morphology(cv2.inRange(labImg,
+        #     self.thresParams['lo'], self.thresParams['hi']))
+        circleBinImg = self.morphology(cv2.inRange(hsvImg,
             self.thresParams['lo'], self.thresParams['hi']))
         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         circleBinImg = cv2.morphologyEx(circleBinImg, cv2.MORPH_OPEN, kern)
         dilateKern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
         circleBinImg = cv2.dilate(circleBinImg, kern)
+        # return cv2.cvtColor(circleBinImg, cv2.COLOR_GRAY2BGR)
 
         circleCont, circleHie = cv2.findContours(circleBinImg.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         circleCont = filter(lambda c: cv2.contourArea(c) > 1000, circleCont)
@@ -182,13 +238,17 @@ class TorpedoVision:
                                     cv2.circle(circleBinImg, (int(circx), int(circy)), 1, (255, 0, 255), 2)
                                     allCentroidList.append((cx, cy, radius))
 
+        '''
+
         if self.comms.isMovingState:
             scratchImgCol = circleBinImg
 
         if len(allCentroidList) > 0:
             self.comms.foundCircles = True 
 
-        sorted(allCentroidList, key=lambda centroid:centroid[2], reverse=True)
+        sorted(allCentroidList, key=lambda centroid:centroid[2], reverse=True)    # For biggest
+        # sorted(allCentroidList, key=lambda centroid:centroid[3], reverse=True)    # For closest
+
         if len(allCentroidList) > 0:
             self.comms.centroidToShoot = (int(allCentroidList[0][0]), int(allCentroidList[0][1]))
             self.comms.radius = allCentroidList[0][2]
@@ -253,80 +313,18 @@ class TorpedoVision:
         # return np.hstack((scratchImgCol, circleBinImg))
         return scratchImgCol
 
-    def gotSonarFrame(self, img):
-        img = cv2.resize(img, (vision.screen['width'], vision.screen['height']))
+    def gammaCorrection(self, img):
+        hsvArray = cv2.split(img)
+        val = hsvArray[2]
+        correction = 0.2
+        inverse_gamma = 1.0/correction
+        val = val/255.0
+        val = cv2.pow(val, inverse_gamma)
+        val = np.uint8(val*255.0)
+        hsvArray[2] = val
 
-        binImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        mask = cv2.threshold(binImg, self.sonarThres, 255, cv2.THRESH_BINARY)[1]
-
-        scratchImgCol = img
-        cv2.putText(scratchImgCol, "SONAR PROCESSED", (20,460),  cv2.FONT_HERSHEY_DUPLEX, 1, (211,0,148))
-
-        zerosmask = np.zeros((480,640,3), dtype=np.uint8)
-        sobel = cv2.Sobel(mask, cv2.CV_8U, 0, 1, (3, 11))
-        # return cv2.cvtColor(sobel, cv2.COLOR_GRAY2BGR)
-
-        contours, hierarchy = cv2.findContours(sobel, cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE)
-
-        allLinesList = []
-        allBearingList = []
-
-        for i in contours:
-            mask = np.zeros((vision.screen['width'], vision.screen['height']), 
-                dtype=np.uint8)
-            cv2.drawContours(mask, [i], 0, 255, -1)
-            lines = cv2.HoughLinesP(mask, 1, math.pi/2, 1, None, 1, 0)
-
-            if lines is not None:
-                line = lines[0]
-                x1 = [i[0] for i in line]
-                y1 = [i[1] for i in line]
-                x2 = [i[2] for i in line]
-                y2 = [i[3] for i in line]
-
-                pt1List = [(i[0], i[1]) for i in line]
-                pt2List = [(i[2],i[3]) for i in line]
-                sorted(pt1List, key=lambda x:x[0])
-                sorted(pt2List, key=lambda x:x[0])
-                pt1 = pt1List[0] if pt1List[0] < pt2List[0] else pt2List[0]
-                pt2 = pt1List[-1] if pt1List[-1] > pt2List[-1] else pt2List[-1]
-
-                length = Utils.distBetweenPoints(pt1, pt2)
-
-                # if 45 < length < 100:
-                if 25 < length < 80:
-                    angle = math.atan2((pt2[1]-pt1[1]), (pt2[0]-pt1[0]))
-                    if -30 < angle < 30:
-
-                        allLinesList.append((pt1, pt2))
-
-                        cv2.line(scratchImgCol, pt1, pt2, (0,0,255), 3)
-                        angleStr = "{0:.2f}".format(angle)
-                        cv2.putText(scratchImgCol, "Ang " + str(angleStr),
-                            (int(pt1[0]), int(pt1[1]-5)), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1)
-
-                        offset = 60
-                        point = (vision.screen['height']-offset)
-                        dist = ((point-pt1[1])*1.0/point) * 10.0  # 10m the FOV of sonar
-                        distStr = "{0:.2f}".format(dist)
-                        cv2.putText(scratchImgCol, "Dist " + str(distStr),
-                            (int(pt1[0]), int(pt1[1]-20)), cv2.FONT_HERSHEY_PLAIN, 1, (255,255,0), 1)
-
-                        allBearingList.append((angle, dist))
-
-        if len(allBearingList) > 0:
-            sorted(allBearingList, key=lambda p:p[1])
-            self.sonarDist = allBearingList[0][1]
-            self.sonarBearing = allBearingList[0][0]
-
-        cv2.putText(scratchImgCol, "Sonar Dist " + str(self.sonarDist),
-            (30, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
-
-        cv2.putText(scratchImgCol, "Sonar Bearing " + str(self.sonarBearing), (30, 60),
-                cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
-
-        return scratchImgCol
+        img = cv2.merge((hsvArray))
+        return img
     
     def whiteBal(self, img):
         channels = cv2.split(img)
@@ -340,8 +338,20 @@ class TorpedoVision:
         return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern, iterations=1)
     
     def updateParams(self):
-        self.greenParams['lo'] = self.comms.params['loThreshold']
-        self.greenParams['hi'] = self.comms.params['hiThreshold']
+        self.greenParams['lo'] = (self.comms.params['loH'],
+                                    self.comms.params['loS'],
+                                    self.comms.params['loV'])
+        self.greenParams['hi'] = (self.comms.params['hiH'],
+                                    self.comms.params['hiS'],
+                                    self.comms.params['hiV'])
+
+        self.thresParams['lo'] = (self.comms.params['loH_b'],
+                                    self.comms.params['loS_b'],
+                                    self.comms.params['loV_b'])
+        self.thresParams['hi'] = (self.comms.params['hiH_b'],
+                                    self.comms.params['hiS_b'],
+                                    self.comms.params['hiV_b'])
+
         self.minContourArea = self.comms.params['minContourArea'] 
         self.skewLimit = self.comms.params['skewLimit']
         self.sonarThres = self.comms.params['sonarThres']
@@ -369,7 +379,8 @@ class TorpedoVision:
             return False 
 
     def morphology(self, img):
-        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        # kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
         return cv2.morphologyEx(img, cv2.MORPH_CLOSE, kern)
 
     def illuminanceRemoval(self, img):
@@ -393,9 +404,9 @@ class TorpedoVision:
 
     def enhance(self, hsvImg):
         gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
-        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
-        enhancedImg = cv2.medianBlur(sum, 3)    
-        enhancedImg = cv2.GaussianBlur(enhancedImg, ksize=(5,5), sigmaX=2)
+        enhancedImg = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
+        # enhancedImg = cv2.medianBlur(enhancedImg, 3)    
+        # enhancedImg = cv2.GaussianBlur(enhancedImg, ksize=(5,5), sigmaX=2)
         return enhancedImg
 
     def camCallback(self, rosImg):
