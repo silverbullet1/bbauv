@@ -31,6 +31,10 @@ class BinsVision:
     adaptiveOffset = 0.0
     epsilon = 15
 
+    BINSMODE = 0
+    ALIENSMODE = 1
+    visionMode = BINSMODE
+
     # Contours of aliens for shape matching
     aliens = {'1a':None, '1b':None, '2a':None, '2b':None,
               '3a':None, '3b':None, '4' :None}
@@ -62,19 +66,19 @@ class BinsVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops for aliens
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
         img = cv2.dilate(img, dilateEl)
-        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=2)
 
         return img
 
     def morphology2(self, img):
         # Closing up gaps and remove noise with morphological ops for bins
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
@@ -144,7 +148,7 @@ class BinsVision:
         """ Find and return contours of bins """
         contours = self.findContourAndBound(grayImg.copy(),
                                             minArea=self.areaThresh)
-        sorted(contours, key=cv2.contourArea, reverse=True)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         #if len(contours) > 4: contours = contours[:4]
 
         retVal = list()
@@ -180,6 +184,7 @@ class BinsVision:
 
         img = cv2.resize(img, (self.screen['width'], self.screen['height']))
         img = Vision.enhance(img)
+        img = cv2.GaussianBlur(img, (5, 5), 0)
 
         ### Detecting Aliens ###
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -205,7 +210,7 @@ class BinsVision:
                                                  bounded=True,
                                                  minArea=self.minContourArea)
         #if not contours or len(contours) < 1: return retData, outImg
-        sorted(alienContours, key=cv2.contourArea, reverse=True)
+        alienContours = sorted(alienContours, key=cv2.contourArea, reverse=True)
 
         for contour in alienContours:
             moment = cv2.moments(contour, False)
@@ -229,7 +234,13 @@ class BinsVision:
         grayImg = self.morphology2(grayImg)
         if self.debugMode == True:
             outImg2 = cv2.cvtColor(grayImg.copy(), cv2.COLOR_GRAY2BGR)
-        matches = self.findBins(grayImg)
+
+        if self.visionMode == self.BINSMODE:
+            matches = self.findBins(grayImg)
+        elif self.visionMode == self.ALIENSMODE:
+            matches = self.match(alienContours, centroids,
+                                 self.findContourAndBound(grayImg.copy(),
+                                                          minArea=self.areaThresh))
         retData['matches'] = matches
 
         if self.debugMode:
@@ -240,9 +251,10 @@ class BinsVision:
                          int(center[1] + 100*math.sin(math.radians(angle))))
                 center = (int(center[0]), int(center[1]))
 
-                #rospy.loginfo("Alien Area: {}".format(cv2.contourArea(match['alien'])))
-                #Vision.drawRect(outImg1,
-                #                cv2.cv.BoxPoints(cv2.minAreaRect(match['alien'])))
+                if self.visionMode == self.ALIENSMODE:
+                    #rospy.loginfo("Alien Area: {}".format(cv2.contourArea(match['alien'])))
+                    Vision.drawRect(outImg1,
+                                    cv2.cv.BoxPoints(cv2.minAreaRect(match['alien'])))
                 Vision.drawRect(outImg2,
                                 cv2.cv.BoxPoints(cv2.minAreaRect(match['contour'])))
                 cv2.line(outImg2, center, endPt, (0, 255, 0), 2)
@@ -254,21 +266,23 @@ class BinsVision:
                 meanX = np.mean(map(lambda c: c['centroid'][0], matches))
                 meanY = np.mean(map(lambda c: c['centroid'][1], matches))
                 retData['meanX'] = meanX
-                #closest = min(matches,
-                #              key=lambda m:
-                #              Utils.distBetweenPoints(m['centroid'],
-                #                                      (self.centerX, self.centerY)))
-                #Vision.drawRect(outImg1,
-                #                cv2.cv.BoxPoints(cv2.minAreaRect(closest['alien'])),
-                #                color=(0, 255, 255))
+                if self.visionMode == self.ALIENSMODE:
+                    closest = min(matches,
+                                  key=lambda m:
+                                  Utils.distBetweenPoints(m['centroid'],
+                                                          (self.centerX, self.centerY)))
+                    Vision.drawRect(outImg1,
+                                    cv2.cv.BoxPoints(cv2.minAreaRect(closest['alien'])),
+                                    color=(0, 255, 255))
                 cv2.putText(outImg2,
                             "X", (int(meanX), int(meanY)),
                             cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), 2)
             else:
                 retData['meanX'] = -1
 
-        #outImg = np.hstack((outImg1, outImg2))
-        outImg = outImg2
+        if self.visionMode == self.ALIENSMODE:
+            outImg = np.hstack((outImg1, outImg2))
+        else: outImg = outImg2
         return retData, outImg
 
 def main():

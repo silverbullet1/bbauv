@@ -28,7 +28,7 @@ class Comms(GenericComms):
             self.laneSearchDepth = 0.2
         else:
             self.detectingBox = False
-            self.defaultDepth = 0.6
+            self.defaultDepth = 0.0 # 0.6
 
         if not self.isAlone:
             if self.isAcoustic:

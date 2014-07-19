@@ -6,8 +6,40 @@ from comms import Comms
 from vision import BinsVision
 
 import time
+from collections import deque
+import numpy as np
 
 """ The entry script and smach StateMachine for the task"""
+class MedianFilter:
+    staleDuration = 5.0
+
+    def __init__(self, sampleWindow=30):
+        self.samples = deque()
+        self.sampleWindow = sampleWindow
+        self.lastSampled = time.time()
+
+    def newSample(self, sample):
+        curTime = time.time()
+        # Discard previous samples if we only sampled them a long time ago
+        if (curTime - self.lastSampled) > self.staleDuration:
+            self.samples = deque()
+
+        self.lastSampled = curTime
+        if len(self.samples) >= self.sampleWindow:
+            self.samples.popleft()
+        self.samples.append(sample)
+
+    def getMedian(self):
+        return np.mean(self.samples)
+
+    def getVariance(self):
+        if len(self.samples) >= self.sampleWindow:
+            return np.var(self.samples)
+        else:
+            return 999 # Just a big value
+
+    def reset(self):
+        self.samples.clear()
 
 class Disengage(smach.State):
     def __init__(self, comms):
@@ -23,7 +55,8 @@ class Disengage(smach.State):
             rospy.sleep(rospy.Duration(0.5))
 
         self.comms.register()
-        rospy.sleep(rospy.Duration(1))
+        self.comms.visionFilter.visionMode = BinsVision.BINSMODE
+        rospy.sleep(rospy.Duration(0.5))
         if self.comms.isAlone:
             self.comms.inputHeading = self.comms.curHeading
             self.comms.sendMovement(d=self.comms.defaultDepth, blocking=True)
@@ -31,7 +64,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 30
+    timeout = 60
     defaultWaitingTime = 2
 
     def __init__(self, comms):
@@ -75,8 +108,8 @@ class Search(smach.State):
         return 'foundBins' 
 
 class Center(smach.State):
-    maxdx = 0.03
-    maxdy = 0.03
+    maxdx = 0.05
+    maxdy = 0.05
 
     width = BinsVision.screen['width']
     height = BinsVision.screen['height']
@@ -131,7 +164,7 @@ class Center(smach.State):
 
         self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
-            self.comms.nearest = nearest
+            self.comms.nearest = nearest['angle']
             self.trialsPassed = 0
             return 'centered'
         else:
@@ -139,12 +172,20 @@ class Center(smach.State):
             return 'centering'
 
 class Align(smach.State):
+    width = BinsVision.screen['width']
+    height = BinsVision.screen['height']
+    centerX = width / 2.0
+    centerY = height / 2.0
+
+    timeout = 3
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aligned',
                                              'aligning',
                                              'lost',
                                              'aborted'])
         self.comms = comms
+        self.anglesSampler = MedianFilter(sampleWindow=20)
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
@@ -158,12 +199,33 @@ class Align(smach.State):
         self.comms.sendMovement(d=self.comms.aligningDepth,
                                 blocking=True)
         # Align with the bins
-        dAngle = Utils.toHeadingSpace(self.comms.nearest['angle'])
+        dAngle = Utils.toHeadingSpace(self.comms.nearest)
         adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
         self.comms.adjustHeading = adjustAngle
+        self.comms.visionFilter.visionMode = BinsVision.ALIENSMODE
         self.comms.sendMovement(h=adjustAngle, blocking=True)
         self.comms.sendMovement(d=self.comms.sinkingDepth,
                                 blocking=True)
+
+        start = time.time()
+        while not self.comms.retVal or len(self.comms.retVal['matches']) == 0:
+            if self.comms.isAborted or self.comms.isKilled:
+                self.comms.abortMission()
+                return 'aborted'
+            if time.time() - start > self.timeout:
+                return 'aligned'
+            rospy.sleep(rospy.Duration(0.1))
+
+        matches = self.comms.retVal['matches']
+        nearest = min(matches,
+                      key=lambda m:
+                      Utils.distBetweenPoints(m['centroid'],
+                                              (self.centerX, self.centerY)))
+        dAngle = Utils.toHeadingSpace(nearest['angle'])
+        adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
+        self.comms.adjustHeading = adjustAngle
+        self.comms.sendMovement(h=adjustAngle,
+                                d=self.comms.sinkingDepth, blocking=True)
 
         return 'aligned'
 
@@ -231,6 +293,7 @@ class CenterAgain(smach.State):
                                 blocking=True)
         #self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
+            self.comms.visionFilter.visionMode = BinsVision.BINSMODE
             self.trialsPassed = 0
             return 'centered'
         else:
@@ -281,7 +344,7 @@ class Search2(smach.State):
         self.comms.sendMovement(d=self.comms.turnDepth,
                                 h=Utils.normAngle(self.comms.adjustHeading-90),
                                 blocking=True)
-        self.comms.sendMovement(f=1.2, d=self.comms.turnDepth, blocking=True)
+        self.comms.sendMovement(f=0.2, d=self.comms.turnDepth, blocking=True)
 
     def turnRight(self):
         rospy.loginfo("Turning right...")
@@ -289,7 +352,7 @@ class Search2(smach.State):
         self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
                                 d=self.comms.turnDepth,
                                 blocking=True)
-        self.comms.sendMovement(f=1.2, d=self.comms.turnDepth, blocking=True)
+        self.comms.sendMovement(f=0.2, d=self.comms.turnDepth, blocking=True)
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
