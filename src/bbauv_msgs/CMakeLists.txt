@@ -91,6 +91,7 @@ add_service_files(
   set_controller.srv
   vision_to_mission.srv
   sonar_switch.srv
+  sonar_pixel.srv
   ##Old srv files end
   #mission_linefollower.srv
   #mission_flare.srv

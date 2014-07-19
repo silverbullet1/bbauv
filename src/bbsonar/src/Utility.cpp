@@ -9,21 +9,24 @@
 using namespace cv;
 
 
-Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL), SONAR_PING_RATE(10), enable(true) {
+Utility::Utility() : son(NULL), fson(NULL), head(NULL), ping(NULL), rangeData(NULL), magImg(NULL), colorImg(NULL), colorMap(NULL), imgBuffer(NULL), SONAR_PING_RATE(10), enable(true), interfaceOpen(false) {
 
 	retVal = startRange = stopRange = fluidType = soundSpeed = analogGain = tvGain =
 	pingCount = imgWidth = imgHeight = imgWidthStep = rangeValCount = 0;
 
-	initSonar();
-	setHeadParams();
-	// writeIntensities();
-	// processImage();
+	if (!initSonar()) {
+        interfaceOpen = true;
+        if (!setHeadParams()) {
+            ROS_INFO("BBSonar will be taking pings now");
+        }
+    }
 }
 
 Utility::~Utility() {
 	if (imgBuffer != NULL) imgBuffer = NULL;
 	if (son != NULL) BVTSonar_Destroy(son);
 	if (ping != NULL) BVTPing_Destroy(ping);
+    if (NULL != magImg) BVTMagImage_Destroy(magImg);
 }
 
 /**
@@ -31,31 +34,49 @@ Utility::~Utility() {
  * shall be used whenever a ping has to be retrieved
  */
 int Utility::initSonar() {
-	son = BVTSonar_Create();
-	if((retVal = BVTSonar_Open(son, "NET", "192.168.1.45")) != 0) {
-        cout << "error opening the sonar interface: " << BVTError_GetString(retVal) << endl;
+    if((son = BVTSonar_Create()) == NULL) {
+        ROS_ERROR("could not initialize the sonar head");
     }
-
-//	retVal = BVTSonar_Open(son, "FILE", "data/salmon_small.son");
-
+    pingSonar("192.168.1.45");
+    if((retVal = BVTSonar_Open(son, "NET", "192.168.1.45")) != 0) {
+        ROS_ERROR("error opening the sonar interface: %s", BVTError_GetString(retVal));
+        return retVal;
+    }
 	if((retVal = BVTSonar_GetHead(son, HEAD_NUM, &head)) != 0) {
-		cout << "error retrieving head, exiting now: " << BVTError_GetString(retVal) << endl;
+		ROS_ERROR("error retrieving head, exiting now: %s", BVTError_GetString(retVal));
 		return retVal;
 	}
 
 	return 0;
 }
 
+int Utility::pingSonar(char* ip) {
+    char buffer[50];
+    char c[20];
+    sprintf(buffer, "ping -c 3 %s | grep -c ms", ip);
+    FILE *p = popen(buffer, "r");
+    fgets(c, 5, p);
+    pclose(p);
+    if (strcmp(c, "5\n") == 0) {
+        ROS_INFO("sonar's ip %s is alive", ip);
+    }
+    else {
+        ROS_INFO("sonar's ip %s is not alive", ip);
+    }
+    
+    return 0;
+}
+
+
 /**
- * Get the sonar head's parameter values related to the
- * environment. Set the range and image related parameters
- * along with the obtained environment parameters
+ *  get/set sonar parameters
  */
 int Utility::setHeadParams() {
 	startRange = BVTHead_GetStartRange(head);
 //	stopRange = BVTHead_GetStopRange(head);
-	fluidType = BVTHead_GetFluidType(head);
-	soundSpeed = BVTHead_GetSoundSpeed(head);
+  	fluidType = BVTHEAD_FLUID_FRESHWATER;   // freshwater fluid type
+//  fluidType = BVTHEAD_FLUID_SALTWATER;
+	soundSpeed = 1500;  // sound speed in freshwater environment
 	analogGain = BVTHead_GetGainAdjustment(head);
 	tvGain = BVTHead_GetTVGSlope(head);
 	pingCount = BVTHead_GetPingCount(head);
@@ -64,29 +85,29 @@ int Utility::setHeadParams() {
 
 	//sets
 	if((retVal = BVTHead_SetRange(head, startRange, stopRange)) != 0)
-			cout << "error setting range" << endl;
+			ROS_ERROR("error setting range");
 
-	cout << "(Start, Stop) range:\t" << BVTHead_GetStartRange(head) << "\t" << BVTHead_GetStopRange(head) << endl;
+	ROS_INFO("Start, Stop range: [%f, %f]m", BVTHead_GetStartRange(head), BVTHead_GetStopRange(head));
 
 	if((retVal = BVTHead_SetImageRes(head, RES_TYPE)) != 0)
-		cout << "error setting image resolution" << endl;
+		ROS_ERROR("error setting image resolution");
 
 	if((retVal = BVTHead_SetImageType(head, IMAGE_TYPE)) != 0)
-		cout << "error setting image type" << endl;
+		ROS_ERROR("error setting image type");
 
 	if((retVal = BVTHead_SetFluidType(head, fluidType)) != 0)
-		cout << "error setting fluid type" << endl;
+		ROS_ERROR("error setting fluid type");
 
 	if((retVal = BVTHead_SetSoundSpeed(head, soundSpeed)) != 0)
-		cout << "error setting sound speed" << endl;
+		ROS_ERROR("error setting sound speed");
 
 	if((retVal = BVTHead_SetGainAdjustment(head, analogGain)) != 0)
-		cout << "error setting analog gain" << endl;
+		ROS_ERROR("error setting analog gain");
 
 	if((retVal = BVTHead_SetTVGSlope(head, tvGain)) != 0)
-		cout << "error setting TV Gain" << endl;
-
-	return 0;
+		ROS_ERROR("error setting TV Gain");
+    
+	return retVal;
 }
 
 /**
@@ -94,47 +115,45 @@ int Utility::setHeadParams() {
  * intensities of the retrieved ping
  */
 int Utility::writeIntensities() {
-//	std::string imgName = "-intensities.png";
-//	std::string intensitiesName = "-intensities.txt";
-    
     if((retVal = BVTHead_GetPing(head, PING_NUM, &ping)) != 0) {
-		cout << "error retrieving ping: "  << BVTError_GetString(retVal) << endl;
+		ROS_ERROR("error retrieving ping: %s", BVTError_GetString(retVal));
 		return retVal;
 	}
 
 	if((retVal = BVTPing_GetImage(ping, &magImg)) != 0) {
-		cout << "error retrieving ping: " << BVTError_GetString(retVal) << endl;
+		ROS_ERROR("error converting ping: %s", BVTError_GetString(retVal));
 		return retVal;
 	}
 
 	BVTMagImage_SavePGM(magImg, GRAYSCALE_MAG_FILE.c_str());
 	if((colorMap = BVTColorMapper_Create()) == NULL) {
-		cout << "error creating color mapper" << endl;
+		ROS_ERROR("error creating color mapper");
 		return -1;
 	}
 	if((retVal = BVTColorMapper_Load(colorMap, COLOR_MAPPER_PATH.c_str())) != 0) {
-		cout << "error retrieving color map: " << BVTError_GetString(retVal) << endl;
+		ROS_ERROR("error retrieving color map: %s", BVTError_GetString(retVal));
 		return retVal;
 	}
 	if((retVal = BVTColorMapper_MapImage(colorMap, magImg, &colorImg)) != 0) {
-		cout << "error mapping to color image: " << BVTError_GetString(retVal) << endl;
+		ROS_ERROR("error mapping to color image: %s", BVTError_GetString(retVal));
 		return retVal;
 	}
 	BVTColorImage_SavePPM(colorImg, COLOR_IMAGE_FILE.c_str());
-//	cout << "magImg size: " << "height: " << BVTMagImage_GetHeight(magImg) << "  width: " << BVTMagImage_GetWidth(magImg) <<  endl;
+    
+//	ROS_INFO("magImg resolution:  [%d, %d]", BVTMagImage_GetWidth(magImg), BVTMagImage_GetHeight(magImg));
+    
+//    ROS_INFO("Range resolution: %lf", BVTColorImage_GetRangeResolution(colorImg));
 
 	imgBuffer = BVTMagImage_GetBits(magImg);
 	if (imgBuffer == NULL) cout << "imgBuf null" << endl;
 	matImg = Mat(BVTMagImage_GetHeight(magImg), BVTMagImage_GetWidth(magImg), CV_16UC1, imgBuffer);
 
-	// imwrite(grayFile, matImg);
 	imwrite(INTENSITIES_FILE.c_str(), matImg);
 
     cv::Mat cImg = imread(COLOR_IMAGE_FILE.c_str(), 0);
     outImg = cImg.clone();
     resize(outImg, outImg, Size(640, 480));
 
-//	if (NULL != magImg) BVTMagImage_Destroy(magImg);
 	if (NULL != colorMap) BVTColorMapper_Destroy(colorMap);
 	if (NULL != colorImg) BVTColorImage_Destroy(colorImg);
 
@@ -318,13 +337,8 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	vector<Vec4i> hierarchy;
     
 	cv::findContours(dstGray, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-//	cout << "number of contours detected: " << contours.size() << endl;
-//	if (!contours.size()) {
-//		cout << "None detected" << endl;
-//	}
 
 	labelledImg = Mat::zeros(dstGray.size(), CV_8UC1);
-//    resize(labelledImg, labelledImg, Size(640, 480));
 	vector<vector<Point> > contours_poly(contours.size());
 	vector<Rect> boundRect(contours.size());
 	RNG rng;
@@ -335,8 +349,7 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 		boundRect[i] = boundingRect(Mat(contours_poly[i]));
 	}
 
-//	drawing the saved rectangular boxes around the contours
-//	and saving their coordinates
+//	drawing the saved rectangular boxes around the contours and saving their coordinates
 	int pointnum = 0;
 
 	for(uInt i = 0; i < contours.size(); i++) {
@@ -345,7 +358,6 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 		if (boundRect[i].area() > CONTOUR_AREA_LOWER_BOUND && boundRect[i].area() < CONTOUR_AREA_UPPER_BOUND) {
 			savedContours.push_back(contours[i]);
 			++pointnum;
-//			rectangle(dstDilated, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
 			rectangle(labelledImg, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
 			cout << pointnum << ": " << boundRect[i].tl() << " " << boundRect[i].br() << " " << boundRect[i].area() << endl;
 			savedPoints.push_back(boundRect[i].br());
@@ -353,59 +365,77 @@ void Utility::myAdaptiveThreshold(Mat gImg, double maxValue, int method,
 	}
     
 //  resizing, for it to be of equal dimension as the raw image in the UI
-    resize(labelledImg, labelledImg, Size(640, 480));
-    
-
-//	Boolean operations on src and dst image to be experimented here
-//	Mat orImg = Mat::zeros(dst.size(), CV_8UC1);
-//	for( i = 0; i < size.height; i++ ) {
-//		const uchar* srcData = srcDilated.data + srcDilated.step*i ;
-//		const uchar* dstData = dstDilated.data + dstDilated.step*i ;
-//		uchar* andData = orImg.data + orImg.step*i ;
-//
-//		for( j = 0; j < size.width; j++ ) {
-//			andData[j] = srcData[j] * dstData[j] ;
-//		}
-// 	}
-//	Canny(orImg, dstEdged, 1.0, 3.0, 3);
-
-	// imwrite("powerImg.png", powerImg);
-	// imwrite("edgedImg.png", dstEdged);
-//    imwrite(LABELLED_IMAGE_FILE.c_str(), labelledImg);
-
-//	calculate range/bearing of the saved points
-	// getRangeBearing();
+//    resize(labelledImg, labelledImg, Size(640, 480));
 
 	return;
 }
 
+
 bool Utility::getRangeBearing() 
 {
     writeIntensities();
-    processImage();
+//    processImage();
 
-  if (magImg == NULL){
-	  ROS_INFO("Magnitude image null, can't find range");
+    if (magImg == NULL){
+	  ROS_ERROR("Magnitude image null, can't find range");
       return false;
-  }
-  else {
-      for (uInt pointIdx = 0; pointIdx < savedPoints.size(); ++pointIdx) {
-          int x = savedPoints[pointIdx].x;
-		  int y = savedPoints[pointIdx].y;
-          singlePoint.range = BVTMagImage_GetPixelRange(magImg, x, y) ;
-          singlePoint.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, x, y) ;
-          sonarMsg.rangeBearingVector.push_back(singlePoint);
-          ROS_INFO("Object %d: [range: %lf, bearing: %lf]", pointIdx, singlePoint.range, singlePoint.bearing);
-		}
-	}
-	savedContours.clear();
-	savedPoints.clear();
-	return true;
+    }
+    return true;
+}
+
+
+void Utility::processFilterImage(const sensor_msgs::ImageConstPtr& source) {
+    Mat gradX, gradY;
+    Mat absGradX, absGradY;
+    int scale = 1;
+    int delta = 0;
+    int ddepth = CV_16S;
+
+    cv_bridge::CvImagePtr cvImg;
+    cvImg = cv_bridge::toCvCopy(source);
+    filterImg = cvImg->image.clone();
+    
+    GaussianBlur(filterImg, filterImg, Size(3,3), 0, 0, BORDER_DEFAULT);
+    cvtColor(filterImg, filterImg, CV_BGR2GRAY);
+    
+//  resizing it to magImage resolution, for getting range-bearing of the targets
+    resize(filterImg, filterImg, Size(BVTMagImage_GetWidth(magImg), BVTMagImage_GetHeight(magImg)));
+
+    vector<Vec4i> lines;
+    HoughLinesP(filterImg, lines, 1, CV_PI/180, 50, 50, 10);
+    if (!lines.size()) {
+        ROS_INFO("No objects detected");
+    }
+    for(size_t i = 0; i < lines.size(); i++)
+    {
+        Vec4i l = lines[i];
+//        line(filterImg, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 3, CV_AA);
+        Point firstPoint, secondPoint, midPoint;
+        firstPoint = Point(l[0], l[1]);
+        secondPoint = Point(l[2], l[3]);
+        midPoint = (firstPoint + secondPoint) * 0.5 ;
+        savedPoints.push_back(midPoint);
+    }
+    
+    return;
+}
+
+
+bool Utility::getPixelRangeBearing(bbauv_msgs::sonar_pixel::Request &req, bbauv_msgs::sonar_pixel::Response &rsp)
+{
+    int row = ((double)(req.y) / 480) * BVTMagImage_GetHeight(magImg);
+    int col = ((double)(req.x) / 640) * BVTMagImage_GetWidth(magImg);
+    
+    rsp.range = BVTMagImage_GetPixelRange(magImg, (int)row, (int)col);
+    rsp.bearing = BVTMagImage_GetPixelRelativeBearing(magImg, (int)row, (int)col);
+        
+//    ROS_INFO("range bearing for pixel [%d  %d] = [%f  %f]", req.x, req.y, rsp.range, rsp.bearing);
+    
+    return true;
 }
 
 /**
  * get a global threshold value
- * Reference: Gonzalez's book on Image Processing
  * works fine only when there are nice peaks in the intensities histogram
  */
 double Utility::getGlobalThreshold(Mat gImg) {
@@ -415,7 +445,6 @@ double Utility::getGlobalThreshold(Mat gImg) {
 	double min_val, max_val;
 
 	cv::minMaxLoc(gImg, &min_val, &max_val, 0, 0, noArray());
-//	cout << "Min intensity val: " << min_val << "\tMax intensity val: " << max_val << endl;
 
 	T = 0.5 * (min_val + max_val);
 	done = false;
@@ -455,55 +484,59 @@ void Utility::delay(time_t timeout) {
 }
 
 bool Utility::enableSonar(bbauv_msgs::sonar_switch::Request &req, bbauv_msgs::sonar_switch::Response &rsp) {
+    ROS_INFO("sonar_switch pressed");
     if (req.enable) {
         enable = true;
         rsp.isEnabled = true;
-        ROS_INFO("bbsonar enabled");
+        ROS_INFO("BBSonar enabled");
     }
     else {
         enable = false;
         rsp.isEnabled = false;
-        ROS_INFO("bbsonar disabled");
+        ROS_INFO("BBSonar disabled");
     }
     
-    return rsp.isEnabled;
+    return true;
 }
 
 int main(int argc, char** argv)
 {
-	Utility *util = new Utility();
     ROS_INFO("BBSonar invoked");
-
+    Utility *util = new Utility();
+    
     ros::init(argc, argv, "bbsonar");
     ros::NodeHandle nHandle;
-    cv_bridge::CvImage cvImg, cvLabelledImg;
+    cv_bridge::CvImage cvImg;
     
     ros::Publisher imagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image", 1);
-    ros::Publisher labelledImagePub = nHandle.advertise<sensor_msgs::Image>("sonar_image_labelled", 1);
-    ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonar_data_vector>("sonar_data", 1000);
     
-    ros::ServiceServer sonarService = nHandle.advertiseService("sonar_switch", &Utility::enableSonar, util);
+//    ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonar_data_vector>("sonar_data_vector", 1000);
     
+//    ros::Publisher sonarDataPub = nHandle.advertise<bbauv_msgs::sonar_data>("sonar_data", 1000);
+
+    ros::ServiceServer sonarSwitchService = nHandle.advertiseService("sonar_switch", &Utility::enableSonar, util);
+    
+    ros::ServiceServer sonarPixelService = nHandle.advertiseService("sonar_pixel", &Utility::getPixelRangeBearing, util);
     
     ros::Rate loopRate(util->SONAR_PING_RATE);
     while (ros::ok()) {
-        if (util->enable) {
-            util->getRangeBearing();
-            sonarDataPub.publish(util->sonarMsg);
-            
+        if (util->enable && util->interfaceOpen) {
             cvImg.encoding = sensor_msgs::image_encodings::MONO8;
             cvImg.image = util->outImg;
-            
-            cvLabelledImg.encoding = sensor_msgs::image_encodings::MONO8;
-            cvLabelledImg.image = util->labelledImg;
-            
             imagePub.publish(cvImg.toImageMsg());
-            labelledImagePub.publish(cvLabelledImg.toImageMsg());
+            
+            util->getRangeBearing();
+    
+//            sonarDataPub.publish(util->sonarMsg);
+//            sonarDataPub.publish(util->singlePoint);
+        }
+        else {
+//            ROS_WARN("BBSonar is switched off, not taking pings");
         }
 
         ros::spinOnce();
         loopRate.sleep();
     }
-    
+
 	return 0;
 }

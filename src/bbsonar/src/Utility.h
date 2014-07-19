@@ -29,6 +29,7 @@
 #include "ros/ros.h"
 #include <bbauv_msgs/sonar_data.h>
 #include <bbauv_msgs/sonar_data_vector.h>
+#include <bbauv_msgs/sonar_pixel.h>
 #include <bbauv_msgs/sonar_switch.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/Image.h>
@@ -65,12 +66,13 @@ public:
 	uShort *imgBuffer;
 	int retVal;
     
+    bool interfaceOpen;
+    
     cv::Mat grayImg;        // image having the grayscale intensities on disk
-	cv::Mat matImg;         // image for saving the grayscale intensities
+	  cv::Mat matImg;         // image for saving the grayscale intensities
     cv::Mat labelledImg;    // image having the bounded objects
     cv::Mat outImg;         // raw sonar image
-    cv::Mat outLabelled;
-    cv::Mat morphCImg;
+    cv::Mat filterImg;
 
 	vector<vector<Point> > savedContours;
 	vector<Point> savedPoints;
@@ -80,6 +82,8 @@ public:
 
 	int initSonar();
 	int setHeadParams();
+    int pingSonar(char* ip);
+    int discoverSonar();
 	int processImage();
 	int intensitiesToImage();
 	int writeIntensities();
@@ -90,20 +94,24 @@ public:
 
 	double getGlobalThreshold(cv::Mat gImg);
 	void myAdaptiveThreshold(cv::Mat gImg, double maxValue, int method, int type, int blockSize, double delta);
-
-	int imgWidth;
+ 
+  int imgWidth;
 	int imgHeight;
 	int imgWidthStep;
 
-    
 //  bbsonar node related
     bool getRangeBearing();
     bool enableSonar(bbauv_msgs::sonar_switch::Request &enable, bbauv_msgs::sonar_switch::Response &isEnabled);
     
+    void processFilterImage(const sensor_msgs::ImageConstPtr& source);
+    
+    bool getPixelRangeBearing(bbauv_msgs::sonar_pixel::Request &req, bbauv_msgs::sonar_pixel::Response &rsp);
+    
     bbauv_msgs::sonar_data singlePoint;
     bbauv_msgs::sonar_data_vector sonarMsg;
+
     bool enable;
-    
+
     const int SONAR_PING_RATE;
 
 private:
