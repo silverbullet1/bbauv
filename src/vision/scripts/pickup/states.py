@@ -536,5 +536,10 @@ def main():
                                                 '/MISSION/PICKUP')
     introServer.start()
 
-    sm.execute()   
-    rospy.signal_shutdown('pick task quit')
+    try:
+        sm.execute()
+    except Exception as e:
+        rospy.logerr(str(e))
+        myCom.failTask()
+    finally:
+        rospy.signal_shutdown("bins task ended")

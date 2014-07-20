@@ -24,8 +24,8 @@ class Comms(GenericComms):
 
             self.visionMode = PickupVision.SITE
         elif taskMode == 'drop':
-            self.defaultDepth = 1.2
-            self.sinkingDepth = 2.5
+            self.defaultDepth = 0#1.2
+            self.sinkingDepth = 0.2#2.5
 
             self.visionMode = PickupVision.BOX
 

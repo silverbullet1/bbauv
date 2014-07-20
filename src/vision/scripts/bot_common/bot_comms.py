@@ -94,15 +94,15 @@ class GenericComms:
         self.abortedDone = True
 
     def camCallback(self, rosImg):
-        if self.processingCount == self.processingRate:
-            self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
-            if self.canPublish and outImg is not None:
-                try:
+        try:
+            if self.processingCount == self.processingRate:
+                self.retVal, outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
+                if self.canPublish and outImg is not None:
                     self.outPub.publish(Utils.cv2rosimg(outImg))
-                except Exception as e:
-                    pass
-            self.processingCount = 0
-        self.processingCount += 1
+                self.processingCount = 0
+            self.processingCount += 1
+        except Exception as e:
+            print e
 
     def compassCallback(self, data):
         self.curHeading = data.yaw

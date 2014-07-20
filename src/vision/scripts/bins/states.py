@@ -152,6 +152,7 @@ class Center(smach.State):
                       key=lambda m:
                       Utils.distBetweenPoints(m['centroid'],
                                               (self.centerX, self.centerY)))
+        self.comms.nearest = nearest['angle']
         closestCentroid = nearest['centroid']
 
         dx = (closestCentroid[0] - self.centerX) / self.width
@@ -164,7 +165,6 @@ class Center(smach.State):
 
         self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
-            self.comms.nearest = nearest['angle']
             self.trialsPassed = 0
             return 'centered'
         else:
@@ -198,6 +198,7 @@ class Align(smach.State):
 
         self.comms.sendMovement(d=self.comms.aligningDepth,
                                 blocking=True)
+        #try:
         # Align with the bins
         dAngle = Utils.toHeadingSpace(self.comms.nearest)
         adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
@@ -228,6 +229,14 @@ class Align(smach.State):
                                 d=self.comms.sinkingDepth, blocking=True)
 
         return 'aligned'
+        #except Exception as e:
+        #    rospy.logerr(str(e))
+        #    adjustAngle = self.comms.curHeading
+        #    self.comms.adjustHeading = adjustAngle
+        #    self.comms.sendMovement(h=adjustAngle, blocking=True)
+        #    self.comms.sendMovement(d=self.comms.sinkingDepth,
+        #                            blocking=True)
+        #    return 'aligned'
 
 class CenterAgain(smach.State):
     maxdx = 0.03
@@ -383,8 +392,12 @@ class Search2(smach.State):
         rospy.loginfo("closest: {}, mean: {}, dx: {}".format(str(closest),
                                                              str(meanX),
                                                              dx))
-        if dx <= 0:
+        if dx < 0:
             self.turnLeft()
+        elif dx == 0:
+            self.comms.sendMovement(h=self.comms.adjustHeading,
+                                    d=self.comms.turnDepth,
+                                    blocking=True)
         else:
             self.turnRight()
 
@@ -448,6 +461,7 @@ class Center2(smach.State):
                       key=lambda m:
                       Utils.distBetweenPoints(m['centroid'],
                                               (self.centerX, self.centerY)))
+        self.comms.nearest = nearest['angle']
         closestCentroid = nearest['centroid']
 
         dx = (closestCentroid[0] - self.centerX) / self.width
@@ -466,7 +480,6 @@ class Center2(smach.State):
         #                        blocking=True)
         self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
-            self.comms.nearest = nearest
             self.trialsPassed = 0
             return 'centered'
         else:
@@ -529,6 +542,11 @@ def main():
                                                 '/MISSION/BINS')
     introServer.start()
 
-    sm.execute()
-    rospy.signal_shutdown("bins task ended")
+    try:
+        sm.execute()
+    except Exception as e:
+        rospy.logerr(str(e))
+        myCom.failTask()
+    finally:
+        rospy.signal_shutdown("bins task ended")
 

@@ -318,5 +318,10 @@ def main():
                                                 '/MISSION/LANE')
     introServer.start()
 
-    sm.execute()
-    rospy.signal_shutdown('lane task quit')
+    try:
+        sm.execute()
+    except Exception as e:
+        rospy.logerr(str(e))
+        myCom.failTask()
+    finally:
+        rospy.signal_shutdown("bins task ended")
