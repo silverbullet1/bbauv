@@ -42,7 +42,8 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
-        self.defaultDepth = 2.00
+        # self.defaultDepth = 2.00
+        self.defaultDepth = 0.10    # For US house
         self.depthFromMission = self.defaultDepth
         
         self.dynServer = DynServer(Config, self.reconfigure)

@@ -19,9 +19,9 @@ class RgbBuoyVision:
     redParams = {
                 'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
                  'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
-                 'lo3': (0,34,0), 'hi3':(22,255,255),
-                # 'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Jin's values 
-                 'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
+                 'lo3': (0,34,0), 'hi3':(22,255,255),           # US House 1 morning
+                # 'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Queenstown values
+                 'lo4': (118, 0, 0), 'hi4': (180, 255, 255), # Bottom dark colours (US)
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
 # 
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
@@ -83,15 +83,19 @@ class RgbBuoyVision:
         # Perform thresholding
         mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
         kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
 
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kern)
-        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-        threshImg = cv2.dilate(mask, kern2, iterations=2)
+        thresImg1 = cv2.dilate(mask, kern, iterations=2)
         
-        # return cv2.cvtColor(threshImg, cv2.COLOR_GRAY2BGR)
+        mask2 = cv2.inRange(img, self.redParams['lo4'], self.redParams['hi4'])
+        thresImg2 = cv2.dilate(mask2, kern, iterations=2)
+
+        binImg = cv2.bitwise_or(thresImg1, thresImg2)
+
+        # binImg = thresImg1
+
+        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         
-        binImg = threshImg
         # Find contours
         scratchImg = binImg.copy()
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)

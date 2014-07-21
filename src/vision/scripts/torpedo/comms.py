@@ -70,7 +70,7 @@ class Comms(FrontComms):
         self.defaultDepth = 0.50
         self.depthFromMission = self.defaultDepth
 
-        self.sonarFilter = Sonar(comms=self) 
+        # self.sonarFilter = Sonar(comms=self) 
 
         # self.dynServer = DynServer(Config, self.reconfigure)
         self.depthSub = rospy.Subscriber('/depth', depth, self.depthCallback)
@@ -230,7 +230,7 @@ class Comms(FrontComms):
         rospy.loginfo("SONAR SONAR")
         self.sonarSub = rospy.Subscriber("/sonar_image", Image, self.sonarImageCallback)
         self.sonarPub = rospy.Publisher("/sonar_pub", Image)
-        rospy.sleep(rospy.Duration(0.05))
+        # rospy.sleep(rospy.Duration(0.05))
     
     def sonarImageCallback(self, rosImg):
         # outImg = self.visionFilter.gotSonarFrame(Utils.rosimg2cv(rosImg))
@@ -241,7 +241,7 @@ class Comms(FrontComms):
             except Exception, e:
                 pass
                 
-        rospy.sleep(rospy.Duration(0.1))
+        # rospy.sleep(rospy.Duration(0.1))
 
     def depthCallback(self, data):
         self.depth = data.depth

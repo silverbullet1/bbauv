@@ -105,10 +105,12 @@ class SearchCircles(smach.State):
         start = time.time()
         curTime = time.time()
         
-        while not self.comms.foundCircles and not self.comms.foundSomething: 
+        # while not self.comms.foundCircles and not self.comms.foundSomething: 
+        while not self.comms.foundSomething: 
             if self.comms.isKilled:
                 return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
+            # if self.comms.isAborted or (time.time() - start) > self.timeout:
+            if self.comms.isAborted:
                 self.comms.isAborted = True
                 return 'aborted' 
 
@@ -130,13 +132,18 @@ class SearchCircles(smach.State):
 class AlignBoard(smach.State):
     timeout = 300
 
-    forward_setpoint = 0.50
-    halfCompleteArea = 45000
-    completeArea = 68000
+    # forward_setpoint = 0.50
+    forward_setpoint = 0.20     # US House 1
+    # halfCompleteArea = 45000
+    halfCompleteArea = 20000    # US House 1
+    completeArea = 40000        # US House 1
+    # completeArea = 68000
 
-    deltaXMult = 4.9
-    deltaYMult = 1.6
-    headingMult = 1.5
+    # deltaXMult = 4.9
+    deltaXMult = 2.0    # US House 1
+    # deltaYMult = 1.6
+    deltaYMult = 0.4    # US House 1
+    headingMult = 2.0
 
     skew = 1.00
 
@@ -166,7 +173,9 @@ class AlignBoard(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
+        # Taken out in US 
         if self.comms.boardArea > self.completeArea and self.comms.skew < 0.35:
+        # if self.comms.boardArea > self.completeArea:
             self.comms.curHeading = self.comms.heading
 
             rospy.loginfo("Align Board time {}".format(time.time()-self.comms.curTime))
@@ -174,7 +183,8 @@ class AlignBoard(smach.State):
             return 'alignBoard_complete'
 
         if self.comms.boardArea < self.halfCompleteArea:
-            self.forward_setpoint = 0.7
+            # self.forward_setpoint = 0.7
+            self.forward_setpoint = 0.1     # US House 1
 
         if abs(self.comms.boardDeltaY) > 0.035:
             # if self.comms.boardArea > self.halfCompleteArea:
@@ -205,12 +215,15 @@ class AlignBoard(smach.State):
 class MoveForward(smach.State):
 
     # forward_setpoint = 0.43
-    forward_setpoint = 0.30
-    completeRadius = 62
+    forward_setpoint = 0.20     # US House 1
+    # completeRadius = 62
+    completeRadius = 48     # US House 1
     lostCount = 0
 
-    deltaXMult = 4.5
-    deltaYMult = 2.0
+    # deltaXMult = 4.5
+    deltaXMult = 1.5    # US House 1
+    # deltaYMult = 2.0
+    deltaYMult = 0.2   # US House 1
 
     # completeRadius = self.comms.movementParams['forwardRadius']
     # deltaXMult = self.comms.movementParams['forwardDeltaX']
@@ -241,8 +254,9 @@ class MoveForward(smach.State):
                     
         if self.comms.numShoot == 1:
             # self.completeRadius = 43
-            self.completeRadius = 45
-            self.forward_setpoint = 0.24
+            self.completeRadius = 35
+            # self.forward_setpoint = 0.24
+            self.forward_setpoint = 0.08
             # self.deltaXMult = 0.8
 
         if self.comms.radius > self.completeRadius:
@@ -270,16 +284,20 @@ class MoveForward(smach.State):
 
 # Precise movements when near centroid
 class Centering (smach.State):
-    deltaXMult = 3.8
+    # deltaXMult = 3.8
+    deltaXMult = 1.8    # US House 1
     # deltaYMult = 2.3
-    deltaYMult = 2.0
+    # deltaYMult = 2.0
+    deltaYMult = 0.4    # US House 1
 
     centeringCount = 0
     halfCompleteRadius = 65
-    completeRadius = 91
+    # completeRadius = 91
     # completeRadius = 78
+    completeRadius = 68     # US House 1
     forward_half = 0.23
-    forward_setpoint = 0.22
+    # forward_setpoint = 0.22
+    forward_setpoint = 0.13   # US House 1
 
     centering = 5
 
@@ -303,10 +321,11 @@ class Centering (smach.State):
 
         if self.comms.numShoot == 1:
             # self.completeRadius = 86
-            # self.completeRadius = 65
-            self.completeRadius = 78
-            self.forward_setpoint = 0.13
-            self.deltaYMult = 1.7
+            self.completeRadius = 68    # US House 1
+            # self.forward_setpoint = 0.13
+            self.forward_setpoint = 0.08
+            # self.deltaYMult = 1.7
+            self.deltaYMult = 0.30 # US House 1
             self.centering = 7
 
         if self.comms.radius > self.completeRadius:
@@ -397,7 +416,7 @@ class ShootTorpedo(smach.State):
             return 'shoot_complete'
 
         self.comms.state = "MOVING UP"
-        self.comms.defaultDepth = 1.30
+        self.comms.defaultDepth = self.comms.defaultDepth-0.70
         self.comms.sendMovement(forward=-1.0, sidemove=0.0,
                                 depth=self.comms.defaultDepth,
                                 blocking=True)
@@ -415,7 +434,7 @@ def main():
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
-                                transitions={'start_complete': "ALIGNBOARD",
+                                transitions={'start_complete': "SEARCHCIRCLES",
                                          'killed': 'failed'})      
         
         smach.StateMachine.add("FOLLOWSONAR", FollowSonar(myCom),

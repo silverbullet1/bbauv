@@ -35,6 +35,8 @@ class FrontComms:
         self.canPublish = False    #Flag for using non-publishing to ROS when testing with images 
         self.isAborted = True
         self.isKilled = False
+        self.processingRate = 2
+        self.processingCount = 0
         
         #Initialize vision Filter
         self.visionFilter = visionFilter
@@ -101,13 +103,24 @@ class FrontComms:
         self.canPublish = False 
 
     def camCallback(self, rosImg):
-        outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
-        if self.canPublish and outImg is not None:
+        if self.processingCount == self.processingRate:
+            outImg = self.visionFilter.gotFrame(Utils.rosimg2cv(rosImg))
+            if self.canPublish and outImg is not None:
+                try:
+                    self.outPub.publish(Utils.cv2rosimg(outImg))
+                except Exception, e:
+                    pass
+            self.processingCount = 0
+        self.processingCount += 1
+        '''
+        if self.canPublish:
             try:
-                self.outPub.publish(Utils.cv2rosimg(outImg))
+                rospy.loginfo("IN CAM")
+                self.outPub.publish(rosImg)
             except Exception, e:
                 pass
-        rospy.sleep(rospy.Duration(0.02))
+        '''
+        # rospy.sleep(rospy.Duration(0.05))
 
     def depthCallback(self, data):
         self.depth = data.depth

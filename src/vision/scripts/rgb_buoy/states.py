@@ -77,7 +77,8 @@ class Search(smach.State):
 # I'm just moving forward
 class bangBuoy(smach.State):
     deltaXMult = 4.0
-    deltaYMult = 1.3
+    # deltaYMult = 1.3
+    deltaYMult = 0.8
     area = 8800
     count = 0
     forward_setpoint = 0.50
@@ -127,7 +128,8 @@ class bangBuoy(smach.State):
 # Precise movements when near buoy 
 class Centering (smach.State):
     deltaXMult = 2.3
-    deltaYMult = 0.8
+    # deltaYMult = 0.8
+    deltaYMult = 0.5
     depthCount = 0
     count = 0
     depthCorrected = False 
@@ -149,15 +151,16 @@ class Centering (smach.State):
         
         if self.comms.rectArea > self.changeMultArea:
             self.deltaXMult = 1.6
-            self.deltaYMult = 0.5
+            # self.deltaYMult = 0.5
+            self.deltaYMult = 0.3
 
         if self.comms.rectArea > self.bigArea:
             if self.comms.deltaX < 0.06 and self.comms.deltaY < 0.06:
                 self.count += 1
 
             if self.count > 3:
-                # self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
-                self.comms.sendMovement(forward=0.5, timeout=4, blocking=False)   # Shoot forward for US house pool
+                self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+                # self.comms.sendMovement(forward=0.5, timeout=4, blocking=False)   # Shoot forward for US house pool
                 
                 rospy.loginfo("forward done")
                 
