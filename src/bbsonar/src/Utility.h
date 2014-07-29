@@ -47,12 +47,7 @@ class Utility {
 public:
 	BVTSonar son, fson;
 	BVTHead head;
-	BVTPing ping;
-	BVTRangeData rangeData;
-	BVTMagImage magImg;
-	BVTColorImage colorImg;
-	BVTColorMapper colorMap;
-    
+    BVTMagImage magImg;
 	//	sonar head params
 	float startRange;
 	float stopRange;
@@ -63,9 +58,7 @@ public:
 	int pingCount;
 	int rangeValCount;
 
-	uShort *imgBuffer;
 	int retVal;
-    
     bool interfaceOpen;
     
     cv::Mat grayImg;        // image having the grayscale intensities on disk
@@ -100,16 +93,11 @@ public:
 	int imgWidthStep;
 
 //  bbsonar node related
-    bool getRangeBearing();
     bool enableSonar(bbauv_msgs::sonar_switch::Request &enable, bbauv_msgs::sonar_switch::Response &isEnabled);
     
     void processFilterImage(const sensor_msgs::ImageConstPtr& source);
     
     bool getPixelRangeBearing(bbauv_msgs::sonar_pixel::Request &req, bbauv_msgs::sonar_pixel::Response &rsp);
-    
-    bbauv_msgs::sonar_data singlePoint;
-    bbauv_msgs::sonar_data_vector sonarMsg;
-
     bool enable;
 
     const int SONAR_PING_RATE;

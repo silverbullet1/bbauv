@@ -42,7 +42,7 @@ const std::string COLOR_MAPPER_PATH = "/home/bbauvsbc1/bbauv/src/bbsonar/colorma
 
 // range related constants
 const int MIN_RANGE = 2;
-const int MAX_RANGE = 13;
+const int MAX_RANGE = 10;
 const int GRAYSCALE_THRESH = 150;
 
 // for global thresholding (adding a constant)
