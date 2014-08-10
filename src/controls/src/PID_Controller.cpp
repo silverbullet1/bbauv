@@ -92,8 +92,8 @@ bbauv::bbPID headingPID("h",1.2,0,0,20);
 bbauv::bbPID sidemovePID("s",1.2,0,0,20);
 bbauv::bbPID pitchPID("p",1.2,0,0,20);
 bbauv::bbPID rollPID("r",1.2,0,0,20);
-bbauv::bbPID forwardVelPID("vf",1.2,0,0,20);
-bbauv::bbPID sidemoveVelPID("vs",1.2,0,0,20);
+bbauv::bbPID forwardVelPID("vf",0,0,0,20);
+bbauv::bbPID sidemoveVelPID("vs",0,0,0,20);
 
 int act_forward[2];
 int act_sidemove[2];
@@ -283,7 +283,8 @@ int main(int argc, char **argv)
 
 		if(inForwardVelPID)
 		{
-		  forwardVelPID_output = forwardVelPID.computePID(ctrl.forward_vel_setpoint,ctrl.forward_vel_input) + computeVelFwdOffset();
+		  //forwardVelPID.computePID(ctrl.forward_vel_setpoint,ctrl.forward_vel_input)
+		  forwardVelPID_output = computeVelFwdOffset();
                   ROS_INFO("forward PID: %3.2f",forwardVelPID_output);
 		}else
                 {
@@ -469,12 +470,21 @@ float computeVelFwdOffset()
   val =  1731.56485*ctrl.forward_vel_setpoint - 383.26843;
 
   if(ctrl.forward_vel_setpoint > 0 && val  < 0) return 25;
-  else return val;
-
+  else if(ctrl.forward_vel_setpoint == 0)
+  {
+    ROS_INFO("vel_fwd - %f",val);
+    return 0;
+  }
+  else
+  {
+    ROS_INFO("vel_fwdnozero - %f",val);
+    return val;
+  }
 }
 
 float computeVelSideOffset()
 {
+  ROS_INFO("vel_side: trig");
   return 0;
 }
 //no longer in use

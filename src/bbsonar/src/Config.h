@@ -37,6 +37,7 @@
 
 // file path related constants
 //const std::string SONAR_LOG_PATH = "sonarLog.son" ;
+const std::string SONAR_STATIC_FILE = "/home/bbauvsbc1/ash_store/bvtsdk/data/swimmer.son" ;
 const std::string COLOR_MAPPER_PATH = "/home/bbauvsbc1/bbauv/src/bbsonar/colormaps/cool.cmap" ;
 
 // range related constants
