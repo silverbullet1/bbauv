@@ -64,7 +64,7 @@ class Disengage(smach.State):
                                     blocking=True)
         self.comms.detectingBox = True
         self.comms.retVal = None
-        self.comms.visionFilter.curCorner = 1
+        self.comms.visionFilter.curCorner = 0
         return 'started'
 
 class MainCenterBox(smach.State):
@@ -101,6 +101,10 @@ class MainCenterBox(smach.State):
                 self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.timeout:
+                self.comms.sendMovement(h=self.comms.inputHeading,
+                                        d=-0.5,
+                                        timeout=5,
+                                        blocking=False)
                 self.comms.failTask()
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
@@ -118,6 +122,9 @@ class MainCenterBox(smach.State):
                                         d=-0.5,
                                         timeout=5,
                                         blocking=False)
+                self.comms.sendMovement(h=self.comms.inputHeading,
+                                        blocking=True)
+                self.comms.detectingBox = False
                 return 'centered'
             else:
                 self.trialsPassed += 1
@@ -200,6 +207,8 @@ class AlignBoxLane(smach.State):
 
     timeout = 4
 
+    forward_dist = 1.4
+
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aligned',
                                              'aligning',
@@ -207,12 +216,14 @@ class AlignBoxLane(smach.State):
                                              'lost',
                                              'aborted'])
         self.comms = comms
-        self.angleSampler = MedianFilter(sampleWindow=20)
+        self.angleSampler = MedianFilter(sampleWindow=10)
 
     def execute(self, userdata):
         if self.comms.isKilled or self.comms.isAborted:
             self.comms.abortMission()
             return 'aborted'
+
+        curCorner = self.comms.visionFilter.curCorner
 
         start = time.time()
         while not self.comms.retVal or \
@@ -222,7 +233,7 @@ class AlignBoxLane(smach.State):
                 self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.timeout:
-                if self.comms.visionFilter.curCorner == 4: 
+                if curCorner == 4: 
                     self.comms.failTask()
                     return 'lost'
                 else:
@@ -232,7 +243,10 @@ class AlignBoxLane(smach.State):
             rospy.sleep(rospy.Duration(0.1))
 
         # Calculate angle between box and lane
-        boxCentroid = (self.centerX, self.centerY)
+        if self.comms.visionFilter.curCorner == 0:
+            boxCentroid = (self.centerX, self.centerY)
+        else:
+            boxCentroid = self.comms.visionFilter.corners[curCorner]
         laneCentroid = self.comms.retVal['foundLines'][0]['pos']
         boxLaneAngle = math.atan2(laneCentroid[1] - boxCentroid[1],
                                   laneCentroid[0] - boxCentroid[0])
@@ -248,7 +262,7 @@ class AlignBoxLane(smach.State):
             self.comms.sendMovement(h=adjustHeading,
                                     d=self.comms.laneSearchDepth,
                                     blocking=True)
-            self.comms.sendMovement(f=2.0, h=adjustHeading,
+            self.comms.sendMovement(f=self.forward_dist, h=adjustHeading,
                                     d=self.comms.laneSearchDepth,
                                     blocking=True)
             self.comms.visionFilter.curCorner = 0
@@ -270,7 +284,7 @@ def main():
                                             'killed':'killed'})
         smach.StateMachine.add('MAINCENTERBOX',
                                MainCenterBox(myCom),
-                               transitions={'centered':'CENTERBOX',
+                               transitions={'centered':'ALIGNBOXLANE',
                                             'centering':'MAINCENTERBOX',
                                             'lost':'DISENGAGE',
                                             'aborted':'DISENGAGE'})

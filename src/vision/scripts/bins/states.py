@@ -64,7 +64,7 @@ class Disengage(smach.State):
         return 'started'
 
 class Search(smach.State):
-    timeout = 60
+    timeout = 40
     defaultWaitingTime = 2
 
     def __init__(self, comms):
@@ -198,45 +198,27 @@ class Align(smach.State):
 
         self.comms.sendMovement(d=self.comms.aligningDepth,
                                 blocking=True)
-        #try:
-        # Align with the bins
-        dAngle = Utils.toHeadingSpace(self.comms.nearest)
-        adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
-        self.comms.adjustHeading = adjustAngle
-        self.comms.visionFilter.visionMode = BinsVision.ALIENSMODE
-        self.comms.sendMovement(h=adjustAngle, blocking=True)
-        self.comms.sendMovement(d=self.comms.sinkingDepth,
-                                blocking=True)
-
-        start = time.time()
-        while not self.comms.retVal or len(self.comms.retVal['matches']) == 0:
-            if self.comms.isAborted or self.comms.isKilled:
-                self.comms.abortMission()
-                return 'aborted'
-            if time.time() - start > self.timeout:
-                return 'aligned'
-            rospy.sleep(rospy.Duration(0.1))
-
-        matches = self.comms.retVal['matches']
-        nearest = min(matches,
-                      key=lambda m:
-                      Utils.distBetweenPoints(m['centroid'],
-                                              (self.centerX, self.centerY)))
-        dAngle = Utils.toHeadingSpace(nearest['angle'])
-        adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
-        self.comms.adjustHeading = adjustAngle
-        self.comms.sendMovement(h=adjustAngle,
-                                d=self.comms.sinkingDepth, blocking=True)
-
-        return 'aligned'
-        #except Exception as e:
-        #    rospy.logerr(str(e))
-        #    adjustAngle = self.comms.curHeading
-        #    self.comms.adjustHeading = adjustAngle
-        #    self.comms.sendMovement(h=adjustAngle, blocking=True)
-        #    self.comms.sendMovement(d=self.comms.sinkingDepth,
-        #                            blocking=True)
-        #    return 'aligned'
+        try:
+            # Align with the bins
+            dAngle = Utils.toHeadingSpace(self.comms.nearest)
+            adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
+            self.comms.adjustHeading = adjustAngle
+            self.comms.visionFilter.visionMode = BinsVision.BINSMODE
+            self.comms.sendMovement(h=adjustAngle,
+                                    d=self.comms.aligningDepth,
+                                    blocking=True)
+            #self.comms.sendMovement(h=adjustAngle,
+            #                        d=self.comms.sinkingDepth,
+            #                        blocking=True)
+            return 'aligned'
+        except Exception as e:
+            rospy.logerr(str(e))
+            adjustAngle = self.comms.curHeading
+            self.comms.adjustHeading = adjustAngle
+            self.comms.sendMovement(h=adjustAngle, blocking=True)
+            #self.comms.sendMovement(d=self.comms.sinkingDepth,
+            #                        blocking=True)
+            return 'aligned'
 
 class CenterAgain(smach.State):
     maxdx = 0.03
@@ -245,10 +227,10 @@ class CenterAgain(smach.State):
     width = BinsVision.screen['width']
     height = BinsVision.screen['height']
     centerX = width / 2.0
-    centerY = height / 2.0
+    centerY = height / 2.0 - 20
 
-    xcoeff = 3.0
-    ycoeff = 2.5
+    xcoeff = 2.5
+    ycoeff = 2.0
 
     numTrials = 1
     trialsPassed = 0
@@ -291,17 +273,38 @@ class CenterAgain(smach.State):
 
         if abs(dx) > self.maxdx or abs(dy) > self.maxdy:
             self.comms.sendMovement(f=-self.ycoeff*dy, sm=self.xcoeff*dx,
-                                    d=self.comms.sinkingDepth,
+                                    d=self.comms.aligningDepth,
                                     h=self.comms.adjustHeading,
                                     blocking=False)
             return 'centering'
 
         self.comms.sendMovement(f=0.0, sm=0.0,
-                                d=self.comms.sinkingDepth,
+                                d=self.comms.aligningDepth,
                                 h=self.comms.adjustHeading,
                                 blocking=True)
         #self.comms.motionClient.cancel_all_goals()
         if self.trialsPassed == self.numTrials:
+            # Realigning
+            start = time.time()
+            while not self.comms.retVal or len(self.comms.retVal['matches']) == 0:
+                if self.comms.isAborted or self.comms.isKilled:
+                    self.comms.abortMission()
+                    return 'aborted'
+                if time.time() - start > self.timeout:
+                    return 'aligned'
+                rospy.sleep(rospy.Duration(0.1))
+
+            matches = self.comms.retVal['matches']
+            nearest = min(matches,
+                          key=lambda m:
+                          Utils.distBetweenPoints(m['centroid'],
+                                                  (self.centerX, self.centerY)))
+            dAngle = Utils.toHeadingSpace(nearest['angle'])
+            adjustAngle = Utils.normAngle(dAngle + self.comms.curHeading)
+            self.comms.adjustHeading = adjustAngle
+            self.comms.sendMovement(h=adjustAngle,
+                                    d=self.comms.aligningDepth, blocking=True)
+
             self.comms.visionFilter.visionMode = BinsVision.BINSMODE
             self.trialsPassed = 0
             return 'centered'
@@ -323,6 +326,11 @@ class Fire(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
+        self.comms.sendMovement(f=-0.2, sm=0.1,
+                                d=self.comms.sinkingDepth + 0.3,
+                                h=self.comms.adjustHeading,
+                                blocking=True)
+
         self.comms.drop()
         if self.fireTimes == 0:
             self.fireTimes += 1
@@ -333,7 +341,7 @@ class Fire(smach.State):
             return 'completed'
 
 class Search2(smach.State):
-    timeout = 10
+    timeout = 7 
     turnTimeout = 10
 
     width = BinsVision.screen['width']
@@ -353,7 +361,7 @@ class Search2(smach.State):
         self.comms.sendMovement(d=self.comms.turnDepth,
                                 h=Utils.normAngle(self.comms.adjustHeading-90),
                                 blocking=True)
-        self.comms.sendMovement(f=0.2, d=self.comms.turnDepth, blocking=True)
+        self.comms.sendMovement(f=0.9, d=self.comms.turnDepth, blocking=True)
 
     def turnRight(self):
         rospy.loginfo("Turning right...")
@@ -361,7 +369,7 @@ class Search2(smach.State):
         self.comms.sendMovement(h=Utils.normAngle(self.comms.adjustHeading+90),
                                 d=self.comms.turnDepth,
                                 blocking=True)
-        self.comms.sendMovement(f=0.2, d=self.comms.turnDepth, blocking=True)
+        self.comms.sendMovement(f=0.9, d=self.comms.turnDepth, blocking=True)
 
     def execute(self, userdata):
         if self.comms.isAborted or self.comms.isKilled:
@@ -373,11 +381,13 @@ class Search2(smach.State):
         start = time.time()
 
         while not self.comms.retVal or \
-              len(self.comms.retVal['matches']) == 0:
+              len(self.comms.retVal['matches']) <= 1:
             if self.comms.isKilled or self.comms.isAborted:
                 self.comms.abortMission()
                 return 'aborted'
             if time.time() - start > self.timeout:
+                if self.comms.retVal and len(self.comms.retVal['matches']) == 1:
+                    return 'foundBins'
                 return 'lost'
             rospy.sleep(rospy.Duration(0.1))
 

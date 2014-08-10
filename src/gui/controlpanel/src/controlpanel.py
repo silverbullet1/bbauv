@@ -144,8 +144,8 @@ class AUV_gui(QMainWindow):
         self.sidemove_rev = QPushButton("Reverse")
         self.forward_rev = QPushButton("Reverse")
 
-        roll_chk, self.roll_chkbox, layout_roll = self.make_data_chkbox("Roll:   ")
-        pitch_chk, self.pitch_chkbox, layout_pitch = self.make_data_chkbox("Pitch: ")
+        roll_chk, self.roll_chkbox, layout_roll = self.make_data_chkbox("Roll:   ", checked=True)
+        pitch_chk, self.pitch_chkbox, layout_pitch = self.make_data_chkbox("Pitch: ", checked=True)
 
         rel_heading_chk, self.rel_heading_chkbox,layout5 =self.make_data_chkbox("Rel:    ")
         rel_depth_chk, self.rel_depth_chkbox,layout6 =self.make_data_chkbox("Rel:    ")
@@ -566,7 +566,7 @@ class AUV_gui(QMainWindow):
             self.q_mode = Queue.Queue()
         except Exception,e:
             pass
-        
+
         try:
             openups1 = self.q_openups1.get(False,0)
             self.q_openups1 = Queue.Queue()
@@ -760,19 +760,18 @@ class AUV_gui(QMainWindow):
             mani_name[6] = "TRUE"
         else:
             mani_name[6] = "FALSE"
-            
+
         self.saPanel3.setText("<b>Grabber: " + mani_name[2]+"</b>")
-        
+
         battery_notification1 = ""
         battery_notification2 = ""
         if self.data['openups1'].battery_percentage < 22.5:
             battery_notification1 = "BATTERY 1 DYING!"
         if self.data['openups2'].battery_percentage < 22.5:
             battery_notification2 = "BATTERY 2 DYING!"
-        self.saPanel4.setText("LYNNETTE SUCKS" + 
-                              "<b><br>" + battery_notification1 + 
-                              "<b><br>" + battery_notification2 + 
-                              "</b>") 
+        self.saPanel4.setText(battery_notification1 +
+                              "<b><br>" + battery_notification2 +
+                              "</b>")
         if self.data['openups1'].battery_percentage < 15.0 or \
             self.data['openups2'].battery_percentage < 15.0 and \
             not self.batt_not:
@@ -783,7 +782,7 @@ class AUV_gui(QMainWindow):
             self.batt_not = True
         elif self.data['openups1'].battery_percentage > 20.0 and \
             self.data['openups2'].battery_percentage > 20.0:
-            self.batt_not = False 
+            self.batt_not = False
 
 
 #         self.saPanel3.setText("<b>Bot Tor: " + mani_name[0] +
@@ -791,7 +790,7 @@ class AUV_gui(QMainWindow):
 #                               "<br>Grabber: " + mani_name[2] +
 #                               "<br>Dropper: " + mani_name[3] +
 #                               "</b>")
-# 
+#
 #         self.saPanel4.setText("<b>: " + mani_name[4] +
 #                               "<br>: " + mani_name[5] +
 #                               "<br>: " + mani_name[6] +
@@ -809,13 +808,13 @@ class AUV_gui(QMainWindow):
         self.oPanel1.setText("<b>VOLT1: " + str(round(self.data['openups1'].cell6,2)) +
                               "<br>CUR1: " + str(round(self.data['openups1'].current,3)) +
                               "<br>%: " + str(round(self.data['openups1'].battery_percentage,2)) +
-                              "<br>USE: " + str(round(self.data['openups1'].used_mAh,2)) + 
+                              "<br>USE: " + str(round(self.data['openups1'].used_mAh,2)) +
                               "</b>")
 
         self.oPanel2.setText("<b>VOLT2: " + str(round(self.data['openups2'].cell6,2)) +
                               "<br>CUR2: " + str(round(self.data['openups2'].current,3)) +
                               "<br>%: " + str(round(self.data['openups2'].battery_percentage,2)) +
-                              "<br>USE: " + str(round(self.data['openups2'].used_mAh,2)) + 
+                              "<br>USE: " + str(round(self.data['openups2'].used_mAh,2)) +
                               "</b>")
 
         self.lPanel1.setText("<b>HU LEAK1: " + str(self.data['hull_status'].WaterDetA) +
@@ -1048,8 +1047,8 @@ class AUV_gui(QMainWindow):
         if self.pitch_chkbox.checkState():
             pitch = True
 #         resp = self.set_controller_request(True, True, True, True, pitch, roll, False, False)
-        resp = self.set_controller_request(True, True, True, True, 
-                                           True, False, False, False, 
+        resp = self.set_controller_request(True, True, True, True,
+                                           True, False, False, False,
                                            False, False)
         goal = ControllerGoal
         goal.depth_setpoint = 0
@@ -1202,7 +1201,7 @@ class AUV_gui(QMainWindow):
         #self.movebase_client.wait_for_server()
         rospy.loginfo("Mission connected to MovebaseServer")
         if not self.testing:
-            self.dynamic_client = dynamic_reconfigure.client.Client('/DVL')
+            self.dynamic_client = dynamic_reconfigure.client.Client('/earth_odom')
             rospy.loginfo("Earth Odom dynamic reconfigure initialised")
 
         self.controller_client = dynamic_reconfigure.client.Client('/Controller')
@@ -1223,11 +1222,12 @@ class AUV_gui(QMainWindow):
 
         return (label, qle, layout)
 
-    def make_data_chkbox(self, name):
+    def make_data_chkbox(self, name, checked=False):
         label = QLabel(name)
         qle = QCheckBox()
         layout = QHBoxLayout()
-        #qle.setEnabled(False)
+        if checked:
+            qle.setChecked(True)
         layout.addWidget(label)
         layout.addWidget(qle)
         layout.addStretch(1)
@@ -1261,7 +1261,7 @@ class AUV_gui(QMainWindow):
             cv2.rectangle(cvRGBImg_front,
                           (int(midX-maxDeltaX), int(midY-maxDeltaY)),
                           (int(midX+maxDeltaX), int(midY+maxDeltaY)),
-                          (0, 255, 255), 2)  
+                          (0, 255, 255), 2)
 
             cv2.circle(cvRGBImg_front, (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])),
                 97, (255, 255, 0), 2)
@@ -1271,7 +1271,7 @@ class AUV_gui(QMainWindow):
             cv2.rectangle(cvRGBImg_front,
                           (int(camX-maxDeltaX), int(camY-maxDeltaY)),
                           (int(camX+maxDeltaX), int(camY+maxDeltaY)),
-                          (255, 0, 0), 2)  
+                          (255, 0, 0), 2)
 
 
             qimg = QImage(cvRGBImg_front.data,cvRGBImg_front.shape[1], cvRGBImg_front.shape[0], QImage.Format_RGB888)

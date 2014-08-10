@@ -34,7 +34,7 @@ class Disengage(smach.State):
         return 'started'
 
 class SearchSite(smach.State):
-    timeout = 200
+    timeout = 45
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundSite'])
@@ -104,6 +104,9 @@ class CenterSite(smach.State):
                 self.trialPassed = 0
                 self.comms.visionMode = PickupVision.SAMPLES
                 self.comms.notifyCentered()
+                self.comms.sendMovement(h=self.comms.inputHeading,
+                                        d=self.comms.sinkingDepth,
+                                        blocking=True)
                 return 'centered'
             else:
                 self.trialPassed += 1
@@ -117,10 +120,14 @@ class CenterSite(smach.State):
         
 
 class Search(smach.State):
-    timeout = 10
+    timeout = 3
+    curPattern = 0
+    pattern = ((0, 0), (0.4, -0.4), (0.4, 0.4), (-0.4, -0.4), (-0.4, 0.4)) 
+    lastPattern = len(pattern) - 1
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['foundSamples',
+                                             'searching',
                                              'timeout',
                                              'aborted'])
         self.comms = comms
@@ -131,20 +138,35 @@ class Search(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(h=self.comms.inputHeading,
+        self.comms.sendMovement(f=self.pattern[self.curPattern][0],
+                                sm=self.pattern[self.curPattern][1],
+                                h=self.comms.inputHeading,
                                 d=self.comms.sinkingDepth,
-                                blocking=True)
-
+                                timeout=5,
+                                blocking=False)
         start = time.time()
         while not self.comms.retVal or \
               len (self.comms.retVal['samples']) < 1:
             if time.time() - start > self.timeout:
-                self.comms.failTask()
-                return 'timeout'
+                if self.curPattern == self.lastPattern:
+                    self.curPattern = 0
+                    self.comms.failTask()
+                    return 'timeout'
+                else:
+                    self.comms.sendMovement(f=-self.pattern[self.curPattern][0],
+                                            sm=-self.pattern[self.curPattern][1],
+                                            h=self.comms.inputHeading,
+                                            d=self.comms.sinkingDepth,
+                                            timeout=5,
+                                            blocking=False)
+                    self.curPattern += 1
+                    return 'searching'
             if self.comms.isAborted or self.comms.isKilled:
+                self.curPattern = 0
                 return 'aborted'
             rospy.sleep(rospy.Duration(0.3))
 
+        self.curPattern = 0
         return 'foundSamples'
 
 class Center(smach.State):
@@ -361,7 +383,7 @@ class Center3(smach.State):
     width = PickupVision.screen['width']
     height = PickupVision.screen['height']
     centerX = width / 2.0
-    centerY = height / 2.0 + 60
+    centerY = height / 2.0 + 40
 
     maxdx = 0.03
     maxdy = 0.03
@@ -435,13 +457,14 @@ class Grab(smach.State):
             return 'aborted'
 
         self.comms.activateVelocity()
-        self.comms.sendMovement(d=self.comms.lastDepth,
+        self.comms.sendMovement(f=0.1,
+                                d=self.comms.lastDepth,
                                 h=self.comms.adjustHeading,
-                                timeout=8,
+                                timeout=6,
                                 blocking=False)
-        for i in range(10):
+        for i in range(5):
             self.comms.grab()
-            rospy.sleep(rospy.Duration(0.3))
+            rospy.sleep(rospy.Duration(0.2))
 
         return 'grabbed'
 
@@ -490,6 +513,7 @@ def main():
         smach.StateMachine.add('SEARCH',
                                Search(myCom),
                                transitions={'foundSamples':'CENTER',
+                                            'searching':'SEARCH',
                                             'timeout':'DISENGAGE',
                                             'aborted':'DISENGAGE'})
         smach.StateMachine.add('CENTER',

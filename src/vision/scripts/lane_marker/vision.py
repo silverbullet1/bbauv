@@ -11,7 +11,7 @@ class LaneMarkerVision:
     screen = { 'width': 640, 'height': 480 }
     width = screen['width']
     height = screen['height']
-    screenOffset = (200, 150)
+    screenOffset = (170, 120) #(200, 150)
     center = (screen['width']/2, screen['height']/2)
     corner1 = (center[0]-screenOffset[0], center[1]-screenOffset[1])
     corner2 = (center[0]+screenOffset[0], center[1]-screenOffset[1])
@@ -23,6 +23,12 @@ class LaneMarkerVision:
     # Vision parameters
     hsvLoThresh1 = (10, 0, 0)
     hsvHiThresh1 = (35, 255, 255)
+    hsvLoThresh2 = (14, 0, 0)
+    hsvHiThresh2 = (70, 120, 255)
+    hsvLoThresh3 = (95, 0, 0)
+    hsvHiThresh3 = (115, 120, 255)
+    hsvLoThresh4 = (70, 0, 0)
+    hsvHiThresh4 = (80, 90, 255)
     minContourArea = 3000
 
     yellowLoThresh = (40, 0, 0)
@@ -45,6 +51,10 @@ class LaneMarkerVision:
         params = self.comms.params
         self.hsvLoThresh1 = params['hsvLoThresh1']
         self.hsvHiThresh1 = params['hsvHiThresh1']
+        self.hsvLoThresh2 = params['hsvLoThresh2']
+        self.hsvHiThresh2 = params['hsvHiThresh2']
+        self.hsvLoThresh3 = params['hsvLoThresh3']
+        self.hsvHiThresh3 = params['hsvHiThresh3']
         self.minContourArea = params['minContourArea']
 
         self.yellowLoThresh = params['yellowLoThresh']
@@ -70,10 +80,15 @@ class LaneMarkerVision:
         #t2 = det * (-v1 * dx + u1 * dy)
         return (x1 + t1*u1, y1 + t1*v1)
 
+    def findCenter(self, contour):
+        moment = cv2.moments(contour, False)
+        return (moment['m10']/moment['m00'],
+                moment['m01']/moment['m00'])
+
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
@@ -86,7 +101,7 @@ class LaneMarkerVision:
         # Closing up gaps and remove noise with morphological ops
         erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
         dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
         img = cv2.erode(img, erodeEl)
         img = cv2.dilate(img, dilateEl)
@@ -124,16 +139,16 @@ class LaneMarkerVision:
                                             bound=self.minBoxArea)
         if len(contours) < 1: return retData, outImg
 
-        # Sort the thresholded areas from largest to smallest
-        largestContour = max(contours, key=cv2.contourArea)
-        boxRect = cv2.minAreaRect(largestContour)
-        box['centroid'] = boxRect[0]
+        centroids = map(lambda c: self.findCenter(c), contours)
+        meanX = np.mean(map(lambda c: c[0], centroids))
+        meanY = np.mean(map(lambda c: c[1], centroids))
+        box['centroid'] = (meanX, meanY)
 
         if self.debugMode:
-            cv2.circle(outImg, (int(boxRect[0][0]), int(boxRect[0][1])),
-                       5, (0, 0, 255))
-            Vision.drawRect(outImg,
-                            cv2.cv.BoxPoints(boxRect), color=(0, 255, 255))
+            cv2.circle(outImg, (int(meanX), int(meanY)),
+                       5, (0, 0, 255), -1)
+            #Vision.drawRect(outImg,
+            #                cv2.cv.BoxPoints(boxRect), color=(0, 255, 255))
         return retData, outImg
 
     def findLane(self, img):
@@ -147,7 +162,28 @@ class LaneMarkerVision:
         img = cv2.GaussianBlur(img, (5, 5), 0)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
+        if self.isAcoustic:
+            binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
+            binImg = binImg | cv2.inRange(hsvImg,
+                                          self.hsvLoThresh2,
+                                          self.hsvHiThresh2)
+            binImg = binImg | cv2.inRange(hsvImg,
+                                          self.hsvLoThresh3,
+                                          self.hsvHiThresh3)
+            binImg = binImg | cv2.inRange(hsvImg,
+                                          self.hsvLoThresh4,
+                                          self.hsvHiThresh4)
+        else:
+            binImg = cv2.inRange(hsvImg, self.hsvLoThresh1, self.hsvHiThresh1)
+            binImg = binImg | cv2.inRange(hsvImg,
+                                          self.hsvLoThresh2,
+                                          self.hsvHiThresh2)
+            binImg = binImg | cv2.inRange(hsvImg,
+                                          self.hsvLoThresh3,
+                                          self.hsvHiThresh3)
+            binImg = binImg | cv2.inRange(hsvImg,
+                                          self.hsvLoThresh4,
+                                          self.hsvHiThresh4)
         binImg = self.morphology(binImg)
 
         if self.debugMode:
@@ -180,14 +216,14 @@ class LaneMarkerVision:
             len2 = cv2.norm(edge2)
 
             # Make sure not to detectin the yellow box i.e false positive
-            ratio = len1/len2 if len1 > len2 else len2/len1
-            if ratio < self.ratioBound:
-                continue
-            if self.curCorner > 0:
-                dX = (rect[0][0] - self.corners[self.curCorner][0])/self.width
-                dY = (rect[0][1] - self.corners[self.curCorner][1])/self.height
-                if dX < 0.05 and dY < 0.05:
-                    continue
+            #ratio = len1/len2 if len1 > len2 else len2/len1
+            #if ratio < self.ratioBound:
+            #    continue
+            #if self.curCorner > 0:
+            #    dX = (rect[0][0] - self.corners[self.curCorner][0])/self.width
+            #    dY = (rect[0][1] - self.corners[self.curCorner][1])/self.height
+            #    if dX < 0.05 and dY < 0.05:
+            #        continue
 
             #Choose the vertical edge
             if len1 > len2:
@@ -289,7 +325,6 @@ class LaneMarkerVision:
                                   (int(self.corners[i][0]+maxDeltaX),
                                    int(self.corners[i][1]+maxDeltaY)),
                                   color, 2)
-
         return retData, outImg
 
 

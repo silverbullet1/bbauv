@@ -29,6 +29,7 @@ class Disengage(smach.State):
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['start_complete', 'killed'])
         self.comms = comms
+        # self.comms.isMovingState = True
     
     def execute(self, userdata):
         self.comms.state = "DISENGAGE"
@@ -41,7 +42,7 @@ class Disengage(smach.State):
         if self.comms.isAlone:
             self.comms.register()
             self.comms.regCompass()
-            self.comms.registerSonar()
+            # self.comms.registerSonar()
 
             rospy.sleep(rospy.Duration(0.5))
             self.comms.inputHeading = self.comms.curHeading
@@ -60,9 +61,12 @@ class Disengage(smach.State):
 class FollowSonar(smach.State):
     completeBoardArea = 11000
     forward_setpoint = 0.8
+    # forward_setpoint = 0.3
+    # sidemove_setpoint = 1.0
+    sidemove_setpoint = 0.4
     sonarDist = 3.0
 
-    timeout = 300
+    timeout = 30
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['sonar_complete', 'following_sonar', 'aborted', 'killed'])
@@ -71,28 +75,57 @@ class FollowSonar(smach.State):
         
     def execute(self, ud):
         self.comms.state = "SONARSONAR"
+        self.comms.isMovingState = False
 
-        if self.comms.sonarBearing > self.sonarDist or \
-            self.comms.boardArea < self.completeBoardArea:
-            rospy.loginfo("Sonar bearing {}".format(self.comms.sonarBearing))
-            self.comms.curHeading = self.comms.heading + (self.comms.sonarBearing*-1.0)
-            if self.comms.sonarBearing < -10 or \
-                self.comms.sonarBearing >  10:
-                sidemove = 1.0 if self.comms.sonarBearing < 0 else -1.0
+        start = time.time()
+        curTime = time.time()
 
-                self.comms.sendMovement(forward=0.0,
-                                        heading=self.comms.curHeading,
-                                        sidemove=sidemove,
-                                        blocking=True)
-            self.comms.sendMovement(forward=0.8, blocking=True)
-            return 'following_sonar'
+        if self.comms.isKilled:
+            return 'killed'
+        if self.comms.isAborted:
+            return 'aborted'
+
+        if (time.time()-start) > self.timeout:
+            self.comms.isAborted = True
+            return 'aborted'
+
+        while self.comms.sonarRange is None and self.comms.sonarBearing is None:
+            rospy.sleep(rospy.Duration(0.3))
+
+        rospy.loginfo("Sonar bearing {}".format(self.comms.sonarBearing))
+        rospy.loginfo("Sonar Dist {}".format(self.comms.sonarRange))
+        if self.comms.sonarRange > self.sonarDist or \
+            self.comms.boardArea > self.completeBoardArea:
+            self.comms.curHeading = self.comms.heading + self.comms.sonarBearing
+            # if self.comms.sonarBearing < -10 or \
+            #     self.comms.sonarBearing >  10:
+            sidemove = self.sidemove_setpoint if self.comms.sonarBearing > 0 else self.sidemove_setpoint*-1.0
+
+            self.comms.sendMovement(forward=0.0,
+                                    heading=self.comms.curHeading,
+                                    sidemove=sidemove,
+                                    blocking=False)
+            rospy.loginfo("Movement side finish")
+            self.comms.sendMovement(forward=self.forward_setpoint, blocking=False)
+
+            # rospy.sleep(rospy.Duration(0.3))
+            return 'sonar_complete'
+            # return 'following_sonar'
         else:
             self.comms.curHeading = self.comms.heading
+
+            rospy.loginfo("Follow Sonar time {}".format(time.time()-self.comms.curTime))
+            self.comms.curTime = time.time()
+
             return 'sonar_complete'
+
+        return 'following_sonar'
 
 class SearchCircles(smach.State):
     timeout = 30
     lostCount = 0
+    distMoved = 0.0
+    forward_setpoint = 0.4
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['searchCircles_complete', 'lost', 'aborted', 'killed'])
@@ -100,25 +133,31 @@ class SearchCircles(smach.State):
             
     def execute(self, ud):
         self.comms.state = "SEARCHING"
-        self.comms.isMovingState = False
+        # self.comms.isMovingState = False
+        self.comms.isMovingState = True
 
         start = time.time()
         curTime = time.time()
         
-        while not self.comms.foundCircles and not self.comms.foundSomething: 
+        while not self.comms.foundCircles: 
             if self.comms.isKilled:
                 return 'killed'
             if self.comms.isAborted or (time.time() - start) > self.timeout:
                 self.comms.isAborted = True
                 return 'aborted' 
 
-            if not self.comms.foundCircles and not self.comms.foundSomething:
+            if not self.comms.foundCircles or self.comms.foundSomething:
                 self.lostCount += 1
             if self.lostCount > 90:
                 self.comms.abortMission()
                 return 'lost'
 
-            self.comms.sendMovement(forward=0.3, timeout=0.6, blocking=False)
+            self.comms.sendMovement(forward=self.forward_setpoint, timeout=0.6, blocking=False)
+            self.distMoved += self.forward_setpoint
+
+            if self.distMoved > 5.0:
+                self.comms.abortMission()
+                return 'aborted'                
 
             rospy.sleep(rospy.Duration(0.3))   
 
@@ -128,14 +167,19 @@ class SearchCircles(smach.State):
 
 # Align with the center of the green board 
 class AlignBoard(smach.State):
-    timeout = 300
+    timeout = 30
 
     forward_setpoint = 0.50
-    halfCompleteArea = 45000
-    completeArea = 68000
+    # forward_setpoint = 0.30     # US Small pool
+    halfCompleteArea = 49000
+    # completeArea = 68000
+    completeArea = 63000        # US Small pool
+    # completeArea = 58000         # US House 2
 
-    deltaXMult = 4.9
+    # deltaXMult = 4.9
+    deltaXMult = 3.00   # US Small Pool
     deltaYMult = 1.6
+    # deltaYMult = 0.5    # US Small Pool
     headingMult = 1.5
 
     skew = 1.00
@@ -153,6 +197,7 @@ class AlignBoard(smach.State):
     def execute(self, ud):
         self.comms.state = "BOARDBOARD"
         self.comms.isMovingState = False
+        self.comms.isCenteringState = False
         curTime = time.time()
 
         if self.comms.isKilled:
@@ -161,20 +206,29 @@ class AlignBoard(smach.State):
             return 'aborted'
 
         if not self.comms.foundCircles or not self.comms.foundSomething:
+            self.comms.sendMovement(forward=0.3, heading=self.comms.curHeading,
+                                    depth=self.comms.defaultDepth, timeout=0.4,
+                                    blocking=False)
             self.lostCount += 1
         if self.lostCount > 90:
             self.comms.abortMission()
             return 'aborted'
 
-        if self.comms.boardArea > self.completeArea and self.comms.skew < 0.35:
-            self.comms.curHeading = self.comms.heading
+        #if self.comms.boardArea > self.completeArea and self.comms.skew < 0.35:
+        #            self.comms.curHeading = self.comms.heading
 
+        if self.comms.boardArea > self.completeArea:
             rospy.loginfo("Align Board time {}".format(time.time()-self.comms.curTime))
             self.comms.curTime = time.time()
             return 'alignBoard_complete'
 
         if self.comms.boardArea < self.halfCompleteArea:
-            self.forward_setpoint = 0.7
+            self.forward_setpoint = 1.5
+            # self.forward_setpoint = 0.8     # US Small pool 1
+        else:
+            self.forward_setpoint = 0.50      # Tech tank
+            # self.forward_setpoint = 0.30    # US House 2
+        # rospy.loginfo("Depth {}".format(self.comms.depth))
 
         if abs(self.comms.boardDeltaY) > 0.035:
             # if self.comms.boardArea > self.halfCompleteArea:
@@ -185,12 +239,13 @@ class AlignBoard(smach.State):
             # Prevent surfacing
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = self.comms.depthFromMission
+        # rospy.loginfo("Default d {}".format(self.comms.defaultDepth))
 
         # if self.comms.boardArea > self.halfCompleteArea:
         #     self.forward_setpoint = 0.30
 
-        if abs(self.comms.skew) < self.skew:
-            self.comms.curHeading = self.comms.heading + abs(self.comms.skew) * self.headingMult
+        # if abs(self.comms.skew) < self.skew:
+        #     self.comms.curHeading = self.comms.heading + abs(self.comms.skew) * self.headingMult
                 
         # Side move and keep heading
         self.comms.sendMovement(forward=self.forward_setpoint, 
@@ -205,12 +260,18 @@ class AlignBoard(smach.State):
 class MoveForward(smach.State):
 
     # forward_setpoint = 0.43
-    forward_setpoint = 0.30
+    forward_setpoint = 0.28     # US Small pool
     completeRadius = 62
+    # completeRadius = 60         # US Small pool
+    completeRadius = 50           # US tech tank
     lostCount = 0
 
-    deltaXMult = 4.5
+    # deltaXMult = 4.5
+    deltaXMult = 2.5           # US Small pool
+    # deltaXMult = 2.0
     deltaYMult = 2.0
+    deltaYMult = 1.6          # US Small pool
+    # deltaYMult = 0.5
 
     # completeRadius = self.comms.movementParams['forwardRadius']
     # deltaXMult = self.comms.movementParams['forwardDeltaX']
@@ -223,6 +284,7 @@ class MoveForward(smach.State):
     def execute(self, ud):    
         self.comms.state = "MOVING"
         self.comms.isMovingState = True
+        self.comms.isCenteringState = False
         curTime = time.time()
 
         if self.comms.isKilled:
@@ -240,10 +302,14 @@ class MoveForward(smach.State):
             self.lostCount = self.lostCount + 1
                     
         if self.comms.numShoot == 1:
-            # self.completeRadius = 43
+            # self.completeRadius = 40        # US Tech Tank
             self.completeRadius = 45
-            self.forward_setpoint = 0.24
+            self.forward_setpoint = 0.13
+            # self.forward_setpoint = 0.10
             # self.deltaXMult = 0.8
+
+        if self.comms.radius > self.completeRadius-10:
+            self.comms.isCenteringState = True
 
         if self.comms.radius > self.completeRadius:
             rospy.loginfo("Move circles time {}".format(time.time()-self.comms.curTime))
@@ -270,16 +336,23 @@ class MoveForward(smach.State):
 
 # Precise movements when near centroid
 class Centering (smach.State):
-    deltaXMult = 3.8
+    deltaXMult = 2.0    # US Small pool
     # deltaYMult = 2.3
-    deltaYMult = 2.0
+    # deltaYMult = 2.0
+    # deltaYMult = 1.5    # US Small pool
+    # deltaYMult = 1.3
+    deltaYMult = 0.6     # US House 2
 
     centeringCount = 0
     halfCompleteRadius = 65
-    completeRadius = 91
-    # completeRadius = 78
+    # completeRadius = 91
+    completeRadius = 88     # US Small pool & Tech Tank
+    # completeRadius = 83       # US house 2
     forward_half = 0.23
-    forward_setpoint = 0.22
+    # forward_half = 0.18
+    # forward_setpoint = 0.22
+    forward_setpoint = 0.18    # US Small pool
+    # forward_setpoint = 0.10      # US House 2
 
     centering = 5
 
@@ -294,6 +367,7 @@ class Centering (smach.State):
     def execute(self, userdata):
         self.comms.state = "CENTERING"
         self.comms.isMovingState = True
+        self.comms.isCenteringState = True
         curTime = time.time()
 
         if self.comms.isKilled:
@@ -303,18 +377,19 @@ class Centering (smach.State):
 
         if self.comms.numShoot == 1:
             # self.completeRadius = 86
-            # self.completeRadius = 65
-            self.completeRadius = 78
-            self.forward_setpoint = 0.13
-            self.deltaYMult = 1.7
+            # self.completeRadius = 74    # US Tech Tank
+            self.completeRadius = 80  # US House 1
+            self.forward_setpoint = 0.10
+            self.deltaYMult = 1.0
             self.centering = 7
 
         if self.comms.radius > self.completeRadius:
-            sidemove_setpoint = self.comms.deltaX * 1.7
+            sidemove_setpoint = self.comms.deltaX * 1.3
             if self.comms.numShoot == 1:
-                self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.3
-            elif self.comms.numShoot == 0:
                 self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*1.0
+            elif self.comms.numShoot == 0:
+                self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*0.8
+                # self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*0.6
 
             self.comms.sendMovement(forward = 0.0, 
                             sidemove = sidemove_setpoint,
@@ -329,6 +404,17 @@ class Centering (smach.State):
             if self.centeringCount > self.centering:
                 self.centeringCount = 0
 
+                # Just move forward a little
+                # if self.comms.numShoot == 1:
+                #     self.comms.sendMovement(forward=0.4, sidemove=0.0,
+                #             depth=self.comms.defaultDepth, blocking=True)
+                # else:
+                #     self.comms.sendMovement(forward=0.4, sidemove=0.0,
+                #                             depth=self.comms.defaultDepth, blocking=True)
+
+                    # self.comms.sendMovement(forward=0.6, sidemove=0.0,
+                    #                         depth=self.comms.defaultDepth, blocking=True)
+
                 rospy.loginfo("Centering time {}".format(time.time()-self.comms.curTime))
                 self.comms.curTime = time.time()
                 return 'centering_complete'
@@ -339,8 +425,9 @@ class Centering (smach.State):
 
             if abs(self.comms.deltaY) > 0.040:
                 self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
-                if self.comms.defaultDepth < 0.1:
-                    self.comms.defaultDepth = self.comms.depthFromMission
+            if self.comms.defaultDepth < 0.2:
+                # self.comms.defaultDepth = self.comms.depthFromMission
+                self.comms.defaultDepth = 0.2
             
             sidemove_setpoint = 0.0
             if abs(self.comms.deltaX) > 0.040:
@@ -361,8 +448,9 @@ class ShootTorpedo(smach.State):
         self.comms = comms
     
     def execute(self, userdata):
-        self.comms.state = "SHOOT TO KILL"
+        self.comms.state = "SHOOTING"
         self.comms.isMovingState = True
+        self.comms.isCenteringState = True
 
         if self.comms.isKilled:
             return 'killed'
@@ -379,9 +467,9 @@ class ShootTorpedo(smach.State):
             #     self.comms.searchComplete()
 
             # self.comms.shootBotTorpedo()
+            # For US House 2
             # self.comms.taskComplete()
             # return 'shoot_complete'
-            # return 'shoot_again'
 
         elif self.comms.numShoot == 1:
             rospy.loginfo("Second shoot")
@@ -397,7 +485,10 @@ class ShootTorpedo(smach.State):
             return 'shoot_complete'
 
         self.comms.state = "MOVING UP"
-        self.comms.defaultDepth = 1.30
+        # self.comms.defaultDepth = self.comms.defaultDepth - 0.80
+        self.comms.defaultDepth = 1.8     #RoboSub Day 1
+        if self.comms.defaultDepth < 0.2:
+            self.comms.defaultDepth = 0.2
         self.comms.sendMovement(forward=-1.0, sidemove=0.0,
                                 depth=self.comms.defaultDepth,
                                 blocking=True)
@@ -405,7 +496,7 @@ class ShootTorpedo(smach.State):
         return 'shoot_again'
 
 def main():
-    rospy.init_node('torpedo_lynnette_awesomeness', anonymous=False)
+    rospy.init_node('torpedo_bangbangbang', anonymous=False)
     rosRate = rospy.Rate(30)
     myCom = Comms()
 
@@ -415,12 +506,14 @@ def main():
     
     with sm:
         smach.StateMachine.add("DISENGAGE", Disengage(myCom),
-                                transitions={'start_complete': "ALIGNBOARD",
+                                transitions={
+                                         'start_complete': "SEARCHCIRCLES",
                                          'killed': 'failed'})      
         
         smach.StateMachine.add("FOLLOWSONAR", FollowSonar(myCom),
                                transitions={'following_sonar': "FOLLOWSONAR",
-                                           'sonar_complete': "ALIGNBOARD",
+                                            'sonar_complete': 'succeeded',
+                                           # 'sonar_complete': "ALIGNBOARD",
                                            'aborted': 'killed',
                                            'killed': 'failed'})
 
@@ -432,7 +525,7 @@ def main():
                                 })
     
         smach.StateMachine.add("SEARCHCIRCLES", SearchCircles(myCom),
-                                transitions={'searchCircles_complete': "ALIGNBOARD",
+                                transitions={'searchCircles_complete': "MOVEFORWARD",
                                              'lost': 'failed',
                                              'aborted': 'killed',
                                              'killed': 'failed'})      
@@ -460,6 +553,10 @@ def main():
     #set up introspection Server
     introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/TORPEDO')
     introServer.start()
-    
-    sm.execute()
+    try:
+        sm.execute()
+    except Exception as e:
+        rospy.loginfo(str(e))
+    finally:
+        rospy.signal_shutdown("Bye")
         

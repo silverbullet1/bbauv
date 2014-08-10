@@ -14,11 +14,11 @@ class Comms(GenericComms):
 
     def __init__(self):
         GenericComms.__init__(self, BinsVision(self))
-        self.defaultDepth = 0.0 #0.2
-        self.aligningDepth = 0.0 #1.9
-        self.sinkingDepth = 0.5 #2.7
-        self.search2Depth = 0.0 #1.2
-        self.turnDepth = 0.0 #1.9
+        self.defaultDepth = 0.2 #0.2
+        self.aligningDepth = 1.4 #0.2 #0.8 #1.9 #robosub 9.4
+        self.sinkingDepth = 3.0 #2.0 #2.7 #robosub 9.6
+        self.search2Depth = 0.5 #0.2 #1.2 #robosub 8
+        self.turnDepth = 0.5 #0.8 #1.9 #robosub 8.2
 
         self.dynServer = DynServer(Config, self.reconfigure)
         self.maniPub = rospy.Publisher("/manipulators", manipulator)
@@ -48,8 +48,16 @@ class Comms(GenericComms):
                                              data=controller(heading_setpoint=
                                                              self.curHeading))
 
+    def abortMission(self):
+        self.drop()
+        GenericComms.abortMission(self)
+
+    def failTask(self):
+        self.drop()
+        GenericComms.failTask(self)
+
     def drop(self):
-        self.maniPub.publish(0 | 8)
+        self.maniPub.publish(8)
 
     def reconfigure(self, config, level):
         rospy.loginfo("Received dynamic_reconfigure")

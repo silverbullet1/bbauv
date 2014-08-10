@@ -14,20 +14,23 @@ class Comms(GenericComms):
     def __init__(self, taskMode='pickup'):
         GenericComms.__init__(self, PickupVision(self))
         self.curDepth = 0.0
+        self.taskMode = taskMode
 
         if taskMode == 'pickup':
-            self.defaultDepth = 0.6
-            self.sinkingDepth = 2.0
-            self.grabbingDepth = 3.2
-            self.lastDepth = 3.80
+            self.defaultDepth = 0.2
+            self.sinkingDepth = 2.6 #0.8 #1.9 #2.0 #robosub 8.9
+            self.grabbingDepth = 2.8 #0.9 #2.0 #3.2 #robosub 9
+            self.lastDepth = 3.8 #2.1 #2.9 #3.8 #robosub 9.9
             self.grabbingArea = 20000
 
             self.visionMode = PickupVision.SITE
         elif taskMode == 'drop':
-            self.defaultDepth = 0#1.2
-            self.sinkingDepth = 0.2#2.5
+            self.defaultDepth = 0.2 #1.2
+            self.sinkingDepth = 0.8 #1.5 #2.5
+            self.droppingDepth = 1.7
 
             self.visionMode = PickupVision.BOX
+            self.calledCount = 0
 
         self.depthSub = rospy.Subscriber("/depth", depth, self.depthCb)
         self.maniPub = rospy.Publisher("/manipulators", manipulator)
@@ -46,6 +49,28 @@ class Comms(GenericComms):
                                             vision_to_mission)
         self.toMission.wait_for_service()
 
+    def abortMission(self):
+        if self.taskMode == 'drop':
+            pass
+            #self.drop()
+            #if self.calledCount == 1:
+            #    self.sendMovement(d=-0.5,
+            #                      h=self.inputHeading,
+            #                      timeout=5,
+            #                      blocking=False)
+        GenericComms.abortMission(self)
+
+    def failTask(self):
+        if self.taskMode == 'drop':
+            pass
+            #self.drop()
+            #if self.calledCount == 1:
+            #    self.sendMovement(d=-0.5,
+            #                      h=self.inputHeading,
+            #                      timeout=5,
+            #                      blocking=False)
+        GenericComms.failTask(self)
+
     def depthCb(self, data):
         self.curDepth = data.depth
 
@@ -53,8 +78,10 @@ class Comms(GenericComms):
         if req.start_request:
             rospy.loginfo("Received Start Request")
             self.isAborted = False
-            self.defaultDepth = req.start_ctrl.depth_setpoint
+            self.defaultDepth = req.start_ctrl.depth_setpoint + 0.2
             self.inputHeading = req.start_ctrl.heading_setpoint
+            if self.taskMode == 'drop':
+                self.calledCount += 1
             return mission_to_visionResponse(start_response=True,
                                              abort_response=False,
                                              data=controller(heading_setpoint=
@@ -79,6 +106,13 @@ class Comms(GenericComms):
                        'yellowHiThresh': (config.yellowHiH,
                                           config.yellowHiS,
                                           config.yellowHiV),
+                       'yellowLoThresh2': (config.yellowLoH2,
+                                          config.yellowLoS2,
+                                          config.yellowLoV2),
+                       'yellowHiThresh2': (config.yellowHiH2,
+                                          config.yellowHiS2,
+                                          config.yellowHiV2),
+
                        'greenLoThresh': (config.greenLoH,
                                          config.greenLoS,
                                          config.greenLoV),
@@ -106,7 +140,7 @@ class Comms(GenericComms):
         return config
 
     def grab(self):
-        self.maniPub.publish(0 | 4)
+        self.maniPub.publish(4)
 
     def drop(self):
         self.maniPub.publish(0)

@@ -33,7 +33,7 @@ class Disengage(smach.State):
         return 'started'
 
 class SearchBox(smach.State):
-    timeout = 30
+    timeout = 10
 
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['aborted', 'timeout', 'foundBox'])
@@ -110,6 +110,10 @@ class CenterBox(smach.State):
         if abs(dx) < self.maxdx and abs(dy) < self.maxdy:
             self.comms.motionClient.cancel_all_goals()
             if self.trialPassed == self.numTrials:
+                self.comms.sendMovement(d=-0.5,
+                                        h=self.comms.inputHeading,
+                                        timeout=5,
+                                        blocking=False)
                 self.comms.sendMovement(d=self.comms.sinkingDepth,
                                         h=self.comms.inputHeading,
                                         blocking=True)
@@ -198,13 +202,17 @@ class Drop(smach.State):
             self.comms.abortMission()
             return 'aborted'
 
-        self.comms.sendMovement(h=self.comms.inputHeading,
-                                d=self.comms.sinkingDepth,
+        self.comms.sendMovement(f=0.1,
+                                h=self.comms.inputHeading,
+                                d=self.comms.droppingDepth,
                                 blocking=True)
-
-        for i in range(10):
+        for i in range(5):
             self.comms.drop()
             rospy.sleep(rospy.Duration(0.3))
+
+        self.comms.sendMovement(h=self.comms.inputHeading,
+                                d=self.comms.defaultDepth,
+                                blocking=True)
         self.comms.taskComplete()
 
         return 'completed'
@@ -212,7 +220,7 @@ class Drop(smach.State):
 
 def main():
     rospy.init_node('drop')
-    myCom = Comms(taskMode='drop')    
+    myCom = Comms(taskMode='drop')
 
     sm = smach.StateMachine(outcomes=['succeeded', 'aborted', 'killed'])
     with sm:
