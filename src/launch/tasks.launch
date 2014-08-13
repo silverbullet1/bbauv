@@ -1,0 +1,22 @@
+<launch>
+  <node name="lane" pkg="vision" type="run.py" args="lane_marker.states _alone:=False" respawn="true">
+  </node>
+  <node name="lane_acoustic" pkg="vision" type="run.py" args="lane_marker.acousticStates _alone:=False" respawn="true">
+  </node>
+  <node name="bins" pkg="vision" type="run.py" args="bins.states _alone:=False" respawn="false">
+  </node>
+  <node name="pickup" pkg="vision" type="run.py" args="pickup.states _alone:=False" respawn="true">
+  </node>
+  <node name="drop" pkg="vision" type="run.py" args="pickup.dropStates _alone:=False" respawn="true">
+  </node>
+  <node name="round" pkg="vision" type="run.py" args="round.stateN _alone:=False _test:=False" respawn="false">
+  </node>
+  <node name="acPingu" pkg="acoustic" type="acousticStream.py" respawn="true">
+  </node>
+  <node name="acoustics" pkg="acoustic" type="acousticState.py" args="_alone:=False" respawn="true">
+  </node>
+  <node name="rgb_buoy_node" pkg="vision" type="run.py" args="rgb_buoy.states _alone:=False" respawn="false">
+  </node>
+  <node name="torpedo_lynnette_awesomeness" pkg="vision" type="run.py" args="torpedo.states _alone:=False" respawn="false">
+  </node>
+</launch>

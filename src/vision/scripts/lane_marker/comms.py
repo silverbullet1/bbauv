@@ -23,12 +23,14 @@ class Comms(GenericComms):
         self.isAcoustic = isAcoustic
 
         if self.isAcoustic:
+            self.visionFilter.isAcoustic = True
             self.detectingBox = True
             self.defaultDepth = 0.2
             self.laneSearchDepth = 0.2
         else:
+            self.visionFilter.isAcoustic = False
             self.detectingBox = False
-            self.defaultDepth = 0.6
+            self.defaultDepth = 0.2
 
         if not self.isAlone:
             if self.isAcoustic:
@@ -67,6 +69,10 @@ class Comms(GenericComms):
         rospy.loginfo("Receive dynamic reconfigure request")
         self.params = {'hsvLoThresh1' : (config.loH, config.loS, config.loV),
                        'hsvHiThresh1' : (config.hiH, config.hiS, config.hiV),
+                       'hsvLoThresh2' : (config.loH2, config.loS2, config.loV2),
+                       'hsvHiThresh2' : (config.hiH2, config.hiS2, config.hiV2),
+                       'hsvLoThresh3' : (config.loH3, config.loS3, config.loV3),
+                       'hsvHiThresh3' : (config.hiH3, config.hiS3, config.hiV3),
                        'minContourArea' : config.minArea,
                        'yellowLoThresh': (config.yellowLoH,
                                           config.yellowLoS,

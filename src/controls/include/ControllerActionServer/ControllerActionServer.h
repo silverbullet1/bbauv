@@ -15,7 +15,7 @@
 class ControllerActionServer {
 public:
 	ControllerActionServer(std::string name);
-	void updateState(float forward,float sidemove,float heading,float depth);
+	void updateState(float forward,float sidemove,float forward_vel, float sidemove_vel,float heading,float depth);
 	void setDispMode(bool isVelSide, bool isVelFwd);
 	void setNavigation(bool nav);
 	void executeCB(const bbauv_msgs::ControllerGoalConstPtr &goal);
@@ -33,17 +33,23 @@ private:
 	float _sidemove_input;
 	float _heading_input;
 	float _depth_input;
+	float _forward_vel_input;
+	float _sidemove_vel_input;
 	float _forward_setpoint;
 	float _sidemove_setpoint;
 	float _heading_setpoint;
 	float _depth_setpoint;
 	float _inNavigation;
-	float _inForward_vel;
-	float _inSidemove_vel;
 	float MIN_FORWARD;
 	float MIN_SIDEMOVE;
 	float MIN_HEADING;
+	float MIN_FORWARD_VEL;
+	float MIN_SIDEMOVE_VEL;
 	float MIN_DEPTH;
+	bool  isFwdPos;
+	bool  isFwdVel;
+	bool  isSidePos;
+	bool  isSideVel;
 
 protected:
 

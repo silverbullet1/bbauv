@@ -24,12 +24,16 @@ class PickupVision:
 
     yellowLoThresh = (40, 0, 0)
     yellowHiThresh = (80, 255, 255)
+    yellowLoThresh2 = (40, 0, 0)
+    yellowHiThresh2 = (80, 255, 255)
+    yellowLoThresh3 = (71, 170, 122)
+    yellowHiThresh3 = (82, 255, 164)
 
     minContourArea = 5000
     maxContourArea = 50000
     minSiteArea = 10000
 
-    minBoxArea = 3000
+    minBoxArea = 700
 
     def __init__(self, comms=None, debugMode=True):
         self.comms = comms
@@ -44,6 +48,8 @@ class PickupVision:
         self.redHiThresh2 = self.comms.params['redHiThresh2']
         self.yellowLoThresh = self.comms.params['yellowLoThresh']
         self.yellowHiThresh = self.comms.params['yellowHiThresh']
+        self.yellowLoThresh2 = self.comms.params['yellowLoThresh2']
+        self.yellowHiThresh2 = self.comms.params['yellowHiThresh2']
 
         self.minSiteArea = self.comms.params['minSiteArea']
         self.minContourArea = self.comms.params['minContourArea']
@@ -51,13 +57,25 @@ class PickupVision:
 
     def morphology(self, img):
         # Closing up gaps and remove noise with morphological ops
-        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
-        openEl = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
         img = cv2.erode(img, erodeEl)
         img = cv2.dilate(img, dilateEl)
-        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, openEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=5)
+
+        return img
+
+    def morphologyBox(self, img):
+        # Closing up gaps and remove noise with morphological ops
+        erodeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        dilateEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        closeEl = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+        img = cv2.erode(img, erodeEl)
+        img = cv2.dilate(img, dilateEl)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, closeEl, iterations=3)
 
         return img
 
@@ -85,6 +103,11 @@ class PickupVision:
 
         return img
 
+    def findCenter(self, contour):
+        moment = cv2.moments(contour, False)
+        return (moment['m10']/moment['m00'],
+                moment['m01']/moment['m00'])
+
     def findContourAndBound(self, img, bounded=True, upperbounded=False,
                             bound=0, upperbound=75000):
         contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL,
@@ -101,7 +124,7 @@ class PickupVision:
                                             upperbounded=True,
                                             bound=self.minContourArea,
                                             upperbound=self.maxContourArea)
-        sorted(contours, key=cv2.contourArea, reverse=True)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         for contour in contours:
             # Find the center of each contour
             rect = cv2.minAreaRect(contour)
@@ -170,9 +193,17 @@ class PickupVision:
                     startpt = (int(startpt[0]), int(startpt[1]))
                     cv2.line(outImg, startpt, endpt, (255, 0, 0), 2)
         else:
-            binImg = cv2.inRange(hsvImg,
-                                 self.yellowLoThresh, self.yellowHiThresh)
-            binImg = self.morphology(binImg)
+            if self.comms.visionMode == self.SITE:
+                binImg = cv2.inRange(hsvImg,
+                                     self.yellowLoThresh2, self.yellowHiThresh2)
+                binImg = binImg | cv2.inRange(hsvImg,
+                                              self.yellowLoThresh3,
+                                              self.yellowHiThresh3)
+                binImg = self.morphology(binImg)
+            elif self.comms.visionMode == self.BOX:
+                binImg = cv2.inRange(hsvImg,
+                                     self.yellowLoThresh, self.yellowHiThresh)
+                binImg = self.morphologyBox(binImg)
 
             if self.debugMode:
                 outImg = cv2.cvtColor(binImg.copy(), cv2.COLOR_GRAY2BGR)
@@ -184,33 +215,36 @@ class PickupVision:
                 contours = self.findContourAndBound(binImg.copy(), bounded=True,
                                                     bound=self.minBoxArea)
             if len(contours) > 0:
-                largestContour = max(contours, key=cv2.contourArea)
-                rect = cv2.minAreaRect(largestContour)
-                centroid = rect[0]
-                site['centroid'] = centroid
-                box['centroid'] = centroid
-
-                # Find the orientation of each contour
-                points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(largestContour)))
-                edge1 = points[1] - points[0]
-                edge2 = points[2] - points[1]
-
-                if cv2.norm(edge1) > cv2.norm(edge2):
-                    angle = math.degrees(math.atan2(edge1[1], edge1[0]))
+                if self.comms.visionMode == PickupVision.BOX:
+                    centroids = map(lambda c: self.findCenter(c), contours)
+                    meanX = np.mean(map(lambda c: c[0], centroids))
+                    meanY = np.mean(map(lambda c: c[1], centroids))
+                    centroid = (meanX, meanY)
+                    box['centroid'] = centroid
                 else:
-                    angle = math.degrees(math.atan2(edge2[1], edge2[0]))
+                    largestContour = max(contours, key=cv2.contourArea)
+                    rect = cv2.minAreaRect(largestContour)
+                    centroid = rect[0]
+                    site['centroid'] = centroid
+                    # Find the orientation of each contour
+                    #points = np.int32(cv2.cv.BoxPoints(cv2.minAreaRect(largestContour)))
+                    #edge1 = points[1] - points[0]
+                    #edge2 = points[2] - points[1]
 
-                if 90 <  Utils.normAngle(angle) < 270:
-                    angle = Utils.invertAngle(angle)
+                    #if cv2.norm(edge1) > cv2.norm(edge2):
+                    #    angle = math.degrees(math.atan2(edge1[1], edge1[0]))
+                    #else:
+                    #    angle = math.degrees(math.atan2(edge2[1], edge2[0]))
 
-                site['angle'] = angle
-                box['angle'] = angle
+                    #if 90 <  Utils.normAngle(angle) < 270:
+                    #    angle = Utils.invertAngle(angle)
+                    #site['angle'] = angle
 
-                if self.debugMode:
-                    points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
-                    Vision.drawRect(outImg, points)
-                    cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
-                               5, (0, 0, 255))
+                    if self.debugMode:
+                        points = cv2.cv.BoxPoints(cv2.minAreaRect(largestContour))
+                        Vision.drawRect(outImg, points)
+                cv2.circle(outImg, (int(centroid[0]), int(centroid[1])),
+                           7, (0, 0, 255), -1)
 
         if self.debugMode:
             # Draw the aiming rectangle

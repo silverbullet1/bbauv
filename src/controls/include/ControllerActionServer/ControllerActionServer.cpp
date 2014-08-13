@@ -25,6 +25,8 @@ as_(nh_, name, boost::bind(&ControllerActionServer::executeCB, this, _1), false)
 
 	MIN_FORWARD = 0.05;
 	MIN_SIDEMOVE = 0.05;
+	MIN_FORWARD_VEL = 0.01;
+	MIN_SIDEMOVE_VEL = 0.01;
 	MIN_HEADING = 1;
 	MIN_DEPTH = 0.02;
 	as_.start();
@@ -40,19 +42,14 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	double yaw_error = 0;
 	goal_.depth_setpoint =  goal->depth_setpoint;
 	goal_.heading_setpoint =  goal->heading_setpoint;
-	if(_inNavigation)
-	{
-	  ROS_INFO("Navigation goal received!");
-	  goal_.forward_setpoint =  goal->forward_setpoint;
-	  goal_.sidemove_setpoint =  goal->sidemove_setpoint;
-	} else
-	{
-	  goal_.forward_setpoint =  goal->forward_setpoint + _forward_input;
-	  goal_.sidemove_setpoint =  goal->sidemove_setpoint + _sidemove_input;
-	}
 
-	ROS_INFO("Action Server Goal received - f: %3.2f,f_g: %3.2f , s: %3.2f , s_g: %3.2f , h: %3.2f, d: %3.3f" , goal_.forward_setpoint, goal->forward_setpoint,
-			goal_.sidemove_setpoint,goal->sidemove_setpoint, goal_.heading_setpoint,goal_.depth_setpoint);
+        goal_.forward_setpoint =  goal->forward_setpoint + _forward_input;
+        goal_.sidemove_setpoint =  goal->sidemove_setpoint + _sidemove_input;
+        goal_.forward_vel_setpoint = goal->forward_vel_setpoint;
+        goal_.sidemove_vel_setpoint = goal->sidemove_vel_setpoint;
+
+	ROS_INFO("Action Server Goal received - f: %3.2f,f_g: %3.2f , s: %3.2f , s_g: %3.2f ,vf_g: %3.2f, vs_g: %3.2f, h: %3.2f, d: %3.3f" , goal_.forward_setpoint, goal->forward_setpoint,
+			goal_.sidemove_setpoint,goal->sidemove_setpoint,goal->forward_vel_setpoint,goal->sidemove_vel_setpoint,goal_.heading_setpoint,goal_.depth_setpoint);
 	while(ros::ok() && success && (!isForwardDone || !isDepthDone || !isHeadingDone || !isSidemoveDone))
 	{
 		// publish info to the console for the user
@@ -73,16 +70,28 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 			success = false;
 		}
 
-		if(fabs(goal_.forward_setpoint - _forward_input) < MIN_FORWARD)
+		if(fabs(goal_.forward_setpoint - _forward_input) < MIN_FORWARD && isFwdPos)
 		{
 			isForwardDone = true;
-			ROS_DEBUG("isForwardDone");
+			ROS_DEBUG("isForward Pos Done");
+		}
+
+		if(fabs(goal_.forward_vel_setpoint - _forward_vel_input) <MIN_FORWARD_VEL && isFwdVel)
+		{
+		        isForwardDone = true;
+		        ROS_INFO("isForwardVel Pos Done");
 		}
 
 		if(fabs(goal_.sidemove_setpoint - _sidemove_input) < MIN_SIDEMOVE)
 		{
 			isSidemoveDone = true;
 			ROS_DEBUG("isSidemoveDone");
+		}
+
+		if(fabs(goal_.sidemove_setpoint - _sidemove_input) < MIN_SIDEMOVE)
+                {
+		        isSidemoveDone = true;
+		        ROS_DEBUG("isSidemoveDone");
 		}
 
 		if(fabs(goal_.depth_setpoint - _depth_input) < MIN_DEPTH)
@@ -98,7 +107,8 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 			ROS_DEBUG("isHeadingDone");
 		}
 		//Update Feedback
-		feedback_.forward_error = fabs(goal_.forward_setpoint - _forward_input);
+		if(isFwdPos) feedback_.forward_error = fabs(goal_.forward_setpoint - _forward_input);
+		else if(isFwdVel) feedback_.forward_error = fabs(goal_.forward_vel_setpoint - _forward_vel_input);
 		feedback_.depth_error =fabs(goal_.depth_setpoint - _depth_input) ;
 		feedback_.sidemove_error = fabs(goal_.sidemove_setpoint - _sidemove_input) ;
 		feedback_.heading_error = yaw_error;
@@ -125,12 +135,14 @@ void ControllerActionServer::executeCB(const bbauv_msgs::ControllerGoalConstPtr 
 	    }
 }
 
-void ControllerActionServer::updateState(float forward,float sidemove,float heading,float depth)
+void ControllerActionServer::updateState(float forward,float sidemove,float forward_vel, float sidemove_vel,float heading,float depth)
 {
 	_forward_input = forward;
 	_sidemove_input = sidemove;
 	_heading_input =  heading;
 	_depth_input = depth;
+	_forward_vel_input = forward_vel;
+	_sidemove_vel_input = sidemove_vel;
 }
 
 double ControllerActionServer::wrapAngle360(double setpoint, double heading)
@@ -182,11 +194,35 @@ void ControllerActionServer::setNavigation(bool nav)
 
 void ControllerActionServer::setDispMode(bool isVelSide,bool isVelFwd)
 {
-  _inSidemove_vel = isVelSide;
-  _inForward_vel = isVelFwd;
+  if(isVelSide)
+  {
+    isSideVel = true;
+    isSidePos = false;
+  }
+  else
+  {
+    isSidePos = true;
+    isSideVel = false;
+  }
+
+  if(isVelFwd)
+  {
+    isFwdVel = true;
+    isFwdPos = false;
+  }
+  else
+  {
+    isFwdVel = false;
+    isFwdPos = true;
+
+  }
 }
 
 ControllerActionServer::~ControllerActionServer() {
   _inNavigation = false;
+  isFwdPos = false;
+  isFwdVel = false;
+  isSidePos = false;
+  isSideVel = false;
 }
 

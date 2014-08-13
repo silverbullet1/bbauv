@@ -24,6 +24,15 @@ class Vision():
             cv2.line(img, pt1, pt2, color, 2)
 
     @staticmethod
+    def drawPoly(img, pts, color=(0, 0, 255)):
+        points = np.int32(map(lambda p: p[0], pts))
+        numPoints = len(pts)
+        for i in range(numPoints):
+            pt1 = (points[i][0], points[i][1])
+            pt2 = (points[(i+1) % numPoints][0], points[(i+1) % numPoints][1])
+            cv2.line(img, pt1, pt2, color, 2)
+
+    @staticmethod
     def shapeEnum2Str(shapeEnum):
         if shapeEnum is None:
             return 'UNKNOWN'
@@ -61,7 +70,7 @@ class Vision():
     def isRectangle(contour, epsilon=15):
         approx = cv2.approxPolyDP(contour, epsilon, True)
         if len(approx) != 4:
-            return False
+            return False, approx
 
         vtc = len(approx)
         # Find the cosine for angles of the polygon
@@ -79,8 +88,8 @@ class Vision():
 
         if minAngle >= Vision._angleBounds['rect'][0] and \
            maxAngle <= Vision._angleBounds['rect'][1]:
-            return True
-        return False
+            return True, approx
+        return False, approx
 
     @staticmethod
     def shadesOfGray(img):
