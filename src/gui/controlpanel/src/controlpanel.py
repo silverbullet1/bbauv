@@ -1254,14 +1254,25 @@ class AUV_gui(QMainWindow):
             cvRGBImg_front = cv2.cvtColor(cvBGRImg_front, cv2.COLOR_BGR2RGB)
 
             midX = 640/2.0 - 50.0
-            midY = 480/2.0 - 50.0
+            midY = 480/2.0 - 60.0
             maxDeltaX = 640*0.05
             maxDeltaY = 480*0.05
             self.aimingCentroid = (midX, midY)
             cv2.rectangle(cvRGBImg_front,
+<<<<<<< Updated upstream
                           (int(midX-maxDeltaX), int(midY-maxDeltaY)),
                           (int(midX+maxDeltaX), int(midY+maxDeltaY)),
                           (0, 255, 255), 2)
+=======
+                          (int(midX-13.0-maxDeltaX), int(midY+10.0-maxDeltaY)),
+                          (int(midX-13.0+maxDeltaX), int(midY+10.0+maxDeltaY)),
+                          (0, 255, 255), 2)  
+>>>>>>> Stashed changes
+
+            cv2.rectangle(cvRGBImg_front,
+                          (int(midX-10.0-maxDeltaX), int(midY+25.0-maxDeltaY)),
+                          (int(midX-10.0+maxDeltaX), int(midY+25.0+maxDeltaY)),
+                          (255, 255, 255), 2)  
 
             cv2.circle(cvRGBImg_front, (int(self.aimingCentroid[0]), int(self.aimingCentroid[1])),
                 97, (255, 255, 0), 2)

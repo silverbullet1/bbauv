@@ -2,9 +2,9 @@
 
 '''
 Communication b/w ROS class and submodules
+RoboSub Day 1
 '''
 
-import rospy
 import time
 
 from front_commons.frontComms import FrontComms
@@ -42,11 +42,11 @@ class Comms(FrontComms):
     
     def __init__(self):
         FrontComms.__init__(self, RgbBuoyVision(comms=self))
-        # self.defaultDepth = 2.00
-        self.defaultDepth = 0.10    # For US house
+        self.defaultDepth = 1.50
+        # self.defaultDepth = 0.50    # For US house
         self.depthFromMission = self.defaultDepth
         
-        self.dynServer = DynServer(Config, self.reconfigure)
+         self.dynServer = DynServer(Config, self.reconfigure)
 
         self.regCompass()
         

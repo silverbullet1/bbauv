@@ -21,17 +21,14 @@ from utils.utils import Utils
 
 
 class SonarFilter():
-    numFrames = 0
     requiredFrames = 5
     bridge = CvBridge()
     targetXAxisBound = 30
     threshold = 200
     threshBound = 100
-    threshOffset = 155
     lenLowerBound = 20
     lenUpperBound = 130
     widthLowerBound = 5
-    widthUpperBound = 30
     midPoint = (-1, -1)  
     pixelRange = -1
     pixelBearing = -1

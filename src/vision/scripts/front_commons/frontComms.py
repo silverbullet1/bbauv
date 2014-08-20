@@ -77,6 +77,10 @@ class FrontComms:
 
     def registerMission(self):
         rospy.loginfo("Register with mission")
+        self.depthSub = rospy.Subscriber("/depth", depth, self.depthCallback)
+        self.compassSub = rospy.Subscriber(config.compassTopic,
+                                           compass_data,
+                                           self.compassCallback)
         self.camSub = rospy.Subscriber(self.imageTopic, Image, self.camCallback)
         self.outPub = rospy.Publisher(config.visionFilterTopic, Image)     
         rospy.loginfo("Registered finish")          
@@ -124,6 +128,7 @@ class FrontComms:
 
     def depthCallback(self, data):
         self.depth = data.depth
+        # rospy.loginfo("Depth callback {}".format(self.depth))
             
     def compassCallback(self, data):
         if not self.gotHeading:
@@ -132,10 +137,10 @@ class FrontComms:
             rospy.loginfo("Heading: {}".format(self.curHeading))
     
     def userQuit(self, signal, frame):
-        if self.isAlone:
-            self.unregister()
-        else:
-            self.unregisterMission()
+        # if self.isAlone:
+        #     self.unregister()
+        # else:
+        #     self.unregisterMission()
         self.isAborted = True
         self.isKilled = True
         rospy.signal_shutdown("Task manually killed")

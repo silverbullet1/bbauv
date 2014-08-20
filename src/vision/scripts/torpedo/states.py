@@ -84,6 +84,7 @@ class FollowSonar(smach.State):
             return 'killed'
         if self.comms.isAborted:
             return 'aborted'
+<<<<<<< Updated upstream
 
         if (time.time()-start) > self.timeout:
             self.comms.isAborted = True
@@ -92,6 +93,16 @@ class FollowSonar(smach.State):
         while self.comms.sonarRange is None and self.comms.sonarBearing is None:
             rospy.sleep(rospy.Duration(0.3))
 
+=======
+
+        if (time.time()-start) > self.timeout:
+            self.comms.isAborted = True
+            return 'aborted'
+
+        while self.comms.sonarRange is None and self.comms.sonarBearing is None:
+            rospy.sleep(rospy.Duration(0.3))
+
+>>>>>>> Stashed changes
         rospy.loginfo("Sonar bearing {}".format(self.comms.sonarBearing))
         rospy.loginfo("Sonar Dist {}".format(self.comms.sonarRange))
         if self.comms.sonarRange > self.sonarDist or \
@@ -136,17 +147,20 @@ class SearchCircles(smach.State):
         # self.comms.isMovingState = False
         self.comms.isMovingState = True
 
-        start = time.time()
         curTime = time.time()
         
         while not self.comms.foundCircles: 
             if self.comms.isKilled:
                 return 'killed'
-            if self.comms.isAborted or (time.time() - start) > self.timeout:
+            if self.comms.isAborted:
                 self.comms.isAborted = True
                 return 'aborted' 
 
+<<<<<<< Updated upstream
             if not self.comms.foundCircles or self.comms.foundSomething:
+=======
+            if not self.comms.foundCircles or not self.comms.foundSomething: 
+>>>>>>> Stashed changes
                 self.lostCount += 1
             if self.lostCount > 90:
                 self.comms.abortMission()
@@ -427,7 +441,11 @@ class Centering (smach.State):
                 self.comms.defaultDepth = self.comms.depth + self.comms.deltaY*self.deltaYMult
             if self.comms.defaultDepth < 0.2:
                 # self.comms.defaultDepth = self.comms.depthFromMission
+<<<<<<< Updated upstream
                 self.comms.defaultDepth = 0.2
+=======
+                self.comms.defaultDepth = 2.0
+>>>>>>> Stashed changes
             
             sidemove_setpoint = 0.0
             if abs(self.comms.deltaX) > 0.040:

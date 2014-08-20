@@ -98,6 +98,9 @@ add_service_files(
 
   #navigate2d
   navigate2d.srv
+
+  #sonar
+  sonar_pixel.srv
 )
 
 ## Generate actions in the 'action' folder

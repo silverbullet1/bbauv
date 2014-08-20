@@ -13,6 +13,6 @@ botCamLocalTopic = '/bottomcam/camera/image_rect_color'
 frontCamLocalTopic = ''
 
 compassTopic = '/euler'
-visionFilterTopic = '/Vision/image_filter'
+visionFilterTopic = '/Vision/image_filter_lynn'
 
 screen = { 'width': 640, 'height': 480 }

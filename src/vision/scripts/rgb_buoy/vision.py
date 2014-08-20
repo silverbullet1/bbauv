@@ -1,6 +1,7 @@
 #/usr/bin/env/python
 
-''' With white balance and others '''
+''' With white balance and others 
+RoboSub Day 3-1'''
 
 import math
 import numpy as np
@@ -17,13 +18,13 @@ class RgbBuoyVision:
     # Vision parameters
     
     redParams = {
-                'lo1': (108, 0, 0), 'hi1': (184, 255, 255),
-                 'lo2': (0, 0, 0), 'hi2': (23, 255, 255),
-                 'lo3': (0,34,0), 'hi3':(22,255,255),           # US House 1 morning
-                # 'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Queenstown values
-                 'lo4': (118, 0, 0), 'hi4': (180, 255, 255), # Bottom dark colours (US)
+                # 'lo3': (0, 204, 102), 'hi3': (22, 255, 255),                  #Robosub comp course 5:45pm
+                # 'lo3': (0, 204, 0), 'hi3': (8, 255, 255),       # Queenstown values 
+                # 'lo3': (0, 204, 107), 'hi3': (22, 255, 255),       # RoboSub Day 1 - Sunny 
+                'lo3': (0, 130, 97), 'hi3': (22, 255, 255), 
+                # 'lo4': (149, 134, 0), 'hi4': (255, 255, 242), # Bottom dark colours
                  'dilate': (9, 9), 'erode': (5,5), 'open': (5,5)}
-# 
+
     greenParams = {'lo': (24, 30, 50), 'hi': (111, 255, 255),
                    'dilate': (7,7), 'erode': (5,5), 'open': (5,5)}
 
@@ -32,13 +33,13 @@ class RgbBuoyVision:
     curCol = None
 
     # Hough circle parameters
-    circleParams = {'minRadius':15, 'maxRadius': 0 }
-    houghParams = (74, 12)
+    circleParams = {'minRadius':13, 'maxRadius': 0 }
+    houghParams = (74, 11)
     allCentroidList = []
     allAreaList = []
     allRadiusList = []
 
-    minContourArea = 1000
+    minContourArea = 250
     
     # Keep track of the previous centroids for matching 
     previousCentroid = (-1, -1)
@@ -54,21 +55,19 @@ class RgbBuoyVision:
 
         # Preprocessing
         img = cv2.resize(img, (640, 480))
-        
+
         # White balance
-        # img = self.whiteBal(img)
-        img = self.enhance(img)
+        img = self.whiteBal(img)
         hsvImg = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hsvImg = np.array(hsvImg, dtype=np.uint8)
 
         # Blur image
-        # gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=9)
-        # sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
-        # enhancedImg = cv2.medianBlur(sum, 3)
+        gauss = cv2.GaussianBlur(hsvImg, ksize=(5,5), sigmaX=10)
+        sum = cv2.addWeighted(hsvImg, 1.5, gauss, -0.6, 0)
+        enhancedImg = cv2.medianBlur(sum, 3)
                 
         # Find red image 
-        # redImg = self.threshold(enhancedImg, "RED")
-        redImg = self.threshold(hsvImg, "RED")
+        redImg = self.threshold(enhancedImg, "RED")
         outImg = redImg
 
         return outImg
@@ -81,28 +80,22 @@ class RgbBuoyVision:
         #params = self.getParams(color)
         
         # Perform thresholding
+        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
         mask = cv2.inRange(img, self.redParams['lo3'], self.redParams['hi3'])
-        kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kern)
-        thresImg1 = cv2.dilate(mask, kern, iterations=2)
+        kern2 = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        threshImg = cv2.dilate(mask, kern2, iterations=2)
         
-        mask2 = cv2.inRange(img, self.redParams['lo4'], self.redParams['hi4'])
-        thresImg2 = cv2.dilate(mask2, kern, iterations=2)
-
-        binImg = cv2.bitwise_or(thresImg1, thresImg2)
-
-        # binImg = thresImg1
-
-        # return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+#         return cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
         
+        binImg = threshImg
         # Find contours
         scratchImg = binImg.copy()
         scratchImgCol = cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
         contours, hierachy = cv2.findContours(scratchImg, cv2.RETR_EXTERNAL,
                                               cv2.CHAIN_APPROX_NONE)
         contours = filter(lambda c: cv2.contourArea(c) > self.minContourArea, contours)
-        sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour
+        contours = sorted(contours, key=cv2.contourArea, reverse=True) # Sort by largest contour
         
         # If centering, just find the center of largest contour
         if self.comms.isCentering:
@@ -155,14 +148,9 @@ class RgbBuoyVision:
                 
                 self.previousCentroid = self.comms.centroidToBump
                 self.previousArea = self.comms.rectArea
-
-                self.comms.grad = self.getGradient()
             else:
                 self.comms.centroidToBump = self.previousCentroid
                 self.comms.rectArea = self.previousArea
-
-        cv2.putText(scratchImgCol, "Ang: " + str(self.comms.grad), (30, 100),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (204,204,204))
 
         # Draw new centroid
         cv2.circle(scratchImgCol, self.comms.centroidToBump, 3, (0, 255, 255), 2)
@@ -186,19 +174,6 @@ class RgbBuoyVision:
         scratchImgCol = vision.drawCenterRect(scratchImgCol)
 
         return scratchImgCol
-
-    def enhance(self, img):
-        blurImg = cv2.GaussianBlur(img, ksize=(0,0), sigmaX=10)
-        enhancedImg = cv2.addWeighted(img, 1.5, blurImg, -0.6, 0)
-        return enhancedImg
-
-    def getGradient(self):
-        angle = self.radToDeg(math.atan2(self.comms.centroidToBump[1]-vision.screen['height'],
-                self.comms.centroidToBump[0]-vision.screen['width']))
-        return angle*(-1.0) 
-
-    def radToDeg(self, angle):
-        return angle*180.0/math.pi
 
     def whiteBal(self, img):
         channels = cv2.split(img)
@@ -250,7 +225,6 @@ class RgbBuoyVision:
         self.redParams['hi1'] = self.comms.params['hsvHiThres']
         self.houghParams = self.comms.params['HoughParams']
         self.minContourArea = self.comms.params['minContourArea']
-        self.circleParams['minRadius'] = self.comms.params['minRadius']
     
 def main():
     cv2.namedWindow("RGB")

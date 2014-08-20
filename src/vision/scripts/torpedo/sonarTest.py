@@ -48,7 +48,10 @@ class Sonar():
         lowest = cv2.minMaxLoc(binImg)[0]
         self.threshold = mean*4.5
 
-        mask = cv2.threshold(binImg, self.threshold, 255, cv2.THRESH_TOZERO)[1]
+        binImg = cv2.GaussianBlur(binImg, ksize=(5,5), sigmaX=10)
+        return cv2.cvtColor(binImg, cv2.COLOR_GRAY2BGR)
+
+        # mask = cv2.threshold(binImg, self.threshold, 255, cv2.THRESH_TOZERO)[1]
 
         # Convolution kernel
         # kernel = np.array([[1,-2,1], [2,-4,2],[1,-2,1]])

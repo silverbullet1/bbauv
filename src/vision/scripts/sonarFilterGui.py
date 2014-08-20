@@ -13,8 +13,6 @@ class SonarFilter():
     params = {'lenHi': 1000, 'lenLo': 0,
             'widthHi': 1000, 'widthLo': 0,
             'thres': 160, 'dyMult': 80,
-            'bearing': 0, 'dist': 0, 
-            'thresOffset': 65, 'threshBound': 210
             }
     screen = {'height': 480, 'width': 640}
     imgOffset = 60

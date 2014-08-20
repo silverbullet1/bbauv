@@ -2,6 +2,7 @@
 
 '''
 Buoy states
+RoboSub Day 1
 '''
 
 import roslib; roslib.load_manifest('vision')
@@ -76,12 +77,16 @@ class Search(smach.State):
 
 # I'm just moving forward
 class bangBuoy(smach.State):
-    deltaXMult = 4.0
+    # deltaXMult = 4.0
+    deltaXMult = 3.80    # For small pool
+    # deltaXMult = 2.0       # For US house 2
     # deltaYMult = 1.3
-    deltaYMult = 0.8
-    area = 8800
+    deltaYMult = 1.7    # For small pool
+    # deltaYMult = 0.8    # For US House
+    area = 2800
     count = 0
     forward_setpoint = 0.50
+    forward_setpoint = 0.35     # For small pool
 
     gradMult = 2.0
 
@@ -115,8 +120,12 @@ class bangBuoy(smach.State):
   
         if self.comms.rectArea < 5000:
             self.forward_setpoint = 1.2
+            # self.forward_setpoint = 1.0     # For small pool
+            # self.forward_setpoint = 0.8
         else:
-            self.forward_setpoint = 0.5
+            self.forward_setpoint = 0.6
+            # self.forward_setpoint = 0.35     # For small pool
+            # self.forward_setpoint = 0.25
 
         # Move forward & correct heading 
         self.comms.sendMovement(forward=self.forward_setpoint, sidemove=self.comms.deltaX*self.deltaXMult,
@@ -128,14 +137,17 @@ class bangBuoy(smach.State):
 # Precise movements when near buoy 
 class Centering (smach.State):
     deltaXMult = 2.3
-    # deltaYMult = 0.8
-    deltaYMult = 0.5
+     deltaXMult = 2.0    # For small US pool
+    #deltaYMult = 1.0
     depthCount = 0
     count = 0
     depthCorrected = False 
+    forward_setpoint = 0.13
+    # forward_setpoint = 0.10  # US House 2
     
-    bigArea = 12000
-    changeMultArea = 95000
+    # bigArea = 12000
+    bigArea = 11500     # US small pool
+    changeMultArea = 9000
     
     def __init__(self, comms):
         smach.State.__init__(self, outcomes=['centering', 'centering_complete', 'aborted', 'killed'])
@@ -151,21 +163,23 @@ class Centering (smach.State):
         
         if self.comms.rectArea > self.changeMultArea:
             self.deltaXMult = 1.6
-            # self.deltaYMult = 0.5
-            self.deltaYMult = 0.3
+            # self.deltaYMult = 0.4
+            # self.deltaYMult = 0.3
+            # self.forward_setpoint=0.03
 
         if self.comms.rectArea > self.bigArea:
             if self.comms.deltaX < 0.06 and self.comms.deltaY < 0.06:
                 self.count += 1
+                self.forward_setpoint = 0.0
 
             if self.count > 3:
-                self.comms.sendMovement(forward=2.0, timeout=4, blocking=False)   # Shoot forward
+                self.comms.sendMovement(forward=1.5, timeout=3, blocking=False)   # Shoot forward
                 # self.comms.sendMovement(forward=0.5, timeout=4, blocking=False)   # Shoot forward for US house pool
-                
+
                 rospy.loginfo("forward done")
                 
-                # self.comms.sendMovement(forward=-0.5, depth=self.comms.defaultDepth-0.5,
-                #             timeout=3, blocking=False)  # Reverse a bit
+                self.comms.sendMovement(forward=-0.5, depth=self.comms.defaultDepth,
+                            timeout=3, blocking=False)  # Reverse a bit
                 self.comms.isAborted = True
                 self.comms.isKilled = True 
 
@@ -179,7 +193,7 @@ class Centering (smach.State):
             if self.comms.defaultDepth < 0.1:
                 self.comms.defaultDepth = self.comms.depthFromMission
 
-        self.comms.sendMovement(forward=0.25,
+        self.comms.sendMovement(forward=self.forward_setpoint,
                                 sidemove=self.comms.deltaX*self.deltaXMult, 
                                 depth=self.comms.defaultDepth, 
                                 timeout=0.4, blocking=False)
@@ -222,4 +236,9 @@ def main():
     introServer = smach_ros.IntrospectionServer('mission_server', sm, '/MISSION/RGB_BUOY')
     introServer.start()
     
-    sm.execute()
+    try:
+        sm.execute()
+    except Exception as e:
+        rospy.loginfo(str(e))
+    finally:
+        rospy.signal_shutdown("Bye")
